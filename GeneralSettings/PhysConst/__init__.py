@@ -6,7 +6,9 @@ ValidSys = ('cgs','SI')
 
 
 # default Unit System set to be cgs
-CurUnitSys = cgs
+# note that the CurUnitSys variable is set to be a list such that users can modify it later.
+# So to reference the Unit object, one needs actually to use CurUnitSys[0]. 
+CurUnitSys = [cgs]
 
 
 
@@ -17,12 +19,11 @@ def set_unit(us):
     us := string contains the name of a valid unit system 
     """
     if us == 'cgs' or us == 'CGS':
-        CurUnitSys = cgs
+        CurUnitSys[0] = cgs
     elif us == 'SI' or us == 'si':
-        print 'unit set to SI'
-        CurUnitSys = SI
-        print CurUnitSys.tell()
+        CurUnitSys[0] = SI
     else:
+        #exception handling may be needed here
         print 'Unit system: "'+str(us)+'" not recognised.\nUnit system not set.'
         valid_systems()
 

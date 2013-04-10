@@ -65,6 +65,7 @@ class Cartesian2D(Grid):
             else:
                 raise GridError("Initializing Grid fails: UpLeft or DownRight not set.")
         except GridError:
+            #save for further upgrades, may handle GridError here
             raise
         except:
             print 'Unexpected error in grid initialization! During reading and comprehensing the arguments.'

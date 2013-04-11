@@ -27,6 +27,17 @@ class UnitSystem:
         this.name = name
         this._ConstDic = dict(**CD)
 
+    def __getitem__(this,cname):
+        """get consts by the name
+        """
+        try:
+            return this._ConstDic[cname]
+        except KeyError:
+            print 'const "{0}" not defined in unit "{1}"'.format(cname,this.name)
+            raise
+        except:
+            raise
+
     def list_const(this):
         """ returns the dictionary contains all the (name,value) pairs of the consts
         """
@@ -96,6 +107,8 @@ cgs = UnitSystem('cgs',
                  m_p = 1.6726e-24,
 # speed of light
                  c = 2.9979e10,
+# energy associated with 1keV in erg
+                 keV = 1.6022e-9
 # permittivity of free space (not used)
 #                eps_0 = 1,
 # permeability of free space (not used)
@@ -116,5 +129,7 @@ SI = UnitSystem('SI',
                 eps_0 = 8.8542e-12,
 # permeability of free space
                 mu_0 = 4e-7 * math.pi,
+# energy associated with 1keV
+                keV = 1.6022e-16
 # more constants can be added later...
                 )

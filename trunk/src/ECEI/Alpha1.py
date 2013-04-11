@@ -83,7 +83,7 @@ def create_interp_Fqz(filename = DefaultFqzTableFile):
     Fqz_imag = InterpolatedUnivariateSpline(z, F_im)
     return (Fqz_real,Fqz_imag)
 
-def get_interp_alpha(Profile , n = 2, Fqzfile = DefaultFqzTableFile):
+def get_alpha_table(Profile , n = 2, Fqzfile = DefaultFqzTableFile):
     """Main function that calculates the alpha coefficients.
 
     Profile: dictionary; contains keys:
@@ -121,6 +121,8 @@ def get_interp_alpha(Profile , n = 2, Fqzfile = DefaultFqzTableFile):
     #electron cyclotron frequency is also on 2D plane,but naturally expands to 3D as B did, is calculated with no relativistic effects
     omega_c = e*B/(m_e*c)
     omega2_c = omega_c**2
+    #the ratio between omega2_p and omega2_c is frequently used
+    omega2_pc_ratio = omega2_p/omega2_c
 
     #z values, which measures the distance from resonance, taken thermal effect into account
     #function of omega, so 3D
@@ -137,27 +139,40 @@ def get_interp_alpha(Profile , n = 2, Fqzfile = DefaultFqzTableFile):
     if(n == 2):        
         #local names a,b are used here, they are the same as in ref.[1] Eq.3.1.18
         #just the real parts of a,b are used
-        a = -0.5*(omega2_p/omega2_c) * (omega2-omega2_c)/(omega2-omega2_c-omega2_p)* F_cplx
+        a = -0.5*(omega2_pc_ratio) * (omega2-omega2_c)/(omega2-omega2_c-omega2_p)* F_cplx
         b = -2*(1- omega2_p/(omega*(omega+omega_c)))*a
         N2_perp_plus = (-(1+b)+((1+b)**2 + 4*a*N2_perp_c)**0.5)/(2*a)
         N_perp_plus_re = np.sqrt(N2_perp_plus).real
         #a_2,b_2 are used in A_n, and defined in Eq. 3.1.20 and 3.1.38
-        a_2 = 0.5*omega2_p/omega2_c *(1+ 3* N2_perp_plus * F_cplx) / (3-(omega2_p/omega2_c)*(1+1.5*N2_perp_plus*F_cplx))
-        b_2 = 1/np.absolute(1+0.5*omega2_p/omega2_c*(1+a_2)**2*F_re)
-
+        a_2 = 0.5*omega2_pc_ratio *(1+ 3* N2_perp_plus * F_cplx) / (3-(omega2_pc_ratio)*(1+1.5*N2_perp_plus*F_cplx))
+        b_2 = 1/np.absolute(1+0.5*omega2_pc_ratio*(1+a_2)**2*F_re)
+        a_2_re = np.absolute(a_2)
         #now calculate A_2 and alpha_2_o, as Eq. 3.1.37 and 3.1.36
         A_2 = N_perp_plus_re * np.absolute(1+a_2)**2 * b_2
         # note that n**(2n-1)/(2**n * n!) = 1 when n=2 and vt/c term disappears
-        alpha_2_o = omega2_p/omega2_c*omega_c/c*(-F_im)
-
+        alpha_2_o = omega2_pc_ratio*omega_c/c*(-F_im)
+        # exponential thermal correction as given in Eq. 3.3.4
+        a_n = omega2_pc_ratio/(n*(n**2-1-omega2_pc_ratio))
+        gamma_2 = 0.75 - 2*a_2_re/(1+a_2_re) + 8./7*(1+1/(1+a_2_re))*N_perp_plus_re**2  
         #finally alpha_2
-        alpha_2 = A_2 * alpha_2_o
+        alpha_2 = A_2 * alpha_2_o *np.exp(gamma_2 * (1- n*omega_c/omega))
+        return alpha_2
     else:
-        #for n!=2 save for later
-        pass
+        #for n >= 3,
+        #N_perp squared is just the cold limit value ,i.e. the N2_perp_c in former case
 
-    #now interpolate the result and return it back.
-    return alpha_2
+        N_perp_plus_re = np.sqrt(N2_perp_c).real
+        #a_n is used in A_n, and defined in Eq. 3.1.14b and 3.1.38
+        a_n = omega2_pc_ratio/(n*(n**2-1-omega2_pc_ratio))
+        #now calculate A_n and alpha_n_o, as Eq. 3.1.37 and 3.1.36
+        A_n = N_perp_plus_re * (1+a_n)**2 
+        # note that gamma here is the special gamma function, which essentially gives n!
+        alpha_n_o = n**(2n-1)/( 2**n*gamma(n+1) ) *omega2_pc_ratio * (m_e/(Te*c**2))**(n-2) *omega_c/c*(-F_im)
+        # exponential thermal correction as given in Eq. 3.3.4
+        gamma_n = 0.75 - 2*a_n/(1+a_n) + 8./7*(1+1/(1+a_n))*N_perp_plus_re**2  
+        #finally alpha_n
+        alpha_n = A_n * alpha_n_o *np.exp(gamma_n * (1- n*omega_c/omega))    #now interpolate the result and return it back.
+        return alpha_n
             
         
 

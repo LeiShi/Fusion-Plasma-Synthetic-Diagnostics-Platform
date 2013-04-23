@@ -10,8 +10,10 @@ Analytical expression for alpha is used. Assume weakly relativistic Maxwellian d
 from scipy.integrate import quad
 from scipy.interpolate import InterpolatedUnivariateSpline 
 from scipy.special import gamma
+from scipy import select
 #rename numpy as np for convention
 import numpy as np
+#use pickle for packaging small amount of data
 import pickle
 
 from ..GeneralSettings.UnitSystem import cgs
@@ -58,7 +60,7 @@ def create_Fqz_table(zmin = -20., zmax = 20., nz = 401, q = 3.5, filename = Defa
     F_re_err = np.zeros(nz)
     F_im = np.zeros(nz)
     for i in range(nz):
-        F_re[i],F_re_err[i] = quad(lambda x: -1j*np.exp(1j*z[i]*x)/(1-1j*x)**q, 0, np.inf)
+        F_re[i],F_re_err[i] = quad(lambda x: (-1j*np.exp(1j*z[i]*x)/(1-1j*x)**q).real, 0, np.inf)
         if( z[i] < 0):
             F_im[i] = -np.pi*(-z[i])**(q-1)*np.exp(z[i])/gamma(q)
     if( overwrite ):
@@ -77,10 +79,22 @@ def create_interp_Fqz(filename = DefaultFqzTableFile):
     with open(filename,'r') as f:
         F_dict = pickle.load(f)
     z = F_dict['z']
+    z_min = F_dict['zmin']
+    z_max = F_dict['zmax']
     F_re = F_dict['F_re']
     F_im = F_dict['F_im']
-    Fqz_real = InterpolatedUnivariateSpline(z, F_re)
-    Fqz_imag = InterpolatedUnivariateSpline(z, F_im)
+
+    #raw interpolated functions, need to be screened outside (z_min,z_max) range
+    Fqz_real_raw = InterpolatedUnivariateSpline(z, F_re)
+    Fqz_imag_raw = InterpolatedUnivariateSpline(z, F_im)
+
+    #screen out the outside part, set to a flat tail, which means if z>zmax, f(z)=f(zmax), if z<zmin, f(z) = f(zmin)
+    def Fqz_real(z):
+        z_scr = select([z<z_min, z>z_max, z>=z_min], [z_min, z_max, z])
+        return Fqz_real_raw(z_scr)
+    def Fqz_imag(z):
+        z_scr = select([z<z_min, z>z_max, z>=z_min], [z_min, z_max, z])
+        return Fqz_imag_raw(z_scr)
     return (Fqz_real,Fqz_imag)
 
 def get_alpha_table(Profile , n = 2, Fqzfile = DefaultFqzTableFile):
@@ -167,11 +181,11 @@ def get_alpha_table(Profile , n = 2, Fqzfile = DefaultFqzTableFile):
         #now calculate A_n and alpha_n_o, as Eq. 3.1.37 and 3.1.36
         A_n = N_perp_plus_re * (1+a_n)**2 
         # note that gamma here is the special gamma function, which essentially gives n!
-        alpha_n_o = n**(2n-1)/( 2**n*gamma(n+1) ) *omega2_pc_ratio * (m_e/(Te*c**2))**(n-2) *omega_c/c*(-F_im)
+        alpha_n_o = n**(2*n-1)/( 2**n*gamma(n+1) ) *omega2_pc_ratio * (m_e/(Te*c**2))**(n-2) *omega_c/c*(-F_im)
         # exponential thermal correction as given in Eq. 3.3.4
         gamma_n = 0.75 - 2*a_n/(1+a_n) + 8./7*(1+1/(1+a_n))*N_perp_plus_re**2  
         #finally alpha_n
-        alpha_n = A_n * alpha_n_o *np.exp(gamma_n * (1- n*omega_c/omega))    #now interpolate the result and return it back.
+        alpha_n = A_n * alpha_n_o *np.exp(gamma_n * (1- n*omega_c/omega))    
         return alpha_n
             
         

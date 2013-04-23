@@ -11,7 +11,7 @@ from ..Geometry import Grid
 # Parameter is a keyword dictionary contains all the pre-defined profile parameters.
 # can be modified via method set_parameter(kwargs).
 # Note that all the coordinates are in (Z,R) order.
-Parameter = { 'DownLeft':(-60,200), 'UpRight':(60,260),'NR':100, 'NZ':200, 'ne_0': 1e14, 'Te_0': 10*cgs['keV'], 'B_0': 5000, 'ne_shape': 'exp', 'Te_shape': 'exp', 'a': 60, 'R_0': 200}
+Parameter = { 'DownLeft':(-60,200), 'UpRight':(60,260),'NR':100, 'NZ':200, 'ne_0': 1e12, 'Te_0': 10*cgs['keV'], 'B_0': 5000, 'ne_shape': 'exp', 'Te_shape': 'exp', 'a': 60, 'R_0': 200}
 
 # shape table is a dictionary contains the shape parameters
 # Do not suggest to change it by outside programs

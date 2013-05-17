@@ -114,10 +114,9 @@ def get_alpha_table(Profile , n = 2, Fqzfile = DefaultFqzTableFile):
     
     #define the local names, expand 2D into 3D, dimension order: [F,Z,R] F:frequency
     R,Z = Profile['Grid'].R2D[np.newaxis,:,:], Profile['Grid'].Z2D[np.newaxis,:,:]
-    NR,NZ = Profile['Grid'].NR, Profile['Grid'].NZ
     ne,Te,B = Profile['ne'][np.newaxis,:,:] , Profile['Te'][np.newaxis,:,:], Profile['B'][np.newaxis,:,:]
     #calculate frequency table, expand to 3D for later use
-    omega = make_frequency_table(Profile, n)[:,np.newaxis,np.newaxis]
+    omega = Profile['omega'][:,np.newaxis,np.newaxis]
     omega2 = omega**2
     #calculate and produce the interpolated Fqz function
     try:

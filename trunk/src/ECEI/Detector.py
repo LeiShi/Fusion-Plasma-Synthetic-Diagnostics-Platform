@@ -4,25 +4,8 @@
 #module depends on numpy
 import numpy as np
 from ..GeneralSettings.UnitSystem import cgs
-from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.interpolate import RectBivariateSpline
 from ..Geometry.Grid import Path2D
-
-class path:
-    """class of the light path, basically just a series of points
-
-    Attributes:
-    n: int, number of points on the path
-    R: double[n], R coordinates of the points
-    Z: double[n], Z coordinates of the points 
-    """    
-    def __init__(this, n=0, R=np.zeros(1), Z=np.zeros(1)):
-        this.n = n
-        this.R = R
-        this.Z = Z
-    def __setitem__(this,p2):
-        this.n = p2.n
-        this.R = np.copy(p2.R)
-        this.Z = np.copy(p2.Z)
 
 class detector:
     """class of the detector which contains the frequency and path information
@@ -30,10 +13,10 @@ class detector:
     Attributes:
 
     frequency related attributes:
-    f_ctr: double, the center frequency
+    f_ctr: double, the center frequency ,in GHz
     n_f  : int, the number of frequencies stored in f_flt array
     f_flt: double[n], the frequencies chosen within the pass band
-    p_flt: double[n], the pass coefficient for corresponding frequencies
+    p_flt: double[n], the pass coefficient for corresponding frequencies, may not be normalized
 
     light path related attributes:
     pth : class path, the ligth path information
@@ -62,8 +45,26 @@ def create_spatial_frequency_grid(Detectors, Profile):
     return value: Profs, an array contains all the quantities dictionaries on grids that feed to alpha calculation function, each profile corresponds to one detector.
     """
     n_dtc = len(Detectors)
+    ResS = 0.05
     Profs = []
     for dtc in Detectors:
+        path2D = Path2D(dtc.pth,ResS)
+        R_fld = Profile['Grid'].R2D[0,:]
+        Z_fld = Profile['Grid'].Z2D[:,0]
+        ne_interp = RectBivariateSpline(Z_fld,R_fld,Profile['ne'])
+        Te_interp = RectBivariateSpline(Z_fld,R_fld,Profile['Te'])
+        B_interp = RectBivariateSpline(Z_fld,R_fld,Profile['B'])
+        ne_path = ne_interp.ev(path2D.Z2D[0,:],path2D.R2D[0,:])
+        Te_path = Te_interp.ev(path2D.Z2D[0,:],path2D.R2D[0,:])
+        B_path = B_interp.ev(path2D.Z2D[0,:],path2D.R2D[0,:])
+        new_prof = {}
+        new_prof['Grid'] = path2D
+        new_prof['ne'] = ne_path[np.newaxis,:]
+        new_prof['Te'] = Te_path[np.newaxis,:]
+        new_prof['B'] = B_path[np.newaxis,:]
+        new_prof['omega'] = 2*np.pi*dtc.f_flt 
+        Profs.append(new_prof)
+    return tuple(Profs)
         
         
             

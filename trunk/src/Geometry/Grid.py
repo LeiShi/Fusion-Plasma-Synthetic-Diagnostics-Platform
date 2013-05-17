@@ -3,8 +3,6 @@
 #moudle depends on numpy package
 import numpy as np
 
-from ..ECEI.Detector import path
-
 class GridError(Exception):
     def __init__(this,*p):
         this.args = p
@@ -86,6 +84,25 @@ class Cartesian2D(Grid):
         info += 'NR,ResR :' + str( (this.NR,this.ResR) ) +'\n'
         info += 'NZ,ResZ :' + str( (this.NZ,this.ResZ) ) +'\n'
         return info
+
+
+class path:
+    """class of the light path, basically just a series of points
+
+    Attributes:
+    n: int, number of points on the path
+    R: double[n], R coordinates of the points
+    Z: double[n], Z coordinates of the points 
+    """    
+    def __init__(this, n=0, R=np.zeros(1), Z=np.zeros(1)):
+        this.n = n
+        this.R = R
+        this.Z = Z
+    def __setitem__(this,p2):
+        this.n = p2.n
+        this.R = np.copy(p2.R)
+        this.Z = np.copy(p2.Z)
+
 
 class Path2D(Grid):
     """ R-Z Grid created based on an light path

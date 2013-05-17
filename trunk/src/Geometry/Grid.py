@@ -3,6 +3,8 @@
 #moudle depends on numpy package
 import numpy as np
 
+from ..ECEI.Detector import path
+
 class GridError(Exception):
     def __init__(this,*p):
         this.args = p
@@ -84,3 +86,49 @@ class Cartesian2D(Grid):
         info += 'NR,ResR :' + str( (this.NR,this.ResR) ) +'\n'
         info += 'NZ,ResZ :' + str( (this.NZ,this.ResZ) ) +'\n'
         return info
+
+class Path2D(Grid):
+    """ R-Z Grid created based on an light path
+
+        Attributes:
+        ResS : double, resolution in light path length variable s
+        R2D : double[], R coordinates still stored in 2D array, but one dimension is actually not used
+        Z2D : double[], Corresponding Z coordinates,
+        s : double[], path length coordinates, start with s=0
+        N : int[], number of grid points, accumulated in each section
+                
+    """
+    def __init__(this, pth, ResS):
+        """initialize with a path object pth, and a given resolution ResS
+        """
+        this._name = "2D Light Path Grid"
+        this.pth = pth
+        n = pth.n
+        this.ResS = ResS
+        this.s = np.empty((n)) #s is the array stores the length of path variable
+        this.s[0]=0 # start with s=0
+        this.N = np.empty((n)) #N is the array stores the number of grid points 
+        this.N[0]=1 # The starting point is considered as 1 grid
+        for i in range(1,n):
+            this.s[i]=( np.sqrt((pth.R[i]-pth.R[i-1])**2 + (pth.Z[i]-pth.Z[i-1])**2) + this.s[i-1] ) # increase with the length of each section
+            this.N[i]=( np.ceil((this.s[i]-this.s[i-1])/ResS)+ this.N[i-1] ) # increase with the number that meet the resolution requirement
+        this.R2D = np.empty((1,this.N[n-1]))
+        this.Z2D = np.empty((1,this.N[n-1]))
+        this.s2D = np.empty((1,this.N[n-1]))
+        for i in range(1,n):
+            this.R2D[ 0, (this.N[i-1]-1): this.N[i]] = np.linspace(pth.R[i-1],pth.R[i],this.N[i]-this.N[i-1]+1) #fill in the middle points with equal space
+            this.Z2D[ 0, (this.N[i-1]-1): this.N[i]] = np.linspace(pth.Z[i-1],pth.Z[i],this.N[i]-this.N[i-1]+1)
+            this.s2D[ 0, (this.N[i-1]-1): this.N[i]] = this.s[i-1]+ np.sqrt( (this.R2D[0,(this.N[i-1]-1): this.N[i]] - this.pth.R[i-1])**2 + (this.Z2D[0,(this.N[i-1]-1): this.N[i]] - this.pth.Z[i-1])**2 )
+
+    def tell(this):
+        """display information
+        """
+        info = this._name + "\n"
+        info += "created by path:\n"
+        info += "\tnumber of points: "+ str(this.pth.n)+"\n"
+        info += "\tR coordinates:\n\t"+ str(this.pth.R)+"\n"
+        info += "\tZ coordinates:\n\t"+ str(this.pth.Z)+"\n"
+        info += "with resolution in S: "+str(this.ResS)+"\n"
+        info += "total length of path: "+str(this.s[this.pth.n-1])+"\n"
+        return info
+

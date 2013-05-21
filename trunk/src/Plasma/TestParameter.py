@@ -11,11 +11,11 @@ from ..Geometry import Grid
 # Parameter is a keyword dictionary contains all the pre-defined profile parameters.
 # can be modified via method set_parameter(kwargs).
 # Note that all the coordinates are in (Z,R) order.
-Parameter = { 'DownLeft':(-60,200), 'UpRight':(60,260),'NR':100, 'NZ':200, 'ne_0': 1e12, 'Te_0': 10*cgs['keV'], 'B_0': 5000, 'ne_shape': 'Hmode', 'Te_shape': 'Hmode', 'a': 50, 'R_0': 200}
+Parameter = { 'DownLeft':(-60,200), 'UpRight':(60,260),'NR':200, 'NZ':200, 'ne_0': 2e13, 'Te_0': 1*cgs['keV'], 'B_0': 20000, 'ne_shape': 'Hmode', 'Te_shape': 'Hmode', 'a': 50, 'R_0': 200}
 
 # shape table is a dictionary contains the shape parameters
 # Do not suggest to change it by outside programs
-ShapeTable = {'exp': {'NeDecayScale': 3, 'TeDecayScale':5} , 'Hmode':{'PedWidthT': 0.2,'PedWidthN': 0.2 ,'PedHightT': 0.8, 'PedHightN': 0.7, 'ne_out': 1e-10, 'Te_out': 1e-10}}
+ShapeTable = {'exp': {'NeDecayScale': 3, 'TeDecayScale':5} , 'Hmode':{'PedWidthT': 0.02,'PedWidthN': 0.02 ,'PedHightT': 0.8, 'PedHightN': 0.7, 'ne_out': 1e-10, 'Te_out': 1e-10}}
 
 def show_parameter():
     """Print out the parameters at the moment

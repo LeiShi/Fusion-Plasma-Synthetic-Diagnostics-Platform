@@ -9,11 +9,8 @@ from .Detector import create_spatial_frequency_grid
 from .Alpha1 import get_alpha_table
 from .Alpha1 import DefaultFqzTableFile
 import numpy as np
-from scipy.integrate import quad
-from scipy.interpolate import InterpolatedUnivariateSpline
 from ..GeneralSettings.UnitSystem import cgs
-
-import matplotlib.pyplot as plt
+from ..Maths.Funcs import my_quad
 
 def get_intensity(Dtcs,RawProfile,n=2,FqzFile = DefaultFqzTableFile):
     """Calculate the intensity recieved by Detectors given by Dtcs
@@ -47,12 +44,11 @@ def get_intensity(Dtcs,RawProfile,n=2,FqzFile = DefaultFqzTableFile):
             normal_arrays.append(normal_array)
             integrand_arrays.append(integrand_array)
 
-            integrand = InterpolatedUnivariateSpline(s_array,integrand_array) #interpolate
-            intensity_f = quad(integrand,s_array[0],s_array[-1])[0] #integration over the path, result is for the given frequency
+            
+            intensity_f = my_quad(integrand_array,s_array) #integration over the path, result is for the given frequency
             intensity[i] += intensity_f * dtc.p_flt[j] # multiply with the pattern ratio, and add on to the total receivedintensity of channel i
-            if (dtc.f_flt[j] == dtc.f_ctr):
-                normal = InterpolatedUnivariateSpline(s_array,normal_array)
-                normalization_f = quad(normal,s_array[0],s_array[-1])[0]
+            if (dtc.f_flt[j] - dtc.f_ctr <= dtc.f_ctr*0.01):
+                normalization_f = my_quad(normal_array,s_array)
                 norms[i]=normalization_f
 
-    return (tuple(intensity),tuple(norms),tuple(tau_arrays),tuple(normal_arrays),tuple(integrand_arrays))
+    return (tuple(intensity),tuple(norms),tuple(tau_arrays),tuple(normal_arrays),tuple(integrand_arrays),tuple(s_array))

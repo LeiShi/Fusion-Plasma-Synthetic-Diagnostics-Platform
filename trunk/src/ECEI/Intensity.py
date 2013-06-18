@@ -6,6 +6,7 @@ I(s) = integral(s_0,s)[alpha(s')*exp(-(tau - tau'))*omega^2/(8 pi^3 * c^2) * T(s
 """
 
 from .Detector import create_spatial_frequency_grid
+from .Detector import create_2D_pointlike_detector_array
 from .Alpha1 import get_alpha_table
 from .Alpha1 import DefaultFqzTableFile
 import numpy as np
@@ -24,6 +25,7 @@ def get_intensity(Dtcs,RawProfile,n=2,FqzFile = DefaultFqzTableFile):
     specProfile = create_spatial_frequency_grid(Dtcs,RawProfile)
     intensity = np.zeros((len(Dtcs)))
     norms = np.zeros((len(Dtcs)))
+    T_measured = np.zeros((len(Dtcs)))
     tau_arrays = []
     normal_arrays = []
     integrand_arrays = []
@@ -50,5 +52,16 @@ def get_intensity(Dtcs,RawProfile,n=2,FqzFile = DefaultFqzTableFile):
             if (dtc.f_flt[j] - dtc.f_ctr <= dtc.f_ctr*0.01):
                 normalization_f = my_quad(normal_array,s_array)
                 norms[i]=normalization_f
+        T_measured[i] = intensity[i]*2*np.pi*cgs['c']**2/dtc.f_ctr**2
 
-    return (tuple(intensity),tuple(norms),tuple(tau_arrays),tuple(normal_arrays),tuple(integrand_arrays),tuple(s_array))
+    return (tuple(intensity),tuple(T_measured),tuple(norms),tuple(tau_arrays),tuple(normal_arrays),tuple(integrand_arrays),tuple(s_array))
+    
+def get_2D_intensity(plasma):
+    Dtcs = create_2D_pointlike_detector_array(plasma)
+    intensity_tuple = get_intensity(Dtcs,plasma)
+    T_measured = intensity_tuple[1]
+    NZ = len(plasma['Grid'].Z2D[:,0])
+    NR = len(plasma['Grid'].R2D[0,:])
+    T_m_2D = T_measured.reshape((NZ,NR))
+    return tuple(T_m_2D)
+    

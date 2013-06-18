@@ -7,6 +7,7 @@ import scipy as sp
 from ..GeneralSettings.UnitSystem import cgs
 from scipy.interpolate import RectBivariateSpline
 from ..Geometry.Grid import Path2D
+from ..Geometry.Grid import path
 
 class detector:
     """class of the detector which contains the frequency and path information
@@ -36,6 +37,30 @@ class detector:
         this.f_flt = np.copy(d2.f_flt)
         this.p_flt = np.copy(d2.p_flt)
         this.pth = d2.pth
+
+def create_2D_pointlike_detector_array(plasma):
+    """create testing 2D detector array which covers all the given plasma region
+    
+    plasma: dictionary, contains all the plasma profiles on 2D grids, see package Plasma.TestParameters for detailed format
+    """
+    #get 1D coordinates
+    Z = plasma['Grid'].Z2D[:,0] 
+    R = plasma['Grid'].R2D[0,:]
+    
+    Z_idx_max = len(Z)-1
+    Detectors = []
+    for i in range(len(Z)):
+        for j in range(len(R)):
+            Z_idx = Z_idx_max - i #images are stored from top to bottom, s.t. y axis needs to be inverted
+            R_idx = j
+            #start creating detector correspond to this point
+            f_ctr =  cgs['e']*plasma['B'][Z_idx,R_idx]/(cgs['m_e']*cgs['c']) / np.pi
+            f_flt = [f_ctr]
+            p_flt = [1]
+            pth = path(2,[R[0],R[-1]],[Z[Z_idx],Z[Z_idx]]) #light path is assumed horizontal
+            Detectors.append(detector(f_ctr,1,f_flt,p_flt,pth))
+    return tuple(Detectors)
+            
 
 
 def create_spatial_frequency_grid(Detectors, Profile):

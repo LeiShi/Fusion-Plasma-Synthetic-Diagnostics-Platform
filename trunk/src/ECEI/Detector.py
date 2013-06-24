@@ -50,15 +50,17 @@ def create_2D_pointlike_detector_array(plasma):
     Z_idx_max = len(Z)-1
     Detectors = []
     for i in range(len(Z)):
-        for j in range(len(R)):
-            Z_idx = Z_idx_max - i #images are stored from top to bottom, s.t. y axis needs to be inverted
-            R_idx = j
-            #start creating detector correspond to this point
-            f_ctr =  cgs['e']*plasma['B'][Z_idx,R_idx]/(cgs['m_e']*cgs['c']) / np.pi
-            f_flt = [f_ctr]
-            p_flt = [1]
-            pth = path(2,[R[0],R[-1]],[Z[Z_idx],Z[Z_idx]]) #light path is assumed horizontal
-            Detectors.append(detector(f_ctr,1,f_flt,p_flt,pth))
+        if (i%10 == 0):
+            for j in range(len(R)):
+                if(j%10==0):
+                    Z_idx = Z_idx_max - i #images are stored from top to bottom, s.t. y axis needs to be inverted
+                    R_idx = j
+                    #start creating detector correspond to this point
+                    f_ctr =  cgs['e']*plasma['B'][Z_idx,R_idx]/(cgs['m_e']*cgs['c']) / np.pi
+                    f_flt = [f_ctr]
+                    p_flt = [1]
+                    pth = path(2,[R[0],R[-1]],[Z[Z_idx],Z[Z_idx]]) #light path is assumed horizontal
+                    Detectors.append(detector(f_ctr,1,f_flt,p_flt,pth))
     return tuple(Detectors)
             
 

@@ -25,3 +25,10 @@ def plot_f(R,f):
     plt.plot(R,2*f['w_c'][99,:]);
     plt.plot(R,f['w_uh'][99,:]);
     plt.plot(R,f['w_lh'][99,:]);
+    
+def plot_2D_profiles(plasma):
+    """plot the 2D ne,te profiles for given plasma
+    plasma: dictionary, contains all the profiles, see Plasma.TestParameter for details
+    """
+    
+    rmin = 

@@ -59,9 +59,9 @@ def get_intensity(Dtcs,RawProfile,n=2,FqzFile = DefaultFqzTableFile):
 def get_2D_intensity(plasma):
     Dtcs = create_2D_pointlike_detector_array(plasma)
     intensity_tuple = get_intensity(Dtcs,plasma)
-    T_measured = intensity_tuple[1]
-    NZ = len(plasma['Grid'].Z2D[:,0])
-    NR = len(plasma['Grid'].R2D[0,:])
+    T_measured = np.array(intensity_tuple[1])
+    NZ = (len(plasma['Grid'].Z2D[:,0])-1)/10 + 1
+    NR = (len(plasma['Grid'].R2D[0,:])-1)/10 + 1
     T_m_2D = T_measured.reshape((NZ,NR))
     return tuple(T_m_2D)
     

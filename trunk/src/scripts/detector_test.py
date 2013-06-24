@@ -40,11 +40,11 @@ dtcs = []
 for i in range(len(measure_locs)):
     dtcs.append(dtc.detector(f_ctrs[i],1,f_flts[i],[1],pth))
 
-#profiles = dtc.create_spatial_frequency_grid(dtcs,plasma)
+profiles = dtc.create_spatial_frequency_grid(dtcs,plasma)
 
-#alphas = []
-#for i in range(len(profiles)):
-#    alphas.append( a1.get_alpha_table(profiles[i]) )
+alphas = []
+for i in range(len(profiles)):
+    alphas.append( a1.get_alpha_table(profiles[i]) )
 
 Int_array = intensity.get_intensity(dtcs,plasma) 
 T_measured = np.array(Int_array[1])
@@ -52,4 +52,4 @@ T_diff = T_measured - T_real
 
 T_m_2D = intensity.get_2D_intensity(plasma)
 
-#IDLout.IDLoutput(profiles,alphas)
+IDLout.IDLoutput(profiles,alphas)

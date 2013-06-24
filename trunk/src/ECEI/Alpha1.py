@@ -43,7 +43,7 @@ def make_frequency_table(Profile, Harmonic = 2 ,ResOmega = -1):
 
 
 
-def create_Fqz_table(zmin = -20., zmax = 20., nz = 401, q = 3.5, filename = DefaultFqzTableFile, overwrite = True):
+def create_Fqz_table(zmin = -30., zmax = 30., nz = 1001, q = 3.5, filename = DefaultFqzTableFile, overwrite = True):
     """create the F_q(z_n) function value table using exact integration and summation formula[1]. Save the results into a file.  
 
     zmin,zmax : float; the lower and upper boudary of z table
@@ -60,7 +60,7 @@ def create_Fqz_table(zmin = -20., zmax = 20., nz = 401, q = 3.5, filename = Defa
     F_re_err = np.zeros(nz)
     F_im = np.zeros(nz)
     for i in range(nz):
-        F_re[i],F_re_err[i] = quad(lambda x: (-1j*np.exp(1j*z[i]*x)/(1-1j*x)**q).real, 0, np.inf)
+        F_re[i],F_re_err[i] = quad(lambda x: (-1j*np.exp(1j*z[i]*x)/(1-1j*x)**q).real, 0, np.inf, epsrel = 1e-8, epsabs = 1e-10, limit = 500)
         if( z[i] < 0):
             F_im[i] = -np.pi*(-z[i])**(q-1)*np.exp(z[i])/gamma(q)
     if( overwrite ):
@@ -88,13 +88,15 @@ def create_interp_Fqz(filename = DefaultFqzTableFile):
     Fqz_real_raw = InterpolatedUnivariateSpline(z, F_re)
     Fqz_imag_raw = InterpolatedUnivariateSpline(z, F_im)
 
-    #screen out the outside part, set to a flat tail, which means if z>zmax, f(z)=f(zmax), if z<zmin, f(z) = f(zmin)
+    #screen out the outside part, set exponential decay outside the z range, if z>zmax, f(z)=f(zmax) * exp( -2(z-zmax)/(zmax-zmin) ), if z<zmin, f(z) = f(zmin) *exp(-2(zmin-z)/(zmax-zmin))
     def Fqz_real(z):
-        z_scr = select([z<z_min, z>z_max, z>=z_min], [z_min, z_max, z])
-        return Fqz_real_raw(z_scr)
+        z_scr = select([z<z_min,z>z_max,z>=z_min] , [z_min,z_max,z])
+        mask = select([z<z_min, z>z_max, z>=z_min], [np.exp(-2*(z_min-z)/(z_max-z_min)), np.exp(-2*(z-z_max)/(z_max-z_min)), 1])
+        return Fqz_real_raw(z_scr) * mask
     def Fqz_imag(z):
-        z_scr = select([z<z_min, z>z_max, z>=z_min], [z_min, z_max, z])
-        return Fqz_imag_raw(z_scr)
+        z_scr = select([z<z_min,z>z_max,z>=z_min] , [z_min,z_max,z])
+        mask = select([z<z_min, z>z_max, z>=z_min], [np.exp(-2*(z_min-z)/(z_max-z_min)), np.exp(-2*(z-z_max)/(z_max-z_min)), 1])
+        return Fqz_imag_raw(z_scr) * mask
     return (Fqz_real,Fqz_imag)
 
 def get_alpha_table(Profile , n = 2, Fqzfile = DefaultFqzTableFile):

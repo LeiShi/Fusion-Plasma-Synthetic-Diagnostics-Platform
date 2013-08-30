@@ -19,16 +19,21 @@ def calc_frequencies(pro):
 
 def plot_f(R,f):
     """plot frequencies
+    f: the dictionary that created by calc_frequencies
+    R: the 1D radial coordinates corresponding to f
     """
-    plt.plot(R,f['w_p'][99,:]);
-    plt.plot(R,f['w_c'][99,:]);
-    plt.plot(R,2*f['w_c'][99,:]);
-    plt.plot(R,f['w_uh'][99,:]);
-    plt.plot(R,f['w_lh'][99,:]);
+    Mid_idx = int(f['w_p'].shape[0]/2) 
+    plt.plot(R,f['w_p'][Mid_idx,:])
+    plt.plot(R,f['w_c'][Mid_idx,:])
+    plt.plot(R,2*f['w_c'][Mid_idx,:])
+    plt.plot(R,f['w_uh'][Mid_idx,:])
+    plt.plot(R,f['w_lh'][Mid_idx,:])
+    labels=['f_p','f_c','2f_c','f_uh','f_lh']
+    plt.legend(labels)
     
 def plot_2D_profiles(plasma):
     """plot the 2D ne,te profiles for given plasma
     plasma: dictionary, contains all the profiles, see Plasma.TestParameter for details
     """
     
-    rmin = 
+    #rmin

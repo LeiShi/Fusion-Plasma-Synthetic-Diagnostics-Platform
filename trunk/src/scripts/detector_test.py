@@ -50,6 +50,6 @@ Int_array = intensity.get_intensity(dtcs,plasma)
 T_measured = np.array(Int_array[1])
 T_diff = T_measured - T_real    
 
-T_m_2D = intensity.get_2D_intensity(plasma)
+#T_m_2D = intensity.get_2D_intensity(plasma)
 
-IDLout.IDLoutput(profiles,alphas)
+#IDLout.IDLoutput(profiles,alphas)

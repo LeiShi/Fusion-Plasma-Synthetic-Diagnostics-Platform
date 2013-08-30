@@ -91,11 +91,11 @@ def create_interp_Fqz(filename = DefaultFqzTableFile):
     #screen out the outside part, set exponential decay outside the z range, if z>zmax, f(z)=f(zmax) * exp( -2(z-zmax)/(zmax-zmin) ), if z<zmin, f(z) = f(zmin) *exp(-2(zmin-z)/(zmax-zmin))
     def Fqz_real(z):
         z_scr = select([z<z_min,z>z_max,z>=z_min] , [z_min,z_max,z])
-        mask = select([z<z_min, z>z_max, z>=z_min], [np.exp(-2*(z_min-z)/(z_max-z_min)), np.exp(-2*(z-z_max)/(z_max-z_min)), 1])
+        mask = select([z<z_min-20*(z_max-z_min), z>z_max+20*(z_max-z_min), z<z_min, z>z_max, z>=z_min], [np.exp(-40),np.exp(-40),np.exp(-2*(z_min-z)/(z_max-z_min)), np.exp(-2*(z-z_max)/(z_max-z_min)), 1])
         return Fqz_real_raw(z_scr) * mask
     def Fqz_imag(z):
         z_scr = select([z<z_min,z>z_max,z>=z_min] , [z_min,z_max,z])
-        mask = select([z<z_min, z>z_max, z>=z_min], [np.exp(-2*(z_min-z)/(z_max-z_min)), np.exp(-2*(z-z_max)/(z_max-z_min)), 1])
+        mask = select([z<z_min-20*(z_max-z_min), z>z_max+20*(z_max-z_min), z<z_min, z>z_max, z>=z_min], [np.exp(-40),np.exp(-40),np.exp(-2*(z_min-z)/(z_max-z_min)), np.exp(-2*(z-z_max)/(z_max-z_min)), 1])
         return Fqz_imag_raw(z_scr) * mask
     return (Fqz_real,Fqz_imag)
 

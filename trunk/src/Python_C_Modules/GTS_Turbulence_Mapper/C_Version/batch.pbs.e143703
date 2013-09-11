@@ -1,0 +1,14 @@
+: Command not found.
+PrgEnv-cray/5.0.29(13):ERROR:150: Module 'PrgEnv-cray/5.0.29' conflicts with the currently loaded module(s) 'PrgEnv-intel/5.0.29'
+PrgEnv-cray/5.0.29(13):ERROR:102: Tcl command execution failed: conflict PrgEnv-intel
+
+ModuleCmd_Load.c(200):ERROR:105: Unable to locate a modulefile for 'netcdf'
+: Command not found.
+: Command not found.
+endif: Command not found.
+: Command not found.
+: Command not found.
+then: Command not found.
+In ESIReadAD: reading file <./esiP.1.5>
+started reflectometer_2d_regular_all
+NetCDF Error: No such file or directory

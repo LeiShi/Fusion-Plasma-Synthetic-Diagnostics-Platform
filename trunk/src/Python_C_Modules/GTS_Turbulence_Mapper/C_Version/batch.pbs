@@ -1,0 +1,9 @@
+#PBS -q regular
+#PBS -lmppwidth=1
+#PBS -lwalltime=00:30:00
+
+cd $PBS_O_WORKDIR
+pwd
+echo start
+aprun -n 1 ./Coord_Map
+echo end

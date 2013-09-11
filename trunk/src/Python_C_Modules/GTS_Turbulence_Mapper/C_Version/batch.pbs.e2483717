@@ -1,0 +1,8 @@
+altd/1.0(11):ERROR:150: Module 'altd/1.0' conflicts with the currently loaded module(s) 'totalview/8.10.0'
+altd/1.0(11):ERROR:102: Tcl command execution failed: conflict totalview
+
+In ESIReadAD: reading file <./esiP.1.5>
+started reflectometer_2d_regular_all
+n'=-116472422399.999893,t'=-0.000000Reading: ./data1/PHI.00000
+Reading: ./data1/PHI.00001
+Number of fluctuation time steps:3000, using time step:2000

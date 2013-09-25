@@ -7,7 +7,7 @@ Xmin0, Xmax0, NX0 = 2.0, 2.6, 100
 Ymin0, Ymax0, NY0 = -0.6, 0.6, 200
 Zmin0, Zmax0, NZ0 = 0.0, 0.0, 1
 
-NBoundary = 1001;
+NBoundary0 = 1001;
 
 TStart0, TStep0, NT0 = 100, 10, 50
 
@@ -40,12 +40,13 @@ def set_para(Xmin=Xmin0,Xmax=Xmax0,NX=NX0,
     NT0 = NT
     FlucFilePath0 = FlucFilePath
     EqFileName0 = EqFileName
-    PHIFileNameStart0 = PHIFileNameStart0
+    PHIFileNameStart0 = PHIFileNameStart
     PHIDataDir0 = PHIDataDir
+    print type(PHIDataDir)
     set_para_(Xmin=Xmin,Xmax=Xmax,NX=NX,
               Ymin=Ymin,Ymax=Ymax,NY=NY,
               Zmin=Zmin,Zmax=Zmax,NZ=NZ,
-              NBoundary=NBoundary,
+              NBOUNDARY=NBoundary,
               TStart=TStart,TStep=TStep,NT=NT,
               FlucFilePath=FlucFilePath,
               EqFileName=EqFileName,

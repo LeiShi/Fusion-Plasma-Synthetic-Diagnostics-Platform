@@ -1,5 +1,5 @@
 /*********  Autonomous Routines for Real Space Equilibrium ********/
-#ifdef Add_
+
 
 #define esigetb esigetb_
 #define esigetrzb esigetrzb_
@@ -9,7 +9,6 @@
 #define esilink2c esilink2c_
 #define gcmotion gcmotion_
 
-#endif
 
 
 #ifdef Compilation

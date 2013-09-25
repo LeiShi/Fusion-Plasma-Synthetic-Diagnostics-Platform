@@ -11,7 +11,7 @@
 #include "fluc.h"
 
 double Xmin=2.0,Xmax=2.6,Ymin=-0.6,Ymax=0.6,Zmin=0,Zmax=0;
-int NX=101,NY=201,NZ=1, n_bdy = 1001;
+int NX=101,NY=201,NZ=1, NBOUNDARY = 1001;
 int TStart=100, TStep=10, NT=10;
 char* FlucFilePath="./Fluctuations/";
 char* EqFileName="./esiP.1.5";
@@ -19,16 +19,15 @@ char* NTFileName="./NTProfile.cdf";
 char* PHI_FNAME_START="PHI";
 char* PHI_DATA_DIR="./PHI_FILES";
 
-
 static PyObject*
 set_parameters_(PyObject* self, PyObject* args, PyObject* kws){
   int sts=0;
   static char* kwlist[]={"Xmin","Xmax","NX","Ymin","Ymax","NY","Zmin","Zmax","NZ",
-			 "TStart","TStep","NT","NBoundary",
+			 "TStart","TStep","NT","NBOUNDARY",
 			 "FlucFilePath","EqFileName","NTFileName","PHIFileNameStart","PHIDataDir",NULL};
-  if(!PyArg_ParseTupleAndKeywords(args,kws,"|ddiddiddiiiisssss",kwlist,
+  if(!PyArg_ParseTupleAndKeywords(args,kws,"|ddiddiddiiiiisssss",kwlist,
 				  &Xmin,&Xmax,&NX,&Ymin,&Ymax,&NY,&Zmin,&Zmax,&NZ,
-				  &TStart,&TStep,&NT,&n_bdy,&FlucFilePath,&EqFileName,&NTFileName,&PHI_FNAME_START,&PHI_DATA_DIR))
+				  &TStart,&TStep,&NT,&NBOUNDARY,&FlucFilePath,&EqFileName,&NTFileName,&PHI_FNAME_START,&PHI_DATA_DIR))
     return NULL;
   return Py_BuildValue("i",sts);
 }
@@ -40,6 +39,7 @@ show_parameters_(PyObject* self, PyObject* args){
   printf("X: (%lf,%lf,%d)\n",Xmin,Xmax,NX);
   printf("Y: (%lf,%lf,%d)\n",Ymin,Ymax,NY);
   printf("Z: (%lf,%lf,%d)\n",Zmin,Zmax,NZ);
+  printf("NBOUNDARY: %d\n",NBOUNDARY);
   printf("T: (T0=%d,dT=%d,NT=%d)\n",TStart,TStep,NT);
   printf("FlucPath: %s \n",FlucFilePath);
   printf("EqFileName: %s \n",EqFileName);
@@ -63,7 +63,7 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   //parse the arguments, get ne,Te,B arrays, ne has time series.
   PyObject *input1,*input2,*input3,*input4,*input5,*input6;
   PyArrayObject *x3d,*y3d,*z3d,*ne_arr,*Te_arr,*B_arr;
-  if(!PyArg_ParseTuple(args,"OOOOOO",&input1,&input2,&input3))
+  if(!PyArg_ParseTuple(args,"OOOOOO",&input1,&input2,&input3,&input4,&input5,&input6))
     return NULL;
   x3d = PyArray_ContiguousFromObject(input1,PyArray_DOUBLE,3,3);
   y3d = PyArray_ContiguousFromObject(input2,PyArray_DOUBLE,3,3);

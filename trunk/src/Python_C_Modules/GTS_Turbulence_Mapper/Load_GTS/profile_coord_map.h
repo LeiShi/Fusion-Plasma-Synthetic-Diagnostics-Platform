@@ -593,7 +593,7 @@ int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[], REAL Zact[],REAL Bm[],R
 
   // new version starts
 
-  extern const int NBOUNDARY;
+  extern int NBOUNDARY;
   double R_bdy[NBOUNDARY],Z_bdy[NBOUNDARY];
   getBoundaryPoints(R_bdy,Z_bdy,NBOUNDARY);
   double b_axis;

@@ -10,6 +10,27 @@
 #include "profile_coord_map.h"
 #include "fluc.h"
 
+static PyObject*
+test_arraysum(PyObject* self, PyObject* args){
+
+  PyObject* input;
+  PyArrayObject* array;
+  double sum = 0;
+  if( !PyArg_ParseTuple(args,"O", &input))
+    return NULL;
+  array = (PyArrayObject*) PyArray_ContiguousFromObject(input,PyArray_DOUBLE,2,2);
+  if(array == NULL)    
+    return NULL;
+  int m=array->dimensions[0];
+  int n=array->dimensions[1];
+  int i;
+  for(i=0;i<m*n;i++){
+    sum += *(double*)(array->data + i*sizeof(double));
+    }
+  return PyFloat_FromDouble(sum);
+}
+
+
 double Xmin=2.0,Xmax=2.6,Ymin=-0.6,Ymax=0.6,Zmin=0,Zmax=0;
 int NX=101,NY=201,NZ=1, NBOUNDARY = 1001;
 int TStart=100, TStep=10, NT=10;
@@ -39,7 +60,7 @@ show_parameters_(PyObject* self, PyObject* args){
   printf("X: (%lf,%lf,%d)\n",Xmin,Xmax,NX);
   printf("Y: (%lf,%lf,%d)\n",Ymin,Ymax,NY);
   printf("Z: (%lf,%lf,%d)\n",Zmin,Zmax,NZ);
-  printf("NBOUNDARY: %d\n",NBOUNDARY);
+  printf("NBoundary: %d\n",NBOUNDARY);
   printf("T: (T0=%d,dT=%d,NT=%d)\n",TStart,TStep,NT);
   printf("FlucPath: %s \n",FlucFilePath);
   printf("EqFileName: %s \n",EqFileName);
@@ -59,19 +80,22 @@ esi_init_(PyObject* self, PyObject* args){
 static PyObject*
 get_GTS_profiles_(PyObject* self, PyObject* args){
   int sts=0;
-
+  printf("C code entered.\n");
   //parse the arguments, get ne,Te,B arrays, ne has time series.
   PyObject *input1,*input2,*input3,*input4,*input5,*input6;
   PyArrayObject *x3d,*y3d,*z3d,*ne_arr,*Te_arr,*B_arr;
   if(!PyArg_ParseTuple(args,"OOOOOO",&input1,&input2,&input3,&input4,&input5,&input6))
     return NULL;
-  x3d = PyArray_ContiguousFromObject(input1,PyArray_DOUBLE,3,3);
-  y3d = PyArray_ContiguousFromObject(input2,PyArray_DOUBLE,3,3);
-  z3d = PyArray_ContiguousFromObject(input3,PyArray_DOUBLE,3,3);
-  ne_arr = PyArray_ContiguousFromObject(input4,PyArray_DOUBLE,4,4);
-  Te_arr = PyArray_ContiguousFromObject(input5,PyArray_DOUBLE,3,3);
-  B_arr = PyArray_ContiguousFromObject(input6,PyArray_DOUBLE,3,3);
+  printf("arguments parsed.\n");
+  x3d =(PyArrayObject*) PyArray_ContiguousFromObject(input1,PyArray_DOUBLE,3,3);
+  y3d =(PyArrayObject*) PyArray_ContiguousFromObject(input2,PyArray_DOUBLE,3,3);
+  z3d =(PyArrayObject*) PyArray_ContiguousFromObject(input3,PyArray_DOUBLE,3,3);
+  printf("x,y,z arrays got.\n");
+  ne_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input4,PyArray_DOUBLE,4,4);
+  Te_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input5,PyArray_DOUBLE,3,3);
+  B_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input6,PyArray_DOUBLE,3,3);
 
+  printf("arrays loaded.\n");
   //start dealing with GTS data
   int n3d = NX*NY*NZ;
   double *xwant,*ywant,*zwant;
@@ -128,17 +152,23 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
 
   PyMem_Free(InOutFlag);
   PyMem_Free(FlucInOutFlag);
+  Py_DECREF(x3d);
+  Py_DECREF(y3d);
+  Py_DECREF(z3d);
   
   return Py_BuildValue("i",0);
   
 }
 
 
+
+
 static PyMethodDef Map_Mod_Methods[]={
   {"set_para_",set_parameters_,METH_VARARGS|METH_KEYWORDS, "Set the parameters used in Mapper functions. Default values can be found in source file Map_Mod_C.c."},
   {"show_para_",show_parameters_,0,"Print out current parameters."},
   /* {"esi_init_",esi_init_,0,"initialize the esi equilibrium solver."},*/
-  {"get_GTS_profiles",get_GTS_profiles_,METH_VARARGS, "Read the GTS output data.Pass in arrays: x,y,z,ne,Te,B. Where ne is in form (NT,NZ,NY,NX),others are all in (NZ,NY,NX). x,y and z need to be set properly according to the global parameters. See set_para for parameter details."},
+  {"get_GTS_profiles_",get_GTS_profiles_,METH_VARARGS, "Read the GTS output data.Pass in arrays: x,y,z,ne,Te,B. Where ne is in form (NT,NZ,NY,NX),others are all in (NZ,NY,NX). x,y and z need to be set properly according to the global parameters. See set_para for parameter details."},
+  {"arraysum",test_arraysum,METH_VARARGS,"test array loading and data manipulation."},
   {NULL,NULL,0,NULL} //sentinal
 };
 

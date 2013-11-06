@@ -1,6 +1,6 @@
 """Mapping functions that get values on a prescribed Cartesian coordinates grids from GTS output data files which are in flux coordinates.
 """
-from Map_Mod_C import *
+import Map_Mod_C as mmc
 import numpy as np
 
 Xmin0, Xmax0, NX0 = 2.0, 2.6, 100
@@ -25,6 +25,19 @@ def set_para(Xmin=Xmin0,Xmax=Xmax0,NX=NX0,
              EqFileName = EqFileName0,
              PHIFileNameStart = PHIFileNameStart0,
              PHIDataDir = PHIDataDir0):
+    """Set Loading Parameters:
+    Xmin,Xmax,Ymin,Ymax,Zmin,Zmax: double; the range of desired cartesian coordinates, in meter. X in major R direction, Y the vertical direction, and Z the direction perpendicular to both X and Y.
+    NX,NY,NZ: int; The grid point number in 3 dimensions.
+    TStart: int; Starting time of the sampling series, in simulation record step counts.
+    TStep: int; The interval between two sample points, in unit of simulation record step counts.
+    NT: C-int; The total number of sampling.
+    NBoundary: int; The total number of grid points resolving the plasma last closed flux surface. Normally not important.
+    FlucFilePath: string; directory where to store the output fluctuation files
+    EqFileName: string; filename of the equalibrium file, either absolute or relative path.
+    PHIFileNameStart: string; The first 3 letters of the record file, usually PHI
+    PHIDataDir: string; the directory where the PHI data files are stored.
+    """
+    global Xmin0,Xmax0,NX0,Ymin0,Ymax0,NY0,Zmin0,Zmax0,NZ0,NBoundary0,TStart0,TStep0,NT0,FlucFilePath0,EqFileName0,PHIFileNameStart0,PHIDataDir0
     Xmin0 = Xmin
     Xmax0 = Xmax
     NX0 = NX
@@ -42,8 +55,7 @@ def set_para(Xmin=Xmin0,Xmax=Xmax0,NX=NX0,
     EqFileName0 = EqFileName
     PHIFileNameStart0 = PHIFileNameStart
     PHIDataDir0 = PHIDataDir
-    print type(PHIDataDir)
-    set_para_(Xmin=Xmin,Xmax=Xmax,NX=NX,
+    mmc.set_para_(Xmin=Xmin,Xmax=Xmax,NX=NX,
               Ymin=Ymin,Ymax=Ymax,NY=NY,
               Zmin=Zmin,Zmax=Zmax,NZ=NZ,
               NBOUNDARY=NBoundary,
@@ -52,10 +64,10 @@ def set_para(Xmin=Xmin0,Xmax=Xmax0,NX=NX0,
               EqFileName=EqFileName,
               PHIFileNameStart=PHIFileNameStart,
               PHIDataDir=PHIDataDir)
-    show_para_()
+    mmc.show_para_()
 
 def show_para():
-    show_para_()
+    mmc.show_para_()
 
 def get_fluctuations_from_GTS(x3d,y3d,z3d,ne,Te,Bm):
     """wrapper for C_function
@@ -64,4 +76,4 @@ def get_fluctuations_from_GTS(x3d,y3d,z3d,ne,Te,Bm):
     ne: ndarray (NT,NZ,NY,NX), the loaded total ne will be stored in this array,with NT time steps.
     Te,Bm: ndarray (NZ,NY,NX), the loaded equilibrium Te and B_mod will be in these arrays.
     """
-    get_GTS_profiles_(x3d,y3d,z3d,ne,Te,Bm)
+    mmc.get_GTS_profiles_(x3d,y3d,z3d,ne,Te,Bm)

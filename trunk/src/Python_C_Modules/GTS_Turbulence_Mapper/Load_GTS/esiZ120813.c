@@ -164,8 +164,6 @@ c end of 2.   Freeing ESI
 #include <omp.h>
 #endif
 
-#include <mpi.h>
-
 #include <Python.h>
 
 #ifndef single
@@ -1339,8 +1337,8 @@ int esiread(REAL *b_axis, REAL *rmajor, char* FName)
   char FNm[128],*lc,*ls;
   int *ll0,*ll1,*ll2;
 
-  int mype,icount,int_buff[2];
-  MPI_Comm_rank(MPI_COMM_WORLD,&mype);
+  //  int mype,icount,int_buff[2];
+  //  MPI_Comm_rank(MPI_COMM_WORLD,&mype);
 
 #if ( PRINTlevel>=2 )
   fprintf(stderr,"%d:In esiread: reading file <%s>\n",mype,FName,7);
@@ -1364,18 +1362,18 @@ int esiread(REAL *b_axis, REAL *rmajor, char* FName)
   *lc	='\0';
 #ifndef single
 /* Only the master process (mype=0) reads the file */
-  if(mype == 0){
+//  if(mype == 0){
     if((i=ESIReadAD(FNm)) == 2){ 
       i	=ESIReadBD(FNm);
     }
-  }
+//  }
 #else
 /* Only the master process (mype=0) reads the file */
-  if(mype == 0){
+//  if(mype == 0){
     if((i=ESIReadAF(FNm)) == 2){ 
       i	=ESIReadBF(FNm);
     }
-  }
+//  }
 #endif
   if(i){
     return(i);
@@ -1383,33 +1381,34 @@ int esiread(REAL *b_axis, REAL *rmajor, char* FName)
 /* The reading operation was successful so now we need to broadcast the newly
    read quantities to the other processors. We first send "Np1" and "Na1"
    since they are required to allocate memory for the other quantities */
-  int_buff[0] = Np1;
-  int_buff[1] = Na1;
-  MPI_Bcast(int_buff,2,MPI_INT,0,MPI_COMM_WORLD);
+
+//  int_buff[0] = Np1;
+//  int_buff[1] = Na1;
+//  MPI_Bcast(int_buff,2,MPI_INT,0,MPI_COMM_WORLD);
 
 /* Np and Na are set only for the root processor at this point. They are global
    variables that need to also be set for all the other processors. */
-  if(mype != 0){
-    Np1 = int_buff[0];
-    Na1 = int_buff[1];
-    Np = Np1-1;
-    Na = Na1-1;
+//  if(mype != 0){
+//    Np1 = int_buff[0];
+//    Na1 = int_buff[1];
+//    Np = Np1-1;
+//    Na = Na1-1;
   /* Allocate memory for the other quantities */
-    if(ESIMemAlloc()){
-      return(1);
-    }
-  }
+  //    if(ESIMemAlloc()){
+  //      return(1);
+  //    }
+  //  }
 /* Now the master can broadcast all of the other quantities that were read. */
-  icount = Np1 + 13*Na1;  /* Must match memory allocation in ESIMemAlloc() */
-  MPI_Bcast(gq,icount,MPI_RSIZE,0,MPI_COMM_WORLD);
+//  icount = Np1 + 13*Na1;  /* Must match memory allocation in ESIMemAlloc() */
+//  MPI_Bcast(gq,icount,MPI_RSIZE,0,MPI_COMM_WORLD);
 
-  icount = 4*Na1*Np1;
-  MPI_Bcast(sr,icount,MPI_RSIZE,0,MPI_COMM_WORLD);
-  MPI_Bcast(sz,icount,MPI_RSIZE,0,MPI_COMM_WORLD);
-  MPI_Bcast(aB,icount,MPI_RSIZE,0,MPI_COMM_WORLD);
+//  icount = 4*Na1*Np1;
+//  MPI_Bcast(sr,icount,MPI_RSIZE,0,MPI_COMM_WORLD);
+//  MPI_Bcast(sz,icount,MPI_RSIZE,0,MPI_COMM_WORLD);
+//  MPI_Bcast(aB,icount,MPI_RSIZE,0,MPI_COMM_WORLD);
 
-  icount = 6*Na1*Np1;
-  MPI_Bcast(gH,icount,MPI_RSIZE,0,MPI_COMM_WORLD);
+//  icount = 6*Na1*Np1;
+//  MPI_Bcast(gH,icount,MPI_RSIZE,0,MPI_COMM_WORLD);
 
   ESIInit();
 

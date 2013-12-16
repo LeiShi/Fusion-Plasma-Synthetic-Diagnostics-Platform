@@ -12,7 +12,7 @@ module_Map_C = Extension('Map_Mod_C',
                          sources = ['Mapper_Mod_C.c','esiZ120813.c','supplementary.c'],
                          library_dirs = [gsl_dir+'/lib',netcdf_dir+'/lib'],
                          libraries = ['gsl','gslcblas','netcdf'],
-                         include_dirs = [netcdf_dir+'/include',gsl_dir+'/include',mpi_dir+'/include',numpy_dir+'/include'],
+                         include_dirs = [netcdf_dir+'/include',gsl_dir+'/include',numpy_dir+'/include'],
                          extra_compile_args=['-O0'])
 
 

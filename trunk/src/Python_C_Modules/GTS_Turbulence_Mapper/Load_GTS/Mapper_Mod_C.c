@@ -3,7 +3,6 @@
 #include<Python.h>
 #include<numpy/arrayobject.h>
 #include<stdio.h>
-#include<mpi.h>
 
 #include "interp.h"
 #include "fileio.h"

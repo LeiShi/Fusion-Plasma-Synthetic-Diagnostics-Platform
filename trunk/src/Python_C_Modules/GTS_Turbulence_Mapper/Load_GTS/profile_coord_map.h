@@ -931,8 +931,10 @@ int get_mag_axis(REAL coords[]){
   int single_point = 1;
 
   // get the position of the magnetic axis
-  int k = esigetrzb_(&coords[0],&coords[1],&bm,&mag_axis,&mag_axis,&single_point);
 
+  printf("before esigetrzb_\n");
+  int k = esigetrzb_(&coords[0],&coords[1],&bm,&mag_axis,&mag_axis,&single_point);
+  printf("after esigetrzb_\n");
   return 0;
 }
 
@@ -1149,6 +1151,7 @@ int getAllProfiles(int npts,REAL Bpol[],REAL Ti[],REAL Te[],REAL P[],REAL ne[],R
   REAL **Ti_p=(REAL**)PyMem_Malloc(sizeof(REAL*));
   REAL **Te_p=(REAL**)PyMem_Malloc(sizeof(REAL*));
 
+  printf("NTFileName before loadNTProfiles: %s\n",NTFileName);
   k=loadNTProfiles(NTFileName,n_prof,a_p,n_p,Ti_p,Te_p);
   if(k!=0){
     fprintf(stderr,"Loading NTProfile error %d.\n",k);

@@ -2,6 +2,7 @@
 import numpy as np
 import Coord_Mapper as cm
 import test_C as tm 
+#import matplotlib.pyplot as plt
 #set and show the parameters
 cm.set_para(NT=1,TStart=0,TStep=1,Xmin=0.5,Xmax=2.5,NX=5,NY=5)
 
@@ -32,7 +33,10 @@ print(sum1)
 
 sum=cm.mmc.arraysum(x3d[0,:,:])
 print(sum)
-#cm.mmc.get_GTS_profiles_(x3d,y3d,z3d,ne,Te,Bm)
+cm.mmc.get_GTS_profiles_(x3d,y3d,z3d,ne,Te,Bm)
+
+#plt.plot(x1d, ne[0,cm.NY0/2,:])
+
 #cm.get_fluctuations_from_GTS(x3d,y3d,z3d,ne,Te,Bm)
 
 

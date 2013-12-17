@@ -35,9 +35,9 @@ int NX=101,NY=201,NZ=1, NBOUNDARY = 1001;
 int TStart=100, TStep=10, NT=10;
 char* FlucFilePath="./Fluctuations/";
 char* EqFileName="./esiP.1.5";
-char* NTFileName="./NTProfile.cdf";
-char* PHI_FNAME_START="PHI";
-char* PHI_DATA_DIR="./PHI_FILES";
+char* NTFileName="./NTProfiles.cdf";
+char* PHI_FNAME_START="PHI.";
+char* PHI_DATA_DIR="./PHI_FILES/";
 
 static PyObject*
 set_parameters_(PyObject* self, PyObject* args, PyObject* kws){
@@ -95,6 +95,7 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   B_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input6,PyArray_DOUBLE,3,3);
 
   printf("arrays loaded.\n");
+  
   //start dealing with GTS data
   int n3d = NX*NY*NZ;
   double *xwant,*ywant,*zwant;
@@ -104,21 +105,36 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   //get cylindrical coordinates on mesh
   double Rwant[n3d],Zwant[n3d],zeta[n3d];
   cartesianToCylindrical(n3d,Rwant,Zwant,zeta,xwant,ywant,zwant);
+  
+  printf("after cartesian to Cylindrical.\n");
+
+  //initialize esi package
+  double B_0,R_0;
+  esiread_(&B_0,&R_0,EqFileName);
 
   //get corresponding flux coords
   double mag_axis_coords[2];
   get_mag_axis(mag_axis_coords);
+
+  printf("after getting mag_axis.\n");
+
   double a[n3d],theta[n3d];//field-line coords: flux(radial), angle(poloidal), |B|
   double *Bm = (double*) B_arr->data;
   double Rinitial[n3d],Zinitial[n3d];//R,Z value of our initial guesses
   double Ract[n3d],Zact[n3d];//actual R,Z coordinates we have in the end
   int *InOutFlag = (int*) PyMem_Malloc(n3d*sizeof(int));//flags for points in or out LCFS
+
+  printf("after allocate PYthon mem.\n");
   getFluxCoords(n3d,a,theta,Bm,Ract,Zact,Rinitial,Zinitial,Rwant,Zwant,mag_axis_coords,InOutFlag); 
+  
+  printf("after get FluxCoords.\n");
 
   //get the profiles
   double *Te = (double*) Te_arr->data;
   double Bpol[n3d],Ti[n3d],P[n3d],ne0[n3d],qprofile[n3d];
   getAllProfiles(n3d,Bpol,Ti,Te,P,ne0,qprofile,a,theta,InOutFlag);
+
+  printf("after get All profiles.\n");
 
   //get boundary coords (not used)
   //  double R_bdy[n_bdy], Z_bdy[n_bdy];
@@ -126,7 +142,8 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
 
   //decay equilibrium quantities outside LCFS
   decayNToutsideLCFS(n3d,a,ne0,Te,Ti,InOutFlag);
-
+  
+  printf("after decay outside LCFS.\n");
   //get the potential fluctuations
   double phi[n3d*NT];
   int i;
@@ -137,10 +154,13 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   int* FlucInOutFlag = (int*) PyMem_Malloc(n3d*sizeof(int));
   get_fluctuations(n3d, NT, phi, a, theta, zeta, timesteps, FlucInOutFlag);
 
+  printf("after get_fluctuations.\n");
   //electrons respond adiabatically to the potential
   double *ne_tilde = (double*) ne_arr->data;
   adiabaticElectronResponse(n3d,NT,ne_tilde,ne0,phi,Te,FlucInOutFlag);
   
+  printf("after adiabatic response.\n");
+
   //add ne0 onto ne_tilde to get the total ne
   for(i=0;i<NT;i++){
     int j;
@@ -155,6 +175,7 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   Py_DECREF(y3d);
   Py_DECREF(z3d);
   
+  printf("after decreasing instances.\n");
   return Py_BuildValue("i",0);
   
 }
@@ -174,4 +195,5 @@ static PyMethodDef Map_Mod_Methods[]={
 PyMODINIT_FUNC
 initMap_Mod_C(void){
   (void) Py_InitModule("Map_Mod_C",Map_Mod_Methods);
+  import_array();
 }

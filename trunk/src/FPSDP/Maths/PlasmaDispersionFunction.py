@@ -40,3 +40,5 @@ def F72_2(phi,psi):
     minus = -psi-phi
     return (-(3*Z(plus)-3*psi*Z_1(plus)+psi**2*Z_2(plus))+(3*Z(minus)+3*psi*Z_1(minus)+psi**2*Z_2(minus)))/(8*psi**5)
 
+def F92_1(phi,psi):
+    return (F52(phi,psi)+ phi**2*F52_1(phi,psi) - 2.5*F72_1(phi,psi))/psi**2

@@ -3,8 +3,8 @@
 import Map_Mod_C as mmc
 import numpy as np
 
-Xmin0, Xmax0, NX0 = 2.0, 2.6, 100
-Ymin0, Ymax0, NY0 = -0.6, 0.6, 200
+Xmin0, Xmax0, NX0 = 2.0, 2.6, 101
+Ymin0, Ymax0, NY0 = -0.6, 0.6, 201
 Zmin0, Zmax0, NZ0 = 0.0, 0.0, 1
 
 NBoundary0 = 1001;
@@ -12,10 +12,10 @@ NBoundary0 = 1001;
 TStart0, TStep0, NT0 = 100, 10, 50
 
 FlucFilePath0 = './Fluctuations/'
-EqFileName0 = './esiP.1.5'
+EqFileName0 = './ESI_EQFILE'
 NTFileName0 = './NTProfile.cdf'
-PHIFileNameStart0 = 'PHI'
-PHIDataDir0 = './PHI_FILES'
+PHIFileNameStart0 = 'PHI.'
+PHIDataDir0 = './PHI_FILES/'
 def set_para(Xmin=Xmin0,Xmax=Xmax0,NX=NX0,
              Ymin=Ymin0,Ymax=Ymax0,NY=NY0,
              Zmin=Zmin0,Zmax=Zmax0,NZ=NZ0,

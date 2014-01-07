@@ -93,6 +93,8 @@ int get_fluctuations(int npts,size_t nTimeSteps,REAL phi[],REAL a[],REAL theta[]
   // useful: phi_ints,igrid[mpsi],mtheta[mpsi],qtinv[mpsi]
   //  also gives potential[N_TIME_STEPS][ntoroidal][mgrid]
   //  nTimeSteps = 1 if so we're just looking at 1 time step, but can be > 1
+  
+  printf("successfully read all PHI files.\n");
 
 //#if VERBOSE
   fprintf(stderr,"Number of fluctuation time steps:%d, using time step:%d\n",nsteps,timeSteps[0]);

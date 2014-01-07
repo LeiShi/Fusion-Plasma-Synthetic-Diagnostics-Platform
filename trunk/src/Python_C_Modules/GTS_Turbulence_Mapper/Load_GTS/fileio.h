@@ -1455,6 +1455,7 @@ int readPhiFile(char *fname,int phi_integers[],REAL phi_reals[N_PHI_REALS],int *
 #if VERBOSE > 0
   fprintf(stderr,"Reading: %s\n",fname);
 #endif
+  printf("Reading: %s \n",fname);
   FILE *inputFile = fopen(fname,"rb");	// open file for reading
   if(inputFile == NULL) READPHI_ERR("couldn't open file");
   if(advanceFortranRecord(inputFile,fortranRecordByteCount))
@@ -1506,8 +1507,7 @@ int readPhiFile(char *fname,int phi_integers[],REAL phi_reals[N_PHI_REALS],int *
 
 
   // read data into arrays
-fortranRecordByteCount =
-  space1dint*N_PHI_1DINT_ARR + space1dreal*N_PHI_1DREAL_ARR;
+fortranRecordByteCount = space1dint*N_PHI_1DINT_ARR + space1dreal*N_PHI_1DREAL_ARR;
 if(advanceFortranRecord(inputFile,fortranRecordByteCount))
   READPHI_ERR("Fortran record byte count mismatch"); // begin record
   if(fread(*igrid,sizeof(int),mpsi,inputFile) != mpsi)
@@ -1556,7 +1556,8 @@ if(advanceFortranRecord(inputFile,fortranRecordByteCount))
   }
   *nsteps = i;			// I don't do anything with the istep[nstep] array
 
-  status = fclose(inputFile);
+  status = fclose(inputFile);\
+  printf("finish reading %s\n",fname);
 
   return status;
 }

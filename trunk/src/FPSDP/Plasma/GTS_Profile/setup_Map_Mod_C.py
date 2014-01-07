@@ -1,10 +1,19 @@
 from distutils.core import setup, Extension
 import os
 
-netcdf_dir = os.environ['NETCDF_DIR']
-gsl_dir = os.environ['GSL_DIR']
-numpy_dir = os.environ['NUMPY_HOME']+'/lib/python/numpy/core'
-mpi_dir=os.environ['MPICH_DIR']
+My_Sys = 'PPPL'
+
+
+if(My_Sys == 'NERSC'):
+    netcdf_dir = os.environ['NETCDF_DIR']
+    gsl_dir = os.environ['GSL_DIR']
+    numpy_dir = os.environ['NUMPY_HOME']+'/lib/python/numpy/core'
+elif(My_Sys == 'PPPL'):
+    netcdf_dir = os.environ['NETCDF_DIR']
+    gsl_dir = os.environ['GSL_DIR']
+    numpy_dir = os.environ['NUMPY_HOME']    
+    
+#mpi_dir=os.environ['MPICH_DIR']
 #mpi_dir='/opt/cray/mpt/6.0.2/gni/mpich2-cray/81'
 #mpi_dir = '/opt/cray/mpt/5.6.4/gni/mpich2-pgi/119'  #for Hopper
 

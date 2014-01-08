@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 import numpy as np
-import Coord_Mapper as cm
-import test_C as tm 
+import FPSDP.Plasma.GTS_Loader as cm 
 #import matplotlib.pyplot as plt
 #set and show the parameters
-cm.set_para(NT=10,TStart=1,TStep=70,Xmin=2,Xmax=2.5,NX=101,NY=101)
+
+#Note that in XYZ(R-Z-PHI) coordinates, Z is increasing in opposite direction to small toroidal coordinate phi (in r-theta-phi), which means -Z is in increasing direction of toroidal data file numbers.(Those in PHI.000XX) Prepare the whole 32 files if not sure about the range of Z.
+
+cm.set_para(NT=1,TStart=700,TStep=1,Xmin=2,Xmax=2.5,Zmin=-0.05,Zmax=0,NZ=5,NX=51,NY=51)
 
 #initialize the cartesian grids
 x1d = np.linspace(cm.Xmin0,cm.Xmax0,cm.NX0)
@@ -38,11 +40,11 @@ print ne.shape
 
 plt.plot(x1d, ne[0,0,cm.NY0/2,:])
 
-plt.plot(x1d, ne[9,0,cm.NY0/2,:])
+#plt.plot(x1d, ne[9,0,cm.NY0/2,:])
 
 plt.figure(2)
 
-plt.imshow(ne[9,0,:,:])
+plt.imshow(ne[0,:,cm.NY0/2,:])
 
 #cm.get_fluctuations_from_GTS(x3d,y3d,z3d,ne,Te,Bm)
 

@@ -151,7 +151,7 @@ def make_square_surface(X1D, Y1D, z = np.zeros((1,1)), **data):
         for j in range(NX-1):
             lowest = i*NX+j #the lowest indice of the needed point
             polypnumbers = [lowest, lowest+1, lowest+NX, lowest+NX+1]
-            polypoints = [points[lowest],points[lowest+1],points[lowest+NX], points[lowest+NX+1]]
+            polypoints = [points[lowest],points[lowest+1],points[lowest+NX+1], points[lowest+NX]]
             newdata = dict( (CellDataNames[p],CellData[p][i,j]) for p in range(len(CellDataNames)) )
             polygons.append(Polygon(polypoints,polypnumbers,**newdata))
     return Mesh(points,polygons)
@@ -189,7 +189,7 @@ def load_paraxial_from_netcdf(fname):
     
     f.close()
     
-    z = np.zeros((ny,nx))
+    z = np.ones((ny,nx))
     
     Er_in = Er[0,:,:]
     Er_ref = Er[1,:,:]
@@ -214,7 +214,7 @@ def load_fullwave_from_netcdf(fname):
     
     f.close()
     
-    z = np.zeros((ny,nx))
+    z = np.ones((ny,nx))
     
     Esq = Er**2 + Ei**2
     

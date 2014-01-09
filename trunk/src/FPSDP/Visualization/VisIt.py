@@ -150,7 +150,7 @@ def make_square_surface(X1D, Y1D, z = np.zeros((1,1)), **data):
     for i in range(NY-1):
         for j in range(NX-1):
             lowest = i*NX+j #the lowest indice of the needed point
-            polypnumbers = [lowest, lowest+1, lowest+NX, lowest+NX+1]
+            polypnumbers = [lowest, lowest+1, lowest+NX+1, lowest+NX]
             polypoints = [points[lowest],points[lowest+1],points[lowest+NX+1], points[lowest+NX]]
             newdata = dict( (CellDataNames[p],CellData[p][i,j]) for p in range(len(CellDataNames)) )
             polygons.append(Polygon(polypoints,polypnumbers,**newdata))

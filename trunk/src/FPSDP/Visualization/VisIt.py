@@ -190,8 +190,8 @@ def load_paraxial_from_netcdf(fname):
     f.close()
     
     #rescale to meter
-    x /= 100
-    y /= 100 
+    x = x/100
+    y = y/100 
     
     z = np.ones((ny,nx))
     
@@ -218,8 +218,8 @@ def load_fullwave_from_netcdf(fname):
     
     f.close()
     
-    x /= 100
-    y /= 100
+    x =x/100
+    y =y/100
     
     z = np.ones((ny,nx))
     

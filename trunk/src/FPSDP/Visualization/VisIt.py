@@ -216,13 +216,6 @@ def load_fullwave_from_netcdf(fname):
     
     z = np.zeros((ny,nx))
     
-    Er_in = Er[0,:,:]
-    Er_ref = Er[1,:,:]
-    Ei_in = Ei[0,:,:]
-    Ei_ref = Ei[1,:,:]
-    
-    Er = Er_in + Er_ref
-    Ei= Ei_in + Ei_ref
     Esq = Er**2 + Ei**2
     
     return make_square_surface(x,y,z=z,Er = Er, Ei=Ei,Esq = Esq)

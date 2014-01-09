@@ -87,16 +87,16 @@ class Mesh:
                     f.write(str(v) + ' ')
                 f.write('\n')
             if(datatype == 'ALL'):
-                if( this.PointList[0].DataNames ): 
+                if( this.PointList[0].DataNames ):
+                    f.write('POINT_DATA ' + str(len(this.PointList)) + '\n') 
                     for i in range(len(this.PointList[0].DataNames)):       
-                        f.write('POINT_DATA ' + str(len(this.PointList)) + '\n')
                         f.write('SCALARS ' + this.PointList[0].DataNames[i] +' double 1\n')
                         f.write('LOOKUP_TABLE default\n')
                         for p in this.PointList:
                             f.write(str(p.Data[i]) +'\n')
                 if( this.PolygonList[0].DataNames ): 
+                    f.write('CELL_DATA ' + str(len(this.PolygonList)) + '\n')
                     for i in range(len(this.PolygonList[0].DataNames)):       
-                        f.write('CELL_DATA ' + str(len(this.PolygonList)) + '\n')
                         f.write('SCALARS ' + this.PolygonList[0].DataNames[i] +' double 1\n')
                         f.write('LOOKUP_TABLE default\n')
                         for p in this.PolygonList:
@@ -189,6 +189,10 @@ def load_paraxial_from_netcdf(fname):
     
     f.close()
     
+    #rescale to meter
+    x /= 100
+    y /= 100 
+    
     z = np.ones((ny,nx))
     
     Er_in = Er[0,:,:]
@@ -213,6 +217,9 @@ def load_fullwave_from_netcdf(fname):
     Ei = f.variables['s_Ei'].data
     
     f.close()
+    
+    x /= 100
+    y /= 100
     
     z = np.ones((ny,nx))
     

@@ -156,76 +156,99 @@ def make_square_surface(X1D, Y1D, z = np.zeros((1,1)), **data):
             polygons.append(Polygon(polypoints,polypnumbers,**newdata))
     return Mesh(points,polygons)
 
-import scipy.io.netcdf as nc             
-                                    
-def load_profile_from_netcdf_fluctuation(fname):
-    """read plasma profile from fluctuation netcdf files, return the mesh object created based on r,z coordinates defined in the file
+import scipy.io.netcdf as nc   
+import numpy as np
+from ..GeneralSettings.UnitSystem import cgs
+m_e = cgs['m_e']
+c = cgs['c']
+e = cgs['e']           
+
+class FWR_Loader:
+    """contains file names to load, and methods to create all the meshes.
     """
-    f = nc.netcdf_file(fname,'r')
-    x = f.variables['rr'].data
-    y = f.variables['zz'].data
-    Y,X = np.meshgrid(x,y)
-    ne = f.variables['ne'].data
+    def __init__(this,freq, flucfname = 'fluctuations.cdf',fwrfname = 'schradi.cdf',mode = 'O'):
+        this.flucfname = flucfname
+        this.fwrfname = fwrfname
+        this.mode = mode
+        this.freq = freq
+                   
+    def load_profile(this):
+        """read plasma profile from fluctuation netcdf files, return the mesh object created based on r,z coordinates defined in the file
+        """
+        f = nc.netcdf_file(this.flucfname,'r')
+        x = f.variables['rr'].data
+        y = f.variables['zz'].data
+        Y,X = np.meshgrid(x,y)
+        ne = f.variables['ne'].data / 1e6 #switch to cm^-3       
+        B = f.variables['bb'].data * 10000 #switch to Gauss
+        
+        omega_ce = e*B/(m_e*c)
+        omega_pe = np.sqrt(4*np.pi*ne*e**2/m_e)
+        
+        if(this.mode == 'O'):
+            this.cutoff = omega_pe / (2*np.pi)   
+            z = this.cutoff / np.max(this.cutoff)
+        elif(this.mode == 'X'):
+            this.cutoff = 0.5*(omega_ce+np.sqrt(omega_ce**2 + 4*omega_pe**2)) / (2*np.pi)
+            z = this.cutoff / np.max(this.cutoff)
+        else:
+            print 'Mode error, wave mode must be either O or X!'
     
-    z = ne / np.max(ne) 
     
-    te = f.variables['te'].data
-    B = f.variables['bb'].data
-    
-    mesh = make_square_surface(x,y,z,ne = ne, te = te, B = B)
-    f.close()
-    return mesh
+        mesh = make_square_surface(x,y,z,cutoff = this.cutoff)
+        f.close()
+        return mesh
     
     
-def load_paraxial_from_netcdf(fname):
-    f = nc.netcdf_file(fname,'r')
+    def load_paraxial(this):
+        f = nc.netcdf_file(this.fwrfname,'r')
     
-    nx = f.dimensions['p_nx']
-    ny = f.dimensions['p_ny']
-    x = f.variables['p_x'].data
-    y = f.variables['p_y'].data
-    Er = f.variables['p_Er'].data
-    Ei = f.variables['p_Ei'].data
+        nx = f.dimensions['p_nx']
+        ny = f.dimensions['p_ny']
+        x = f.variables['p_x'].data
+        y = f.variables['p_y'].data
+        Er = f.variables['p_Er'].data
+        Ei = f.variables['p_Ei'].data
     
-    f.close()
+        f.close()
     
-    #rescale to meter
-    x = x/100
-    y = y/100 
+        #rescale to meter
+        x = x/100
+        y = y/100 
     
-    z = np.ones((ny,nx))
+        z = np.ones((ny,nx))* (this.freq / np.max(this.cutoff) + 0.025)
+        
+        Er_in = Er[0,:,:]
+        Er_ref = Er[1,:,:]
+        Ei_in = Ei[0,:,:]
+        Ei_ref = Ei[1,:,:]
     
-    Er_in = Er[0,:,:]
-    Er_ref = Er[1,:,:]
-    Ei_in = Ei[0,:,:]
-    Ei_ref = Ei[1,:,:]
+        Er = Er_in + Er_ref
+        Ei= Ei_in + Ei_ref
+        Esq = Er**2 + Ei**2
     
-    Er = Er_in + Er_ref
-    Ei= Ei_in + Ei_ref
-    Esq = Er**2 + Ei**2
+        return make_square_surface(x,y,z=z,Er = Er, Ei=Ei,Esq = Esq)
     
-    return make_square_surface(x,y,z=z,Er = Er, Ei=Ei,Esq = Esq)
+    def load_fullwave(this):
+        f = nc.netcdf_file(this.fwrfname,'r')
+        
+        nx = f.dimensions['s_nx']
+        ny = f.dimensions['s_ny']
+        x = f.variables['s_x'].data
+        y = f.variables['s_y'].data
+        Er = f.variables['s_Er'].data
+        Ei = f.variables['s_Ei'].data
     
-def load_fullwave_from_netcdf(fname):
-    f = nc.netcdf_file(fname,'r')
+        f.close()
     
-    nx = f.dimensions['s_nx']
-    ny = f.dimensions['s_ny']
-    x = f.variables['s_x'].data
-    y = f.variables['s_y'].data
-    Er = f.variables['s_Er'].data
-    Ei = f.variables['s_Ei'].data
+        x =x/100
+        y =y/100
     
-    f.close()
+        z = np.ones((ny,nx)) * (this.freq/np.max(this.cutoff) + 0.025)
     
-    x =x/100
-    y =y/100
+        Esq = Er**2 + Ei**2
     
-    z = np.ones((ny,nx))
-    
-    Esq = Er**2 + Ei**2
-    
-    return make_square_surface(x,y,z=z,Er = Er, Ei=Ei,Esq = Esq)
+        return make_square_surface(x,y,z=z,Er = Er, Ei=Ei,Esq = Esq)
     
     
     

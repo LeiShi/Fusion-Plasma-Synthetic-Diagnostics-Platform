@@ -21,12 +21,12 @@ Of course, all the data set files (*.vtk) for all time steps need to be ready.
 import os
 import visit as vi
 
-view_attr_file = 'view_attr.xml'
-annotation_attr_file = 'anno_attr.xml'
-plasma_attr_file = 'plasma_attr.xml'
-wave_attr_file = 'wave_attr.xml'
+view_attr_file = '../attrs/view_attr.xml'
+annotation_attr_file = '../attrs/anno_attr.xml'
+plasma_attr_file = '../attrs/plasma_attr.xml'
+wave_attr_file = '../attrs/wave_attr.xml'
 
-time_start = 1
+time_start = 699
 time_end = 700
 time_step = 1
 
@@ -96,6 +96,14 @@ def make_slide(time):
          
         
     vi.SaveWindow()
+def clear(time):
+    plasma_file = vtk_path + plasma_file_head + str(time) +'.vtk'
+    paraxial_file = vtk_path + paraxial_file_head + str(time) + '.vtk'
+    fullwave_file = vtk_path + fullwave_file_head + str(time) + '.vtk'
+    vi.deleteActivePlots()
+    vi.CloseDatabase(plasma_file)
+    vi.CloseDatabase(paraxial_file)
+    vi.CloseDatabase(fullwave_file)
 
 windowA = vi.SaveWindowAttributes()
 windowA.format = windowA.JPEG
@@ -107,8 +115,9 @@ windowA.outputDirectory = "/p/gkp/lshi/FWR_Movie/Time_Slides/"
 windowA.outputToCurrentDirectory = 0
 vi.SetSaveWindowAttributes(windowA)
    
-for time in range(time_start,time_end+1,time_step)    
+for time in range(time_start,time_end+1,time_step):    
     make_slide(time)    
+    clear(time)
     
         
         

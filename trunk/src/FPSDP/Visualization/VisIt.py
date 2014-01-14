@@ -227,7 +227,7 @@ class FWR_Loader:
         Ei= Ei_in + Ei_ref
         Esq = Er**2 + Ei**2
     
-        return make_square_surface(x,y,z=z,Er = Er, Ei=Ei,Esq = Esq)
+        return make_square_surface(x,y,z=z,Er_para = Er, Ei_para = Ei,Esq_para = Esq)
     
     def load_fullwave(this):
         f = nc.netcdf_file(this.fwrfname,'r')
@@ -248,7 +248,7 @@ class FWR_Loader:
     
         Esq = Er**2 + Ei**2
     
-        return make_square_surface(x,y,z=z,Er = Er, Ei=Ei,Esq = Esq)
+        return make_square_surface(x,y,z=z,Er_fullw = Er, Ei_fullw = Ei,Esq_fullw = Esq)
     
     
     

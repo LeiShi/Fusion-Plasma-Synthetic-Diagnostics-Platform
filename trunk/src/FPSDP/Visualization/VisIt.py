@@ -200,7 +200,11 @@ class FWR_Loader:
         return mesh
     
     
-    def load_paraxial(this):
+    def load_paraxial(this, nx_max = 64, ny_max = 64):
+        """load paraxial region wave field
+        restrict the nx and ny resolution by setting the max nx and ny
+        """
+        
         f = nc.netcdf_file(this.fwrfname,'r')
     
         nx = f.dimensions['p_nx']
@@ -209,19 +213,29 @@ class FWR_Loader:
         y = f.variables['p_y'].data
         Er = f.variables['p_Er'].data
         Ei = f.variables['p_Ei'].data
-    
+        
+        if (nx > nx_max):
+            dx = (nx)/(nx_max)
+        else:
+            dx = 1
+            
+        if (ny > ny_max):
+            dy = ny/ny_max
+        else:
+            dy = 1
+                       
         f.close()
     
         #rescale to meter
-        x = x/100
-        y = y/100 
+        x = x[::dx]/100
+        y = y[::dy]/100 
     
-        z = np.ones((ny,nx))* (this.freq / np.max(this.cutoff) + 0.025)
+        z = np.ones((len(y),len(x)))* (this.freq / np.max(this.cutoff) + 0.025)
         
-        Er_in = Er[0,:,:]
-        Er_ref = Er[1,:,:]
-        Ei_in = Ei[0,:,:]
-        Ei_ref = Ei[1,:,:]
+        Er_in = Er[0,::dy,::dx]
+        Er_ref = Er[1,::dy,::dx]
+        Ei_in = Ei[0,::dy,::dx]
+        Ei_ref = Ei[1,::dy,::dx]
     
         Er = Er_in + Er_ref
         Ei= Ei_in + Ei_ref
@@ -229,7 +243,7 @@ class FWR_Loader:
     
         return make_square_surface(x,y,z=z,Er_para = Er, Ei_para = Ei,Esq_para = Esq)
     
-    def load_fullwave(this):
+    def load_fullwave(this, nx_max = 64, ny_max = 64):
         f = nc.netcdf_file(this.fwrfname,'r')
         
         nx = f.dimensions['s_nx']
@@ -240,12 +254,22 @@ class FWR_Loader:
         Ei = f.variables['s_Ei'].data
     
         f.close()
+
+        if (nx > nx_max):
+            dx = (nx)/(nx_max)
+        else:
+            dx = 1
+            
+        if (ny > ny_max):
+            dy = ny/ny_max
+        else:
+            dy = 1    
+        x =x[::dx]/100
+        y =y[::dy]/100
     
-        x =x/100
-        y =y/100
-    
-        z = np.ones((ny,nx)) * (this.freq/np.max(this.cutoff) + 0.025)
-    
+        z = np.ones((len(y),len(x))) * (this.freq/np.max(this.cutoff) + 0.025)
+        Er = Er[::dy,::dx]
+        Ei = Ei[::dy,::dx]
         Esq = Er**2 + Ei**2
     
         return make_square_surface(x,y,z=z,Er_fullw = Er, Ei_fullw = Ei,Esq_fullw = Esq)

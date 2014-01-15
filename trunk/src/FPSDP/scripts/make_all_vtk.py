@@ -8,7 +8,7 @@ import numpy as np
 import os
 
 fluc_file_head = 'fluctuation'
-Tstart = 699
+Tstart = 1
 Tend =700
 Tstep = 5
 reflect_file = 'schradi.cdf'

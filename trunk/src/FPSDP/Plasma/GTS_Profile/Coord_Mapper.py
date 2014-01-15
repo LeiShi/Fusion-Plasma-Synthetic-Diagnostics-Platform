@@ -2,6 +2,7 @@
 """
 import Map_Mod_C as mmc
 import numpy as np
+from FPSDP.Geometry import Grid
 
 Xmin0, Xmax0, NX0 = 2.0, 2.6, 101
 Ymin0, Ymax0, NY0 = -0.6, 0.6, 201
@@ -73,6 +74,11 @@ def set_para(Xmin=Xmin0,Xmax=Xmax0,NX=NX0,
 
 def show_para():
     mmc.show_para_()
+
+def make_grid():
+    """create 3D Cartesian grid using X/Y/Z parameters set. 
+    """
+    return Grid.Cartesian3D(Xmin = Xmin0,Xmax=Xmax0, Ymin=Ymin0, Ymax=Ymax0, Zmin=Zmin0, NX=NX0, NY=NY0,NZ=NZ0)
 
 def get_fluctuations_from_GTS(x3d,y3d,z3d,ne,Te,Bm):
     """wrapper for C_function

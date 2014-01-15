@@ -70,10 +70,13 @@ class Cartesian2D(Grid):
         except:
             print 'Unexpected error in grid initialization! During reading and comprehensing the arguments.'
             raise
-
+        
+        #create 1D array for R and Z
+        this.R1D = np.linspace(Rmin,Rmax,this.NR)
+        this.Z1D = np.linspace(Zmin,Zmax,this.NZ)
         #now create the 2darrays for R and Z
-        this.R2D = np.zeros( (this.NZ,this.NR) ) + np.linspace(Rmin,Rmax,this.NR)[ np.newaxis , : ]
-        this.Z2D = np.zeros( (this.NZ,this.NR) ) + np.linspace(Zmin,Zmax,this.NZ)[ : , np.newaxis ]    
+        this.Z2D,this.R2D = np.meshgrid(this.Z1D,this.R1D,indexing = 'ij')
+             
 
     def tell(this):
         """returns the key informations of the grids
@@ -84,6 +87,98 @@ class Cartesian2D(Grid):
         info += 'NR,ResR :' + str( (this.NR,this.ResR) ) +'\n'
         info += 'NZ,ResZ :' + str( (this.NZ,this.ResZ) ) +'\n'
         return info
+
+class Cartesian3D(Grid):
+    """Cartesian grids in 3D space. Rectangular shape assumed.
+
+    Attributes:
+        float ResX: the resolution in X direction. 
+        float ResY: the resolution in Y direction.
+        float ResZ: the resolution in Z direction.
+        Xmin, Xmax: minimun and maximum value in X
+        Ymin, Ymax: minimun and maximun value in Y
+        Zmin, Zmax: minimun and maximun value in Z
+        int NX,NY,NZ: The gird number in X,Y,Z directions. Can be specified initially or derived from other parameters.
+        1darray X1D: 1D X values 
+        1darray Y1D: 1D Y values
+        1darray Z1D: 1D Z values
+        3darray X3D: X values on 3D grids. X3D[0,0,:] gives the 1D X values.
+        3darray Y3D: Y values on 3D grids. Y3D[0,:,0] gives the 1D Y values
+        3darray Z3D: Z values on 3D grids. Z3D[:,0,0] gives the 1D Z values.
+
+        
+    """
+    def __init__(this, **P):
+        """initialize the cartesian grid object.
+
+        If any min/max value in X/Y/Z is missing, a GridError exception will be raised.
+        Either NX or ResX can be specified. If none or both, a GridError exception will be raised. Same in Y/Z direction.
+        """
+        this._name = '3D Cartesian Grids'
+        try:
+            if ( 'Xmin' in P.keys() and 'Xmax' in P.keys() and  'Ymin' in P.keys() and 'Ymax' in P.keys() and 'Zmin' in P.keys() and 'Zmax' in P.keys() ):
+                this.Xmin ,this.Xmax = P['Xmin'], P['Xmax']
+                this.Ymin ,this.Ymax = P['Ymin'], P['Ymax']
+                this.Zmin ,this.Zmax = P['Zmin'], P['Zmax']
+                rangeX = float(this.Xmax - this.Xmin)
+                rangeY = float(this.Ymax - this.Ymin)
+                rangeZ = float(this.Zmax - this.Zmin)
+                if ( 'NX' in P.keys() and not 'ResX' in P.keys() ):
+                    this.NX = P['NX']
+                    this.ResX = rangeX / this.NX                
+                elif ('ResX' in P.keys() and not 'NX' in P.keys() ):
+                    this.NX = int ( rangeX/P['ResX'] + 2 ) # make sure the actual resolution is finer than the required one
+                    this.ResX = rangeX / this.NX
+                else:
+                    raise GridError('NX and ResX missing or conflicting, make sure you specify exactly one of them.')
+                if ( 'NY' in P.keys() and not 'ResY' in P.keys() ):
+                    this.NY = P['NY']
+                    this.ResY = rangeY / this.NY                
+                elif ('ResY' in P.keys() and not 'NY' in P.keys() ):
+                    this.NY = int ( rangeY/P['ResY'] + 2 ) # make sure the actual resolution is finer than the required one
+                    this.ResY = rangeY / this.NY
+                else:
+                    raise GridError('NY and ResY missing or conflicting, make sure you specify exactly one of them.')
+                if ( 'NZ' in P.keys() and not 'ResZ' in P.keys() ):
+                    this.NZ = P['NZ']
+                    this.ResZ = rangeZ / this.NZ                
+                elif ('ResZ' in P.keys() and not 'NZ' in P.keys() ):
+                    this.NZ = int ( rangeZ/P['ResZ'] + 2 ) # make sure the actual resolution is finer than the required one
+                    this.ResZ = rangeZ / this.NZ
+                else:
+                    raise GridError('NZ and ResZ missing or conflicting, make sure you specify exactly one of them.')
+            else:
+                raise GridError("Initializing Grid fails: X/Y/Z limits not set.")
+        except GridError:
+            #save for further upgrades, may handle GridError here
+            raise
+        except:
+            print 'Unexpected error in grid initialization! During reading and comprehensing the arguments.'
+            raise
+        
+        #create 1D array for R and Z
+        this.X1D = np.linspace(this.Xmin,this.Xmax,this.NX)
+        this.Y1D = np.linspace(this.Ymin,this.Ymax,this.NY)
+        this.Z1D = np.linspace(this.Zmin,this.Zmax,this.NZ)
+        #now create the 2darrays for R and Z
+        zero3D = np.zeros((this.NZ,this.NY,this.NX))
+        this.Z3D = zero3D + this.Z1D[:, np.newaxis, np.newaxis]
+        this.Y3D = zero3D + this.Y1D[np.newaxis,:,np.newaxis]
+        this.X3D = zero3D + this.X1D[np.newaxis,np.newaxis, :]
+             
+
+    def tell(this):
+        """returns the key informations of the grids
+        """
+        info = this._name + '\n'
+        info += 'Xmin,Xmax :' + str((this.Xmin,this.Xmax)) +'\n'
+        info += 'Ymin,Ymax :' + str((this.Ymin,this.Ymax)) +'\n'
+        info += 'Zmin,Zmax :' + str((this.Zmin,this.Zmax)) +'\n'
+        info += 'NX,ResX :' + str( (this.NX,this.ResX) ) +'\n'
+        info += 'NY,ResY :' + str( (this.NY,this.ResY) ) +'\n'
+        info += 'NZ,ResZ :' + str( (this.NZ,this.ResZ) ) +'\n'
+        return info
+
 
 
 class path:

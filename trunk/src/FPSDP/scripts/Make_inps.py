@@ -4,6 +4,7 @@ Runable by it self, also usable as a module in a user written script.
 """
 
 import numpy as np
+import os
 
 ############################
 # user system environment settings. 
@@ -11,7 +12,7 @@ import numpy as np
 ###########################
 
 # reflect3d executable location
-reflect3d = '/p/lpi/valeo/reflect3d/bin/pgf90/g/bc_kernel'
+reflect3d = '/p/lpi/valeo/reflect3d/bin/ifort/g/reflect'
 
 # existing input file location
 default_input_path = './inps/'
@@ -23,6 +24,18 @@ run_path = './'
 ###########################
 # Parameters for a single run  (all lenghth in cm)
 ###########################
+
+#*****************
+# Output flags
+# T for true, F for false
+#*****************
+
+#antenna,epsilon,vacuum,paraxial,fullwave output flags
+ant_out = 'T'
+eps_out = 'T'
+vac_out = 'T'
+para_out = 'T'
+fullw_out = 'T'
 
 #****************
 # Geometry Setup 
@@ -44,13 +57,13 @@ NZ = 64 # Z grid number, same reason
 # 4 X coordinates needed:
 
 # antenna location 
-x_antenna = 1560
+x_antenna = 1650
 # plasma boundary (boundary between vacuum and paraxial region)
 x_paraxial_vacuum_bnd = 1500
 # paraxial and fullwave boundary
-x_full_wave_paraxial_bnd = 1400
+x_full_wave_paraxial_bnd = 1450
 # left boundary of full wave region
-x_min_full_wave = 1350
+x_min_full_wave = 1430
 
 # grid numbers for the inner 2 regions
 nx_paraxial = 40
@@ -81,9 +94,9 @@ ant_angle = -0.5*np.pi # np.pi is the constant PI stored in numpy module
 #*********************
 
 # total time step
-nt = 10000
+nt = 100
 # total simulation time, in unit of vacuum crossing time
-nr_crossings = 10
+nr_crossings = 2
 
 #********************
 # Epsilon Calculation Parameters
@@ -109,7 +122,12 @@ polarization = 'O'
 FILE_NAMES = {'ant':'antenna.inp',
               'eps':'epsilon.inp',
               'geo':'geometry.inp',
-              'schr':'schradi.inp'
+              'schr':'schradi.inp',
+              'para':'paraxial.inp',
+              'vac':'vacuum.inp',
+              'mod':'model.inp',
+              'bc_fft':'BC_fftk.inp',
+              'bc_ker':'BC_kernel.inp'
              }
 
 # dictionary of all file heads:
@@ -118,6 +136,11 @@ NML_HEADS = {'ant':'&ANTENNA_NML\n',
              'eps':'&EPSILON_NML\n',
              'geo':"&geometry_spec_nml\nspecification = 'nested' \n/\n&geometry_nested_nml\n",
              'schr':'&SCHR_NML\nABSORBING_LAYER_X = T\n/\n&SCHRADI_NML\n',
+             'para':'&PARAXIAL_NML\n',
+             'vac':'&VACUUM_NML\n',
+             'mod':'&model_nml\n',
+             'bc_fft':'BC_fftk_nml\n',
+             'bc_ker':'BC_kernel_nml\n'
              }
 
 # dictionaries containing all the parameters
@@ -126,10 +149,13 @@ ANT_PARA = {'ANT_CENTER':ant_center,
             'ANT_HEIGHT':ant_height,
             'FOCAL_LENGTH':ant_focal,
             'ANT_LAUNCH_ANGLE':ant_angle,
-            'ANT_FREQUENCY':ant_freq
+            'ANT_FREQUENCY':ant_freq,
+            'OUTPUT':ant_out
            }
-EPS_PARA = {'DATA_FILE':plasma_file,
-            'POLARIZATION':polarization            
+EPS_PARA = {'DATA_FILE':'"'+plasma_file+'"',
+            'POLARIZATION':polarization,            
+            'yz_cut':'0.,0.',
+            'OUTPUT':eps_out
            }
 
 GEO_PARA = {'x_min_full_wave':x_min_full_wave,
@@ -149,9 +175,24 @@ GEO_PARA = {'x_min_full_wave':x_min_full_wave,
             'y_limits_paraxial':str(Ymin)+' , '+str(Ymax)            
             }
 SCHR_PARA = {'NT' : nt,
-             'NR_CROSSINGS':nr_crossings
+             'NR_CROSSINGS':nr_crossings,
+             'OUTPUT':fullw_out
             }
             
+MOD_PARA ={
+    'ANTENNA':'T',
+    'VACUUM' :'T',
+    'PARAXIAL':'T',
+    'FULL_WAVE':'T'
+    }
+PARA_PARA = {
+    'OUTPUT':para_out
+    }
+VAC_PARA = {
+    'OUTPUT':vac_out
+    }
+
+EMPTY_PARA = {}
 def make_input(ftype, **para):
     """ create .inp files
     ftype: string, see the keys of NML_HEADS dict for different ftype strings
@@ -179,6 +220,12 @@ def create_all_input_files():
     make_input('eps',**EPS_PARA)
     make_input('geo',**GEO_PARA)
     make_input('schr',**SCHR_PARA)
+    make_input('para',**PARA_PARA)
+    make_input('vac',**VAC_PARA)
+    make_input('mod',**MOD_PARA)
+    make_input('bc_fft',**EMPTY_PARA)
+    make_input('bc_ker',**EMPTY_PARA)
+    
     print 'input files created.'
     
 # run the script if executed from command line.

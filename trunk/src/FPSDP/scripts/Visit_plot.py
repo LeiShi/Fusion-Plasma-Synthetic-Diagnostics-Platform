@@ -5,14 +5,14 @@ Before running this script, one needs to run VisIt GUI, load a test dataset, plo
     2. Plots' attributes: double click on the plot name in the plot list. choose the best color table and opacity
     3. Annotation attributes: click the "Control" menu and choose "Annotation". Adjust the parameters in "General","3D" and "Objects".
     
-    run "Controls" -> "Launch CLI", and in the poped python command line, run the save_attr.py script, by typing in:
-        execfile('save_attr.py')
+    run "Controls" -> "Launch CLI", and in the poped python command line, run the Save_Visit_Attribute.py script, by typing in:
+        execfile('Save_Visit_Attribute.py')
     
     double check if the following files appeared:
-        ./anno_attr.xml
-        ./legend_attr.xml
-        ./plasma_attr.xml
-        ./wave_attr.xml
+        ../attrs/anno_attr.xml
+        ../attrs/legend_attr.xml
+        ../attrs/plasma_attr.xml
+        ../attrs/wave_attr.xml
         
 If all these saved attributes files are succesfully created, now one can proceed. 
 Of course, all the data set files (*.vtk) for all time steps need to be ready.     
@@ -26,12 +26,17 @@ annotation_attr_file = '../attrs/anno_attr.xml'
 plasma_attr_file = '../attrs/plasma_attr.xml'
 wave_attr_file = '../attrs/wave_attr.xml'
 
-time_start = 699
-time_end = 700
+
+movie_file_name = 'FWR_760_movie_'
+continued = 'B'
+
+
+time_start = 275+267
+time_end = 632
 time_step = 1
 
 #vtk_path = 'test_data/'  #path on Windows
-vtk_path = '/p/gkp/lshi/FWR_Movie/vtk_files/' # path on Cluster
+vtk_path = '/p/gkp/lshi/FWR_Movie/vtk_small_files/' # path on Cluster
 plasma_file_head = 'fluctuation'
 paraxial_file_head = 'para_out'
 fullwave_file_head = 'fullw_out'
@@ -100,7 +105,8 @@ def clear(time):
     plasma_file = vtk_path + plasma_file_head + str(time) +'.vtk'
     paraxial_file = vtk_path + paraxial_file_head + str(time) + '.vtk'
     fullwave_file = vtk_path + fullwave_file_head + str(time) + '.vtk'
-    vi.deleteActivePlots()
+    
+    vi.DeleteAllPlots()
     vi.CloseDatabase(plasma_file)
     vi.CloseDatabase(paraxial_file)
     vi.CloseDatabase(fullwave_file)
@@ -110,7 +116,7 @@ windowA.format = windowA.JPEG
 windowA.progressive = 1
 windowA.width = 840
 windowA.height = 1080
-windowA.fileName = "FWR_movie_"		# VisIt will append image number to base name
+windowA.fileName = movie_file_name + str(continued)+'_'		# VisIt will append image number to base name
 windowA.outputDirectory = "/p/gkp/lshi/FWR_Movie/Time_Slides/"
 windowA.outputToCurrentDirectory = 0
 vi.SetSaveWindowAttributes(windowA)

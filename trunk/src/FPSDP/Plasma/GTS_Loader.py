@@ -1,1 +1,1 @@
-./GTS_Profile/build/lib.linux-x86_64-2.5/Coord_Mapper.py
+GTS_Profile/build/lib.linux-x86_64-2.7/Coord_Mapper.py

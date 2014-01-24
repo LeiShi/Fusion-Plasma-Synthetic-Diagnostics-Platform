@@ -78,7 +78,7 @@ def show_para():
 def make_grid():
     """create 3D Cartesian grid using X/Y/Z parameters set. 
     """
-    return Grid.Cartesian3D(Xmin = Xmin0,Xmax=Xmax0, Ymin=Ymin0, Ymax=Ymax0, Zmin=Zmin0, NX=NX0, NY=NY0,NZ=NZ0)
+    return Grid.Cartesian3D(Xmin = Xmin0,Xmax=Xmax0, Ymin=Ymin0, Ymax=Ymax0, Zmin=Zmin0, Zmax=Zmax0, NX=NX0, NY=NY0,NZ=NZ0)
 
 def get_fluctuations_from_GTS(x3d,y3d,z3d,ne,Te,Bm):
     """wrapper for C_function

@@ -9,15 +9,7 @@ import FPSDP.Plasma.GTS_Loader as cm
 cm.set_para(NT=1,TStart=700,TStep=1,Xmin=2,Xmax=2.5,Zmin=-0.05,Zmax=0,NZ=5,NX=51,NY=51)
 
 #initialize the cartesian grids
-x1d = np.linspace(cm.Xmin0,cm.Xmax0,cm.NX0)
-y1d = np.linspace(cm.Ymin0,cm.Ymax0,cm.NY0)
-z1d = np.linspace(cm.Zmin0,cm.Zmax0,cm.NZ0)
-x3d = np.zeros((cm.NZ0,cm.NY0,cm.NX0))
-y3d = np.zeros((cm.NZ0,cm.NY0,cm.NX0))
-z3d = np.zeros((cm.NZ0,cm.NY0,cm.NX0))
-x3d += x1d[np.newaxis, np.newaxis, :]
-y3d += y1d[np.newaxis, :, np.newaxis]
-z3d += z1d[:, np.newaxis, np.newaxis]
+mesh = cm.make_grid()
 
 #initialize arrays for returning data
 ne = np.empty((cm.NT0,cm.NZ0,cm.NY0,cm.NX0))
@@ -25,20 +17,20 @@ Te = np.empty((cm.NZ0,cm.NY0,cm.NX0))
 Bm = np.empty((cm.NZ0,cm.NY0,cm.NX0))
 
 #show x3d,y3d,z3d
-print(x3d)
-print(y3d)
-print(z3d)
+print(mesh.X3D)
+print(mesh.Y3D)
+print(mesh.Z3D)
 
 #get the fluctuations
 
-cm.mmc.get_GTS_profiles_(x3d,y3d,z3d,ne,Te,Bm)
+cm.mmc.get_GTS_profiles_(mesh.X3D,mesh.Y3D,mesh.Z3D,ne,Te,Bm)
 
 import matplotlib.pyplot as plt
 
 print 'NY0 = '+str(cm.NY0)
 print ne.shape
 
-plt.plot(x1d, ne[0,0,cm.NY0/2,:])
+plt.plot(mesh.X1D, ne[0,0,cm.NY0/2,:])
 
 #plt.plot(x1d, ne[9,0,cm.NY0/2,:])
 

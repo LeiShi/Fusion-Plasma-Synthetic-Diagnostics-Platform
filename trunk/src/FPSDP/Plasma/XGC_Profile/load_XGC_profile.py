@@ -22,6 +22,8 @@ def parse_num(s):
         return float(s)
 
 def load_m(fname):
+    """load the whole .m file and return a dictionary contains all the entries.
+    """
     f = open(fname,'r')
     result = {}
     for line in f:
@@ -31,6 +33,42 @@ def load_m(fname):
         result[key]= parse_num(value)
     f.close()
     return result
+
+def find_nearest_3(Rwant,Zwant,R,Z,psi,psi_sp):
+    """Find the nearest 3 points on the mesh for a given R,Z point, the result is used for 3 point interpolation.
+    Argument:
+    Rwant,Zwant: double, the R,Z coordinates for the desired point
+    R,Z: double array, the array contains all the R,Z values on the mesh
+    psi: double array, the array contains all the poloidal flux values
+    psi_sp: spline interpolated psi value, used to get the psi value at the desired location. Also used for double check.
+
+    return:
+    length 3 list, contains the indices of the three nearest mesh points.  
+    """
+
+    #narrow down the search region by choosing only the points with psi values close to psi_want.
+    psi_want = psi_sp(Zwant,Rwant).flatten()
+    psi_max = np.max(psi)
+    search_region = np.where(( np.absolute(psi-psi_want)<= psi_max/100 ))[0]
+    
+    distance = np.sqrt((Rwant-R[search_region])**2 + (Zwant-Z[search_region])**2)
+    min1 = np.argmin(distance)
+    if (len([min1]) >= 3):
+        return search_region[min1[0,1,2]]
+    elif(len([min1]) == 2):
+        min3 = np.argmin(np.delete(distance,min1))
+        return [search_region[min1[0]], search_region[min1[1]], np.delete(search_region,min1)[min3]]
+    else:
+        min2 = np.argmin(np.delete(distance,min1))
+        if (len([min2]) >= 2):
+            return [search_region[min1],np.delete(search_region,min1)[min2[0]], np.delete(search_region,min1)[min2[1]]]
+        else:
+            min3 = np.argmin(np.delete(np.delete(distance,min1),min2))
+            print min1,min2,min3
+            return [search_region[min1],np.delete(search_region,min1)[min2],np.delete(np.delete(search_region,min1),min2)[min3]]
+    
+
+    
     
 
 def get_mesh():

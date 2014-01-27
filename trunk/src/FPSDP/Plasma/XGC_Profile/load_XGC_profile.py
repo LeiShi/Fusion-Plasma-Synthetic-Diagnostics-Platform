@@ -1,5 +1,7 @@
-"""local test of xgc data files
+"""Load XGC output data, interpolate electron density perturbation onto desired Cartesian grid mesh. 
 """
+
+from ...Maths.Interpolatation import linear_3d_3point
 
 import numpy as np
 import h5py as h5
@@ -68,55 +70,71 @@ def find_nearest_3(Rwant,Zwant,R,Z,psi,psi_sp):
             return [search_region[min1],np.delete(search_region,min1)[min2],np.delete(np.delete(search_region,min1),min2)[min3]]
     
 
+
+class XGC_loader():
+    """Loader for a given set of XGC output files
+    """
+
+    def __init__(this,xgc_path,t_start,t_end,dt):
+        this.xgc_path = xgc_path
+        this.mesh_file = xgc_path + 'xgc.mesh.h5'
+        this.bfield_file = xgc_path + 'xgc.bfield.h5'
+        this.time_steps = np.arange(t_start,t_end+dt,dt)
+        this.load_mesh()
+        this.load_psi()
+        this.load_B()
+        this.load_phi()
     
-    
 
-def get_mesh():
-    """Load the R-Z data
+    def load_mesh(this):
+        """Load the R-Z data
 
-    return a dictionary with keywords: R, Z 
-    """
-    mesh = h5.File(mf,'r')
-    RZ = mesh['coordinates']['values']
-    Rpts =RZ[:,0]
-    Zpts = RZ[:,1]
-    mesh.close()
-    return dict(R=Rpts,Z=Zpts)
+         
+        """
+        mesh = h5.File(this.mesh_file,'r')
+        RZ = mesh['coordinates']['values']
+        Rpts =RZ[:,0]
+        Zpts = RZ[:,1]
+        mesh.close()
+        this.mesh = dict(R=Rpts,Z=Zpts)
+        return 0
 
-def get_psi(Z,R):
-    """Load psi data
+    def load_psi(this):
+        """Load psi data
 
-    spline over Z,R
-    Note that choose R as the 2nd variable in order to store it in the fastest dimension later
-    """
-    mesh = h5.File(mf,'r')
-    psi = mesh['psi'][...]
-    psi_sp = SmoothBivariateSpline(Z,R,psi)
-    mesh.close()
-    return psi_sp
+        spline over Z,R
+        Note that choose R as the 2nd variable in order to store it in the fastest dimension later
+        """
+        mesh = h5.File(this.mesh_file,'r')
+        this.psi = mesh['psi'][...]
+        this.psi_sp = SmoothBivariateSpline(this.mesh['Z'],this.mesh['R'],this.psi)
+        mesh.close()
+        return 0
 
-def get_B(Z,R):
-    """Load the B data
+    def load_B(this):
+        """Load the B data
 
-    Spline over Z,R plane
-    """
-    B_mesh = h5.File(bf,'r')
-    B = B_mesh['node_data[0]']['values']
-    B_total = np.sqrt(B[:,0]**2 + B[:,1]**2 + B[:,2]**2)
-    B_sp = SmoothBivariateSpline(Z,R,B_total)
-    B_mesh.close()
-    return B_sp
+        Spline over Z,R plane
+        """
+        B_mesh = h5.File(this.bfield_file,'r')
+        this.B = B_mesh['node_data[0]']['values']
+        this.B_total = np.sqrt(this.B[:,0]**2 + this.B[:,1]**2 + this.B[:,2]**2)
+        this.B_sp = SmoothBivariateSpline(this.mesh['Z'],this.mesh['R'],this.B_total)
+        B_mesh.close()
+        return 0
 
-def get_phi(Z,R,plane = 0):
-    """Load phi data
-
-    Spline over Z,R plane
-    """
-    phi_mesh = h5.File(phif,'r')
-    phi = phi_mesh['eden']
-    phi_sp = SmoothBivariateSpline(Z,R,phi[:,plane],s=10000)
-    phi_mesh.close()
-    return phi_sl
+    def load_phi(this,planes = [0]):
+        """Load phi data
+        """
+        this.phi = np.zeros( (len(this.time_steps),len(this.mesh['R']),len(planes)) )
+        for i in range(len(this.time_steps)):
+            phif = this.xgc_path + 'xgc.3d.'+str(this.time_steps[i]).zfill(5)+'.h5'
+            phi_mesh = h5.File(phif,'r')
+            
+            this.phi[i] += phi_mesh['eden'][...][:,planes]
+            
+            phi_mesh.close()
+        return 0
 
 
 

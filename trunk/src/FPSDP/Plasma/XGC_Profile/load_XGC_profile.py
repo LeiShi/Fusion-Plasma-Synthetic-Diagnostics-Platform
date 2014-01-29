@@ -1,19 +1,17 @@
 """Load XGC output data, interpolate electron density perturbation onto desired Cartesian grid mesh. 
 """
 
-from ...Maths.Interpolatation import linear_3d_3point
+from ...Maths.Interpolation import linear_3d_3point
+from ...GeneralSettings.UnitSystem import cgs
 
 import numpy as np
 import h5py as h5
 from scipy.interpolate import SmoothBivariateSpline
+from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 
-data_path = '/p/gkp/lshi/FWR_XGC_Interface/XGC_data/'
-
-mf = data_path + 'xgc.mesh.h5'
-bf = data_path + 'xgc.bfield.h5'
-phif = data_path + 'xgc.3d.00150.h5'
-
+data_path = '/p/gkp/lshi/FWR_XGC_Interface/new_XGC_data/'
 
 def parse_num(s):
     """ parse a string into either int or float.
@@ -36,7 +34,7 @@ def load_m(fname):
     f.close()
     return result
 
-def find_nearest_3(Rwant,Zwant,R,Z,psi,psi_sp):
+def find_nearest_3(my_grid,my_xgc):
     """Find the nearest 3 points on the mesh for a given R,Z point, the result is used for 3 point interpolation.
     Argument:
     Rwant,Zwant: double, the R,Z coordinates for the desired point
@@ -49,6 +47,14 @@ def find_nearest_3(Rwant,Zwant,R,Z,psi,psi_sp):
     """
 
     #narrow down the search region by choosing only the points with psi values close to psi_want.
+
+    Rwant = my_grid.X1D
+    Zwant = my_grid.Y1D
+    psi_sp = my_xgc.psi_sp
+    psi = my_xgc.psi
+    R = my_xgc.mesh['R']
+    Z = my_xgc.mesh['Z']
+    
     psi_want = psi_sp(Zwant,Rwant).flatten()
     psi_max = np.max(psi)
     search_region = np.where(( np.absolute(psi-psi_want)<= psi_max/100 ))[0]
@@ -83,7 +89,8 @@ class XGC_loader():
         this.load_mesh()
         this.load_psi()
         this.load_B()
-        this.load_phi()
+        this.load_eq()
+        this.load_fluctuations()
     
 
     def load_mesh(this):
@@ -123,18 +130,54 @@ class XGC_loader():
         B_mesh.close()
         return 0
 
-    def load_phi(this,planes = [0]):
-        """Load phi data
+    def load_fluctuations(this,planes = [0]):
+        """Load non-adiabatic electron density and electrical static potential fluctuations
+        the mean value of these two quantities on each time step is also calculated.
         """
-        this.phi = np.zeros( (len(this.time_steps),len(this.mesh['R']),len(planes)) )
+        this.nane = np.zeros( (len(this.time_steps),len(this.mesh['R']),len(planes)) )
+        this.phi = np.zeros(this.nane.shape)
+        this.nane_bar = np.zeros((len(this.time_steps)))
+        this.phi_bar = np.zeros(this.nane_bar.shape)
         for i in range(len(this.time_steps)):
-            phif = this.xgc_path + 'xgc.3d.'+str(this.time_steps[i]).zfill(5)+'.h5'
-            phi_mesh = h5.File(phif,'r')
+            flucf = this.xgc_path + 'xgc.3d.'+str(this.time_steps[i]).zfill(5)+'.h5'
+            fluc_mesh = h5.File(flucf,'r')
             
-            this.phi[i] += phi_mesh['eden'][...][:,planes]
+            this.nane[i] += fluc_mesh['eden'][...][:,planes]
+            this.phi[i] += fluc_mesh['dpot'][...][:,planes]
+
+            this.nane_bar[i] += np.mean(fluc_mesh['eden'][...])
+            this.phi_bar[i] += np.mean(fluc_mesh['dpot'][...])
+
+            this.nane[i] -= this.nane_bar[i]
+            this.phi[i] -= this.phi_bar[i]
             
-            phi_mesh.close()
+            fluc_mesh.close()
         return 0
+    
+    def load_eq(this):
+        """Load equilibrium profiles, including ne0, Te0
+        """
+        eqf = this.xgc_path + 'xgc.oneddiag.h5'
+        eq_mesh = h5.File(eqf,'r')
+        this.eq_psi = eq_mesh['psi_mks'][:]
+        this.eq_te = eq_mesh['e_perp_temperature_1d'][0,:]
+        this.eq_ne = eq_mesh['e_gc_density_1d'][0,:]
+        eq_mesh.close()
+        this.te0_sp = interp1d(this.eq_psi,this.eq_te,bounds_error = False,fill_value = 0)
+        this.ne0_sp = interp1d(this.eq_psi,this.eq_ne,bounds_error = False,fill_value = 0)
+        this.te0 = this.te0_sp(this.psi)
+        this.ne0 = this.ne0_sp(this.psi)
+
+    def get_total_ne(this):
+        """return the total electron density in raw XGC grid points
+        """
+        ne0 = this.ne0
+        
+        dne_ad = ne0 * this.phi[] /this.te0[newaxis,:]
+        
+        
+        
+        
 
 
 

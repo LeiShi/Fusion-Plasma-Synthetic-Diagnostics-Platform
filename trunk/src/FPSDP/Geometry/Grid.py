@@ -75,7 +75,8 @@ class Cartesian2D(Grid):
         this.R1D = np.linspace(Rmin,Rmax,this.NR)
         this.Z1D = np.linspace(Zmin,Zmax,this.NZ)
         #now create the 2darrays for R and Z
-        this.Z2D,this.R2D = np.meshgrid(this.Z1D,this.R1D,indexing = 'ij')
+        this.Z2D = np.zeros((this.NZ,this.NR)) + this.Z1D[:,np.newaxis]
+        this.R2D = np.zeros(this.Z2D.shape) + this.R1D[np.newaxis,:]
              
 
     def tell(this):

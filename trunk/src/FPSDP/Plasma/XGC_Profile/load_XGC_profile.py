@@ -1,7 +1,5 @@
 """Load XGC output data, interpolate electron density perturbation onto desired Cartesian grid mesh. 
 """
-
-from ...Maths.Interpolation import linear_3d_3point
 from ...GeneralSettings.UnitSystem import cgs
 
 import numpy as np
@@ -10,6 +8,7 @@ from scipy.interpolate import griddata
 from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
+import scipy.io.netcdf as nc
 
 data_path = '/p/gkp/lshi/FWR_XGC_Interface/new_XGC_data/'
 
@@ -35,15 +34,14 @@ def load_m(fname):
     return result
 
 def find_nearest_4(Rwant,Zwant,my_xgc):
-    """Find the nearest 3 points on the mesh for a given R,Z point, the result is used for 3 point interpolation.
+    """Find the nearest 4 points on the mesh for a given R,Z point, the result is used for 4 point interpolation.
+
     Argument:
     Rwant,Zwant: double, the R,Z coordinates for the desired point
-    R,Z: double array, the array contains all the R,Z values on the mesh
-    psi: double array, the array contains all the poloidal flux values
-    psi_sp: spline interpolated psi value, used to get the psi value at the desired location. Also used for double check.
-
+    my_xgc: XGC_Loader object, containing all the detailed information for the XGC output data
+    
     return:
-    length 3 list, contains the indices of the three nearest mesh points.  
+    length 4 list, contains the indices of the three nearest mesh points.  
     """
 
     #narrow down the search region by choosing only the points with psi values close to psi_want.
@@ -90,8 +88,13 @@ class XGC_loader():
         this.load_eq()
         this.load_fluctuations()
         this.calc_total_ne()
+        this.interpolate_all_on_grid()
     
     def change_grid(this,grid):
+        """change the current grid to another grid
+        Argument:
+        grid: Grid object, normally Cartesian2D or Cartesian3D
+        """
         this.grid = grid
 
     
@@ -164,10 +167,12 @@ class XGC_loader():
         eq_mesh = h5.File(eqf,'r')
         this.eq_psi = eq_mesh['psi_mks'][:]
         this.eq_te = eq_mesh['e_perp_temperature_1d'][0,:]
+        this.eq_ti = eq_mesh['i_perp_temperature_1d'][0,:]
         this.eq_ne = eq_mesh['e_gc_density_1d'][0,:]
         eq_mesh.close()
         this.te0_sp = interp1d(this.eq_psi,this.eq_te,bounds_error = False,fill_value = 0)
         this.ne0_sp = interp1d(this.eq_psi,this.eq_ne,bounds_error = False,fill_value = 0)
+        this.ti0_sp = interp1d(this.eq_psi,this.eq_ti,bounds_error = False,fill_value = 0)
         this.te0 = this.te0_sp(this.psi)
         this.ne0 = this.ne0_sp(this.psi)
 
@@ -200,6 +205,59 @@ class XGC_loader():
                 this.ne_on_grid[i,j,...] += griddata(this.points,this.ne[i,j,:],(Z2D,R2D),method = 'cubic', fill_value = 0)
                 this.phi_on_grid[i,j,...] += griddata(this.points,this.phi[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
                 this.nane_on_grid[i,j,...] += griddata(this.points,this.nane[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
+        this.te_on_grid = this.te0_sp(this.psi_on_grid)
+        this.ti_on_grid = this.ti0_sp(this.psi_on_grid)
 
+    def cdf_output_2D(this,output_path,filehead='fluctuation'):
+        """write out cdf files for old FWR2D code use
 
+        Arguments:
+        output_path: string, the full path to put the output files
+        filehead: string, the starting string of all filenames
+
+        CDF file format:
+        Dimensions:
+        r_dim: int, number of grid points in R direction.
+        z_dim: int, number of grid points in Z direction
+        
+        Variables:
+        rr: 1D array, coordinates in R direction, in Meter
+        zz: 1D array, coordinates in Z direction, in Meter
+        bb: 2D array, total magnetic field on grids, in Tesla, shape in (z_dim,r_dim)
+        ne: 2D array, total electron density on grids, in m^-3
+        ti: 2D array, total ion temperature, in keV
+        te: 2D array, total electron temperature, in keV
+        
+        """
+        file_start = output_path + filehead
+        for i in range(len(this.time_steps)):
+            fname = file_start + str(this.time_steps[i]) + '.cdf'
+            f = nc.netcdf_file(fname,'w')
+            f.createDimension('z_dim',this.grid.NZ)
+            f.createDimension('r_dim',this.grid.NR)
+
+            rr = f.createVariable('rr','d',('r_dim',))
+            rr[:] = this.grid.R1D[:]
+            zz = f.createVariable('zz','d',('z_dim',))
+            zz[:] = this.grid.Z1D[:]
+            rr.units = zz.units = 'Meter'
+
+            bb = f.createVariable('bb','d',('z_dim','r_dim'))
+            bb[:,:] = this.B_on_grid[:,:]
+            bb.units = 'Tesla'
+
+            ne = f.createVariable('ne','d',('z_dim','r_dim'))
+            ne[:,:] = this.ne_on_grid[i,0,:,:]
+            ne.units = 'per cubic meter'
+
+            te = f.createVariable('te','d',('z_dim','r_dim'))
+            te[:,:] = this.te_on_grid[:,:]/1000
+            te.units = 'keV'
+
+            ti = f.createVariable('ti','d',('z_dim','r_dim'))
+            ti[:,:] = this.ti_on_grid[:,:]/1000
+            ti.units = 'keV'
+
+            f.close()
+        
 

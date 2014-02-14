@@ -1,6 +1,7 @@
 """Load XGC output data, interpolate electron density perturbation onto desired Cartesian grid mesh. 
 """
 from ...GeneralSettings.UnitSystem import cgs
+from ...Geometry.Grid import Cartesian2D,Cartesian3D
 
 import numpy as np
 import h5py as h5
@@ -82,23 +83,30 @@ class XGC_loader():
         this.bfield_file = xgc_path + 'xgc.bfield.h5'
         this.time_steps = np.arange(t_start,t_end+dt,dt)
         this.grid = grid
-        this.load_mesh()
-        this.load_psi()
-        this.load_B()
-        this.load_eq()
-        this.load_fluctuations()
-        this.calc_total_ne()
-        this.interpolate_all_on_grid()
+
+        if isinstance(grid,Cartesian2D):
+            this.load_mesh_2D()
+            this.load_psi_2D()
+            this.load_B_2D()
+            this.load_eq_2D()
+            this.load_fluctuations_2D()
+            this.calc_total_ne_2D()
+            this.interpolate_all_on_grid_2D()
+        elif isinstance(grid, Cartesian3D):
+            grid.ToCynlindrical()
+            
+            
     
     def change_grid(this,grid):
-        """change the current grid to another grid
+        """change the current grid to another grid,reload all quantities on new grid
         Argument:
         grid: Grid object, normally Cartesian2D or Cartesian3D
         """
         this.grid = grid
+        
 
     
-    def load_mesh(this):
+    def load_mesh_2D(this):
         """Load the R-Z data
 
          
@@ -112,7 +120,7 @@ class XGC_loader():
         this.mesh = {'R':Rpts, 'Z':Zpts}
         return 0
 
-    def load_psi(this):
+    def load_psi_2D(this):
         """Load psi data
 
         spline over Z,R
@@ -124,7 +132,24 @@ class XGC_loader():
         mesh.close()
         return 0
 
-    def load_B(this):
+    def load_mesh_psi_3D(this):
+        """load R-Z mesh and psi values, then create map between each psi value and the series of points on that surface, calculate the arc length table.
+        """
+        mesh = h5.File(this.mesh_file,'r')
+        RZ = mesh['coordinates']['values']
+        Rpts =RZ[:,0]
+        Zpts = RZ[:,1]
+        this.points = np.array([Zpts,Rpts]).transpose()
+        this.mesh = {'R':Rpts, 'Z':Zpts}
+
+        this.psi = mesh['psi'][...]
+        this.psi_on_grid = griddata(this.points, this.psi, (this.grid.Z2D,this.grid.R2D), method = 'cubic', fill_value=np.max(this.psi))
+
+        
+        mesh.close()
+        
+
+    def load_B_2D(this):
         """Load the B data
 
         Spline over Z,R plane
@@ -136,11 +161,11 @@ class XGC_loader():
         B_mesh.close()
         return 0
 
-    def load_fluctuations(this,planes = [0]):
+    def load_fluctuations_2D(this):
         """Load non-adiabatic electron density and electrical static potential fluctuations
         the mean value of these two quantities on each time step is also calculated.
         """
-        this.nane = np.zeros( (len(this.time_steps),len(planes),len(this.mesh['R'])) )
+        this.nane = np.zeros( (len(this.time_steps),len(this.mesh['R'])) )
         this.phi = np.zeros(this.nane.shape)
         this.nane_bar = np.zeros((len(this.time_steps)))
         this.phi_bar = np.zeros(this.nane_bar.shape)
@@ -148,8 +173,8 @@ class XGC_loader():
             flucf = this.xgc_path + 'xgc.3d.'+str(this.time_steps[i]).zfill(5)+'.h5'
             fluc_mesh = h5.File(flucf,'r')
             
-            this.nane[i] += np.swapaxes(fluc_mesh['eden'][...][:,planes],0,1)
-            this.phi[i] += np.swapaxes(fluc_mesh['dpot'][...][:,planes],0,1)
+            this.nane[i] += np.swapaxes(fluc_mesh['eden'][...][:,0],0,1)
+            this.phi[i] += np.swapaxes(fluc_mesh['dpot'][...][:,0],0,1)
 
             this.nane_bar[i] += np.mean(fluc_mesh['eden'][...])
             this.phi_bar[i] += np.mean(fluc_mesh['dpot'][...])
@@ -160,7 +185,7 @@ class XGC_loader():
             fluc_mesh.close()
         return 0
     
-    def load_eq(this):
+    def load_eq_2D(this):
         """Load equilibrium profiles, including ne0, Te0
         """
         eqf = this.xgc_path + 'xgc.oneddiag.h5'
@@ -176,35 +201,35 @@ class XGC_loader():
         this.te0 = this.te0_sp(this.psi)
         this.ne0 = this.ne0_sp(this.psi)
 
-    def calc_total_ne(this):
+    def calc_total_ne_2D(this):
         """calculate the total electron density in raw XGC grid points
         """
         ne0 = this.ne0
         te0 = this.te0
         inner_idx = np.where(np.absolute(te0)>0)[0]
-        dne_ad = np.zeros(this.phi.shape)
-        dne_ad[:,:,inner_idx] += ne0[inner_idx] * this.phi[:,:,inner_idx] /this.te0[inner_idx]
-        ad_valid_idx = np.where(np.absolute(dne_ad)<= np.max(np.absolute(ne0)))[0]
+        this.dne_ad = np.zeros(this.phi.shape)
+        this.dne_ad[:,inner_idx] += ne0[inner_idx] * this.phi[:,inner_idx] /this.te0[inner_idx]
+        ad_valid_idx = np.where(np.absolute(this.dne_ad)<= np.max(np.absolute(ne0)))[0]
         na_valid_idx = np.where(np.absolute(this.nane)<= np.max(np.absolute(ne0)))[0]
-        this.ne = np.zeros(dne_ad.shape)
-        this.ne += ne0[np.newaxis,np.newaxis,:]
-        this.ne[:,:,ad_valid_idx] += dne_ad[:,:,ad_valid_idx]
-        this.ne[:,:,na_valid_idx] += this.nane[:,:,na_valid_idx]
+        this.ne = np.zeros(this.dne_ad.shape)
+        this.ne += ne0[np.newaxis,:]
+        this.ne[:,ad_valid_idx] += this.dne_ad[:,ad_valid_idx]
+        this.ne[:,na_valid_idx] += this.nane[:,na_valid_idx]
 
-    def interpolate_all_on_grid(this):
+    def interpolate_all_on_grid_2D(this):
         """ create all interpolated quantities on given grid.
         """
         R2D = this.grid.R2D
         Z2D = this.grid.Z2D
-        this.ne_on_grid = np.zeros((this.ne.shape[0],this.ne.shape[1],R2D.shape[0],R2D.shape[1]))
+        this.ne_on_grid = np.zeros((len(this.time_steps),R2D.shape[0],R2D.shape[1]))
         this.phi_on_grid = np.zeros(this.ne_on_grid.shape)
         this.dne_ad_on_grid = np.zeros(this.ne_on_grid.shape)
         this.nane_on_grid = np.zeros(this.ne_on_grid.shape)
         for i in range(this.ne.shape[0]):
-            for j in range(this.ne.shape[1]):
-                this.ne_on_grid[i,j,...] += griddata(this.points,this.ne[i,j,:],(Z2D,R2D),method = 'cubic', fill_value = 0)
-                this.phi_on_grid[i,j,...] += griddata(this.points,this.phi[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
-                this.nane_on_grid[i,j,...] += griddata(this.points,this.nane[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
+            this.ne_on_grid[i,...] += griddata(this.points,this.ne[i,:],(Z2D,R2D),method = 'cubic', fill_value = 0)
+            this.phi_on_grid[i,...] += griddata(this.points,this.phi[i,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
+            this.dne_ad_on_grid[i,...] += griddata(this.points,this.dne_ad[i,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
+            this.nane_on_grid[i,...] += griddata(this.points,this.nane[i,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
         this.te_on_grid = this.te0_sp(this.psi_on_grid)
         this.ti_on_grid = this.ti0_sp(this.psi_on_grid)
 
@@ -247,7 +272,7 @@ class XGC_loader():
             bb.units = 'Tesla'
 
             ne = f.createVariable('ne','d',('z_dim','r_dim'))
-            ne[:,:] = this.ne_on_grid[i,0,:,:]
+            ne[:,:] = this.ne_on_grid[i,:,:]
             ne.units = 'per cubic meter'
 
             te = f.createVariable('te','d',('z_dim','r_dim'))

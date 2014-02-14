@@ -168,6 +168,15 @@ class Cartesian3D(Grid):
         this.X3D = zero3D + this.X1D[np.newaxis,np.newaxis, :]
              
 
+
+    def ToCylindrical(this):
+        """Create the corresponding R-Z-Phi coordinates mesh.
+        """
+        this.R3D = np.sqrt(this.X3D**2 + this.Z3D**2)
+        this.Z3D = this.Y3D
+        this.PHI3D = np.arctan(-this.Z3D/this.X3D)
+
+        
     def tell(this):
         """returns the key informations of the grids
         """
@@ -179,6 +188,7 @@ class Cartesian3D(Grid):
         info += 'NY,ResY :' + str( (this.NY,this.ResY) ) +'\n'
         info += 'NZ,ResZ :' + str( (this.NZ,this.ResZ) ) +'\n'
         return info
+    
 
 
 

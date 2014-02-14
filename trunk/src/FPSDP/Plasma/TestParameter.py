@@ -14,7 +14,7 @@ from ..Geometry import Grid
 Parameter2D = { 'DownLeft':(-60,200), 'UpRight':(60,260),'NR':200, 'NZ':200, 'ne_0': 2e13, 'Te_0': 1*cgs['keV'], 'B_0': 20000, 'ne_shape': 'Hmode', 'Te_shape': 'Hmode', 'a': 50, 'R_0': 200}
 
 
-xgc_test ={'DownLeft':(-0.5,1.7),'UpRight':(0.5,2.2),'NR':51,'NZ':51}
+xgc_test ={'DownLeft':(-1,1.2),'UpRight':(1,2.2),'NR':101,'NZ':101}
 
 #not finished 3D parameter dictionary.
 Parameter3D = {'Xmin':1.85,'Xmax':2.0,'Ymin':-0.15,'Ymax':0.15}

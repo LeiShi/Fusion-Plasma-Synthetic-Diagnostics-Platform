@@ -126,7 +126,10 @@ class Cartesian3D(Grid):
                 rangeZ = float(this.Zmax - this.Zmin)
                 if ( 'NX' in P.keys() and not 'ResX' in P.keys() ):
                     this.NX = P['NX']
-                    this.ResX = rangeX / this.NX                
+                    if(this.NX>1):
+                        this.ResX = rangeX / (this.NX-1)
+                    else:
+                        this.ResX = 0
                 elif ('ResX' in P.keys() and not 'NX' in P.keys() ):
                     this.NX = int ( rangeX/P['ResX'] + 2 ) # make sure the actual resolution is finer than the required one
                     this.ResX = rangeX / this.NX
@@ -134,7 +137,10 @@ class Cartesian3D(Grid):
                     raise GridError('NX and ResX missing or conflicting, make sure you specify exactly one of them.')
                 if ( 'NY' in P.keys() and not 'ResY' in P.keys() ):
                     this.NY = P['NY']
-                    this.ResY = rangeY / this.NY                
+                    if(this.NY>1):
+                        this.ResY = rangeY / (this.NY-1)               
+                    else:
+                        this.ResY = 0
                 elif ('ResY' in P.keys() and not 'NY' in P.keys() ):
                     this.NY = int ( rangeY/P['ResY'] + 2 ) # make sure the actual resolution is finer than the required one
                     this.ResY = rangeY / this.NY
@@ -142,7 +148,10 @@ class Cartesian3D(Grid):
                     raise GridError('NY and ResY missing or conflicting, make sure you specify exactly one of them.')
                 if ( 'NZ' in P.keys() and not 'ResZ' in P.keys() ):
                     this.NZ = P['NZ']
-                    this.ResZ = rangeZ / this.NZ                
+                    if(this.NZ>1):
+                        this.ResZ = rangeZ / (this.NZ-1)               
+                    else:
+                        this.ResZ = 0
                 elif ('ResZ' in P.keys() and not 'NZ' in P.keys() ):
                     this.NZ = int ( rangeZ/P['ResZ'] + 2 ) # make sure the actual resolution is finer than the required one
                     this.ResZ = rangeZ / this.NZ
@@ -170,11 +179,22 @@ class Cartesian3D(Grid):
 
 
     def ToCylindrical(this):
-        """Create the corresponding R-Z-Phi coordinates mesh.
+        """Create the corresponding R-Phi-Z cylindrical coordinates mesh.
+        Note that since X corresponds to R, Y to Z(vertical direction), then the positive Phi direction is opposite to positive Z direction. Such that X-Y-Z and R-Phi-Z(vertical) are both right-handed.
+
+        added attributes:
+        r3D,z3D,phi3D: 3D arrays. phi3D is in radian,[0,2*pi) .
         """
-        this.R3D = np.sqrt(this.X3D**2 + this.Z3D**2)
-        this.Z3D = this.Y3D
-        this.PHI3D = np.arctan(-this.Z3D/this.X3D)
+        try:
+            print this.phi3D[0,0,0]
+            print 'Cynlindrical mesh already created.'
+        except AttributeError:
+            this.r3D = np.sqrt(this.X3D**2 + this.Z3D**2)
+            this.z3D = this.Y3D
+            PHI3D = np.where(this.X3D == 0, -np.pi/2 * np.sign(this.Z3D), np.zeros(this.X3D.shape))
+            PHI3D = np.where(this.X3D != 0, np.arctan(-this.Z3D/this.X3D), PHI3D)
+            PHI3D = np.where(this.X3D < 0, PHI3D+np.pi , PHI3D )
+            this.phi3D = np.where(PHI3D < 0, PHI3D+2*np.pi, PHI3D)
 
         
     def tell(this):

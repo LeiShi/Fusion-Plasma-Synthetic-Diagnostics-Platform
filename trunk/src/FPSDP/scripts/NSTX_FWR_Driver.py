@@ -45,13 +45,14 @@ exe = 'drive_FWR2D'
 #Start creating directories and files
 
 #The tag of RUN. Each new run should be assigned a new number.
-run_No = 1
+run_No = '_full'
 
-os.chdir(working_path+'Correlation_Runs/RUNS/')
+
 
 
 def make_dirs(f_arr = freqs,t_arr = time_arr):
     
+    os.chdir(working_path+'Correlation_Runs/RUNS/')
     #create the RUN directory for the new run
     try:
         subp.check_call(['mkdir','RUN'+str(run_No)])
@@ -75,14 +76,14 @@ def make_dirs(f_arr = freqs,t_arr = time_arr):
             print 'Not a valid option, but I\'ll take that as a NO. process interupted.'
             raise e
 
-        os.chdir(working_path+'Correlation_Runs/RUNS/RUN'+str(run_No))
+    os.chdir(working_path+'Correlation_Runs/RUNS/RUN'+str(run_No))
         
     #create the subdirectories for each detector(frequency) and plasma realization, add necessary links and copies of corresponding files.
 
-    for f in freqs:
+    for f in f_arr:
         try:
             subp.check_call(['mkdir',str(f)])
-            for t in time_arr:
+            for t in t_arr:
                 subp.check_call(['mkdir',str(f)+'/'+str(t)])
                 os.chdir(str(f)+'/'+str(t))
                 # make link to plasma perturbation file
@@ -112,8 +113,8 @@ def make_batch(f_arr=freqs,t_arr=time_arr):
             batch_file.write('#PBS -l mem=1000mb\n')
             batch_file.write('#PBS -l walltime=1:00:00\n')
             batch_file.write('#PBS -r n\n')
-            batch_file.write('cd $PBS_O_WORKDIR\n')
-            batch_file.write('./'+exe+' '+FWR_driver_link_name)
+            batch_file.write('cd $PBS_O_WORKDIR\n\n')
+            batch_file.write(exe+' '+FWR_driver_link_name+'\n')
             batch_file.close()
             os.chdir('../..')
     
@@ -126,11 +127,12 @@ def submit(f_arr=freqs,t_arr=time_arr):
     for f in f_arr:
         for t in t_arr:
             os.chdir(str(f)+'/'+str(t))
-            subp.check_call(['qsub','batch'])
+            subp.check_call(['qsub','./batch'])
             os.chdir('../..')
 
 
 #run the functions:
 
-make_batch(f_arr = [70])
-submit(f_arr = [70])
+make_dirs()#(t_arr = [600])
+make_batch()#(t_arr = [600])
+submit()#(t_arr = [600])

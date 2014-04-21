@@ -15,7 +15,7 @@ Parameter2D = { 'DownLeft':(-60,200), 'UpRight':(60,260),'NR':200, 'NZ':200, 'ne
 
 
 xgc_test2D ={'DownLeft':(-0.5,0.9),'UpRight':(0.5,1.6),'NR':101,'NZ':101}
-xgc_test3D = {'Xmin':0.9,'Xmax':1.6,'Ymin':-0.5, 'Ymax':0.5, 'Zmin':-0.05, 'Zmax':0.05, 'NX':51,'NY':51,'NZ':11}
+xgc_test3D = {'Xmin':0.9,'Xmax':1.6,'Ymin':-0.5, 'Ymax':0.5, 'Zmin':-0.1, 'Zmax':0.1, 'NX':32,'NY':32,'NZ':16}
 
 
 #not finished 3D parameter dictionary.

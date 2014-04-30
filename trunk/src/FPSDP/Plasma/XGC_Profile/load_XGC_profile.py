@@ -11,6 +11,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 import scipy.io.netcdf as nc
+import pickle
 
 data_path = '/p/gkp/lshi/FWR_XGC_Interface/new_XGC_data/'
 
@@ -775,9 +776,31 @@ class XGC_loader():
             ti.units = 'keV'
 
             f.close()
+
+
+def save(my_xgc, record_file_name = 'xgc_loader_record.sav'):
+    """save the xgc_loader object to a binary file for later use.
+
+    NOTE:Currently not working.
+    """
+    
+    full_name = my_xgc.xgc_path+record_file_name
+    file_handler = open(full_name,'wb')
+    pickle.dump(my_xgc,file_handler,pickle.HIGHEST_PROTOCOL)
+    file_handler.close()
+
+def load(record_file_name='xgc_loader_record.sav'):
+    """load the saved binary file, returns the xgc_loader object
+
+    NOTE: Currently not working.
+    """
+
+    file_handler = open(record_file_name,'rb')
+    return pickle.load(file_handler,pickle.HIGHEST_PROTOCOL)
+    
         
 
-def get_ref_pos(my_xgc,freqs,mode = 'O'):
+def get_ref_pos(my_xgc,freq,mode = 'O'):
     """estimates the O-mode reflection position in R direction for given frequencies.
     Input:
         my_xgc:XGC_loader object containing the profile information
@@ -791,11 +814,7 @@ def get_ref_pos(my_xgc,freqs,mode = 'O'):
     else:
         R = my_xgc.grid.X1D
 
-    print 'R got!'
-    
     plasma_freqs = my_xgc.get_frequencies()
-
-    print 'freqs got!'
     
     if(mode == 'O'):
         cutoff = plasma_freqs['f_pe']
@@ -805,9 +824,18 @@ def get_ref_pos(my_xgc,freqs,mode = 'O'):
         print 'mode should be either O or X!'
         raise
 
-    print 'cutoff array got!'
-    R_f_interp = interp1d(cutoff,R)
+    ref_idx = np.max(np.where(cutoff > freq)[0])#The right most index where the wave has been cutoff
 
-    print 'interpolator ready'
+    #linearly interpolate the wave frequency to the cutoff frequency curve, to find the reflected location
+    f1 = cutoff[ref_idx+1]
+    f2 = cutoff[ref_idx]
+    f3 = freq
 
-    return R_f_interp(freqs)
+    R1 = R[ref_idx+1]
+    R2 = R[ref_idx]
+
+    R3 = R2 + (f2-f3)/(f2-f1)*(R1-R2)
+    
+    return R3
+
+

@@ -47,7 +47,7 @@ exe = 'drive_FWR2D'
 #The tag of RUN. Each new run should be assigned a new number.
 run_No = '_full'
 
-
+full_output_path = working_path + 'Correlation_Runs/RUNS/RUN'+str(run_No)+'/'
 
 
 def make_dirs(f_arr = freqs,t_arr = time_arr):
@@ -133,6 +133,8 @@ def submit(f_arr=freqs,t_arr=time_arr):
 
 #run the functions:
 
-make_dirs()#(t_arr = [600])
-make_batch()#(t_arr = [600])
-submit()#(t_arr = [600])
+if __name__ == "__main__":
+
+    make_dirs()#(t_arr = [600])
+    make_batch()#(t_arr = [600])
+    submit()#(t_arr = [600])

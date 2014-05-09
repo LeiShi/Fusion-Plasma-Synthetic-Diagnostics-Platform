@@ -2,6 +2,7 @@
 """
 from ...GeneralSettings.UnitSystem import SI
 from ...Geometry.Grid import Cartesian2D,Cartesian3D
+from ...IO.IO_funcs import parse_num
 
 import numpy as np
 import h5py as h5
@@ -13,16 +14,7 @@ import matplotlib.pyplot as plt
 import scipy.io.netcdf as nc
 import pickle
 
-data_path = '/p/gkp/lshi/FWR_XGC_Interface/new_XGC_data/'
-
-def parse_num(s):
-    """ parse a string into either int or float.
-    """
-    try:
-        return int(s)
-    except ValueError:
-        return float(s)
-
+# some external functions
 def load_m(fname):
     """load the whole .m file and return a dictionary contains all the entries.
     """
@@ -248,7 +240,7 @@ class XGC_loader():
     """Loader for a given set of XGC output files
     """
 
-    def __init__(this,xgc_path,grid,t_start,t_end,dt):
+    def __init__(this,xgc_path,grid,t_start,t_end,dt,equilibrium_mesh = '2D'):
 
         print 'Loading XGC output data'
         this.xgc_path = xgc_path
@@ -259,6 +251,7 @@ class XGC_loader():
         this.unit_file = xgc_path+'units.m'
         this.te_input_file = xgc_path+'te_input.in'
         this.ne_input_file = xgc_path+'ne_input.in'
+        this.equilibrium_mesh = equilibrium_mesh
         print 'from directory:'+ this.xgc_path
         
         if isinstance(grid,Cartesian2D):
@@ -466,8 +459,6 @@ class XGC_loader():
         this.BZ = B[:,1]
         this.BPhi = B[:,2]
 
-
-
         this.BR_interp = CloughTocher2DInterpolator(this.points, this.BR, fill_value = 0)
         this.BZ_interp = CloughTocher2DInterpolator(this.points, this.BZ, fill_value = 0)
         this.BPhi_interp = CloughTocher2DInterpolator(this.points, this.BPhi, fill_value = np.sign(this.BPhi[0])*np.min(np.absolute(this.BPhi)))
@@ -623,31 +614,62 @@ class XGC_loader():
 
     def interpolate_all_on_grid_3D(this):
         """ create all interpolated quantities on given 3D grid.
+
+        equilibrium mesh: '2D' uses 2D equilibrium mesh, '3D' uses full 3D mesh.
         """
 
         r3D = this.grid.r3D
         z3D = this.grid.z3D
         phi3D = this.grid.phi3D
-
-        #psi on grid
-        this.psi_on_grid = this.psi_interp(z3D,r3D)
         
-        #B Field on grid
-        this.BX_on_grid = -this.BPhi_interp(z3D,r3D)*np.sin(phi3D)+this.BR_interp(z3D,r3D)*np.cos(phi3D)
-        this.BY_on_grid = this.BZ_interp(z3D,r3D)
-        this.BZ_on_grid = -this.BR_interp(z3D,r3D)*np.sin(phi3D)-this.BPhi_interp(z3D,r3D)*np.cos(phi3D)
-        this.B_on_grid = np.sqrt(this.BX_on_grid**2 + this.BY_on_grid**2 + this.BZ_on_grid**2)
+        if(this.equilibrium_mesh == '3D'):
+            #interpolation on 3D mesh: (currently not used in FWR3D)
+            #psi on grid
+            this.psi_on_grid = this.psi_interp(z3D,r3D)
+        
+            #B Field on grid, right now, BPhi,BZ, and BR are directly used.
+            this.BX_on_grid = -this.BPhi_interp(z3D,r3D)*np.sin(phi3D)+this.BR_interp(z3D,r3D)*np.cos(phi3D)
+            this.BY_on_grid = this.BZ_interp(z3D,r3D)
+            this.BZ_on_grid = -this.BR_interp(z3D,r3D)*np.sin(phi3D)-this.BPhi_interp(z3D,r3D)*np.cos(phi3D)
+            this.B_on_grid = np.sqrt(this.BX_on_grid**2 + this.BY_on_grid**2 + this.BZ_on_grid**2)
 
-        #Te and Ti on grid
-        this.te_on_grid = this.te0_sp(this.psi_on_grid)
-        this.ti_on_grid = this.ti0_sp(this.psi_on_grid)
 
-        #ne and fluctuations on grid
+            #Te and Ti on grid
+            this.te_on_grid = this.te0_sp(this.psi_on_grid)
+            this.ti_on_grid = this.ti0_sp(this.psi_on_grid)
+
+            #ne0 on grid
+            this.ne0_on_grid = this.ne0_sp(this.psi_on_grid)
+        elif(this.equilibrium_mesh == '2D'):
+            #interpolation on 2D mesh: (used in FWR3D, the FWR3D code will then rotate the whole equilibrium to get the values on 3D mesh.)
+            x1D = this.grid.X1D
+            y1D = this.grid.Y1D
+            x2D = np.zeros((this.grid.NY,this.grid.NX)) + x1D[np.newaxis,:]
+            y2D = np.zeros(x2D.shape) + y1D[:,np.newaxis]
+
+            #psi on 2D grid
+            this.psi_on_grid = this.psi_interp(y2D,x2D)
+
+            #B field on grid
+            this.BX_on_grid = this.BR_interp(y2D,x2D)
+            this.BY_on_grid = this.BZ_interp(y2D,x2D)
+            this.BZ_on_grid = this.BPhi_interp(y2D,x2D)
+
+            #Te and Ti on grid
+            this.te_on_grid = this.te0_sp(this.psi_on_grid)
+            this.ti_on_grid = this.ti0_sp(this.psi_on_grid)
+
+            #ne0 on grid
+            this.ne0_on_grid = this.ne0_sp(this.psi_on_grid)            
+        
+        
+        #ne and fluctuations on 3D grid
         this.ne_on_grid = np.zeros((len(this.time_steps),r3D.shape[0],r3D.shape[1],r3D.shape[2]))
         this.phi_on_grid = np.zeros(this.ne_on_grid.shape)
         this.dne_ad_on_grid = np.zeros(this.ne_on_grid.shape)
-        this.nane_on_grid = np.zeros(this.ne_on_grid.shape)
 
+        
+        
         interp_positions = find_interp_positions_v2(this)
         
         for i in range(len(this.time_steps)):
@@ -662,22 +684,24 @@ class XGC_loader():
                 prev_idx[j] = np.where(this.prevplane == this.planes[j] )
                 next_idx[j] = np.where(this.nextplane == this.planes[j] )
 
-            #now interpolate ne on each plane for the points using it as previous or next plane.
+            #now interpolate adiabatic ne on each toroidal plane for the points using it as previous or next plane.
             for j in range(len(this.planes)):
                 if(prev[prev_idx[j]].size != 0):
-                    prev[prev_idx[j]] = griddata(this.points,this.ne[i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'linear', fill_value = 0)
+                    prev[prev_idx[j]] = griddata(this.points,this.dne_ad[i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'linear', fill_value = 0)
                 if(next[next_idx[j]].size != 0):
-                    next[next_idx[j]] = griddata(this.points,this.ne[i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'linear', fill_value = 0)
-            # on_grid ne is then calculated by linearly interpolating values between these two planes
+                    next[next_idx[j]] = griddata(this.points,this.dne_ad[i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'linear', fill_value = 0)
+            # on_grid adiabatic ne is then calculated by linearly interpolating values between these two planes
             
-            this.ne_on_grid[i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
+            this.dne_ad_on_grid[i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
+
+            if this.HaveElectron:
+                #non-adiabatic ne data as well:
+                this.nane_on_grid = np.zeros(this.dne_ad_on_grid.shape)
+                for j in range(len(this.planes)):
+                    prev[prev_idx[j]] = griddata(this.points,this.nane[i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
+                    next[next_idx[j]] = griddata(this.points,this.nane[i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
             
-            #phi data as well:
-            for j in range(len(this.planes)):
-                prev[prev_idx[j]] = griddata(this.points,this.phi[i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
-                next[next_idx[j]] = griddata(this.points,this.phi[i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
-            
-            this.phi_on_grid[i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
+                    this.nane_on_grid[i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
 
 
     def get_frequencies(this):
@@ -776,6 +800,108 @@ class XGC_loader():
             ti.units = 'keV'
 
             f.close()
+
+    def cdf_output_3D(this,output_path = './',eq_filename = 'equilibrium3D.cdf',flucfilehead='fluctuation3D_t'):
+        """write out cdf files for FWR3D code to use
+
+        Arguments:
+        output_path: string, the full path to put the output files
+        eq_filename: string, the file name for the 2D equilibrium output
+        flucfilehead: string, the starting string of all 3D fluctuation filenames
+
+        CDF file format:
+
+        Equilibrium file:
+        
+        Dimensions:
+        nr: int, number of grid points in radial direction.
+        nz: int, number of grid points in vetical direction
+        
+        Variables:
+        rr: 1D array, coordinates in radial direction, in m
+        zz: 1D array, coordinates in vertical direction, in m
+        bb: 2D array, toroidal magnetic field on grids, in Tesla, shape in (nz,nr)
+        br: 2D array, magnetic field in radial direction, in Tesla
+        bz: 2D array, magnetic field in vertical direction, in Tesla
+        ne: 2D array, total electron density on grids, in cm^-3
+        ti: 2D array, total ion temperature, in keV
+        te: 2D array, total electron temperature, in keV
+
+        Fluctuation files:
+
+        Dimensions:
+        nx: number of grid points in radial direction
+        ny: number of grid points in vertical direction
+        nz: number of grid points in horizontal direction
+
+        Variables:
+        xx: 1D array, coordinates in radial direction
+        yy: 1D array, coordinates in vertical direction 
+        zz: 1D array, coordinates in horizontal direction
+        dne: 3D array, (nz,ny,nx), adiabatic electron density perturbation, real value 
+        """
+        eqfname = output_path + eq_filename
+        f = nc.netcdf_file(eqfname,'w')
+        f.createDimension('nz',this.grid.NY)
+        f.createDimension('nr',this.grid.NX)
+        
+        rr = f.createVariable('rr','d',('nr',))
+        rr[:] = this.grid.X1D[:]
+        zz = f.createVariable('zz','d',('nz',))
+        zz[:] = this.grid.Y1D[:]
+        rr.units = zz.units = 'm'
+        
+        bb = f.createVariable('bb','d',('nz','nr'))
+        bb[:,:] = this.BZ_on_grid[:,:]
+        bb.units = 'Tesla'
+
+        br = f.createVariable('br','d',('nz','nr'))
+        br[:,:] = this.BX_on_grid[:,:]
+        br.units = 'Tesla'
+
+        bz = f.createVariable('bz','d',('nz','nr'))
+        bz[:,:] = this.BY_on_grid[:,:]
+        bz.units = 'Tesla'       
+        
+        ne = f.createVariable('ne','d',('nz','nr'))
+        ne[:,:] = this.ne0_on_grid[:,:]
+        ne.units = 'm^-3'
+        
+        te = f.createVariable('te','d',('nz','nr'))
+        te[:,:] = this.te_on_grid[:,:]/1000
+        te.units = 'keV'
+        
+        ti = f.createVariable('ti','d',('nz','nr'))
+        ti[:,:] = this.ti_on_grid[:,:]/1000
+        ti.units = 'keV'
+        
+        f.close()
+
+        
+        file_start = output_path + flucfilehead
+        for i in range(len(this.time_steps)):
+            fname = file_start + str(this.time_steps[i]) + '.cdf'
+            f = nc.netcdf_file(fname,'w')
+            f.createDimension('nx',this.grid.NX)
+            f.createDimension('ny',this.grid.NY)
+            f.createDimension('nz',this.grid.NZ)
+
+            xx = f.createVariable('xx','d',('nx',))
+            xx[:] = this.grid.X1D[:]
+            yy = f.createVariable('yy','d',('ny',))
+            yy[:] = this.grid.Y1D[:]
+            zz = f.createVariable('zz','d',('nz',))
+            zz[:] = this.grid.Z1D[:]            
+            xx.units = yy.units = zz.units = 'm'
+            
+            dne = f.createVariable('dne','d',('nz','ny','nx'))
+            dne.units = 'm^-3'
+            if(not this.HaveElectron):
+                dne[:,:,:] = this.dne_ad_on_grid[i,:,:,:]          
+            else:
+                dne[:,:,:] = this.dne_ad_on_grid[i,:,:,:] + this.nane_on_grid[i,:,:,:]
+            f.close()
+
 
 
 def save(my_xgc, record_file_name = 'xgc_loader_record.sav'):

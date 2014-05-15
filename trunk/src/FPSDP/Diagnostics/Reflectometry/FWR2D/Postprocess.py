@@ -9,9 +9,11 @@ Advanced Postprocesses:
     Correlation reflectometry analysis,
     Frequency spectrum analysis,
 """
+import Code5 as c5
 
 import numpy as np
 import scipy.io.netcdf as nc
+
 
 class Reflectometer_Output:
     """Class that deal with the raw output from synthetic reflectometry code(FWR2D / FWR3D)
@@ -34,14 +36,15 @@ class Reflectometer_Output:
     def create_received_signals(this):
         """This method actually recursively read all the needed output files and produce the recieved signal for each file.
         """
-        this.E_out = np.zeros((len(this.frequencies),len(this.timesteps)))
+        this.E_out = np.zeros((this.NF,this.NT))
         this.E_out = this.E_out + 1j * this.E_out
 
         
         for f_idx in range(this.NF):
             for t_idx in range(this.NT):
-                file = this.make_file_name(this.frequencies[f_idx],this.timesteps[t_idx])
-                this.E_out[f_idx,t_idx] = this.read_E_out(file)
+                fwr_file = this.make_file_name(this.frequencies[f_idx],this.timesteps[t_idx])
+                receiver_file = this.make_receiver_file_name(this.frequencies[f_idx],this.timesteps[t_idx])
+                this.E_out[f_idx,t_idx] = this.read_E_out(fwr_file,receiver_file)
             print 'frequency '+str(this.frequencies[f_idx])+' read.'
         return 0
     
@@ -54,11 +57,19 @@ class Reflectometer_Output:
         file_name = 'out_{0:0>6.2f}_equ.cdf'.format(f)
         return full_path + file_name
 
-    def read_E_out(this,file):
+    def make_receiver_file_name(this,f,t):
+        """create the receiver antenna pattern file name. Rightnow, it works with the NSTX_FWR_Driver.py script default.
+        """
+
+        full_path = '{0}{1}/{2}/'.format(this.file_path,str(f),str(t))
+        file_name = 'receiver_pattern.txt'
+        return full_path + file_name
+
+    def read_E_out(this,ref_file,rec_file):
         """read data from the output file, produce the received E signal, stored as [E_real, E_imaginary]
         """
         #print 'reading file:',file
-        f = nc.netcdf_file(file,'r')
+        f = nc.netcdf_file(ref_file,'r')
         #print 'finish reading.'
 
         
@@ -70,12 +81,16 @@ class Reflectometer_Output:
 
         if(this.dimension == 2):
             y = f.variables['a_y'][:]
+            z = f.variables['a_z'][:]
             z_idx = f.dimensions['a_nz']/2 -1
             E_ref = f.variables['a_Er'][1,z_idx,:] + 1j*f.variables['a_Ei'][1,z_idx,:]
-            E_inc = f.variables['a_Er'][0,z_idx,:] + 1j*f.variables['a_Ei'][0,z_idx,:]
-
             f.close()
-            E_out = np.trapz(E_ref*np.conj(E_inc),x=y)
+
+            receiver = c5.C5_reader(rec_file)
+
+            E_rec = receiver.E_re_interp(z,y) + 1j* receiver.E_im_interp(z,y)
+            
+            E_out = np.trapz(E_ref*np.conj(E_rec[z_idx,:]),x=y)
             return E_out
         else:
             f.close()

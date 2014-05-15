@@ -26,12 +26,15 @@ class C5_reader:
         this.filename = filename
         this.read_header()
         this.read_Efield()
+        this.setup_spline()
         
     def read_header(this):
         f = open(this.filename,'r')
         this.params = {}
+        this.comment_line = 0 # count the starting comment lines
         for line in f:
             if '!' in line:
+                this.comment_line += 1
                 continue
             elif ':' in line:
                 words = line.split(':')
@@ -103,7 +106,7 @@ class C5_reader:
         Note that the result array is in the shape (ny,nx), where ny and nx are contained in this.params['Array_size'], which is read in read_header() method. And each element in the result array is a complex number.
         """
         (nx,ny)= this.params['Array_size']
-        data = np.loadtxt(this.filename,comments = '!', skiprows = 26)
+        data = np.loadtxt(this.filename,comments = '!', skiprows = this.comment_line + 6)
         if(this.params['Datatype'] == 'Complex'):
             data = data.reshape((ny,nx,2))
             this.E_field = data[:,:,0]+ 1j* data[:,:,1]

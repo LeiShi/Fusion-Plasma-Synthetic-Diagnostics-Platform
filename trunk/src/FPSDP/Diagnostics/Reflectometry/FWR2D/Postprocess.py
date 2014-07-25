@@ -22,7 +22,7 @@ class Reflectometer_Output:
     
     """
 
-    def __init__(this,file_path,f_arr,t_arr):
+    def __init__(this,file_path,f_arr,t_arr,n_cross_section, full_load = True):
         """initialize the output object, read the output files in file_path specified by frequencies and timesteps.
         """
         this.file_path = file_path
@@ -30,43 +30,47 @@ class Reflectometer_Output:
         this.NF = len(f_arr)
         this.timesteps = t_arr
         this.NT = len(t_arr)
-
-        this.create_received_signals()
-
+        this.n_cross_section = n_cross_section
+        if (full_load):
+            this.create_received_signals()
+        else:
+            print 'Initializer didn\'t creat E_out. Need to read E_out from somewhere else.' 
+    
     def create_received_signals(this):
         """This method actually recursively read all the needed output files and produce the recieved signal for each file.
         """
-        this.E_out = np.zeros((this.NF,this.NT))
+        this.E_out = np.zeros((this.NF,this.NT,this.n_cross_section))
         this.E_out = this.E_out + 1j * this.E_out
 
         
         for f_idx in range(this.NF):
             for t_idx in range(this.NT):
-                fwr_file = this.make_file_name(this.frequencies[f_idx],this.timesteps[t_idx])
-                receiver_file = this.make_receiver_file_name(this.frequencies[f_idx],this.timesteps[t_idx])
-                this.E_out[f_idx,t_idx] = this.read_E_out(fwr_file,receiver_file)
+                for i in range(this.n_cross_section):
+                    fwr_file = this.make_file_name(this.frequencies[f_idx],this.timesteps[t_idx],i)
+                    receiver_file = this.make_receiver_file_name(this.frequencies[f_idx],this.timesteps[t_idx],i)
+                    this.E_out[f_idx,t_idx,i] = this.read_E_out(fwr_file,receiver_file)
             print 'frequency '+str(this.frequencies[f_idx])+' read.'
         return 0
     
 
-    def make_file_name(this,f,t):
+    def make_file_name(this,f,t,nc):
         """create the corresponding output file name based on the given frequency and time
         """
 
-        full_path = this.file_path + str(f)+'/'+str(t)+'/'
+        full_path = this.file_path + str(f)+'/'+str(t)+'/'+str(nc)+'/'
         file_name = 'out_{0:0>6.2f}_equ.cdf'.format(f)
         return full_path + file_name
 
-    def make_receiver_file_name(this,f,t):
+    def make_receiver_file_name(this,f,t,nc):
         """create the receiver antenna pattern file name. Rightnow, it works with the NSTX_FWR_Driver.py script default.
         """
 
-        full_path = '{0}{1}/{2}/'.format(this.file_path,str(f),str(t))
+        full_path = '{0}{1}/{2}/{3}/'.format(this.file_path,str(f),str(t),str(nc))
         file_name = 'receiver_pattern.txt'
         return full_path + file_name
 
     def read_E_out(this,ref_file,rec_file):
-        """read data from the output file, produce the received E signal, stored as [E_real, E_imaginary]
+        """read data from the output file, produce the received E signal, return the complex E
         """
         #print 'reading file:',file
         f = nc.netcdf_file(ref_file,'r')
@@ -103,14 +107,14 @@ class Reflectometer_Output:
         """
         np.save(filename,this.E_out)
 
-def load_E_out(filename = 'E_out.sav'):
-    """load an existing E_out array from previously saved datafile.
-    Default filename is E_out.sav.npy
-    Note that a '.npy' extension will be automatically added if not given in filename.
-    """
-    if('.npy' not in filename):
-        filename = filename+'.npy'
-    return np.load(filename)
+    def load_E_out(this,filename = 'E_out.sav'):
+        """load an existing E_out array from previously saved datafile.
+        Default filename is E_out.sav.npy
+        Note that a '.npy' extension will be automatically added if not given in filename.
+        """
+        if('.npy' not in filename):
+            filename = filename+'.npy'
+        this.E_out =  np.load(filename)
         
         
 
@@ -128,9 +132,9 @@ def Self_Correlation(ref_output):
 
     M = ref_output.E_out
 
-    M_bar = np.sum(M,axis = 1)/ref_output.NT
+    M_bar = np.average(np.average(M,axis = 2),axis = 1)
 
-    M2_bar = np.sum(M*np.conj(M),axis = 1)/ref_output.NT
+    M2_bar = np.average(np.average(M*np.conj(M),axis = 2),axis = 1)
 
     return M_bar/np.sqrt(M2_bar)
 
@@ -148,19 +152,18 @@ def Cross_Correlation(ref_output):
 
     M = ref_output.E_out
     NF = ref_output.NF
-    NT = ref_output.NT
     
     r = np.zeros((NF,NF))
     r = r + 1j*r
 
-    M2_bar = np.sum(M*np.conj(M),axis = 1)/NT
+    M2_bar = np.average(np.average(M*np.conj(M),axis = 2),axis=1)
         
     for f0 in np.arange(NF):
-        M0 = M[f0,:]        
+        M0 = M[f0,...]        
         for f1 in np.arange(NF):
             if (f1 >= f0):
-                M1 = M[f1,:]
-                cross_bar = np.sum(M0 * np.conj(M1))/NT
+                M1 = M[f1,...]
+                cross_bar = np.average(np.average(M0 * np.conj(M1),axis = 1),axis=0)
                 denominator = np.sqrt(M2_bar[f0]*M2_bar[f1])
                 r[f0,f1] = cross_bar / denominator
                 r[f1,f0] = np.conj(r[f0,f1])

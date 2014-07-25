@@ -111,19 +111,22 @@ def clear(time):
     vi.CloseDatabase(paraxial_file)
     vi.CloseDatabase(fullwave_file)
 
-windowA = vi.SaveWindowAttributes()
-windowA.format = windowA.JPEG
-windowA.progressive = 1
-windowA.width = 840
-windowA.height = 1080
-windowA.fileName = movie_file_name + str(continued)+'_'		# VisIt will append image number to base name
-windowA.outputDirectory = "/p/gkp/lshi/FWR_Movie/Time_Slides/"
-windowA.outputToCurrentDirectory = 0
-vi.SetSaveWindowAttributes(windowA)
+
+def make_movie():
+    
+    windowA = vi.SaveWindowAttributes()
+    windowA.format = windowA.JPEG
+    windowA.progressive = 1
+    windowA.width = 840
+    windowA.height = 1080
+    windowA.fileName = movie_file_name + str(continued)+'_'		# VisIt will append image number to base name
+    windowA.outputDirectory = "/p/gkp/lshi/FWR_Movie/Time_Slides/"
+    windowA.outputToCurrentDirectory = 0
+    vi.SetSaveWindowAttributes(windowA)
    
-for time in range(time_start,time_end+1,time_step):    
-    make_slide(time)    
-    clear(time)
+    for time in range(time_start,time_end+1,time_step):    
+       make_slide(time)    
+       clear(time)
     
         
         

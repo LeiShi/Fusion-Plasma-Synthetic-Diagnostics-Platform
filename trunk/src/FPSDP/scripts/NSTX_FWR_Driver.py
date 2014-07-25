@@ -12,12 +12,12 @@ working_path = '/p/gkp/lshi/XGC1_NSTX_Case/'
 
 #toroidal cross sactions used
 
-T_cross_sactions = [0] #not used yet, need to be added the next version.
+n_cross_section = 16 #Total number of Cross Sections used
 
 #Time slices parameters
-time_start = 600
-time_end = 1200
-time_inc = 5
+time_start = 100
+time_end = 220
+time_inc = 10
 
 time_arr = np.arange(time_start,time_end+1,time_inc)
 
@@ -30,11 +30,13 @@ freqs = [30,32.5,35,37.5,42.5,45,47.5,50,55,57.5,60,62.5,67.5,70,72.5,75]
 input_path = working_path+'inputs/'
 FWR_driver_input_head = 'input'
 FWR_driver_link_name = 'input.txt'
-antenna_pattern_head = 'antenna_pattern_launch_nstx'
-antenna_link_name = 'antenna_pattern.txt'
+incident_antenna_pattern_head = 'antenna_pattern_launch_nstx'
+incident_antenna_link_name = 'antenna_pattern.txt'
+receiver_antenna_pattern_head = 'antenna_pattern_receive_nstx'
+receiver_antenna_link_name = 'receiver_pattern.txt'
 
 #fluctuation file parameters
-fluc_path = working_path + 'fluctuations/'
+fluc_path = working_path + '2D_fluctuations/'
 fluc_head = 'fluctuation'
 fluc_link_name = 'plasma.cdf'
 
@@ -45,12 +47,12 @@ exe = 'drive_FWR2D'
 #Start creating directories and files
 
 #The tag of RUN. Each new run should be assigned a new number.
-run_No = '_full'
+run_No = '_FullF_multi_cross'
 
 full_output_path = working_path + 'Correlation_Runs/RUNS/RUN'+str(run_No)+'/'
 
 
-def make_dirs(f_arr = freqs,t_arr = time_arr):
+def make_dirs(f_arr = freqs,t_arr = time_arr, nc = n_cross_section):
     
     os.chdir(working_path+'Correlation_Runs/RUNS/')
     #create the RUN directory for the new run
@@ -85,56 +87,64 @@ def make_dirs(f_arr = freqs,t_arr = time_arr):
             subp.check_call(['mkdir',str(f)])
             for t in t_arr:
                 subp.check_call(['mkdir',str(f)+'/'+str(t)])
-                os.chdir(str(f)+'/'+str(t))
-                # make link to plasma perturbation file
-                subp.check_call(['ln','-s',fluc_path+fluc_head+str(t)+'.cdf',fluc_link_name])
-                #make link to the executable
-                subp.check_call(['ln','-s',bin_path+exe,exe])
-                #make links to  the input files
-                subp.check_call(['ln','-s',input_path+FWR_driver_input_head+str(int(f*10))+'.txt',FWR_driver_link_name])
-                subp.check_call(['ln','-s',input_path+antenna_pattern_head+str(int(f*10))+'.txt',antenna_link_name])
-                os.chdir('../..')
+                for j in range(nc):
+                    subp.check_call(['mkdir',str(f)+'/'+str(t)+'/'+str(j)])
+                    os.chdir(str(f)+'/'+str(t)+'/'+str(j))
+                    # make link to plasma perturbation file
+                    subp.check_call(['ln','-s',fluc_path+fluc_head+str(t)+'_'+str(j)+'.cdf',fluc_link_name])
+                    #make link to the executable
+                    subp.check_call(['ln','-s',bin_path+exe,exe])
+                    #make links to  the input files
+                    subp.check_call(['ln','-s',input_path+FWR_driver_input_head+str(int(f*10))+'.txt',FWR_driver_link_name])
+                    subp.check_call(['ln','-s',input_path + incident_antenna_pattern_head + str(int(f*10))+'.txt',incident_antenna_link_name])
+                    subp.check_call(['ln','-s',input_path + receiver_antenna_pattern_head + str(int(f*10))+'.txt',receiver_antenna_link_name])               
+                    os.chdir('../../..')
         except subp.CalledProcessError:
             print 'Something is wrong, check the running environment.'
             raise
         
-def make_batch(f_arr=freqs,t_arr=time_arr):
+def make_batch(f_arr=freqs,t_arr=time_arr,nc = n_cross_section):
     """write batch job files for chosen frequencies and time slices
     """
     os.chdir(working_path+'Correlation_Runs/RUNS/RUN'+str(run_No))
     for f in f_arr:
         for t in t_arr:
-            os.chdir(str(f)+'/'+str(t))
-            batch_file = open('batch','w')
-            batch_file.write('#PBS -N reflect_'+str(f)+'_'+str(t)+'\n')
-            batch_file.write('#PBS -m a\n')
-            batch_file.write('#PBS -M lshi@pppl.gov\n')
-            batch_file.write('#PBS -l nodes=1:ppn=1\n')
-            batch_file.write('#PBS -l mem=1000mb\n')
-            batch_file.write('#PBS -l walltime=1:00:00\n')
-            batch_file.write('#PBS -r n\n')
-            batch_file.write('cd $PBS_O_WORKDIR\n\n')
-            batch_file.write(exe+' '+FWR_driver_link_name+'\n')
-            batch_file.close()
-            os.chdir('../..')
+            for j in range(nc):
+                os.chdir(str(f)+'/'+str(t)+'/'+str(j))
+                batch_file = open('batch','w')
+                batch_file.write('#PBS -N reflect_'+str(f)+'_'+str(t)+'_'+str(j)+'\n')
+                batch_file.write('#PBS -m a\n')
+                batch_file.write('#PBS -M lshi@pppl.gov\n')
+                batch_file.write('#PBS -l nodes=1:ppn=1\n')
+                batch_file.write('#PBS -l mem=1000mb\n')
+                batch_file.write('#PBS -l walltime=1:00:00\n')
+                batch_file.write('#PBS -r n\n')
+                batch_file.write('cd $PBS_O_WORKDIR\n\n')
+                batch_file.write(exe+' '+FWR_driver_link_name+'\n')
+                batch_file.close()
+                os.chdir('../../..')
     
     
 
-def submit(f_arr=freqs,t_arr=time_arr):
+def submit(f_arr=freqs,t_arr=time_arr,nc = n_cross_section):
     """ submit the batch jobs
     """
     os.chdir(working_path+'Correlation_Runs/RUNS/RUN'+str(run_No))
     for f in f_arr:
         for t in t_arr:
-            os.chdir(str(f)+'/'+str(t))
-            subp.check_call(['qsub','./batch'])
-            os.chdir('../..')
+            for j in range(nc):
+                os.chdir(str(f)+'/'+str(t)+'/'+str(j))
+                subp.check_call(['qsub','./batch'])
+                os.chdir('../../..')
 
 
 #run the functions:
 
 if __name__ == "__main__":
 
-    make_dirs()#(t_arr = [600])
-    make_batch()#(t_arr = [600])
-    submit()#(t_arr = [600])
+    t_use = [100]
+    f_use = [32.5,55,72.5]
+    nc_use = 1
+    make_dirs()#(t_arr = t_use,f_arr = f_use,nc = nc_use)
+    make_batch()#(t_arr = t_use,f_arr = f_use,nc = nc_use)
+    submit()#(t_arr = t_use,f_arr = f_use, nc = nc_use)

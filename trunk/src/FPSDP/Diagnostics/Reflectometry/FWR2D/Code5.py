@@ -97,7 +97,7 @@ class C5_reader:
                     raise C5_Error('Unexpected keyword occured:{0}! Please double check the compatibility of the Code5 file version and this program.'.format(key) )
                     
             else:
-                print 'header loading finished.'
+                #print 'header loading finished.'
                 break
         f.close()
 

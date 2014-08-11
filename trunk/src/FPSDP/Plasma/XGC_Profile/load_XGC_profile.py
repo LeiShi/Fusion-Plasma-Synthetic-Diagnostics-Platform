@@ -252,7 +252,19 @@ class XGC_loader():
     """Loader for a given set of XGC output files
     """
 
-    def __init__(this,xgc_path,grid,t_start,t_end,dt,n_cross_section = 1,equilibrium_mesh = '2D',Full_Load = True):
+    def __init__(this,xgc_path,grid,t_start,t_end,dt,dn_amplifier = 1.0, n_cross_section = 1,equilibrium_mesh = '2D',Full_Load = True):
+        """The main caller of all functions to prepare a loaded XGC profile.
+
+        Inputs:
+            xgc_path:string, the directory of all the XGC output files
+            grid:FPSDP.Geometry.Grid.Cartesian2D or Cartesian3D object, a user defined mesh object, find the corresponding module for details.
+            tstart,tend,dt: int, the timesteps used for loading, NOTE: the time series created here MUST be a subseries of the original file numbers.
+            dn_amplifier: double, the multiplier used to artificially change the fluctuation level, default to be 1, i.e. use original fluctuation data read from XGC output.
+            n_cross_section: int, number of cross sections loaded for each time step, default to be 1, i.e. use only data on(near) number 0 cross-section. NOTE: this number can not be larger than the total cross-section used in the XGC simulation.
+            equilibrium_mesh: string, a flag to choose from '2D' or '3D' equilibrium output style. Current FWR3D code read '2D' equilibrium data.
+            Full_Load: bool, A flag for debugging, default to be True, i.e. load all data when initializing, if set to be False, then only constants are set, no loading functions will be called during initialization, programmer can call them one by one afterwards.
+            
+        """
 
         print 'Loading XGC output data'
         
@@ -261,6 +273,7 @@ class XGC_loader():
         this.bfield_file = xgc_path + 'xgc.bfield.h5'
         this.time_steps = np.arange(t_start,t_end+1,dt)
         this.grid = grid
+        this.dn_amplifier = dn_amplifier #
         this.n_cross_section = n_cross_section
         this.unit_file = xgc_path+'units.m'
         this.te_input_file = xgc_path+'te_input.in'
@@ -615,10 +628,10 @@ class XGC_loader():
 
         this.ne = np.zeros(this.dne_ad.shape)
         this.ne += ne0[:]
-        this.ne[ad_valid_idx] += this.dne_ad[ad_valid_idx]
+        this.ne[ad_valid_idx] += this.dne_ad[ad_valid_idx]*this.dn_amplifier
         if(this.HaveElectron):
             na_valid_idx = np.where(np.absolute(this.nane)<= np.absolute(this.ne))
-            this.ne[na_valid_idx] += this.nane[na_valid_idx]
+            this.ne[na_valid_idx] += this.nane[na_valid_idx]*this.dn_amplifier
 
     def interpolate_all_on_grid_2D(this):
         """ create all interpolated quantities on given grid.
@@ -953,9 +966,9 @@ class XGC_loader():
                 dne = f.createVariable('dne','d',('nz','ny','nx'))
                 dne.units = 'm^-3'
                 if(not this.HaveElectron):
-                    dne[:,:,:] = this.dne_ad_on_grid[i,:,:,:]          
+                    dne[:,:,:] = this.dne_ad_on_grid[j,i,:,:,:]*this.dn_amplifier          
                 else:
-                    dne[:,:,:] = this.dne_ad_on_grid[i,:,:,:] + this.nane_on_grid[i,:,:,:]
+                    dne[:,:,:] = (this.dne_ad_on_grid[j,i,:,:,:] + this.nane_on_grid[j,i,:,:,:])*this.dn_amplifier
                 f.close()
 
 

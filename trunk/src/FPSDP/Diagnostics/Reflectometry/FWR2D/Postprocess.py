@@ -13,6 +13,7 @@ import Code5 as c5
 
 import numpy as np
 import scipy.io.netcdf as nc
+from scipy.optimize import curve_fit
 
 
 class Reflectometer_Output:
@@ -105,7 +106,7 @@ class Reflectometer_Output:
         Default filename is 'E_out.sav.npy'
         Note that a '.npy' extension will be added automatically
         """
-        np.save(filename,this.E_out)
+        np.save(this.file_path + filename,this.E_out)
 
     def load_E_out(this,filename = 'E_out.sav'):
         """load an existing E_out array from previously saved datafile.
@@ -114,7 +115,7 @@ class Reflectometer_Output:
         """
         if('.npy' not in filename):
             filename = filename+'.npy'
-        this.E_out =  np.load(filename)
+        this.E_out =  np.load(this.file_path + filename)
         
         
 
@@ -171,3 +172,107 @@ def Cross_Correlation(ref_output):
                 pass
 
     return r
+
+def Cross_Correlation_by_fft(ref_output):
+    """Calculate teh cross correlation using fft method. Details can be found in Appendix part of ref.[1]
+
+    [1] Observation of ion scale fluctuations in the pedestal region during the edge-localized-mode cycle on the National Spherical torus Experiment. A.Diallo, G.J.Kramer, at. el. Phys. Plasmas 20, 012505(2013)
+    """
+
+    E = ref_output.E_out
+    NF = ref_output.NF
+    NT = ref_output.NT
+    n_cross = ref_output.n_cross_section
+
+    E = E.reshape((NF,NT*n_cross)) #reshape the signal such that all the data from one frequency channel forms a one dimensional array
+
+    r = np.zeros((NF,NF))
+    r = r + r*1j #the complex array for results
+
+    F = np.fft.fft(E,axis = 1)
+    F2 = np.conj(F)*F
+    F_norm = np.sqrt(np.average(F2,axis = 1))
+    for i in range(NF):
+        f = F[i,:]
+        f2 = F2[i,:]
+        f_norm = F_norm[i]
+        for j in range(NF):
+            if(j==i):
+                gamma_f = f2/f_norm**2
+                gamma_t = np.fft.ifft(gamma_f)
+                r[i,i] = gamma_t[0]
+            elif(j>i):
+                g = F[j,:]
+                g_norm = F_norm[j]
+                gamma_f = np.conj(f)*g/(f_norm*g_norm)
+                gamma_t = np.fft.ifft(gamma_f)
+                r[i,j] = gamma_t[0]
+            else:
+                r[i,j] = np.conj(r[j,i])
+    return r
+
+
+def Coherent_signal_Expriment_Comparison(ref_output,exp_coherent_signals):
+    """compare the simulated self_correlation signal with the coherent_signal time series from experiment. Find the least square difference time for all channels.
+
+    Arguments:
+        ref_output: Reflectometry_Output object. Make sure using the same frequency array as that in experiment analysis.
+        exp_coherent_signals: complex array shaped (NF,NT), returned from ..NSTX.nstx.Analyser.Coherent_over_time function.
+
+    Return:
+        tuple(time_idx,square_error)
+        time_idx:int, the index of the least error time
+        squre_error: double, the sum of the square of the errors in all the channels 
+    """
+
+    self_correlation = Self_Correlation(ref_output)
+
+    diff = exp_coherent_signals - self_correlation[:,np.newaxis]
+
+    square_error = np.sum(np.conj(diff)*diff,axis = 0)
+
+    time_idx = np.argmin(square_error)
+
+    return (time_idx,square_error[time_idx])
+
+
+def gaussian_fit(x,a):
+    """function used for curve_fit
+    """
+
+    return np.exp(-x**2/a)
+
+def exponential_fit(x,a):
+
+    return np.exp(-x/a)
+
+def fitting_cross_correlation(cross_cor_arr,dx_arr,fitting_type = 'gaussian'):
+    """ fit the cross_correlation points with chosen function, default to be gaussian.
+
+    Argument:
+        cross_cor_arr:double array, absolute values of cross correlation results from chosen channels
+        dx_arr:double array, the corresponding distances in major radius for each channel from the central channel
+        fitting_type: string, can be 'gaussian' or 'exponential',default to be gaussian.
+            gaussian fitting: y = exp(-x**2/a)
+            exponential fitting: y = exp(-x/a)
+    return:
+        tuple, first element is the optimized fitting parameter a, second the standard deviation of a.
+    """
+
+    if(fitting_type == 'gaussian'):
+        fit_func = gaussian_fit
+    elif(fitting_type == 'exponential'):
+        fit_func = exponential_fit
+    else:
+        print 'unknown fitting type:'+fitting_type
+        print 'choose from gaussian or exponential'
+        return (-1,-1)
+
+    a,sigma_a2 = curve_fit(fit_func,dx_arr,cross_cor_arr)
+
+    return (a,np.sqrt(sigma_a2))
+    
+
+    
+    
+    

@@ -41,12 +41,15 @@ receiver_antenna_link_name = 'receiver_pattern.txt'
 fluc_path = working_path + '3D_fluctuations/'
 equilibrium_file = 'equilibrium.cdf'
 fluc_head = 'fluctuation'
-fluc_link_name = 'plasma.cdf'
+equilibrium_link_name = 'equilibrium.cdf'
+fluc_link_name = 'fluctuation.cdf'
 
 #executable parameters
 bin_path = working_path + 'bin/reflect3d/'
-exe = 'drive_FWR2D'
-
+exe_reflect = 'reflect'
+exe_FW = 'fw'
+link_reflect = 'reflect_O'
+link_FW = 'fw_O'
 #Start creating directories and files
 
 #The tag of RUN. Each new run should be assigned a new number.
@@ -81,7 +84,7 @@ def make_dirs(f_arr = freqs,t_arr = time_arr, nc = n_cross_section):
             print 'Not a valid option, but I\'ll take that as a NO. process interupted.'
             raise e
 
-    os.chdir(working_path+'Correlation_Runs/RUNS/RUN'+str(run_No))
+    os.chdir(working_path+'Correlation_Runs/3DRUNS/RUN'+str(run_No))
         
     #create the subdirectories for each detector(frequency) and plasma realization, add necessary links and copies of corresponding files.
 
@@ -93,15 +96,19 @@ def make_dirs(f_arr = freqs,t_arr = time_arr, nc = n_cross_section):
                 for j in range(nc):
                     subp.check_call(['mkdir',str(f)+'/'+str(t)+'/'+str(j)])
                     os.chdir(str(f)+'/'+str(t)+'/'+str(j))
+
+                    # make link to plasma equilibrium file
+                    subp.check_call(['ln','-s',fluc_path+equilibrium_file,equilibrium_link_name])
                     # make link to plasma perturbation file
                     subp.check_call(['ln','-s',fluc_path+fluc_head+str(t)+'_'+str(j)+'.cdf',fluc_link_name])
-                    #copy links to the executable
-                    subp.check_call(['cp','-d','-p',bin_path+'*','./'])
+                    #make links to the executable
+                    subp.check_call(['ln','-s',bin_path+exe_reflect,link_reflect])
+                    subp.check_call(['ln','-s',bin_path+exe_FW,link_FW])
                     #make links to  the antenna pattern files
                     subp.check_call(['ln','-s',input_path + incident_antenna_pattern_head + str(int(f*10))+'.txt',incident_antenna_link_name])
                     subp.check_call(['ln','-s',input_path + receiver_antenna_pattern_head + str(int(f*10))+'.txt',receiver_antenna_link_name])
                     #call functions from Make_inps to create necessary .inp files
-                    full_out = '.FALSE.'
+                    full_out = '.TRUE.'
                     mi.eps_out = full_out
                     mi.vac_out = full_out
                     mi.para_out = full_out
@@ -109,7 +116,7 @@ def make_dirs(f_arr = freqs,t_arr = time_arr, nc = n_cross_section):
                     mi.fullw_out = full_out
 
                     mi.ant_freq = f*1e9
-                    mi.equilibrium_file = equilibrium_file
+                    mi.equilibrium_file = equilibrium_link_name
                     mi.fluctuation_file = fluc_link_name
 
                     mi.create_all_input_files()
@@ -121,7 +128,7 @@ def make_dirs(f_arr = freqs,t_arr = time_arr, nc = n_cross_section):
 def make_batch(f_arr=freqs,t_arr=time_arr,nc = n_cross_section):
     """write batch job files for chosen frequencies and time slices
     """
-    os.chdir(working_path+'Correlation_Runs/RUNS/RUN'+str(run_No))
+    os.chdir(working_path+'Correlation_Runs/3DRUNS/RUN'+str(run_No))
     for f in f_arr:
         for t in t_arr:
             for j in range(nc):
@@ -157,9 +164,9 @@ def submit(f_arr=freqs,t_arr=time_arr,nc = n_cross_section):
 
 if __name__ == "__main__":
 
-    t_use = [100]
-    f_use = [32.5,55,72.5]
+    t_use = [220]
+    f_use = [35]
     nc_use = 1
     make_dirs(t_arr = t_use,f_arr = f_use,nc = nc_use)
     make_batch(t_arr = t_use,f_arr = f_use,nc = nc_use)
-    submit(t_arr = t_use,f_arr = f_use, nc = nc_use)
+    #submit(t_arr = t_use,f_arr = f_use, nc = nc_use)

@@ -33,6 +33,7 @@ run_path = './'
 #antenna,epsilon,vacuum,paraxial,fullwave output flags
 ant_out = '.TRUE.'
 eps_out = '.TRUE.'
+eps_1d_out = '.TRUE.'
 vac_out = '.TRUE.'
 para_out = '.TRUE.'
 pp_out = '.TRUE.'
@@ -43,10 +44,10 @@ fullw_out = '.TRUE.'
 #****************
 
 # Y&Z mesh (assumed the same in all 3 regions) 
-Ymin = -20
-Ymax = 20
-Zmin = -20
-Zmax = 20
+Ymin = -30
+Ymax = 30
+Zmin = -30
+Zmax = 30
 NY = 128 # Y grid points, need to be 2**n number for FFT
 NZ = 128 # Z grid number, same reason 
 
@@ -60,18 +61,23 @@ NZ = 128 # Z grid number, same reason
 # antenna location 
 x_antenna = 160
 # plasma boundary (boundary between vacuum and paraxial region)
-x_paraxial_vacuum_bnd = 158
+x_paraxial_vacuum_bnd = 159
 # paraxial and fullwave boundary
-x_full_wave_paraxial_bnd = 150
+x_full_wave_paraxial_bnd = 158
 # left boundary of full wave region
 x_min_full_wave = 130
 
-# grid numbers for the inner 2 regions
-nx_paraxial = 32
-nx_full_wave = 512 
 
-#temp variable used within the script
+#Antenna wave frequency(Hz)
+ant_freq = 7.5E10
+
+# grid numbers for the inner 2 regions
+nx_paraxial = 8
+
+nx_full_wave = int((x_full_wave_paraxial_bnd-x_min_full_wave)*ant_freq/3e9) 
+
 dx_fw = float(x_full_wave_paraxial_bnd-x_min_full_wave)/nx_full_wave
+
 #*******************
 # Antenna Parameters
 #*******************
@@ -82,8 +88,8 @@ read_code5_data = '.TRUE.'
 #code5 file
 code5_datafile = 'antenna_pattern.txt'
 
-# wave frequency (Hz)
-ant_freq = 7.5E10
+
+
 
 #information for analytical antenna setup
 # Antenna location (cm)
@@ -106,7 +112,7 @@ ant_angle = -0.5*np.pi # np.pi is the constant PI stored in numpy module
 #time step allowed by stability condition
 omega_dt = dx_fw*ant_freq*2*np.pi/6e10
 # total simulation time in terms of time for light go through full wave region
-nr_crossings = 2
+nr_crossings = 3
 #total time steps calculated from dt and total simulation time
 nt = nx_full_wave*nr_crossings*2
 
@@ -198,77 +204,105 @@ NML_ENDS = {'ant':'\n/',
 
 # dictionaries containing all the parameters
 
-ANT_PARA = {'read_code5_data' : read_code5_data,
-            'code5_datafile' : '"'+code5_datafile+'"',   
-            'ANT_CENTER':ant_center,
-            'ANT_HEIGHT':ant_height,
-            'FOCAL_LENGTH':ant_focal,
-            'ANT_LAUNCH_ANGLE':ant_angle,
-            'ANT_FREQUENCY':ant_freq,
-            'OUTPUT':ant_out
-           }
-EPS_PARA = {'DATA_FILE':'"'+equilibrium_file+'"',
-            'data_file_format':'"'+data_file_format+'"',
-            'generator':'"'+generator+'"',
-            'with_fluctuations':with_fluctuations,
-            'fluctuation_type':'"'+fluctuation_type+'"',
-            'fluctuation_file':'"'+fluctuation_file+'"',
-            'POLARIZATION':'"'+polarization+'"',            
-            'yz_cut':'0.,0.',
-            'OUTPUT':eps_out
-           }
 
-GEO_PARA = {'x_min_full_wave':x_min_full_wave,
-            'x_full_wave_paraxial_bnd':x_full_wave_paraxial_bnd,
-            'x_paraxial_vacuum_bnd':x_paraxial_vacuum_bnd,
-            'x_antenna':x_antenna,
-            'nx_full_wave':nx_full_wave,
-            'nx_paraxial':nx_paraxial,
-            'nx_plasma':nx_full_wave + nx_paraxial,
-            'nz_overall':NZ,
-            'ny_overall':NY,
-            'z_limits_overall':str(Zmin)+' , '+str(Zmax),
-            'z_limits_full_wave':str(Zmin)+' , '+str(Zmax),
-            'z_limits_paraxial':str(Zmin)+' , '+str(Zmax),
-            'y_limits_overall':str(Ymin)+' , '+str(Ymax),
-            'y_limits_full_wave':str(Ymin)+' , '+str(Ymax),
-            'y_limits_paraxial':str(Ymin)+' , '+str(Ymax)            
-            }
+ANT_PARA = {}
+EPS_PARA = {}
+GEO_PARA = {}
+FW_PARA = {}
+MOD_PARA= {}
+PARA_PARA = {}
+PP_PARA = {}
+VAC_PARA = {}
+EMPTY_PARA = {}
+
+
+def renew_para():
+
+    global ANT_PARA,EPS_PARA,GEO_PARA,FW_PARA,MOD_PARA,PARA_PARA,PP_PARA,VAC_PARA,NML_ENDS
+
+    #renew derived parameters:
+
+    nx_full_wave = int((x_full_wave_paraxial_bnd-x_min_full_wave)*ant_freq/3e9)
+    dx_fw = float(x_full_wave_paraxial_bnd-x_min_full_wave)/nx_full_wave
+    omega_dt = dx_fw*ant_freq*2*np.pi/6e10
+    ixs = [nx_full_wave*9/10,nx_full_wave*9/10+1]
+    
+    NML_ENDS['mod']='\n/\n&FW_expl_interface_nml\nixs={0},{1}\n/'.format(ixs[0],ixs[1])
+
+    
+    ANT_PARA = {'read_code5_data' : read_code5_data,
+                'code5_datafile' : '"'+code5_datafile+'"',   
+                'ANT_CENTER':ant_center,
+                'ANT_HEIGHT':ant_height,
+                'FOCAL_LENGTH':ant_focal,
+                'ANT_LAUNCH_ANGLE':ant_angle,
+                'ANT_FREQUENCY':ant_freq,
+                'OUTPUT':ant_out
+                }
+    EPS_PARA = {'DATA_FILE':'"'+equilibrium_file+'"',
+                'data_file_format':'"'+data_file_format+'"',
+                'generator':'"'+generator+'"',
+                'with_fluctuations':with_fluctuations,
+                'fluctuation_type':'"'+fluctuation_type+'"',
+                'fluctuation_file':'"'+fluctuation_file+'"',
+                'POLARIZATION':'"'+polarization+'"',            
+                'yz_cut':'0.,0.',
+                'OUTPUT':eps_out,
+                'OUTPUT_EPS_1D':eps_1d_out
+                }
+    
+    GEO_PARA = {'x_min_full_wave':x_min_full_wave,
+                'x_full_wave_paraxial_bnd':x_full_wave_paraxial_bnd,
+                'x_paraxial_vacuum_bnd':x_paraxial_vacuum_bnd,
+                'x_antenna':x_antenna,
+                'nx_full_wave':nx_full_wave,
+                'nx_paraxial':nx_paraxial,
+                'nx_plasma':nx_full_wave + nx_paraxial,
+                'nz_overall':NZ,
+                'ny_overall':NY,
+                'z_limits_overall':str(Zmin)+' , '+str(Zmax),
+                'z_limits_full_wave':str(Zmin)+' , '+str(Zmax),
+                'z_limits_paraxial':str(Zmin)+' , '+str(Zmax),
+                'y_limits_overall':str(Ymin)+' , '+str(Ymax),
+                'y_limits_full_wave':str(Ymin)+' , '+str(Ymax),
+                'y_limits_paraxial':str(Ymin)+' , '+str(Ymax)            
+                }
 #SCHR_PARA = {'NT' : nt,
 #             'NR_CROSSINGS':nr_crossings,
 #             'OUTPUT':fullw_out
 #            }
-FW_PARA = {'read_paraxial' : read_paraxial,
-           'submesh' : submesh,
-           'propagation_medium':propagation_medium,
-           'nt':nt,
-           'omega_dt':omega_dt,
-           'iskip':iskip
-          }
-            
-MOD_PARA ={
-    'ANTENNA':'.TRUE.',
-    'VACUUM' :'.TRUE.',
-    'PARAXIAL':'.TRUE.',
-    'FULL_WAVE':'.TRUE.',
-    'full_wave_solver':'"explicit"'
-    }
-PARA_PARA = {
-    'OUTPUT':para_out,
-    'OUTPUT_3D_FIELDS':para_out
-    }
-PP_PARA = {
-    'THETA':0.5,
-    'OUTPUT':pp_out,
-    'CDF_PREFIX':'pp_',
-    'output_3d_fields':pp_out,
-    'numerical_method':'"fft"'
-    }
-VAC_PARA = {
-    'OUTPUT':vac_out
-    }
+    FW_PARA = {'read_paraxial' : read_paraxial,
+               'submesh' : submesh,
+               'propagation_medium':propagation_medium,
+               'nt':nt,
+               'omega_dt':omega_dt,
+               'iskip':iskip
+               }
+    
+    MOD_PARA ={
+        'ANTENNA':'.TRUE.',
+        'VACUUM' :'.TRUE.',
+        'PARAXIAL':'.TRUE.',
+        'FULL_WAVE':'.TRUE.',
+        'full_wave_solver':'"explicit"'
+        }
+    PARA_PARA = {
+        'OUTPUT':para_out,
+        'OUTPUT_3D_FIELDS':para_out
+        'numerical_method':'"fft"'
+        }
+    PP_PARA = {
+        'THETA':0.5,
+        'OUTPUT':pp_out,
+        'CDF_PREFIX':'pp_',
+        'output_3d_fields':pp_out,
+        'numerical_method':'"fft"'
+        }
+    VAC_PARA = {
+        'OUTPUT':vac_out
+        }
 
-EMPTY_PARA = {}
+    
 def make_input(ftype, **para):
     """ create .inp files
     ftype: string, see the keys of NML_HEADS dict for different ftype strings
@@ -292,6 +326,7 @@ def create_all_input_files():
     """create all input files using parameters defined at the beginning.
     """
     print 'creating all the input files in:'+ run_path
+    renew_para()
     make_input('ant',**ANT_PARA)
     make_input('eps',**EPS_PARA)
     make_input('geo',**GEO_PARA)

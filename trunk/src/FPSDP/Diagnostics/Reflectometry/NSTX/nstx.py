@@ -59,9 +59,9 @@ class FFT_result:
         f: frequency array corresponds to fft data
     """
 
-    def __init__(this, origin,shift,t,f):
+    def __init__(this, origin,fft,t,f):
         this.origin = origin
-        this.shift_fft = shift
+        this.fft = fft
         this.t = t
         this.f = f
 
@@ -85,7 +85,7 @@ class Analyser:
                 loader_num : loader = this.loaders[loader_num]
                 frequency : check if abs(loader.freq-frequency)/frequency<tol, if find one, then use this loader, if not, raise an error.
             3)Chose the In phase component or Quadrature component
-                component = 'I', 'Q', 'Amp' or 'Phase' 
+                component = 'I', 'Q', 'Amp', 'Phase' or 'Cplx' 
         returns:
             FFT_result object.
         """
@@ -115,7 +115,10 @@ class Analyser:
             signal = loader.getI()+loader.getQ()* 1j
             raw_data = np.absolute(signal)
         elif(params['component']=='Phase'):
+            signal = loader.getI()+loader.getQ()*1j
             raw_data = np.angle(signal)
+        elif(params['component']=='Cplx'):
+            raw_data = loader.getI()+loader.getQ()*1j
         else:
             raise Exception('fft initialization error: component must be either "I" or "Q"')
 
@@ -124,10 +127,10 @@ class Analyser:
         interp = interp1d(raw_t,raw_data)
 
         origin = interp(t)
-        f = np.fft.fftshift(np.fft.fftfreq(len(t),t[1]-t[0]))
-        shift_fft = np.fft.fftshift(np.fft.fft(origin))
+        f = np.fft.fftfreq(len(t),t[1]-t[0])
+        fft = np.fft.fft(origin)
 
-        return FFT_result(origin,shift_fft,t,f)
+        return FFT_result(origin,fft,t,f)
 
 
     def Self_and_Cross_Correlation(this,tstart,tend):
@@ -220,7 +223,7 @@ class Analyser:
             Q = loader.getQ()
             sig = I+ 1j*Q
             
-            for j in np.arange(len(t_arr)):
+            for j in np.arange(NT):
                 t = t_arr[j]
             
                 left_bdy = t-window/2
@@ -238,4 +241,60 @@ class Analyser:
 
         return coh_sig
 
+    def Cross_Correlation_by_fft(this,start,end,nt,loader_nums = 'all'):
+        """Another way to calculate the cross correlation between channels. Assume f(t) and g(t) are signals from two channels, and F(w), G(w') are the corresponding Forier transform of them. Then the cross correlation (not normalized) is[1]:
+            \gamma(tau) = FT(F*(w)G(w))
+
+            a proper normalization would be (|F|*|G|)^-1 where |F| = sqrt(integral F*(w)F(w)dw)
+
+        Arguments:
+            start,end,nt: double; time inteval chosen to carry out the cross correlation. The time series will be determined as t_arr = np.linspace(start,end,nt)
+            loader_num: list of int (default to be a string 'all');the loaders used in calculating the cross correlation. if given, need to be a list of int. Otherwise, by default, all the channels in the analyser will be used. 
+        [1] Observation of ion scale fluctuations in the pedestal region during the edge-localized-mode cycle on the National Spherical torus Experiment. A.Diallo, G.J.Kramer, at. el. Phys. Plasmas 20, 012505(2013)
+        """
+
+        if(loader_nums == 'all'):
+            loader_nums = np.arange(len(this.loaders))
+
+        NL = len(loader_nums)
+
+        cross_corr = np.zeros((NL,NL)) + np.zeros((NL,NL))*1j
+
+        F = []#a list of forier transforms of each channel signal
+        F2 = []# list of square of F
+        F_norm = []#list of normalization term related to F
+        for i in loader_nums:
+            f = this.fft(tstart = start,tend = end,nt = nt,loader_num = i,component = 'Cplx').fft
+            f2 = np.conj(f)*f
+            f_norm = np.sqrt(np.average(f2))
+            F.append(f)
+            F2.append(np.conj(f)*f)
+            F_norm.append(f_norm)
+
+        for i in range(NL):
+            f = F[i]
+            f2 = F2[i]
+            f_norm = F_norm[i]
+            for j in range(NL):
+                if(j == i): # if on the diagonal
+                    gamma_f = f2/f_norm**2
+                    gamma_t = np.fft.ifft(gamma_f)
+                    cross_corr[i,i] = gamma_t[0]
+                elif(j>i): #if in upper triangle region, need to calculate this term
+                    g = F[j]
+                    g_norm = F_norm[j]
+                    gamma_f = np.conj(f)*g/(np.conj(f_norm)*g_norm)
+                    gamma_t = np.fft.ifft(gamma_f)
+                    cross_corr[i,j] = gamma_t[0]
+                else: #if in lower triangle region, use the Hermitian property of the cross_correlation matrix
+                    cross_corr[i,j] = np.conj(cross_corr[j,i])
+        return cross_corr
+
+                
+        
+            
+          
+        
+                    
+        
         

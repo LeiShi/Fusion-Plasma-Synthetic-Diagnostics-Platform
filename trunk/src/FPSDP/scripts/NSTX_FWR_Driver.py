@@ -36,7 +36,7 @@ receiver_antenna_pattern_head = 'antenna_pattern_receive_nstx'
 receiver_antenna_link_name = 'receiver_pattern.txt'
 
 #fluctuation file parameters
-fluc_path = working_path + '2D_fluctuations/'
+fluc_path = working_path + '2D_fluctuations/Amp01/'
 fluc_head = 'fluctuation'
 fluc_link_name = 'plasma.cdf'
 
@@ -47,7 +47,7 @@ exe = 'drive_FWR2D'
 #Start creating directories and files
 
 #The tag of RUN. Each new run should be assigned a new number.
-run_No = '_FullF_multi_cross'
+run_No = '_FullF_multi_cross_Amp01'
 
 full_output_path = working_path + 'Correlation_Runs/RUNS/RUN'+str(run_No)+'/'
 
@@ -142,7 +142,7 @@ def submit(f_arr=freqs,t_arr=time_arr,nc = n_cross_section):
 
 if __name__ == "__main__":
 
-    t_use = [100]
+    t_use = [220]
     f_use = [32.5,55,72.5]
     nc_use = 1
     make_dirs()#(t_arr = t_use,f_arr = f_use,nc = nc_use)

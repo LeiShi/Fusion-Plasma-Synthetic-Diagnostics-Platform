@@ -14,6 +14,8 @@ import Code5 as c5
 import numpy as np
 import scipy.io.netcdf as nc
 from scipy.optimize import curve_fit
+from scipy.integrate import dblquad
+from scipy.interpolate import RectBivariateSpline
 
 
 class Reflectometer_Output:
@@ -23,7 +25,7 @@ class Reflectometer_Output:
     
     """
 
-    def __init__(this,file_path,f_arr,t_arr,n_cross_section, full_load = True):
+    def __init__(this,file_path,f_arr,t_arr,n_cross_section, FWR_dimension = 2,full_load = True):
         """initialize the output object, read the output files in file_path specified by frequencies and timesteps.
         """
         this.file_path = file_path
@@ -32,6 +34,7 @@ class Reflectometer_Output:
         this.timesteps = t_arr
         this.NT = len(t_arr)
         this.n_cross_section = n_cross_section
+        this.dimension = FWR_dimension
         if (full_load):
             this.create_received_signals()
         else:
@@ -65,10 +68,10 @@ class Reflectometer_Output:
     def make_receiver_file_name(this,f,t,nc):
         """create the receiver antenna pattern file name. Rightnow, it works with the NSTX_FWR_Driver.py script default.
         """
-
         full_path = '{0}{1}/{2}/{3}/'.format(this.file_path,str(f),str(t),str(nc))
         file_name = 'receiver_pattern.txt'
         return full_path + file_name
+    
 
     def read_E_out(this,ref_file,rec_file):
         """read data from the output file, produce the received E signal, return the complex E
@@ -76,13 +79,6 @@ class Reflectometer_Output:
         #print 'reading file:',file
         f = nc.netcdf_file(ref_file,'r')
         #print 'finish reading.'
-
-        
-        
-        if 's_z' in f.variables.keys():
-            this.dimension = 3
-        else:
-            this.dimension = 2
 
         if(this.dimension == 2):
             y = f.variables['a_y'][:]
@@ -97,9 +93,28 @@ class Reflectometer_Output:
             
             E_out = np.trapz(E_ref*np.conj(E_rec[z_idx,:]),x=y)
             return E_out
-        else:
+        elif(this.dimension == 3):
+            y = f.variables['a_y'][:]
+            z = f.variables['a_z'][:]
+            
+            E_ref_re_interp = RectBivariateSpline(z,y,f.variables['a_Er'][1,:,:])
+            E_ref_im_interp = RectBivariateSpline(z,y,f.variables['a_Ei'][1,:,:])            
             f.close()
-            return 0
+
+            receiver = c5.C5_reader(rec_file)
+            
+            #use area average to estimate E_ref*np.conj(E_receive) integrated over y,z dimension.
+            ymin = np.max([y[0],receiver.X1D[0]])
+            ymax = np.min([y[-1],receiver.X1D[-1]])
+            zmin = np.max([z[0],receiver.Y1D[0]])
+            zmax = np.min([z[-1],receiver.Y1D[-1]])
+            y_fine = np.linspace(ymin,ymax,200)
+            z_fine = np.linspace(zmin,zmax,200)
+            E_ref = E_ref_re_interp(z_fine,y_fine)+ 1j*E_ref_im_interp(z_fine,y_fine)
+            E_rec = receiver.E_re_interp(z_fine,y_fine)+ 1j*receiver.E_im_interp(z_fine,y_fine)
+            
+            E_out = np.average(E_ref*np.conj(E_rec))*(ymax-ymin)*(zmax-zmin)
+            return E_out
 
     def save_E_out(this,filename = 'E_out.sav'):
         """Save the output signal array to a binary file

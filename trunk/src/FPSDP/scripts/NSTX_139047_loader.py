@@ -7,12 +7,12 @@ grid2D = Grid.Cartesian2D(DownLeft = (-0.4,1.25),UpRight = (0.4,1.6),NR = 256, N
 
 grid3D = Grid.Cartesian3D(Xmin = 1.25,Xmax = 1.6,Ymin = -0.4, Ymax = 0.4, Zmin = -0.4, Zmax = 0.4, NX = 128,NY = 256,NZ = 64)
 
-time_start = 100
+time_start = 220
 time_end = 220
 time_step = 10
 
 def load():
-    xgc_nstx_139047 = xgc.XGC_loader(xgc_path,grid2D,time_start,time_end,time_step,dn_amplifier = 0.1,n_cross_section = 16, Full_Load = True)
+    xgc_nstx_139047 = xgc.XGC_loader(xgc_path,grid2D,time_start,time_end,time_step,dn_amplifier = 1,n_cross_section = 1, Full_Load = True)
     return xgc_nstx_139047
 
 if (__name__=='__main__'):

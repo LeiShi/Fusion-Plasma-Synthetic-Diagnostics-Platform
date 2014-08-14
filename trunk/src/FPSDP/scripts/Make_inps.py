@@ -61,9 +61,9 @@ NZ = 128 # Z grid number, same reason
 # antenna location 
 x_antenna = 160
 # plasma boundary (boundary between vacuum and paraxial region)
-x_paraxial_vacuum_bnd = 159
+x_paraxial_vacuum_bnd = 158
 # paraxial and fullwave boundary
-x_full_wave_paraxial_bnd = 158
+x_full_wave_paraxial_bnd = 152
 # left boundary of full wave region
 x_min_full_wave = 130
 
@@ -124,9 +124,9 @@ propagation_medium = '"plasma"'
 #source location for full wave solver (x indices of the 2 points in full wave mesh)
 ixs = [nx_full_wave*9/10,nx_full_wave*9/10+1]
 
-#time step for output(Note that NX*NY*NZ*[NT/iskip]*16Byte should not exceed 4GB)
-
-iskip = int(nt/10)
+#total time step for output(Note that NX*NY*NZ*itime*16Byte should not exceed 4GB)
+itime = 10
+iskip = int(nt/itime)
 
 #********************
 # Epsilon Calculation Parameters
@@ -225,6 +225,8 @@ def renew_para():
     nx_full_wave = int((x_full_wave_paraxial_bnd-x_min_full_wave)*ant_freq/3e9)
     dx_fw = float(x_full_wave_paraxial_bnd-x_min_full_wave)/nx_full_wave
     omega_dt = dx_fw*ant_freq*2*np.pi/6e10
+    nt = nx_full_wave*nr_crossings*2
+    iskip = int(nt/itime)
     ixs = [nx_full_wave*9/10,nx_full_wave*9/10+1]
     
     NML_ENDS['mod']='\n/\n&FW_expl_interface_nml\nixs={0},{1}\n/'.format(ixs[0],ixs[1])
@@ -276,7 +278,8 @@ def renew_para():
                'propagation_medium':propagation_medium,
                'nt':nt,
                'omega_dt':omega_dt,
-               'iskip':iskip
+               'iskip':iskip,
+               'do_output':fullw_out
                }
     
     MOD_PARA ={
@@ -288,7 +291,7 @@ def renew_para():
         }
     PARA_PARA = {
         'OUTPUT':para_out,
-        'OUTPUT_3D_FIELDS':para_out
+        'OUTPUT_3D_FIELDS':para_out,
         'numerical_method':'"fft"'
         }
     PP_PARA = {
@@ -325,7 +328,8 @@ def make_input(ftype, **para):
 def create_all_input_files():
     """create all input files using parameters defined at the beginning.
     """
-    print 'creating all the input files in:'+ run_path
+    if __name__ == 'main':
+        print 'creating all the input files in:'+ run_path
     renew_para()
     make_input('ant',**ANT_PARA)
     make_input('eps',**EPS_PARA)
@@ -338,8 +342,9 @@ def create_all_input_files():
     make_input('mod',**MOD_PARA)
     make_input('bc_fft',**EMPTY_PARA)
     make_input('bc_ker',**EMPTY_PARA)
-    
-    print 'input files created.'
+
+    if __name__ == 'main':
+        print 'input files created.'
 
 
     

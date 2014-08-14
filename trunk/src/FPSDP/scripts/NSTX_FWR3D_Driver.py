@@ -53,9 +53,12 @@ link_FW = 'fw_O'
 #Start creating directories and files
 
 #The tag of RUN. Each new run should be assigned a new number.
-run_No = '001'
+run_No = '_FullF_multi_cross_original_wo_675'
 
 full_output_path = working_path + 'Correlation_Runs/3DRUNS/RUN'+str(run_No)+'/'
+
+#Boolean controls the output
+all_output = False
 
 
 def make_dirs(f_arr = freqs,t_arr = time_arr, nc = n_cross_section):
@@ -108,16 +111,27 @@ def make_dirs(f_arr = freqs,t_arr = time_arr, nc = n_cross_section):
                     subp.check_call(['ln','-s',input_path + incident_antenna_pattern_head + str(int(f*10))+'.txt',incident_antenna_link_name])
                     subp.check_call(['ln','-s',input_path + receiver_antenna_pattern_head + str(int(f*10))+'.txt',receiver_antenna_link_name])
                     #call functions from Make_inps to create necessary .inp files
-                    full_out = '.TRUE.'
+                    #modify corresponding parameters in Make_inps script
+                    if(all_output):
+                        full_out = '.TRUE.'
+                    else:
+                        full_out = '.FALSE.'
                     mi.eps_out = full_out
+                    mi.eps_1d_out = full_out
                     mi.vac_out = full_out
                     mi.para_out = full_out
                     mi.pp_out = full_out
-                    mi.fullw_out = full_out
+                    #mi.fullw_out = full_out
 
                     mi.ant_freq = f*1e9
                     mi.equilibrium_file = equilibrium_link_name
                     mi.fluctuation_file = fluc_link_name
+
+                    if(f>=70):
+                        mi.nr_crossings = 8
+                    else:
+                        mi.nr_crossings = 3
+                    
 
                     mi.create_all_input_files()
                     os.chdir('../../..')
@@ -143,6 +157,10 @@ def make_batch(f_arr=freqs,t_arr=time_arr,nc = n_cross_section):
                 batch_file.write('#PBS -r n\n')
                 batch_file.write('cd $PBS_O_WORKDIR\n\n')
                 batch_file.write('./reflect_O\n')
+                if(not all_output):
+                    batch_file.write('rm ./epsilon.cdf\n')
+                    batch_file.write('rm ./parax.cdf\n')
+                    batch_file.write('rm ./FW_expl.cdf\n')
                 batch_file.close()
                 os.chdir('../../..')
     
@@ -151,7 +169,7 @@ def make_batch(f_arr=freqs,t_arr=time_arr,nc = n_cross_section):
 def submit(f_arr=freqs,t_arr=time_arr,nc = n_cross_section):
     """ submit the batch jobs
     """
-    os.chdir(working_path+'Correlation_Runs/RUNS/RUN'+str(run_No))
+    os.chdir(working_path+'Correlation_Runs/3DRUNS/RUN'+str(run_No))
     for f in f_arr:
         for t in t_arr:
             for j in range(nc):
@@ -165,8 +183,8 @@ def submit(f_arr=freqs,t_arr=time_arr,nc = n_cross_section):
 if __name__ == "__main__":
 
     t_use = [220]
-    f_use = [35]
+    f_use = [30,32.5,35,37.5,42.5,45,47.5,50,55,57.5,60,62.5,70,72.5,75]
     nc_use = 1
-    make_dirs(t_arr = t_use,f_arr = f_use,nc = nc_use)
-    make_batch(t_arr = t_use,f_arr = f_use,nc = nc_use)
-    #submit(t_arr = t_use,f_arr = f_use, nc = nc_use)
+    make_dirs(f_arr = f_use)#(t_arr = t_use,f_arr = f_use,nc = nc_use)
+    make_batch(f_arr=f_use)#(t_arr = t_use,f_arr = f_use,nc = nc_use)
+    submit(f_arr=f_use)#(t_arr = t_use,f_arr = f_use, nc = nc_use)

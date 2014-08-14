@@ -286,9 +286,16 @@ class XGC_loader():
         this.dt = this.tstep * dt
         this.t = this.time_steps * this.tstep
 
+        if isinstance(grid, Cartesian2D):
+            this.dimension = 2
+        elif isinstance(grid,Cartesian3D):
+            this.dimension = 3
+        else:
+            raise XGC_Loader_Error('grid error:grid should be either Cartesian2D or Cartesian3D')
+
 
         if (Full_Load):
-            if isinstance(grid,Cartesian2D):
+            if this.dimension == 2:
                 print '2D Grid detected.'
                 this.load_mesh_2D()
                 print 'mesh loaded.'
@@ -305,7 +312,7 @@ class XGC_loader():
                 this.interpolate_all_on_grid_2D()
                 print 'quantities interpolated on grid.\n XGC data sucessfully loaded.'
             
-            elif isinstance(grid, Cartesian3D):
+            elif this.dimension == 3:
                 print '3D grid detected.'
                 
                 grid.ToCylindrical()
@@ -343,11 +350,12 @@ class XGC_loader():
         Argument:
         grid: Grid object, Currently must be Cartesian2D or Cartesian3D
         """
-        if isinstance(this.grid,Cartesian2D):
+        if this.dimension == 2:
             if isinstance(grid,Cartesian2D):
                 this.grid = grid
                 this.interpolate_all_on_grid_2D()
             elif isinstance(grid,Cartesian3D):
+                this.dimension = 3
                 print 'Change grid from 2D to 3D, loading all the data files again, please wait...'
                 this.grid = grid
                 
@@ -377,14 +385,14 @@ class XGC_loader():
                 print 'all quantities interpolated on grid.\n XGC data sucessfully loaded.'
            
             else:
-                print 'NOT VALID GRID, please use either Cartesian3D or Cartesian2D grids.'
-                print 'Grid NOT changed.'
-                return
+                raise XGC_Loader_Error( 'NOT VALID GRID, please use either Cartesian3D or Cartesian2D grids.Grid NOT changed.')
+                
         else:
             if isinstance(grid,Cartesian3D):
                 this.grid = grid
                 this.interpolate_all_on_grid_3D()
             elif isinstance(grid,Cartesian2D):
+                this.dimension = 2
                 print 'Changing from 3D to 2D grid, load all the data files again, please wait...'
                 this.grid = grid
                 
@@ -403,9 +411,7 @@ class XGC_loader():
                 this.interpolate_all_on_grid_2D()
                 print 'quantities interpolated on grid.\n XGC data sucessfully loaded.'
             else:
-                print 'NOT VALID GRID, please use either Cartesian3D or Cartesian2D grids.'
-                print 'Grid NOT changed.'
-                return
+                raise XGC_Loader_Error( 'NOT VALID GRID, please use either Cartesian3D or Cartesian2D grids.Grid NOT changed.')
                 
     
     def load_mesh_2D(this):
@@ -654,9 +660,12 @@ class XGC_loader():
         this.phi_on_grid = np.zeros(this.ne_on_grid.shape)
         this.dne_ad_on_grid = np.zeros(this.ne_on_grid.shape)
         this.nane_on_grid = np.zeros(this.ne_on_grid.shape)
+
+        this.ne0_on_grid = griddata(this.points,this.ne0[:],(Z2D,R2D),method = 'linear',fill_value = 0)
+
         for i in range(this.ne.shape[0]):
             for j in range(this.ne.shape[1]):
-                
+
                 this.ne_on_grid[i,j,...] += griddata(this.points,this.ne[i,j,:],(Z2D,R2D),method = 'linear', fill_value = 0)
                 this.phi_on_grid[i,j,...] += griddata(this.points,this.phi[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
                 this.dne_ad_on_grid[i,j,...] += griddata(this.points,this.dne_ad[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
@@ -755,6 +764,36 @@ class XGC_loader():
                         next[next_idx[j]] = griddata(this.points,this.nane[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
             
                     this.nane_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
+
+    def save_dne(this,fname = 'dne_file.sav'):
+        """save the interpolated electron density fluctuations to a local .npz file
+
+        for 2D instances,The arrays saved are:
+            X1D: the 1D array of coordinates along R direction
+            Y1D: the 1D array of coordinates along Z direction
+            dne_ad: the adiabatic electron density perturbation, in shape (NY,NX), where NX,NY are the dimensions of X1D, Y1D respectively
+            nane: (if non-adiabatic electron is on in XGC simulation)the non-adiabatic electron density perturbation. same shape as dne_ad
+            ne0: the equilibrium electron density.
+        for 3D instances, in addition to the arrays above, one coordinate is also saved:
+            Z1D: 1D coordinates along R cross Z direction.
+        
+        """
+        file_name = this.xgc_path + fname
+        saving_dic = {
+            'dne_ad':this.dne_ad_on_grid,
+            'ne0':this.ne0_on_grid,
+            }
+        if (this.HaveElectron):
+            saving_dic['nane'] = this.nane_on_grid
+        if (this.dimension == 2):
+            saving_dic['X1D'] = this.grid.R1D
+            saving_dic['Y1D'] = this.grid.Z1D
+        else:
+            saving_dic['X1D'] = this.grid.X1D
+            saving_dic['Y1D'] = this.grid.Y1D
+            saving_dic['Z1D'] = this.grid.Z1D
+        np.savez(file_name,**saving_dic)
+        
 
 
     def get_frequencies(this):

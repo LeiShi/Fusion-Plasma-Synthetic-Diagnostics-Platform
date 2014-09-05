@@ -63,7 +63,7 @@ x_antenna = 160
 # plasma boundary (boundary between vacuum and paraxial region)
 x_paraxial_vacuum_bnd = 158
 # paraxial and fullwave boundary
-x_full_wave_paraxial_bnd = 152
+x_full_wave_paraxial_bnd = 151
 # left boundary of full wave region
 x_min_full_wave = 130
 
@@ -141,6 +141,7 @@ data_file_format = 'leishi'
 
 #fluctuation flag
 with_fluctuations = '.TRUE.'
+generate_fluctuations = '.TRUE.'
 #fluctuation data format
 fluctuation_type = 'leishi_3d_dataset'
 #fluctuation file
@@ -245,6 +246,7 @@ def renew_para():
                 'data_file_format':'"'+data_file_format+'"',
                 'generator':'"'+generator+'"',
                 'with_fluctuations':with_fluctuations,
+                'generate_fluctuations':generate_fluctuations,
                 'fluctuation_type':'"'+fluctuation_type+'"',
                 'fluctuation_file':'"'+fluctuation_file+'"',
                 'POLARIZATION':'"'+polarization+'"',            

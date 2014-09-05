@@ -36,7 +36,7 @@ receiver_antenna_pattern_head = 'antenna_pattern_receive_nstx'
 receiver_antenna_link_name = 'receiver_pattern.txt'
 
 #fluctuation file parameters
-fluc_path = working_path + '2D_fluctuations/Amp01/'
+fluc_path = working_path + '2D_fluctuations/Amp2/'
 fluc_head = 'fluctuation'
 fluc_link_name = 'plasma.cdf'
 
@@ -47,7 +47,7 @@ exe = 'drive_FWR2D'
 #Start creating directories and files
 
 #The tag of RUN. Each new run should be assigned a new number.
-run_No = '_FullF_multi_cross_Amp01'
+run_No = '_FullF_multi_cross_Amp2_long_GT70'
 
 full_output_path = working_path + 'Correlation_Runs/RUNS/RUN'+str(run_No)+'/'
 
@@ -117,7 +117,7 @@ def make_batch(f_arr=freqs,t_arr=time_arr,nc = n_cross_section):
                 batch_file.write('#PBS -M lshi@pppl.gov\n')
                 batch_file.write('#PBS -l nodes=1:ppn=1\n')
                 batch_file.write('#PBS -l mem=1000mb\n')
-                batch_file.write('#PBS -l walltime=1:00:00\n')
+                batch_file.write('#PBS -l walltime=3:00:00\n')
                 batch_file.write('#PBS -r n\n')
                 batch_file.write('cd $PBS_O_WORKDIR\n\n')
                 batch_file.write(exe+' '+FWR_driver_link_name+'\n')
@@ -143,8 +143,8 @@ def submit(f_arr=freqs,t_arr=time_arr,nc = n_cross_section):
 if __name__ == "__main__":
 
     t_use = [220]
-    f_use = [32.5,55,72.5]
+    f_use = [70,72.5,75]
     nc_use = 1
-    make_dirs()#(t_arr = t_use,f_arr = f_use,nc = nc_use)
-    make_batch()#(t_arr = t_use,f_arr = f_use,nc = nc_use)
-    submit()#(t_arr = t_use,f_arr = f_use, nc = nc_use)
+    make_dirs(f_arr = f_use)#(t_arr = t_use,f_arr = f_use,nc = nc_use)
+    make_batch(f_arr = f_use)#(t_arr = t_use,f_arr = f_use,nc = nc_use)
+    submit(f_arr = f_use)#(t_arr = t_use,f_arr = f_use, nc = nc_use)

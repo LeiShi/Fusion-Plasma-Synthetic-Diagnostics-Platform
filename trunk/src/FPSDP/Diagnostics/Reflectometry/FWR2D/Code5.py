@@ -18,15 +18,16 @@ class C5_reader:
     """Simple reader. 
     """
 
-    def __init__(this,filename):
+    def __init__(this,filename,full_load = True):
         """initiates with a file name
 
         filename: string, the full name of the Code5 file
         """
         this.filename = filename
-        this.read_header()
-        this.read_Efield()
-        this.setup_spline()
+        if(full_load):
+            this.read_header()
+            this.read_Efield()
+            this.setup_spline()
         
     def read_header(this):
         f = open(this.filename,'r')
@@ -39,14 +40,14 @@ class C5_reader:
             elif ':' in line:
                 words = line.split(':')
                 key = words[0]
-                value = words[1]
+                value = words[1].strip(' \t\n')
                 if key == 'Datatype':
-                    this.params['Datatype'] = value.strip(' \n')
+                    this.params['Datatype'] = value.strip(' \t\n')
                 elif key == 'Wavelength':
                     values = value.split()
                     num = parse_num(values[0].strip(' '))
                     
-                    unit = values[1].strip(' \n')
+                    unit = values[1].strip(' \t\n')
                     if unit == 'nm':
                         num *= 1e-7
                         this.params['Wavelength']=num
@@ -57,7 +58,7 @@ class C5_reader:
                     values = value.split()
                     dx = parse_num(values[0])
                     dy = parse_num(values[1])
-                    unit = values[2].strip(' \n')
+                    unit = values[2].strip(' \t\n')
                     if unit == 'mm':
                         dx *= 0.1
                         dy *= 0.1
@@ -71,7 +72,7 @@ class C5_reader:
                     x0 = parse_num(values[0])
                     y0 = parse_num(values[1])
                     z0 = parse_num(values[2])
-                    unit = values[3].strip(' \n')
+                    unit = values[3].strip(' \t\n')
                     if unit == 'mm':
                         x0 *= 0.1
                         y0 *= 0.1

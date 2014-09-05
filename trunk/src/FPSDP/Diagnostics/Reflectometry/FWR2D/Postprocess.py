@@ -60,9 +60,13 @@ class Reflectometer_Output:
     def make_file_name(this,f,t,nc):
         """create the corresponding output file name based on the given frequency and time
         """
-
         full_path = this.file_path + str(f)+'/'+str(t)+'/'+str(nc)+'/'
-        file_name = 'out_{0:0>6.2f}_equ.cdf'.format(f)
+        
+        if this.dimension ==2:
+            file_name = 'out_{0:0>6.2f}_equ.cdf'.format(f)
+        elif this.dimension == 3:
+            file_name = 'schradi.cdf'
+            
         return full_path + file_name
 
     def make_receiver_file_name(this,f,t,nc):
@@ -227,28 +231,28 @@ def Cross_Correlation_by_fft(ref_output):
     return r
 
 
-def Coherent_signal_Expriment_Comparison(ref_output,exp_coherent_signals):
+def Coherent_signal_Expriment_Comparison(self_correlation,exp_coherent_signals):
     """compare the simulated self_correlation signal with the coherent_signal time series from experiment. Find the least square difference time for all channels.
 
     Arguments:
-        ref_output: Reflectometry_Output object. Make sure using the same frequency array as that in experiment analysis.
+        self_correlation: complex array shaped (NF), array of coherent signals from all channels, calculated from a given Reflectometry_Output object by Self_Correlation function. Make sure using the same frequency array as that in experiment analysis.
         exp_coherent_signals: complex array shaped (NF,NT), returned from ..NSTX.nstx.Analyser.Coherent_over_time function.
 
     Return:
         tuple(time_idx,square_error)
-        time_idx:int, the index of the least error time
-        squre_error: double, the sum of the square of the errors in all the channels 
+            time_idx:int, the index of the least error time
+            squre_error: double, the sum of the square of the errors in all the channels 
     """
 
-    self_correlation = Self_Correlation(ref_output)
-
     diff = exp_coherent_signals - self_correlation[:,np.newaxis]
+    nf = diff.shape[0]
+    abs_error = np.abs(diff)
 
-    square_error = np.sum(np.conj(diff)*diff,axis = 0)
+    time_idx = range(16)
+    for i in range(nf):
+        time_idx[i] =  np.argmin(abs_error[i,:])
 
-    time_idx = np.argmin(square_error)
-
-    return (time_idx,square_error[time_idx])
+    return (time_idx,abs_error[range(nf),time_idx])
 
 
 def gaussian_fit(x,a):

@@ -53,7 +53,7 @@ link_FW = 'fw_O'
 #Start creating directories and files
 
 #The tag of RUN. Each new run should be assigned a new number.
-run_No = '_FullF_multi_cross_original_wo_675'
+run_No = '_FullF_multi_cross_min_out'
 
 full_output_path = working_path + 'Correlation_Runs/3DRUNS/RUN'+str(run_No)+'/'
 
@@ -161,6 +161,7 @@ def make_batch(f_arr=freqs,t_arr=time_arr,nc = n_cross_section):
                     batch_file.write('rm ./epsilon.cdf\n')
                     batch_file.write('rm ./parax.cdf\n')
                     batch_file.write('rm ./FW_expl.cdf\n')
+                    batch_file.write('rm ./3dout.cdf\n')
                 batch_file.close()
                 os.chdir('../../..')
     
@@ -183,8 +184,8 @@ def submit(f_arr=freqs,t_arr=time_arr,nc = n_cross_section):
 if __name__ == "__main__":
 
     t_use = [220]
-    f_use = [30,32.5,35,37.5,42.5,45,47.5,50,55,57.5,60,62.5,70,72.5,75]
+    f_use = [30,32.5,35,37.5,42.5,45,47.5,50,55,57.5,60,62.5,67.5,70,72.5,75]
     nc_use = 1
-    make_dirs(f_arr = f_use)#(t_arr = t_use,f_arr = f_use,nc = nc_use)
-    make_batch(f_arr=f_use)#(t_arr = t_use,f_arr = f_use,nc = nc_use)
-    submit(f_arr=f_use)#(t_arr = t_use,f_arr = f_use, nc = nc_use)
+    make_dirs()#(t_arr = t_use,f_arr = f_use,nc = nc_use)
+    make_batch()#(t_arr = t_use,f_arr = f_use,nc = nc_use)
+    submit()#(t_arr = t_use,f_arr = f_use, nc = nc_use)

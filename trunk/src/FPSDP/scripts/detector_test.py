@@ -1,10 +1,10 @@
 """Create test detectors and carry out the alpha and ECEI calculations
 """
 import numpy as np
-import FPSDP.ECEI.Alpha1 as a1
+import FPSDP.Diagnostic.ECEI.Alpha1 as a1
 import FPSDP.Plasma.TestParameter as tp
-import FPSDP.ECEI.Detector as dtc
-import FPSDP.ECEI.Intensity as intensity
+import FPSDP.Diagnostic.ECEI.Detector as dtc
+import FPSDP.Diagnositc.ECEI.Intensity as intensity
 from FPSDP.Geometry.Grid import path
 from FPSDP.GeneralSettings.UnitSystem import cgs
 

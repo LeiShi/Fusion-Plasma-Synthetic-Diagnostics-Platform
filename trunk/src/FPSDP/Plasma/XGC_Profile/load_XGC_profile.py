@@ -514,29 +514,60 @@ class XGC_loader():
         """Load non-adiabatic electron density and electrical static potential fluctuations
         the mean value of these two quantities on each time step is also calculated.
         """
+
+        #first we load one file to obtain the total plane number used in the simulation
+        flucf = this.xgc_path + 'xgc.3d.'+str(this.time_steps[0]).zfill(5)+'.h5'
+        fluc_mesh = h5.File(flucf,'r')        
+        this.n_plane = fluc_mesh['dpot'].shape[1]
+        dn = int(this.n_plane/this.n_cross_section)#dn is the increment between two chosen cross-sections, if total chosen number is greater than total simulation plane number, an error will occur.
+        this.planes = np.arange(this.n_cross_section)*dn
+
         if(this.HaveElectron):
-            this.nane = np.zeros( (this.n_cross_section,len(this.time_steps),len(this.mesh['R'])) )
-            this.nane_bar = np.zeros((len(this.time_steps)))
+            this.nane = np.zeros( (this.n_cross_section,len(this.time_steps),len(this.mesh['R'])))
+            nane_all = np.zeros( (this.n_plane, len(this.time_steps), len(this.mesh['R']) ) )
         this.phi = np.zeros((this.n_cross_section,len(this.time_steps),len(this.mesh['R'])))
-        this.phi_bar = np.zeros((len(this.time_steps)))
-        for i in range(len(this.time_steps)):
+        phi_all = np.zeros((this.n_plane,len(this.time_steps),len(this.mesh['R'])))
+
+        #after initializing the arrays to hold the data, we load the data from the first chosen step
+        for j in range(this.n_plane):
+            phi_all[j,0] += np.swapaxes(fluc_mesh['dpot'][...][:,j],0,1)
+            if(this.HaveElectron):
+                nane_all[j,0] += np.swapaxes(fluc_mesh['eden'][...][:,j],0,1)
+        fluc_mesh.close()
+        
+        for i in range(1,len(this.time_steps)):
+            #now we load all the data from rest of the chosen time steps. 
             flucf = this.xgc_path + 'xgc.3d.'+str(this.time_steps[i]).zfill(5)+'.h5'
             fluc_mesh = h5.File(flucf,'r')
-            if (i == 0):
-                this.n_plane = fluc_mesh['dpot'].shape[1]
-                dn = int(this.n_plane/this.n_cross_section)
-                this.planes = np.arange(this.n_cross_section) * dn
                 
-            for j in range(this.n_cross_section):
-                this.phi[j,i] += np.swapaxes(fluc_mesh['dpot'][...][:,this.planes[j]],0,1)
-                this.phi_bar[i] += np.mean(fluc_mesh['dpot'][...])
-                this.phi[j,i] -= this.phi_bar[i]
-
+            for j in range(this.n_plane):
+                phi_all[j,i] += np.swapaxes(fluc_mesh['dpot'][...][:,j],0,1)
                 if(this.HaveElectron):
-                    this.nane[j,i] += np.swapaxes(fluc_mesh['eden'][...][:,this.planes[j]],0,1)
-                    this.nane_bar[i] += np.mean(fluc_mesh['eden'][...])
-                    this.nane[j,i] -= this.nane_bar[i]
+                    nane_all[j,i] += np.swapaxes(fluc_mesh['eden'][...][:,j],0,1)
             fluc_mesh.close()
+
+        #now, all data is ready, we need to pick the chosen cross sections and do some post process. Since XGC-1 has full-f capability, the deviation from input equilibrium is not only fluctuations induced by turbulences, but also relaxation of the equilibrium. Since we are only interested in the former part, we need to screen out the latter effect.[*] The way of doing this is as follows:
+        # Since the relaxation of equilibrium should be the same across the whole flux surface, it naturally is the same along toroidal direction. Given that no large n=0 mode exists in the turbulent spectra, the toroidal average of the calculated delta-n will mainly be the equilibrium relaxation. However, this effect might be important, so we keep the time-averaged relaxation effect to add it into the input equilibrium. The final formula for density fluctuation (as well as potential fluctuation) is then:
+        #   n_tilde = delta_n - <delta_n>_zeta , where delta_n is the calculated result, and <...>_zeta denotes average in toroidal direction.
+        # and the effective equilibrium is given by:
+        #   n0_eff = n0 + <delta_n>_zeta_t , where n0 is the input equilibrium, and <...>_zeta_t denotes average over both toroidal and time.
+
+        # first, we calculate the n_tilde, note that we have adiabatic and non-adiabatic parts. The adiabatic part is given by the potential, and will be calculated later in calc_total_ne_2D3D.
+        phi_avg_tor = np.average(phi_all,axis = 0)
+        if(this.HaveElectron):
+            nane_avg_tor = np.average(nane_all,axis=0)
+        for j in range(this.n_cross_section):
+            this.phi[j,:,:] = phi_all[this.planes[j],:,:] - phi_avg_tor[:,:]
+            if(this.HaveElectron):
+                this.nane[j,:,:] = nane_all[this.planes[j],:,:] - nane_avg_tor[:,:]
+
+        # then, we add the averaged relaxation modification to the input equilibrium
+
+        this.ne0[:] += np.average(phi_avg_tor,axis = 0)
+        if(this.HaveElectron):
+            this.ne0[:] += np.average(nane_avg_tor,axis = 0)
+        
+        
         return 0
 
     def load_fluctuations_3D(this):
@@ -544,31 +575,48 @@ class XGC_loader():
         the mean value of these two quantities on each time step is also calculated.
         for multiple cross-section runs, data is stored under each center_plane index.
         """
+        #similar to the 2D case, we first read one file to determine the total toroidal plane number in the simulation
+        flucf = this.xgc_path + 'xgc.3d.'+str(this.time_steps[0]).zfill(5)+'.h5'
+        fluc_mesh = h5.File(flucf,'r')
+
+        this.n_plane = fluc_mesh['dpot'].shape[1]
+        dn = int(this.n_plane/this.n_cross_section)
+        this.center_planes = np.arange(this.n_cross_section)*dn
 
         this.planes = np.unique(np.array([np.unique(this.prevplane),np.unique(this.nextplane)]))
         this.planeID = {this.planes[i]:i for i in range(len(this.planes))} #the dictionary contains the positions of each chosen plane, useful when we want to get the data on a given plane known only its plane number in xgc file.
+        #initialize the arrays
         if(this.HaveElectron):
             this.nane = np.zeros( (this.n_cross_section,len(this.time_steps),len(this.planes),len(this.mesh['R'])) )
-            this.nane_bar = np.zeros((len(this.time_steps)))
+            nane_all = np.zeros((this.n_plane,len(this.time_steps),len(this.mesh['R'])))
         this.phi = np.zeros( (this.n_cross_section,len(this.time_steps),len(this.planes),len(this.mesh['R'])) )
-        this.phi_bar = np.zeros((len(this.time_steps)))
-        for i in range(len(this.time_steps)):
+        phi_all = np.zeros((this.n_plane,len(this.time_steps),len(this.mesh['R'])))
+
+        #load all the rest of the files
+        for i in range(1,len(this.time_steps)):
             flucf = this.xgc_path + 'xgc.3d.'+str(this.time_steps[i]).zfill(5)+'.h5'
             fluc_mesh = h5.File(flucf,'r')
-
-            if(i==0):
-                #this.n_plane = fluc_mesh['dpot'].shape[1]
-                dn = int(this.n_plane/this.n_cross_section)
-                this.center_planes = np.arange(this.n_cross_section)*dn
-            for j in range(this.n_cross_section):
-                this.phi[j,i] += np.swapaxes(fluc_mesh['dpot'][...][:,(this.center_planes[j] + this.planes)%this.n_plane],0,1)
-                this.phi_bar[i] += np.mean(fluc_mesh['dpot'][...])
-                this.phi[j,i] -= this.phi_bar[i]
+            for j in range(this.n_plane):
+                phi_all[j,i] += np.swapaxes(fluc_mesh['dpot'][...][:,j],0,1)
                 if(this.HaveElectron):
-                    this.nane[i] += np.swapaxes(fluc_mesh['eden'][...][:,(this.center_planes[j] + this.planes)%this.n_plane],0,1)
-                    this.nane_bar[i] += np.mean(fluc_mesh['eden'][...])
-                    this.nane[i] -= this.nane_bar[i]
+                    nane_all[j,i] += np.swapaxes(fluc_mesh['eden'][...][:,j],0,1)
             fluc_mesh.close()
+
+        #similar to the 2D case, we take care of the equilibrium relaxation contribution. See details in the comments in 2D loading function.
+        
+        phi_avg_tor = np.average(phi_all,axis = 0)
+        if this.HaveElectron:
+            nane_avg_tor = np.average(nane_all,axis=0)
+
+        for j in range(this.n_cross_section):
+            this.phi[j,...] = np.swapaxes(phi_all[(this.center_planes[j] + this.planes)%this.n_plane,:,:],0,1) - phi_avg_tor[:,np.newaxis,:]
+            if this.HaveElectron:
+                this.nane[j,...] = np.swapaxes(nane_all[(this.center_planes[j] + this.planes)%this.n_plane,:,:],0,1) - nane_avg_tor[:,np.newaxis,:]
+
+        this.ne0[:] += np.average(phi_avg_tor,axis=0)
+        if this.HaveElectron:
+            this.ne0[:] += np.average(nane_avg_tor,axis=0)
+            
         return 0
     
     def load_eq_2D3D(this):

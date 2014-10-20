@@ -1563,6 +1563,153 @@ if(advanceFortranRecord(inputFile,fortranRecordByteCount))
 }
 
 
+int readDenFile(char *fname,int phi_integers[],REAL phi_reals[N_PHI_REALS],int *igrid[],int *mtheta[],int *itran[],REAL *qtinv[],REAL *deltat[],REAL *vth_grid[],REAL **ni_steps[],REAL **ti_steps[], REAL **ne_steps[], REAL **te_steps[],int *nsteps){
+
+  int status=0;
+  int fortranRecordByteCount=sizeof(int)*(int)N_PHI_INTEGERS + sizeof(REAL)*(int)N_PHI_REALS;
+#if VERBOSE > 0
+  fprintf(stderr,"Reading: %s\n",fname);
+#endif
+  printf("Reading: %s \n",fname);
+  FILE *inputFile = fopen(fname,"rb");	// open file for reading
+  if(inputFile == NULL) READPHI_ERR("couldn't open file");
+  if(advanceFortranRecord(inputFile,fortranRecordByteCount))
+    READPHI_ERR("Fortran record byte count mismatch"); // begin record
+
+  if(fread(phi_integers,sizeof(int),N_PHI_INTEGERS,inputFile) != N_PHI_INTEGERS)
+    READPHI_ERR("integer header data read error");
+  // phi_integers is an array in order: msnap,myrank_toroidal,mpsi,mgrid,mzetamax,ntoroidal
+
+  if(fread(phi_reals,sizeof(REAL),N_PHI_REALS,inputFile) != N_PHI_REALS)
+    READPHI_ERR("real header data read error");
+  // phi_reals is an array in order: zetamin,zetamax,deltaz,vthc
+  if(advanceFortranRecord(inputFile,fortranRecordByteCount))
+    READPHI_ERR("Fortran record byte count mismatch"); // end record
+
+  // integer scalars
+  int mzeta =1 ;		// only reading 1 poloidal slice
+
+  int msnap = phi_integers[0];
+  int myrank_toroidal = phi_integers[1];
+  phi_integers[2] += 1;//(phi_integers[2])++; // fortran uses array range from 0:mpsi, so it has mpsi+1 elements
+  int mpsi = phi_integers[2];	// I change mpsi so the array 0:mpsi-1 with mpsi elems
+  int mgrid = phi_integers[3];	// unlike the fortran convention, phi_steps[isteps][0:mgrid-1]
+  int mzetamax = phi_integers[4];
+  int ntoroidal = phi_integers[5];
+  
+  int space1dint = mpsi*sizeof(int);
+  int space1dreal = mpsi*sizeof(REAL);
+  int space2d = mzeta*mgrid*sizeof(REAL);
+
+  // fprintf(stderr,"msnap:%d, ",msnap);
+//   fprintf(stderr," myrank_toroidal:%d, ",myrank_toroidal);
+//   fprintf(stderr," mpsi:%d, ",mpsi);
+//   //  fprintf(stderr," mzeta:%d\n",mzeta); // mzeta=1 since we're only reading one toroidal location
+//   fprintf(stderr,"mgrid:%d, ",mgrid);
+//   fprintf(stderr," mzetamax:%d, ",mzetamax);
+//   fprintf(stderr," ntoroidal:%d\n",ntoroidal);
+
+//   fprintf(stderr,"phireals: %g, %g, %g, %g\n",phi_reals[0],phi_reals[1],phi_reals[2],phi_reals[3]);
+
+
+ // allocate arrays
+  *igrid = (int *)PyMem_Realloc((void*)*igrid,space1dint); // use realloc instead of malloc so that if this function
+  *mtheta = (int *)PyMem_Realloc((void*)*mtheta,space1dint);	// is called several times with the same arguments
+  *itran = (int *)PyMem_Realloc((void*)*itran,space1dint); // the memory assigned to each of these arrays
+  *qtinv = (REAL *)PyMem_Realloc((void*)*qtinv,space1dreal); // is freed automatically and reassigned
+  *deltat = (REAL *)PyMem_Realloc((void*)*deltat,space1dreal);
+  *vth_grid = (REAL *)PyMem_Realloc((void*)*vth_grid,space1dreal);
+
+
+  // read data into arrays
+fortranRecordByteCount = space1dint*N_PHI_1DINT_ARR + space1dreal*N_PHI_1DREAL_ARR;
+if(advanceFortranRecord(inputFile,fortranRecordByteCount))
+  READPHI_ERR("Fortran record byte count mismatch"); // begin record
+  if(fread(*igrid,sizeof(int),mpsi,inputFile) != mpsi)
+    READPHI_ERR("igrid data read error");
+if(fread(*deltat,sizeof(REAL),mpsi,inputFile) != mpsi)
+  READPHI_ERR("deltat data read error");
+  if(fread(*qtinv,sizeof(REAL),mpsi,inputFile) != mpsi)
+    READPHI_ERR("qtinv data read error");
+if(fread(*mtheta,sizeof(int),mpsi,inputFile) != mpsi)
+  READPHI_ERR("mtheta data read error");
+  if(fread(*itran,sizeof(int),mpsi,inputFile) != mpsi)
+    READPHI_ERR("itran data read error");
+  if(fread(*vth_grid,sizeof(REAL),mpsi,inputFile) != mpsi)
+    READPHI_ERR("vth_grid data read error");
+if(advanceFortranRecord(inputFile,fortranRecordByteCount))
+  READPHI_ERR("Fortran record byte count mismatch"); // end record
+
+  int i=0;
+  int *istep=NULL;
+  while(~feof(inputFile)){
+//     fprintf(stderr,"i:%d\n",i);
+    fortranRecordByteCount = sizeof(int);
+    status = advanceFortranRecord(inputFile,fortranRecordByteCount);
+    if(status == -1){// begin record
+      break;			// break if at end of file
+    }else if(status == 1)
+      READPHI_ERR("Fortran record byte count mismatch"); // exit with error if the fortran record byte count is wrong
+    istep = (int*) PyMem_Realloc ((void*)istep, sizeof(int)*(i+1));
+    if(fread(&istep[i],sizeof(int),1,inputFile) != 1) READPHI_ERR("istep data read error");
+    if(advanceFortranRecord(inputFile,fortranRecordByteCount))
+      READPHI_ERR("Fortran record byte count mismatch"); // end record
+
+    // calling program must free this memory if this function
+    //   is called multiple times with the same arguments
+    *ni_steps = (REAL **)PyMem_Realloc((void**)*ni_steps,sizeof(REAL *)*(i+1));
+    (*ni_steps)[i] = (REAL *)PyMem_Malloc(space2d);
+
+    *ti_steps = (REAL **)PyMem_Realloc((void**)*ti_steps,sizeof(REAL *)*(i+1));
+    (*ti_steps)[i] = (REAL *)PyMem_Malloc(space2d);
+
+    *ne_steps = (REAL **)PyMem_Realloc((void**)*ne_steps,sizeof(REAL *)*(i+1));
+    (*ne_steps)[i] = (REAL *)PyMem_Malloc(space2d);
+
+    *te_steps = (REAL **)PyMem_Realloc((void**)*te_steps,sizeof(REAL *)*(i+1));
+    (*te_steps)[i] = (REAL *)PyMem_Malloc(space2d);
+    
+    fortranRecordByteCount = mzeta*(mgrid)*sizeof(REAL); 
+
+    if(advanceFortranRecord(inputFile,fortranRecordByteCount))
+      READPHI_ERR("Fortran record byte count mismatch"); // begin record
+    if(fread((*ni_steps)[i],sizeof(REAL),mzeta*mgrid,inputFile) != mzeta*mgrid)
+      READPHI_ERR("phi data read error");
+    if(advanceFortranRecord(inputFile,fortranRecordByteCount))
+      READPHI_ERR("Fortran record byte count mismatch"); // end record
+
+    if(advanceFortranRecord(inputFile,fortranRecordByteCount))
+      READPHI_ERR("Fortran record byte count mismatch"); // begin record
+    if(fread((*ti_steps)[i],sizeof(REAL),mzeta*mgrid,inputFile) != mzeta*mgrid)
+      READPHI_ERR("phi data read error");
+    if(advanceFortranRecord(inputFile,fortranRecordByteCount))
+      READPHI_ERR("Fortran record byte count mismatch"); // end record
+
+    if(advanceFortranRecord(inputFile,fortranRecordByteCount))
+      READPHI_ERR("Fortran record byte count mismatch"); // begin record
+    if(fread((*ne_steps)[i],sizeof(REAL),mzeta*mgrid,inputFile) != mzeta*mgrid)
+      READPHI_ERR("phi data read error");
+    if(advanceFortranRecord(inputFile,fortranRecordByteCount))
+      READPHI_ERR("Fortran record byte count mismatch"); // end record
+
+    if(advanceFortranRecord(inputFile,fortranRecordByteCount))
+      READPHI_ERR("Fortran record byte count mismatch"); // begin record
+    if(fread((*te_steps)[i],sizeof(REAL),mzeta*mgrid,inputFile) != mzeta*mgrid)
+      READPHI_ERR("phi data read error");
+    if(advanceFortranRecord(inputFile,fortranRecordByteCount))
+      READPHI_ERR("Fortran record byte count mismatch"); // end record
+
+    i++;
+  }
+  *nsteps = i;			// I don't do anything with the istep[nstep] array
+
+  status = fclose(inputFile);\
+  printf("finish reading %s\n",fname);
+
+  return status;
+}
+
+
 //! Constructs file name for a potential file given the path and toroidal index
 int constructPhiFname(char *fname,char *path,int itoroidal){
   sprintf(fname,"%s%s%05d",path,PHI_FNAME_START,itoroidal);

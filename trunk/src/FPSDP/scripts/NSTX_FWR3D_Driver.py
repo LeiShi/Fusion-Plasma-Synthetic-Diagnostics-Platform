@@ -58,7 +58,7 @@ run_No = '_FullF_multi_cross_min_out'
 full_output_path = working_path + 'Correlation_Runs/3DRUNS/RUN'+str(run_No)+'/'
 
 #Boolean controls the output
-all_output = False
+all_output = True
 
 
 def make_dirs(f_arr = freqs,t_arr = time_arr, nc = n_cross_section):

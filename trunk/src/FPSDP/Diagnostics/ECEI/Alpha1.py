@@ -16,7 +16,7 @@ import numpy as np
 #use pickle for packaging small amount of data
 import pickle
 
-from ..GeneralSettings.UnitSystem import cgs
+from ...GeneralSettings.UnitSystem import cgs
 
 #The default path and filename for the file that stores the Fqz tables
 DefaultFqzTableFile = './Fqz.sav'

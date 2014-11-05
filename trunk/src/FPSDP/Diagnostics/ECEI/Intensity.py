@@ -10,8 +10,8 @@ from .Detector import create_2D_pointlike_detector_array
 from .Alpha1 import get_alpha_table
 from .Alpha1 import DefaultFqzTableFile
 import numpy as np
-from ..GeneralSettings.UnitSystem import cgs
-from ..Maths.Funcs import my_quad
+from ...GeneralSettings.UnitSystem import cgs
+from ...Maths.Funcs import my_quad
 
 def get_intensity(Dtcs,RawProfile,n=2,FqzFile = DefaultFqzTableFile):
     """Calculate the intensity recieved by Detectors given by Dtcs

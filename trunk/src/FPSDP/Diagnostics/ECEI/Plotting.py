@@ -4,7 +4,7 @@
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
-from ..GeneralSettings.UnitSystem import cgs
+from ...GeneralSettings.UnitSystem import cgs
 
 def calc_frequencies(pro):
     """Calculate relevant cold plasma frequencies for a given profile

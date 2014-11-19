@@ -1,7 +1,7 @@
 from distutils.core import setup, Extension
 import os
 
-My_Sys = 'PPPL'
+My_Sys = 'NERSC'
 
 
 if(My_Sys == 'NERSC'):

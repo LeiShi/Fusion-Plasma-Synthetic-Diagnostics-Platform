@@ -37,13 +37,13 @@ static PyObject*
 show_parameters_(PyObject* self, PyObject* args){
   int sts = 0;
   printf("Parameters set as following:\n");
-  printf("X: (%lf,%lf,%d)\n",Xmin,Xmax,NX);
-  printf("Y: (%lf,%lf,%d)\n",Ymin,Ymax,NY);
-  printf("Z: (%lf,%lf,%d)\n",Zmin,Zmax,NZ);
-  printf("NBoundary: %d\n",NBOUNDARY);
+  printf("X: (Xmin=%lf,Xmax=%lf,NX=%d)\n",Xmin,Xmax,NX);
+  printf("Y: (Ymin=%lf,Ymax=%lf,NY=%d)\n",Ymin,Ymax,NY);
+  printf("Z: (Zmin=%lf,Zmax=%lf,NZ=%d)\n",Zmin,Zmax,NZ);
+  printf("NBOUNDARY: %d\n",NBOUNDARY);
   printf("T: (T0=%d,dT=%d,NT=%d)\n",TStart,TStep,NT);
   printf("Fluc_Amplification: %lf\n",Fluc_Amplification);
-  printf("FlucPath: %s \n",FlucFilePath);
+  printf("FlucFilePath: %s \n",FlucFilePath);
   printf("EqFileName: %s \n",EqFileName);
   printf("NTFileName: %s \n",NTFileName);
   printf("PHIFileNameStart: %s \n",PHI_FNAME_START);

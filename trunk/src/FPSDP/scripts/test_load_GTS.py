@@ -6,7 +6,7 @@ import FPSDP.Plasma.GTS_Loader as cm
 
 #Note that in XYZ(R-Z-PHI) coordinates, Z is increasing in opposite direction to small toroidal coordinate phi (in r-theta-phi), which means -Z is in increasing direction of toroidal data file numbers.(Those in PHI.000XX) Prepare the whole 32 files if not sure about the range of Z.
 
-cm.set_para(NT=1,TStart=700,TStep=1,Xmin=2,Xmax=2.5,Zmin=-0.2,Zmax=0,NZ=21,NX=51,NY=51)
+cm.set_para(NT=1,TStart=1,TStep=1,Xmin=1,Xmax=2.5,Zmin=0,Zmax=0,NZ=1,NX=51,NY=51)
 
 #initialize the cartesian grids
 mesh = cm.make_grid()
@@ -23,7 +23,7 @@ print(mesh.Z3D)
 
 #get the fluctuations
 
-cm.mmc.get_GTS_profiles_(mesh.X3D,mesh.Y3D,mesh.Z3D,ne,Te,Bm)
+cm.get_fluctuations_from_GTS(mesh.X3D,mesh.Y3D,mesh.Z3D,ne,Te,Bm)
 
 import matplotlib.pyplot as plt
 
@@ -36,7 +36,7 @@ plt.plot(mesh.X1D, ne[0,0,cm.NY0/2,:])
 
 plt.figure(2)
 
-plt.imshow(ne[0,:,(cm.NY0-1)/2,:])
+plt.imshow(ne[0,0,:,:])
 
 #cm.get_fluctuations_from_GTS(x3d,y3d,z3d,ne,Te,Bm)
 

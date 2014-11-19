@@ -1084,9 +1084,10 @@ def load(record_file_name='xgc_loader_record.sav'):
 
 def get_ref_pos(my_xgc,freqs,mode = 'O'):
     """estimates the O-mode reflection position in R direction for given frequencies.
+
     Input:
-        my_xgc:XGC_loader object containing the profile information
-        freqs:sequence of floats, all the probing frequencies in GHz
+        my_xgc:XGC_loader object containing the profile information.
+        freqs:sequence of floats, all the probing frequencies in GHz.
         mode: 'O' or 'X', indication of the wave polarization.
     return:
         sequence of floats, R coordinates of all the estimated reflection position on mid plane.

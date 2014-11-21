@@ -68,9 +68,9 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   int sts=0;
   printf("C code entered.\n");
   //parse the arguments, get ne,Te,B arrays, ne has time series.
-  PyObject *input1,*input2,*input3,*input4,*input5,*input6,*input7,*input8,*input9;
-  PyArrayObject *x3d,*y3d,*z3d,*ne0_arr,*Te0_arr,*B0_arr,*dne_ad_arr,*nane_arr,*nate_arr;
-  if(!PyArg_ParseTuple(args,"OOOOOOOOO",&input1,&input2,&input3,&input4,&input5,&input6,&input7,&input8,&input9))
+  PyObject *input1,*input2,*input3,*input4,*input5,*input6,*input7,*input8,*input9,*input10;
+  PyArrayObject *x3d,*y3d,*z3d,*ne0_arr,*Te0_arr,*Bt_arr,*Bp_arr,*dne_ad_arr,*nane_arr,*nate_arr;
+  if(!PyArg_ParseTuple(args,"OOOOOOOOOO",&input1,&input2,&input3,&input4,&input5,&input6,&input7,&input8,&input9,&input10))
     return NULL;
   printf("arguments parsed.\n");
   x3d =(PyArrayObject*) PyArray_ContiguousFromObject(input1,PyArray_DOUBLE,3,3);
@@ -79,10 +79,11 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   printf("x,y,z arrays got.\n");
   ne0_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input4,PyArray_DOUBLE,3,3);
   Te0_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input5,PyArray_DOUBLE,3,3);
-  B0_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input6,PyArray_DOUBLE,3,3);
-  dne_ad_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input7,PyArray_DOUBLE,4,4);
-  nane_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input8,PyArray_DOUBLE,4,4);
-  nate_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input9,PyArray_DOUBLE,4,4);
+  Bt_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input6,PyArray_DOUBLE,3,3);
+  Bp_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input7,PyArray_DOUBLE,3,3);
+  dne_ad_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input8,PyArray_DOUBLE,4,4);
+  nane_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input9,PyArray_DOUBLE,4,4);
+  nate_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input10,PyArray_DOUBLE,4,4);
   printf("arrays loaded.\n");
   
   //start dealing with GTS data
@@ -112,22 +113,23 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   printf("after getting mag_axis.\n");
 
   double a[n3d],theta[n3d];//field-line coords: flux(radial), angle(poloidal), |B|
-  double *Bm0 = (double*) B0_arr->data;
+  double *Btol = (double*) Bt_arr->data;
   double Rinitial[n3d],Zinitial[n3d];//R,Z value of our initial guesses
   double Ract[n3d],Zact[n3d];//actual R,Z coordinates we have in the end
   int *InOutFlag = (int*) PyMem_Malloc(n3d*sizeof(int));//flags for points in or out LCFS
 
   printf("after allocate PYthon mem.\n");
-  getFluxCoords(n3d,a,theta,Bm0,Ract,Zact,Rinitial,Zinitial,Rwant,Zwant,mag_axis_coords,InOutFlag); 
+  getFluxCoords(n3d,a,theta,Btol,Ract,Zact,Rinitial,Zinitial,Rwant,Zwant,mag_axis_coords,InOutFlag); 
   
   printf("after get FluxCoords.\n");
 
   //get the profiles
   double *Te0 = (double*) Te0_arr->data;
   double *ne0 = (double*) ne0_arr->data;
-  double Bpol[n3d],Ti[n3d],P[n3d],qprofile[n3d];
+  double *Bpol = (double*) Bp_arr->data;
+  double Ti0[n3d],P[n3d],qprofile[n3d];
   
-  getAllProfiles(n3d,Bpol,Ti,Te0,P,ne0,qprofile,a,theta,InOutFlag);
+  getAllProfiles(n3d,Bpol,Ti0,Te0,P,ne0,qprofile,a,theta,InOutFlag);
 
   printf("after get All profiles.\n");
 
@@ -136,7 +138,7 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   //  getBoundaryPoints(R_bdy,Z_bdy,n_bdy);
 
   //decay equilibrium quantities outside LCFS
-  decayNToutsideLCFS(n3d,a,ne0,Te0,Ti,InOutFlag);
+  decayNToutsideLCFS(n3d,a,ne0,Te0,Ti0,InOutFlag);
   
   printf("after decay outside LCFS.\n");
   //get the potential fluctuations

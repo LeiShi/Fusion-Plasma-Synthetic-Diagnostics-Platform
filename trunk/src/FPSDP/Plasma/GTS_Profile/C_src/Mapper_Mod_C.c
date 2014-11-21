@@ -9,6 +9,8 @@
 #include "profile_coord_map.h"
 #include "fluc.h"
 
+extern double findMin(int n,REAL data[]);
+
 
 double Xmin=2.0,Xmax=2.6,Ymin=-0.6,Ymax=0.6,Zmin=0,Zmax=0;
 int NX=101,NY=201,NZ=1, NBOUNDARY = 1001;
@@ -18,17 +20,19 @@ char* FlucFilePath="./Fluctuations/";
 char* EqFileName="./ESI_EQFILE";
 char* NTFileName="./NTProfiles.cdf";
 char* PHI_FNAME_START="PHI.";
-char* PHI_DATA_DIR="./PHI_FILES/";
+char* DEN_FNAME_START="DEN.";
+char* GTS_DATA_DIR="./GTS_OUTPUT_FILES/";
+
 
 static PyObject*
 set_parameters_(PyObject* self, PyObject* args, PyObject* kws){
   int sts=0;
   static char* kwlist[]={"Xmin","Xmax","NX","Ymin","Ymax","NY","Zmin","Zmax","NZ",
 			 "TStart","TStep","NT","NBOUNDARY","Fluc_Amplification",
-			 "FlucFilePath","EqFileName","NTFileName","PHIFileNameStart","PHIDataDir",NULL};
-  if(!PyArg_ParseTupleAndKeywords(args,kws,"|ddiddiddiiiiidsssss",kwlist,
+			 "FlucFilePath","EqFileName","NTFileName","PHIFileNameStart","DENFileNameStart","GTSDataDir",NULL};
+  if(!PyArg_ParseTupleAndKeywords(args,kws,"|ddiddiddiiiiidssssss",kwlist,
 				  &Xmin,&Xmax,&NX,&Ymin,&Ymax,&NY,&Zmin,&Zmax,&NZ,
-				  &TStart,&TStep,&NT,&NBOUNDARY,&Fluc_Amplification,&FlucFilePath,&EqFileName,&NTFileName,&PHI_FNAME_START,&PHI_DATA_DIR))
+				  &TStart,&TStep,&NT,&NBOUNDARY,&Fluc_Amplification,&FlucFilePath,&EqFileName,&NTFileName,&PHI_FNAME_START,&DEN_FNAME_START,&GTS_DATA_DIR))
     return NULL;
   return Py_BuildValue("i",sts);
 }
@@ -47,7 +51,8 @@ show_parameters_(PyObject* self, PyObject* args){
   printf("EqFileName: %s \n",EqFileName);
   printf("NTFileName: %s \n",NTFileName);
   printf("PHIFileNameStart: %s \n",PHI_FNAME_START);
-  printf("PHIDataDir: %s \n",PHI_DATA_DIR);
+  printf("DENFileNameStart: %s \n",DEN_FNAME_START);
+  printf("GTSDataDir: %s \n",GTS_DATA_DIR);
   return Py_BuildValue("i",sts);
 } 
 /*
@@ -63,19 +68,21 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   int sts=0;
   printf("C code entered.\n");
   //parse the arguments, get ne,Te,B arrays, ne has time series.
-  PyObject *input1,*input2,*input3,*input4,*input5,*input6;
-  PyArrayObject *x3d,*y3d,*z3d,*ne_arr,*Te_arr,*B_arr;
-  if(!PyArg_ParseTuple(args,"OOOOOO",&input1,&input2,&input3,&input4,&input5,&input6))
+  PyObject *input1,*input2,*input3,*input4,*input5,*input6,*input7,*input8,*input9;
+  PyArrayObject *x3d,*y3d,*z3d,*ne0_arr,*Te0_arr,*B0_arr,*dne_ad_arr,*nane_arr,*nate_arr;
+  if(!PyArg_ParseTuple(args,"OOOOOOOOO",&input1,&input2,&input3,&input4,&input5,&input6,&input7,&input8,&input9))
     return NULL;
   printf("arguments parsed.\n");
   x3d =(PyArrayObject*) PyArray_ContiguousFromObject(input1,PyArray_DOUBLE,3,3);
   y3d =(PyArrayObject*) PyArray_ContiguousFromObject(input2,PyArray_DOUBLE,3,3);
   z3d =(PyArrayObject*) PyArray_ContiguousFromObject(input3,PyArray_DOUBLE,3,3);
   printf("x,y,z arrays got.\n");
-  ne_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input4,PyArray_DOUBLE,4,4);
-  Te_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input5,PyArray_DOUBLE,3,3);
-  B_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input6,PyArray_DOUBLE,3,3);
-
+  ne0_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input4,PyArray_DOUBLE,3,3);
+  Te0_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input5,PyArray_DOUBLE,3,3);
+  B0_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input6,PyArray_DOUBLE,3,3);
+  dne_ad_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input7,PyArray_DOUBLE,4,4);
+  nane_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input8,PyArray_DOUBLE,4,4);
+  nate_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input9,PyArray_DOUBLE,4,4);
   printf("arrays loaded.\n");
   
   //start dealing with GTS data
@@ -87,7 +94,11 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   //get cylindrical coordinates on mesh
   double Rwant[n3d],Zwant[n3d],zeta[n3d];
   cartesianToCylindrical(n3d,Rwant,Zwant,zeta,xwant,ywant,zwant);
-  
+  //convert zeta from [zeta_min,zeta_max] to [0,zeta_max-zeta_min] range. We can do this because the perturbations are statistically invariant along toroidal rotation.
+  double zeta_min = findMin(n3d,zeta);
+  int i;
+  for(i=0;i<n3d;i++)
+    zeta[i] -= zeta_min;
   printf("after cartesian to Cylindrical.\n");
 
   //initialize esi package
@@ -101,20 +112,22 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   printf("after getting mag_axis.\n");
 
   double a[n3d],theta[n3d];//field-line coords: flux(radial), angle(poloidal), |B|
-  double *Bm = (double*) B_arr->data;
+  double *Bm0 = (double*) B0_arr->data;
   double Rinitial[n3d],Zinitial[n3d];//R,Z value of our initial guesses
   double Ract[n3d],Zact[n3d];//actual R,Z coordinates we have in the end
   int *InOutFlag = (int*) PyMem_Malloc(n3d*sizeof(int));//flags for points in or out LCFS
 
   printf("after allocate PYthon mem.\n");
-  getFluxCoords(n3d,a,theta,Bm,Ract,Zact,Rinitial,Zinitial,Rwant,Zwant,mag_axis_coords,InOutFlag); 
+  getFluxCoords(n3d,a,theta,Bm0,Ract,Zact,Rinitial,Zinitial,Rwant,Zwant,mag_axis_coords,InOutFlag); 
   
   printf("after get FluxCoords.\n");
 
   //get the profiles
-  double *Te = (double*) Te_arr->data;
-  double Bpol[n3d],Ti[n3d],P[n3d],ne0[n3d],qprofile[n3d];
-  getAllProfiles(n3d,Bpol,Ti,Te,P,ne0,qprofile,a,theta,InOutFlag);
+  double *Te0 = (double*) Te0_arr->data;
+  double *ne0 = (double*) ne0_arr->data;
+  double Bpol[n3d],Ti[n3d],P[n3d],qprofile[n3d];
+  
+  getAllProfiles(n3d,Bpol,Ti,Te0,P,ne0,qprofile,a,theta,InOutFlag);
 
   printf("after get All profiles.\n");
 
@@ -123,34 +136,27 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   //  getBoundaryPoints(R_bdy,Z_bdy,n_bdy);
 
   //decay equilibrium quantities outside LCFS
-  decayNToutsideLCFS(n3d,a,ne0,Te,Ti,InOutFlag);
+  decayNToutsideLCFS(n3d,a,ne0,Te0,Ti,InOutFlag);
   
   printf("after decay outside LCFS.\n");
   //get the potential fluctuations
   double phi[n3d*NT];
-  int i;
+  double *nane = (double*) nane_arr->data;
+  double *nate = (double*) nate_arr->data;
   int timesteps[NT];
   for(i=0;i<NT;i++)
     timesteps[i]=TStart +TStep*i;
 
   int* FlucInOutFlag = (int*) PyMem_Malloc(n3d*sizeof(int));
-  get_fluctuations(n3d, NT, phi, a, theta, zeta, timesteps, FlucInOutFlag);
+  get_fluctuations(n3d, NT, phi,nane,nate, a, theta, zeta, timesteps, FlucInOutFlag);
 
   printf("after get_fluctuations.\n");
   //electrons respond adiabatically to the potential
-  double *ne_tilde = (double*) ne_arr->data;
-  adiabaticElectronResponse(n3d,NT,ne_tilde,ne0,phi,Te,FlucInOutFlag);
+  double *ne_tilde = (double*) dne_ad_arr->data;
+  adiabaticElectronResponse(n3d,NT,ne_tilde,ne0,phi,Te0,FlucInOutFlag);
   
   printf("after adiabatic response.\n"); 
 
-  //add ne0 onto ne_tilde to get the total ne
-  for(i=0;i<NT;i++){
-    int j;
-    for(j=0;j<n3d;j++){
-      *(ne_tilde + i*n3d +j) *= Fluc_Amplification;
-      *(ne_tilde + i*n3d +j) += *(ne0 + j);
-    }
-  }
 
   PyMem_Free(InOutFlag);
   PyMem_Free(FlucInOutFlag);

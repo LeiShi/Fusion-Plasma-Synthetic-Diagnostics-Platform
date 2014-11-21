@@ -70,7 +70,9 @@ typedef float REAL;
 extern REAL findMax(int,REAL[]);
 extern REAL findMin(int,REAL[]);
 extern char* PHI_FNAME_START;
+extern char* DEN_FNAME_START;
 
+/*
 int writeTextFile(char *fname,int n,REAL Rwant[],REAL Zwant[],REAL a[],REAL theta[],REAL R[],REAL Z[],REAL Bm[],REAL Bpol[],REAL T[],REAL Te[],REAL P[],REAL ne[],REAL Rinitial[],REAL Zinitial[],REAL qprofile[]);
 int write2dNetcdfFile(char *fname,int nr,int nz,size_t ntimesteps,int nboundary,REAL R1d[],REAL Z1d[],REAL a[],REAL theta[],REAL R[],REAL Z[],REAL Bm[],REAL Bpol[],REAL T[],REAL Te[],REAL P[],REAL ne[],REAL ne_tilde[],REAL phi[],int timesteps[],REAL Rinitial[],REAL Zinitial[],REAL qprofile[],REAL Rboundary[],REAL Zboundary[],REAL mag_axis_coords[]);
 int write3dNetcdfFile(char *fname,int nx,int ny,int nz,size_t ntimesteps,int nboundary,REAL x1d[],REAL y1d[],REAL z1d[],REAL a[],REAL theta[],REAL zeta[],REAL Rwant[],REAL Zwant[],REAL Ract[],REAL Zact[],REAL Bm[],REAL Bpol[],REAL T[],REAL Te[],REAL P[],REAL ne[],REAL ne_tilde[],REAL phi[],int timesteps[],REAL Rinitial[],REAL Zinitial[],REAL qprofile[],REAL Rboundary[],REAL Zboundary[],REAL mag_axis_coords[]);
@@ -80,11 +82,15 @@ int readSpecified3dCoordFile(char *fname,size_t *nx,size_t *ny,size_t *nz,size_t
 
 int writePhiNetcdfFile(char *fname,int nTimeSteps,int ntoroidal,int mgrid,REAL phi[]);
 int writeFlucFile(char *fname,int nx,int ny,int nz,REAL phi[]);
+*/
 int readPhiFile(char *fname,int phi_integers[N_PHI_INTEGERS],REAL phi_reals[N_PHI_REALS],int *igrid[],int *mtheta[],int *itran[],REAL *qtinv[],REAL *deltat[],REAL *vth_grid[],REAL **phi_steps[],int *nsteps);
-int writeFlucCoordFile(char *fname,int nx,int ny,int nz,REAL x[],REAL y[],REAL z[],REAL Rwant[],REAL Zwant[],REAL zeta[],REAL Ract[],REAL Zact[],REAL a[],REAL theta[],REAL Rinitial[],REAL Zinitial[],REAL mag_axis_coords[]);
-int readFlucCoordFile(char *fname,size_t *nx,size_t *ny,size_t *nz,size_t *ntimesteps,REAL *a[],REAL *theta[],REAL *zeta[],int *timesteps[]);
+//int writeFlucCoordFile(char *fname,int nx,int ny,int nz,REAL x[],REAL y[],REAL z[],REAL Rwant[],REAL Zwant[],REAL zeta[],REAL Ract[],REAL Zact[],REAL a[],REAL theta[],REAL Rinitial[],REAL Zinitial[],REAL mag_axis_coords[]);
+//int readFlucCoordFile(char *fname,size_t *nx,size_t *ny,size_t *nz,size_t *ntimesteps,REAL *a[],REAL *theta[],REAL *zeta[],int *timesteps[]);
+int readDenFile(char *fname,int phi_integers[],REAL phi_reals[N_PHI_REALS],int *igrid[],int *mtheta[],int *itran[],REAL *qtinv[],REAL *deltat[],REAL *vth_grid[],REAL **ni_steps[],REAL **ti_steps[], REAL **ne_steps[], REAL **te_steps[],int *nsteps);
+int readAllDenFiles(char *path,int nTimeSteps,int timeSteps[],int phi_integers[],REAL phi_reals[],int *igrid[],int *mtheta[],int *itran[],REAL *qtinv[],REAL *deltat[],REAL *vth_grid[],REAL ***ti[], REAL ***ni[], REAL ***te[], REAL ***ne[], int *nsteps,int npts,REAL zeta[]);
 REAL *readPsiGridFile(char *fname,int mpsi); // reads file formatted like dsda_psi.dat to get psi_grid array
-
+int constructPhiFname(char *fname,char *path,int itoroidal);
+int constructDenFname(char *fname,char *path,int itoroidal);
 int loadNTProfiles(const char* fname,int** n_prof,REAL** a_p, REAL** n_p,REAL** Ti_p,REAL** Te_p){
   // netcdf identifiers
   int file_id; // id for file
@@ -1563,6 +1569,95 @@ if(advanceFortranRecord(inputFile,fortranRecordByteCount))
 }
 
 
+//The following two functions take care of the new output files: DEN.XXXXX 
+// These files contains non-adiabatic response of ions and electrons. namely, the non-adiabatic ti, ni, te, ne.
+
+
+int readAllDenFiles(char *path,int nTimeSteps,int timeSteps[],int phi_integers[],REAL phi_reals[],int *igrid[],int *mtheta[],int *itran[],REAL *qtinv[],REAL *deltat[],REAL *vth_grid[],REAL ***ni[], REAL ***ti[], REAL ***ne[], REAL ***te[], int *nsteps,int npts,REAL zeta[]){
+
+  if(nTimeSteps < 1){		// need to read in at least one time step
+    READALLPHIFILES_ERR("nTimeSteps must be at least 1!");
+    return -1;
+  }
+  // read in the first file DEN.00000 to determine the number of files
+  //   and get other information
+
+  char fname[FNAME_MAX_CHARS];
+  int itoroidal = 0;
+  REAL **ti_steps=NULL;
+  REAL **ni_steps = NULL;
+  REAL **te_steps = NULL;
+  REAL **ne_steps = NULL;
+  int status = constructDenFname(fname,path,itoroidal);
+  status = readDenFile(fname,phi_integers,phi_reals,igrid,mtheta,itran,qtinv,deltat,vth_grid,&ni_steps,&ti_steps,&ne_steps,&te_steps,nsteps);
+
+  int mgrid = phi_integers[3];	   // unpack # of grid points at each toroidal location
+  int ntoroidal = phi_integers[5]; // unpack the number of toroidal grid points (number of PHI.000xx files)
+  
+  #if DEBUG > 0
+  ntoroidal = 16;		// for development, so we don't need to read as many files
+  #endif
+
+  // allocate 3d array to store the potential fluctuations: phi[nTimeSteps][ntoroidal][mgrid]
+  int i,j;
+  //Lei Shi temp
+  REAL MaxZeta;
+  MaxZeta=findMax(npts,zeta);
+  REAL dzeta=2*M_PI/ntoroidal;
+  int MaxNtor=(int)floor(MaxZeta/dzeta)+2;//the actual number of toroidal slices we need to read is the number of zeta pieces fully covered by our zeta region + 2,note that we need an additional zeta piece to cover our zeta region and that means +2 toroidal slices.
+  if(MaxNtor>ntoroidal)// if the total number exceeds ntoroidal, only happens if we need the full region, and we count the starting plane twice since we didn't consider the toroidal periodicity above.
+    MaxNtor=ntoroidal;
+
+  REAL ***ti_arr = realAllocContiguous3d(nTimeSteps,MaxNtor,mgrid);
+  *ti = ti_arr;
+  REAL ***ni_arr = realAllocContiguous3d(nTimeSteps,MaxNtor,mgrid);
+  *ni = ni_arr;
+  REAL ***te_arr = realAllocContiguous3d(nTimeSteps,MaxNtor,mgrid);
+  *te = te_arr;
+  REAL ***ne_arr = realAllocContiguous3d(nTimeSteps,MaxNtor,mgrid);
+  *ne = ne_arr;
+  
+  // copy the non-adiabatic responses from the timesteps of interest to this new array
+  for(i=0;i<nTimeSteps;i++)
+    for(j=0;j<mgrid;j++) \
+      {
+	ti_arr[i][0][j] = ti_steps[timeSteps[i]][j];
+	ni_arr[i][0][j] = ni_steps[timeSteps[i]][j];
+	te_arr[i][0][j] = te_steps[timeSteps[i]][j];
+	ne_arr[i][0][j] = ne_steps[timeSteps[i]][j];
+      }
+  // free memory associated with ti_steps,ni_steps,te_steps,and ne_steps. since another block will be assigned with each call to readPhiFile
+  realFreeDiscontiguous2d(*nsteps,&ti_steps);
+  realFreeDiscontiguous2d(*nsteps,&ni_steps);
+  realFreeDiscontiguous2d(*nsteps,&te_steps);
+  realFreeDiscontiguous2d(*nsteps,&ne_steps);
+  
+
+  // loop reading all the other potential files, keeping only the potential fluc. for the timestep of interest
+  //Lei Shi temp
+  for(itoroidal=1;itoroidal<MaxNtor;itoroidal++){
+    status = constructDenFname(fname,path,itoroidal);
+    status = readDenFile(fname,phi_integers,phi_reals,igrid,mtheta,itran,qtinv,deltat,vth_grid,&ni_steps,&ti_steps,&ne_steps,&te_steps,nsteps);
+    for(i=0;i<nTimeSteps;i++)
+      for(j=0;j<mgrid;j++)			\
+	{
+	  ti_arr[i][0][j] = ti_steps[timeSteps[i]][j];
+	  ni_arr[i][0][j] = ni_steps[timeSteps[i]][j];
+	  te_arr[i][0][j] = te_steps[timeSteps[i]][j];
+	  ne_arr[i][0][j] = ne_steps[timeSteps[i]][j];
+	}
+    realFreeDiscontiguous2d(*nsteps,&ti_steps);
+    realFreeDiscontiguous2d(*nsteps,&ni_steps);
+    realFreeDiscontiguous2d(*nsteps,&te_steps);
+    realFreeDiscontiguous2d(*nsteps,&ne_steps);
+  }
+#if DEBUG > 0
+  phi_integers[5] = ntoroidal;	// for development
+#endif
+  return 0;
+}
+
+
 int readDenFile(char *fname,int phi_integers[],REAL phi_reals[N_PHI_REALS],int *igrid[],int *mtheta[],int *itran[],REAL *qtinv[],REAL *deltat[],REAL *vth_grid[],REAL **ni_steps[],REAL **ti_steps[], REAL **ne_steps[], REAL **te_steps[],int *nsteps){
 
   int status=0;
@@ -1573,6 +1668,8 @@ int readDenFile(char *fname,int phi_integers[],REAL phi_reals[N_PHI_REALS],int *
   printf("Reading: %s \n",fname);
   FILE *inputFile = fopen(fname,"rb");	// open file for reading
   if(inputFile == NULL) READPHI_ERR("couldn't open file");
+
+  fprintf(stderr,"Reading header consts.");
   if(advanceFortranRecord(inputFile,fortranRecordByteCount))
     READPHI_ERR("Fortran record byte count mismatch"); // begin record
 
@@ -1622,26 +1719,30 @@ int readDenFile(char *fname,int phi_integers[],REAL phi_reals[N_PHI_REALS],int *
 
 
   // read data into arrays
-fortranRecordByteCount = space1dint*N_PHI_1DINT_ARR + space1dreal*N_PHI_1DREAL_ARR;
-if(advanceFortranRecord(inputFile,fortranRecordByteCount))
-  READPHI_ERR("Fortran record byte count mismatch"); // begin record
+
+  printf("Reading header arrays.");
+  fortranRecordByteCount = space1dint*N_PHI_1DINT_ARR + space1dreal*N_PHI_1DREAL_ARR;
+  if(advanceFortranRecord(inputFile,fortranRecordByteCount))
+    READPHI_ERR("Fortran record byte count mismatch"); // begin record
   if(fread(*igrid,sizeof(int),mpsi,inputFile) != mpsi)
     READPHI_ERR("igrid data read error");
-if(fread(*deltat,sizeof(REAL),mpsi,inputFile) != mpsi)
-  READPHI_ERR("deltat data read error");
+  if(fread(*deltat,sizeof(REAL),mpsi,inputFile) != mpsi)
+    READPHI_ERR("deltat data read error");
   if(fread(*qtinv,sizeof(REAL),mpsi,inputFile) != mpsi)
     READPHI_ERR("qtinv data read error");
-if(fread(*mtheta,sizeof(int),mpsi,inputFile) != mpsi)
-  READPHI_ERR("mtheta data read error");
+  if(fread(*mtheta,sizeof(int),mpsi,inputFile) != mpsi)
+    READPHI_ERR("mtheta data read error");
   if(fread(*itran,sizeof(int),mpsi,inputFile) != mpsi)
     READPHI_ERR("itran data read error");
   if(fread(*vth_grid,sizeof(REAL),mpsi,inputFile) != mpsi)
     READPHI_ERR("vth_grid data read error");
-if(advanceFortranRecord(inputFile,fortranRecordByteCount))
-  READPHI_ERR("Fortran record byte count mismatch"); // end record
+  if(advanceFortranRecord(inputFile,fortranRecordByteCount))
+    READPHI_ERR("Fortran record byte count mismatch"); // end record
 
   int i=0;
   int *istep=NULL;
+
+  printf("Start reading main data.");
   while(~feof(inputFile)){
 //     fprintf(stderr,"i:%d\n",i);
     fortranRecordByteCount = sizeof(int);
@@ -1669,33 +1770,23 @@ if(advanceFortranRecord(inputFile,fortranRecordByteCount))
     *te_steps = (REAL **)PyMem_Realloc((void**)*te_steps,sizeof(REAL *)*(i+1));
     (*te_steps)[i] = (REAL *)PyMem_Malloc(space2d);
     
-    fortranRecordByteCount = mzeta*(mgrid)*sizeof(REAL); 
+    fortranRecordByteCount = 4*mzeta*(mgrid)*sizeof(REAL); 
 
     if(advanceFortranRecord(inputFile,fortranRecordByteCount))
       READPHI_ERR("Fortran record byte count mismatch"); // begin record
+    
     if(fread((*ni_steps)[i],sizeof(REAL),mzeta*mgrid,inputFile) != mzeta*mgrid)
-      READPHI_ERR("phi data read error");
-    if(advanceFortranRecord(inputFile,fortranRecordByteCount))
-      READPHI_ERR("Fortran record byte count mismatch"); // end record
-
-    if(advanceFortranRecord(inputFile,fortranRecordByteCount))
-      READPHI_ERR("Fortran record byte count mismatch"); // begin record
+      READPHI_ERR("ni data read error");
+    
     if(fread((*ti_steps)[i],sizeof(REAL),mzeta*mgrid,inputFile) != mzeta*mgrid)
-      READPHI_ERR("phi data read error");
-    if(advanceFortranRecord(inputFile,fortranRecordByteCount))
-      READPHI_ERR("Fortran record byte count mismatch"); // end record
+      READPHI_ERR("ti data read error");
 
-    if(advanceFortranRecord(inputFile,fortranRecordByteCount))
-      READPHI_ERR("Fortran record byte count mismatch"); // begin record
     if(fread((*ne_steps)[i],sizeof(REAL),mzeta*mgrid,inputFile) != mzeta*mgrid)
-      READPHI_ERR("phi data read error");
-    if(advanceFortranRecord(inputFile,fortranRecordByteCount))
-      READPHI_ERR("Fortran record byte count mismatch"); // end record
+      READPHI_ERR("ne data read error");
 
-    if(advanceFortranRecord(inputFile,fortranRecordByteCount))
-      READPHI_ERR("Fortran record byte count mismatch"); // begin record
     if(fread((*te_steps)[i],sizeof(REAL),mzeta*mgrid,inputFile) != mzeta*mgrid)
-      READPHI_ERR("phi data read error");
+      READPHI_ERR("te data read error");
+
     if(advanceFortranRecord(inputFile,fortranRecordByteCount))
       READPHI_ERR("Fortran record byte count mismatch"); // end record
 
@@ -1713,6 +1804,11 @@ if(advanceFortranRecord(inputFile,fortranRecordByteCount))
 //! Constructs file name for a potential file given the path and toroidal index
 int constructPhiFname(char *fname,char *path,int itoroidal){
   sprintf(fname,"%s%s%05d",path,PHI_FNAME_START,itoroidal);
+    return 0;
+  }
+
+int constructDenFname(char *fname,char *path,int itoroidal){
+  sprintf(fname,"%s%s%05d",path,DEN_FNAME_START,itoroidal);
     return 0;
   }
 

@@ -35,7 +35,7 @@ extern REAL findMin(int n,REAL data[]);
 
 // --- local function declarations
 int fluc_info_file();
-int get_fluctuations(int npts,size_t nTimeSteps,REAL phi[],REAL te[],REAL ne[], REAL a[],REAL theta[],REAL zeta[],int timeSteps[],int flag[]);
+int get_fluctuations(int npts,size_t nTimeSteps,int* ntoroidal,REAL phi[],REAL te[],REAL ne[], REAL a[],REAL theta[],REAL zeta[],int timeSteps[],int flag[],int toroidal_startnum);
 int total_fluctuations(int npts,size_t nTimeSteps,REAL ne_tilde[],REAL ne0[],REAL phi[],int* flag);
 int interpolateTorPolPsi(int npts,REAL phi[npts],REAL a[npts],int ntoroidal,int mgrid,
 			 REAL **potential,REAL deltazeta[npts][N_NEAREST_TOROIDAL],
@@ -76,7 +76,7 @@ int traceBtoTorodialPosn(int npts,int ntoroidal,int mpsi,REAL a[],REAL thetaOut[
   }*/
 
 //! Given flux coordinates (a,theta) performs all the steps to get the potential fluctuation at those points
-int get_fluctuations(int npts,size_t nTimeSteps,REAL phi[], REAL ne[],REAL te[],REAL a[],REAL theta[],REAL zeta[],int timeSteps[],int flag[]){
+int get_fluctuations(int npts,size_t nTimeSteps,int* ntoroidal_out,REAL phi[], REAL ne[],REAL te[],REAL a[],REAL theta[],REAL zeta[],int timeSteps[],int flag[], int toroidal_startnum){
   // We have the (a,theta,zeta) coords of the points.
   // Now we need to interpolate the fluctuation values to those points.
   
@@ -89,10 +89,11 @@ int get_fluctuations(int npts,size_t nTimeSteps,REAL phi[], REAL ne[],REAL te[],
   //  int timeSteps[N_TIME_STEPS] = TIME_STEPS;
 
   int status = readAllPhiFiles(GTS_DATA_DIR,nTimeSteps,timeSteps,phi_ints,phi_reals,&igrid,
-			       &mtheta,&itran,&qtinv,&deltat,&vth_grid,&potential,&nsteps,npts,zeta);
+			       &mtheta,&itran,&qtinv,&deltat,&vth_grid,&potential,&nsteps,npts,zeta,toroidal_startnum);
   printf("successfully read all PHI files.\n");
   status = readAllDenFiles(GTS_DATA_DIR,nTimeSteps, timeSteps,phi_ints,phi_reals,&igrid, &mtheta,
-                               &itran, &qtinv, &deltat, &vth_grid, &ni_raw,&ti_raw,&ne_raw,&te_raw, &nsteps,npts,zeta);
+			   &itran, &qtinv, &deltat, &vth_grid, &ni_raw,&ti_raw,&ne_raw,&te_raw, &nsteps,npts,zeta,toroidal_startnum);
+  *ntoroidal_out = phi_ints[5];
   printf("successfully read all DEN files.\n");
   // useful: phi_ints,igrid[mpsi],mtheta[mpsi],qtinv[mpsi]
 
@@ -102,7 +103,7 @@ int get_fluctuations(int npts,size_t nTimeSteps,REAL phi[], REAL ne[],REAL te[],
 
 
 //#if VERBOSE
-  fprintf(stderr,"Number of fluctuation time steps:%d, using time step:%d\n",nsteps,timeSteps[0]);
+  fprintf(stderr,"Number of fluctuation time steps:%d, using time step:%d to %d every %d\n",nsteps,timeSteps[0],timeSteps[nTimeSteps-1]);
 //#endif
   // unpack the integer array
   int mpsi = phi_ints[2];	// igrid,mtheta,itran,qtinv,deltat,vth_grid have mpsi elements

@@ -68,9 +68,10 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   int sts=0;
   printf("C code entered.\n");
   //parse the arguments, get ne,Te,B arrays, ne has time series.
+  int toroidal_startnum;
   PyObject *input1,*input2,*input3,*input4,*input5,*input6,*input7,*input8,*input9,*input10;
   PyArrayObject *x3d,*y3d,*z3d,*ne0_arr,*Te0_arr,*Bt_arr,*Bp_arr,*dne_ad_arr,*nane_arr,*nate_arr;
-  if(!PyArg_ParseTuple(args,"OOOOOOOOOO",&input1,&input2,&input3,&input4,&input5,&input6,&input7,&input8,&input9,&input10))
+  if(!PyArg_ParseTuple(args,"OOOOOOOOOOi",&input1,&input2,&input3,&input4,&input5,&input6,&input7,&input8,&input9,&input10,&toroidal_startnum))
     return NULL;
   printf("arguments parsed.\n");
   x3d =(PyArrayObject*) PyArray_ContiguousFromObject(input1,PyArray_DOUBLE,3,3);
@@ -150,7 +151,8 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
     timesteps[i]=TStart +TStep*i;
 
   int* FlucInOutFlag = (int*) PyMem_Malloc(n3d*sizeof(int));
-  get_fluctuations(n3d, NT, phi,nane,nate, a, theta, zeta, timesteps, FlucInOutFlag);
+  int ntoroidal;
+  get_fluctuations(n3d, NT, &ntoroidal, phi,nane,nate, a, theta, zeta, timesteps, FlucInOutFlag, toroidal_startnum);
 
   printf("after get_fluctuations.\n");
   //electrons respond adiabatically to the potential
@@ -167,7 +169,7 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   Py_DECREF(z3d);
   
   printf("after decreasing instances.\n");
-  return Py_BuildValue("i",0);
+  return Py_BuildValue("i",ntoroidal);
   
 }
 

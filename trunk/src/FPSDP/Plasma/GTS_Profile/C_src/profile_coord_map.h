@@ -1233,7 +1233,7 @@ int adiabaticElectronResponse(int npts,int ntimesteps,REAL ne_tilde[],REAL ne0[]
 	if(flag[j]==1){
 	  double* phi_this = &phi[i*npts+j];
 	  *phi_this *= NORM_TO_KEV;
-	  ne_tilde[i*npts+j] = ne0[j]* (*phi_this)/Te[j];
+	  ne_tilde[i*npts+j] =  (*phi_this)/Te[j];
 	}
 	else
 	  ne_tilde[i*npts+j] = 0;

@@ -87,7 +87,7 @@ int readPhiFile(char *fname,int phi_integers[N_PHI_INTEGERS],REAL phi_reals[N_PH
 //int writeFlucCoordFile(char *fname,int nx,int ny,int nz,REAL x[],REAL y[],REAL z[],REAL Rwant[],REAL Zwant[],REAL zeta[],REAL Ract[],REAL Zact[],REAL a[],REAL theta[],REAL Rinitial[],REAL Zinitial[],REAL mag_axis_coords[]);
 //int readFlucCoordFile(char *fname,size_t *nx,size_t *ny,size_t *nz,size_t *ntimesteps,REAL *a[],REAL *theta[],REAL *zeta[],int *timesteps[]);
 int readDenFile(char *fname,int phi_integers[],REAL phi_reals[N_PHI_REALS],int *igrid[],int *mtheta[],int *itran[],REAL *qtinv[],REAL *deltat[],REAL *vth_grid[],REAL **ni_steps[],REAL **ti_steps[], REAL **ne_steps[], REAL **te_steps[],int *nsteps);
-int readAllDenFiles(char *path,int nTimeSteps,int timeSteps[],int phi_integers[],REAL phi_reals[],int *igrid[],int *mtheta[],int *itran[],REAL *qtinv[],REAL *deltat[],REAL *vth_grid[],REAL ***ti[], REAL ***ni[], REAL ***te[], REAL ***ne[], int *nsteps,int npts,REAL zeta[]);
+int readAllDenFiles(char *path,int nTimeSteps,int timeSteps[],int phi_integers[],REAL phi_reals[],int *igrid[],int *mtheta[],int *itran[],REAL *qtinv[],REAL *deltat[],REAL *vth_grid[],REAL ***ti[], REAL ***ni[], REAL ***te[], REAL ***ne[], int *nsteps,int npts,REAL zeta[],int toroidal_startnum);
 REAL *readPsiGridFile(char *fname,int mpsi); // reads file formatted like dsda_psi.dat to get psi_grid array
 int constructPhiFname(char *fname,char *path,int itoroidal);
 int constructDenFname(char *fname,char *path,int itoroidal);
@@ -1394,7 +1394,7 @@ int phiArrRemoveDuplicates(int nTimeSteps, int ntoroidal,int mgrid,int mpsi,int 
     qtinv, mtheta, igrid, ntoroidal, mpsi
  */
 
-int readAllPhiFiles(char *path,int nTimeSteps,int timeSteps[],int phi_integers[],REAL phi_reals[],int *igrid[],int *mtheta[],int *itran[],REAL *qtinv[],REAL *deltat[],REAL *vth_grid[],REAL ***phi[],int *nsteps,int npts,REAL zeta[]){
+int readAllPhiFiles(char *path,int nTimeSteps,int timeSteps[],int phi_integers[],REAL phi_reals[],int *igrid[],int *mtheta[],int *itran[],REAL *qtinv[],REAL *deltat[],REAL *vth_grid[],REAL ***phi[],int *nsteps,int npts,REAL zeta[], int toroidal_startnum){
 
   if(nTimeSteps < 1){		// need to read in at least one time step
     READALLPHIFILES_ERR("nTimeSteps must be at least 1!");
@@ -1404,7 +1404,7 @@ int readAllPhiFiles(char *path,int nTimeSteps,int timeSteps[],int phi_integers[]
   //   and get other information
 
   char fname[FNAME_MAX_CHARS];
-  int itoroidal = 0;
+  int itoroidal = toroidal_startnum;
   REAL **phi_steps=NULL;
   int status = constructPhiFname(fname,path,itoroidal);
   status = readPhiFile(fname,phi_integers,phi_reals,igrid,mtheta,itran,qtinv,deltat,vth_grid,&phi_steps,nsteps);
@@ -1438,7 +1438,7 @@ int readAllPhiFiles(char *path,int nTimeSteps,int timeSteps[],int phi_integers[]
   // loop reading all the other potential files, keeping only the potential fluc. for the timestep of interest
   //Lei Shi temp
   for(itoroidal=1;itoroidal<MaxNtor;itoroidal++){
-    status = constructPhiFname(fname,path,itoroidal);
+    status = constructPhiFname(fname,path,(itoroidal+toroidal_startnum)%ntoroidal);
     status = readPhiFile(fname,phi_integers,phi_reals,igrid,mtheta,itran,qtinv,deltat,vth_grid,&phi_steps,nsteps);
     for(i=0;i<nTimeSteps;i++)
       for(j=0;j<mgrid;j++) phi_arr[i][itoroidal][j] = phi_steps[timeSteps[i]][j];
@@ -1573,7 +1573,7 @@ if(advanceFortranRecord(inputFile,fortranRecordByteCount))
 // These files contains non-adiabatic response of ions and electrons. namely, the non-adiabatic ti, ni, te, ne.
 
 
-int readAllDenFiles(char *path,int nTimeSteps,int timeSteps[],int phi_integers[],REAL phi_reals[],int *igrid[],int *mtheta[],int *itran[],REAL *qtinv[],REAL *deltat[],REAL *vth_grid[],REAL ***ni[], REAL ***ti[], REAL ***ne[], REAL ***te[], int *nsteps,int npts,REAL zeta[]){
+int readAllDenFiles(char *path,int nTimeSteps,int timeSteps[],int phi_integers[],REAL phi_reals[],int *igrid[],int *mtheta[],int *itran[],REAL *qtinv[],REAL *deltat[],REAL *vth_grid[],REAL ***ni[], REAL ***ti[], REAL ***ne[], REAL ***te[], int *nsteps,int npts,REAL zeta[],int toroidal_startnum){
 
   if(nTimeSteps < 1){		// need to read in at least one time step
     READALLPHIFILES_ERR("nTimeSteps must be at least 1!");
@@ -1583,7 +1583,7 @@ int readAllDenFiles(char *path,int nTimeSteps,int timeSteps[],int phi_integers[]
   //   and get other information
 
   char fname[FNAME_MAX_CHARS];
-  int itoroidal = 0;
+  int itoroidal = toroidal_startnum;
   REAL **ti_steps=NULL;
   REAL **ni_steps = NULL;
   REAL **te_steps = NULL;
@@ -1635,16 +1635,16 @@ int readAllDenFiles(char *path,int nTimeSteps,int timeSteps[],int phi_integers[]
 
   // loop reading all the other potential files, keeping only the potential fluc. for the timestep of interest
   //Lei Shi temp
-  for(itoroidal=1;itoroidal<MaxNtor;itoroidal++){
-    status = constructDenFname(fname,path,itoroidal);
+  for(itoroidal= 1;itoroidal<MaxNtor;itoroidal++){
+    status = constructDenFname(fname,path,(itoroidal+toroidal_startnum)%ntoroidal);
     status = readDenFile(fname,phi_integers,phi_reals,igrid,mtheta,itran,qtinv,deltat,vth_grid,&ni_steps,&ti_steps,&ne_steps,&te_steps,nsteps);
     for(i=0;i<nTimeSteps;i++)
       for(j=0;j<mgrid;j++)			\
 	{
-	  ti_arr[i][0][j] = ti_steps[timeSteps[i]][j];
-	  ni_arr[i][0][j] = ni_steps[timeSteps[i]][j];
-	  te_arr[i][0][j] = te_steps[timeSteps[i]][j];
-	  ne_arr[i][0][j] = ne_steps[timeSteps[i]][j];
+	  ti_arr[i][itoroidal][j] = ti_steps[timeSteps[i]][j];
+	  ni_arr[i][itoroidal][j] = ni_steps[timeSteps[i]][j];
+	  te_arr[i][itoroidal][j] = te_steps[timeSteps[i]][j];
+	  ne_arr[i][itoroidal][j] = ne_steps[timeSteps[i]][j];
 	}
     realFreeDiscontiguous2d(*nsteps,&ti_steps);
     realFreeDiscontiguous2d(*nsteps,&ni_steps);

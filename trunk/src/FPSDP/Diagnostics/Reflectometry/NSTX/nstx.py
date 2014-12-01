@@ -73,6 +73,69 @@ class Analyser:
         """ Initialize with an NSTX_REF_loader array
         """
         this.loaders = nstx_loaders
+        
+
+    def phase(this, time_arr, tol = 1e-5, **params):
+        """Calculate the extended phase curve in a given time.
+
+        The purpose of extending the phase range to (-infi,+infi) is to avoid jumps from +pi -> -pi or the other way around on the normal [-pi,pi) range. In this case, the phase curve looks much smoother and more meaningful.
+        The method we are using is first calculate the phase for each time step in the normal [-pi,pi) range, then, calculate the phase change for each time interval : dphi. For dphi>pi, we pick dphi-2*pi as the new phase change; and for dphi < -pi, we pick dphi+2*pi. In other words, we minimize the absolute value of the phse change. This treatment is valid if time step is small compared to plasma changing time scale, so the change of reflected phase shouldn't be very large.
+
+        Arguments:
+            time_arr: ndarray double, the time (real time in experimental record, unit: second) array on which we acquire the phase.
+            keyword list:
+            1)Loader is specified by either of the following ways:
+                loader_num : loader = this.loaders[loader_num]
+                frequency : check if abs(loader.freq-frequency)/frequency<tol, if find one, then use this loader, if not, raise an error.
+
+        Return:
+            Phase on the time points is returned in an ndarray. The phase is the accumulated value with respect to the initial phase at the beginning of the experimental record.
+        """
+        if('loader_num' in params.keys()):
+            loader = this.loaders[params['loader_num']]
+        else:
+            loader_found = False
+            for l in this.loaders:
+                if(np.abs(params['frequency']-l.freq)/float(l.freq) < tol):
+                    loader = l
+                    loader_found = True
+                    break
+            if(not loader_found):
+                raise Exception('fft initialization error: no matching frequency data')
+        T = loader.getT()
+        S = loader.getI()+loader.getQ()*1j #get the complex signal
+        phase_raw = np.angle(S) # numpy.angle function gives the angle of a complex number in range[-pi,pi)
+        dph = phase_raw[1:-1]-phase_raw[0:-2] #the phase change is defined on each time intervals, so the total length will be 1 shorter than the phase array.
+        dph_ext = np.array([dph-2*np.pi,dph,dph+2*np.pi]) #intermediate array that contains all 3 posibilities of the phase change
+        dph_arg = np.argmin(np.abs(dph_ext),axis = 0) #numpy.argmin function pick out the index of the first occurance of the minimun value in the array along one chosen axis. Since the axis 0 in our array has just 3 elements, the dph_arg will contain only 0,1,2's.
+        dph_new = dph + (dph_arg-1)*2*np.pi # notice that in dph_arg, 0 corresponds dph-2*pi being the chosen one, 1 -> dph, and 2 -> dph+2*pi, therefore, this expression is valid for all 3 cases.
+        phase_mod = dph_new.cumsum() # numpy.ndarray.cumsum method returns the accumulated array, since we are accumulating the whole dph_new array, the phase we got is relative to the initial phase at the start of the experiment.
+        phase_interp = interp1d(T[1:-1],phase_raw[0]+phase_mod) # note that the time array now needs to be shorten by 1.
+        return (phase_interp(time_arr),phase_interp)
+
+    
+    def amp(this, time_arr, tol = 1e-5, **params):
+        """calculates the amplitude of the fluctuating signal
+        Since amplitude is much simpler than phase, we can simply calculate sqrt(I**2 + Q**2) where I,Q are in-phase and out-of-phase components.
+        """
+        
+        if('loader_num' in params.keys()):
+            loader = this.loaders[params['loader_num']]
+        else:
+            loader_found = False
+            for l in this.loaders:
+                if(np.abs(params['frequency']-l.freq)/float(l.freq) < tol):
+                    loader = l
+                    loader_found = True
+                    break
+            if(not loader_found):
+                raise Exception('fft initialization error: no matching frequency data')
+        T = loader.getT()
+        S = loader.getI()+loader.getQ()*1j #get the complex signal
+        amp = np.abs(S)
+        amp_interp = interp1d(T,amp)
+        return amp_interp(time_arr)
+        
 
     def fft(this,tol = 1e-5, **params):
         """FFT analysis in time.
@@ -289,6 +352,42 @@ class Analyser:
                 else: #if in lower triangle region, use the Hermitian property of the cross_correlation matrix
                     cross_corr[i,j] = np.conj(cross_corr[j,i])
         return cross_corr
+
+
+    def Phase_Correlation(this,time_arr,loader_nums = 'all'):
+        """Calculate the time translated cross correlation of the phase fluctuations between channels.
+
+        Arguments:
+            time_arr: double ndarray, contains all the time steps for calculation, (units: second)
+            loader_nums: (optional) the channel numbers chosen for cross correlation. default to use all the channels in Analyser.
+
+        Output: 3D array: shape (NL,NL,NT), NL = len(loader_nums) is the number of chosen channels, NT = len(time_arr) is the length of time series. The component (i,j,k) is the cross correlation between channel i and channel j. k <= [(NT-1)/2] and >= [-(NT-1)/2] denotes the time displacement between these two channels. Our convention is that i is delayed k*dT time compared to j. If k<0, it means that i is putting ahead of j. 
+        
+        """
+
+        if(loader_nums == 'all'):
+            loader_nums = np.arange(len(this.loaders))
+        NL = len(loader_nums)
+        NT = len(time_arr)
+        corr = np.zeros((NL,NL,NT))
+        phase = np.array([ this.phase(time_arr,loader_num = i)[0] for i in loader_nums ])
+        phase_fluc = phase - np.mean(phase,axis = 1)[:,np.newaxis]
+        for i in range(NL):
+            for j in range(NL):
+                for k in np.arange(NT)+np.floor(-(NT-1)/2):
+                    if k<0: # i is ahead of j by k step
+                        p1 = phase_fluc[i,-k:-1]
+                        p2 = phase_fluc[j,0:k-1]
+                        corr[i,j,k] = np.mean(p1*p2)/np.sqrt(np.mean(p1**2)*np.mean(p2**2)) #cross correlation is normalized to the averaged intensity of the two phase.
+                    else: # i is delayed compared to j by k step
+                        p1 = phase_fluc[i,0:-k-1]
+                        p2 = phase_fluc[j,k:-1]
+                        corr[i,j,k] = np.mean(p1*p2)/np.sqrt(np.mean(p1**2)*np.mean(p2**2))
+
+        return corr
+            
+            
+            
 
                 
         

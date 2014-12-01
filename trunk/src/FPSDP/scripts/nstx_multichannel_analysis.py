@@ -110,7 +110,7 @@ def fit_top():
     opt_t,x_t,dne_c_t = dne_ana.density_correlation(ref_pos[top_center],width = ref_pos[top_range[0]]-ref_pos[top_center])
     xgc_t_a,xgc_t_sa = opt_t
     
-    xmax_t = 3*np.max((np.abs(fwr_t_a),np.abs(fwr2_t_a),np.abs(exp_t_a)))
+    xmax_t = 2*np.max((np.abs(fwr_t_a),np.abs(fwr2_t_a),np.abs(exp_t_a)))
     xfit_t = np.linspace(0,xmax_t,500)
     fwr_fit_t = fwrpp.pp.exponential_fit(xfit_t,fwr_t_a)
     fwr2_fit_t = fwrpp.pp.exponential_fit(xfit_t,fwr2_t_a)
@@ -149,7 +149,7 @@ def fit_bot():
     opt_b,x_b,dne_c_b = dne_ana.density_correlation(ref_pos[bottom_center],width = ref_pos[bottom_range[0]]-ref_pos[bottom_center])
     xgc_b_a,xgc_b_sa = opt_b
     
-    xmax_b = 3*np.sqrt(np.max((np.abs(fwr_b_a),np.abs(fwr2_b_a),np.abs(exp_b_a))))
+    xmax_b = 2*np.sqrt(np.max((np.abs(fwr_b_a),np.abs(fwr2_b_a),np.abs(exp_b_a))))
     xfit_b = np.linspace(0,xmax_b,500)
     fwr_fit_b = fwrpp.pp.gaussian_fit(xfit_b,fwr_b_a)
     fwr2_fit_b = fwrpp.pp.gaussian_fit(xfit_b,fwr2_b_a)
@@ -182,7 +182,7 @@ def plot(region = 'top'):
         plt.plot(xfit_t,fwr01_fit_t,'r:',label = 'FWR amp0.1 fit')
         plt.xlabel('distance from center channel reflection($m$)')
         plt.ylabel('cross-correlation')
-        plt.legend()
+        plt.legend(labelspacing = 0.2,prop = {'size':12})
         plt.tight_layout()
     elif(region == 'bottom'):
         plt.title('Cross-Correlation at Lower Pedestal,center_channel at {0:.4}m'.format(ref_pos[bottom_center]))
@@ -196,7 +196,7 @@ def plot(region = 'top'):
         plt.plot(xfit_b,fwr01_fit_b,'r:',label = 'FWR amp0.1 fit')
         plt.xlabel('distance from center channel reflection($m$)')
         plt.ylabel('cross-correlation')
-        plt.legend()
+        plt.legend(labelspacing = 0.2,prop = {'size':12})
         plt.tight_layout()
     elif(region == '2d/3d_top'):
         plt.title('Cross-Correlation at Upper Pedestal,center_channel at {0:.4}m'.format(ref_pos[top_center]))
@@ -208,19 +208,19 @@ def plot(region = 'top'):
         plt.plot(xfit_t,fwr3d_fit_t,'r-.',label = 'FWR3D fit')
         plt.xlabel('distance from center channel reflection($m$)')
         plt.ylabel('cross-correlation')
-        plt.legend()
+        plt.legend(labelspacing = 0.2,prop = {'size':12})
         plt.tight_layout()
     elif(region =='2d/3d_bot'):
-        plt.title('Cross-Correlation at Lower Pedestal,center_channel at {0:.4}m'.format(ref_pos[bottom_center]))
+        #plt.title('Cross-Correlation at Lower Pedestal,center_channel at {0:.4}m'.format(ref_pos[bottom_center]))
         plt.plot(dx_bot,exp_bot,'bs',label = 'exp data')
-        plt.plot(dx_bot,fwr_bot,'ro',label = 'FWR2D data')
+        plt.plot(dx_bot,fwr_bot,'go',label = 'FWR2D data')
         plt.plot(dx_bot,fwr3d_bot,'r^',label = 'FWR3D data')
-        plt.plot(xfit_b,exp_fit_b,'b-',label = 'exp gaussian fit')
-        plt.plot(xfit_b,fwr_fit_b,'r--',label = 'FWR2D fit')
-        plt.plot(xfit_b,fwr3d_fit_b,'r-.',label = 'FWR3D fit')
-        plt.xlabel('distance from center channel reflection($m$)')
-        plt.ylabel('cross-correlation')
-        plt.legend()
+        plt.plot(xfit_b,exp_fit_b,'b-')
+        plt.plot(xfit_b,fwr_fit_b,'g--')
+        plt.plot(xfit_b,fwr3d_fit_b,'r-.')
+        plt.xlabel('$distance from center channel(mm)$')
+        plt.ylabel('$\gamma$')
+        plt.legend(labelspacing = 0.2,prop = {'size':15})
         plt.tight_layout()
     elif(region == '3d_bot'):
         plt.title('2D/3D Cross-Correlation and XGC1 Density Correlation, Lower')
@@ -232,7 +232,7 @@ def plot(region = 'top'):
         plt.plot(xfit_b,xgc_fit_b,'b-',label = 'XGC fit')
         plt.xlabel('distance from center channel relfection($m$)')
         plt.ylabel('cross-corelation')
-        plt.legend()
+        plt.legend(labelspacing = 0.2,prop = {'size':12})
         plt.tight_layout()
     elif(region == '3d_top'):
         plt.title('2D/3D Cross-Correlation and XGC1 Density Correlation, Upper')
@@ -244,7 +244,7 @@ def plot(region = 'top'):
         plt.plot(xfit_t,xgc_fit_t,'b-',label = 'XGC fit')
         plt.xlabel('distance from center channel relfection($m$)')
         plt.ylabel('cross-corelation')
-        plt.legend()
+        plt.legend(labelspacing = 0.2,prop = {'size':12})
         plt.tight_layout()
 
 def clear_all():

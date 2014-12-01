@@ -47,7 +47,7 @@ exe = 'drive_FWR2D'
 #Start creating directories and files
 
 #The tag of RUN. Each new run should be assigned a new number.
-run_No = '_resized22_new_FullF_multi_cross_Amp1_long_GT70'
+run_No = '_new_FullF_multi_cross_Amp1_LT70'
 
 full_output_path = working_path + 'Correlation_Runs/RUNS/RUN'+str(run_No)+'/'
 
@@ -142,9 +142,9 @@ def submit(f_arr=freqs,t_arr=time_arr,nc = n_cross_section):
 
 if __name__ == "__main__":
 
-    t_use = [220]
-    f_use = [70,72.5,75]
-    nc_use = 1
+    t_use = time_arr
+    f_use = freqs[0:13]
+    nc_use = 16
     make_dirs(t_arr = t_use,f_arr = f_use,nc = nc_use)
     make_batch(t_arr = t_use,f_arr = f_use,nc = nc_use)
     submit(t_arr = t_use,f_arr = f_use, nc = nc_use)

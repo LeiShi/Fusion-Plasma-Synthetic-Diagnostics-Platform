@@ -242,14 +242,14 @@ def find_interp_positions_v1(my_xgc):
     return interp_positions
 
 
-class XGC_loader_Error(Exception):
+class XGC_Loader_Error(Exception):
     def __init__(self,value):
         self.value = value
     def __str__(self):
         return repr(self.value)
 
 
-class XGC_loader():
+class XGC_Loader():
     """Loader for a given set of XGC output files
     """
 
@@ -526,7 +526,7 @@ class XGC_loader():
         self.CO_DIR = (np.sign(self.BPhi[0]) > 0)
         return 0
 
-    def load_fluctuations_2D_all(this):
+    def load_fluctuations_2D_all(self):
         """Load non-adiabatic electron density and electrical static potential fluctuations
         the mean value of these two quantities on each time step is also calculated.
 
@@ -824,6 +824,8 @@ class XGC_loader():
                 if(self.HaveElectron):
                     self.nane_on_grid[i,j,...] += griddata(self.points,self.nane[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
 
+        self.interp_check() # after the interpolation, check if the perturbations are interpolated within a reasonable error
+
 
     def interpolate_all_on_grid_3D(self):
         """ create all interpolated quantities on given 3D grid.
@@ -918,10 +920,16 @@ class XGC_loader():
                     self.nane_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
 
 
-    def interp_check(self, tol = 1e-3):
+    def interp_check(self, tol = 0.2, toroidal_cross = 0, time = 0):
         """check if the interpolation has been carried out correctly
 
         use the on_grid data to interpolate onto original data locations, and compare the result with the original data, if the relative difference is larger than the tolerance, report the locations and the error.
+
+        arguments:
+            tol: double, the maximum tolerable error(relative to the original value). Default to be 20 percent.
+            toroidal_cross: int, toroidal cross section number to be used, default to be 0.
+            time: int, time step to be used, default to be 0.
+            
 
         return:
             tuple (check_pass,adiabatic_error_info,non_adiabatic_error_info)
@@ -951,24 +959,32 @@ class XGC_loader():
         R_in = R[idx]
         Z_in = Z[idx]
 
-        dne_ad_in = self.dne_ad[idx]
-        nane_in = self.nane[idx]
+        dne_ad_in = self.dne_ad[toroidal_cross,time,idx][0]
+        nane_in = self.nane[toroidal_cross,time,idx][0]
 
-        dne_ad_back_interp = RectBivariateSpline(self.grid.Z1D,self.grid.R1D,self.dne_ad_on_grid)
-        nane_back_interp = RectBivariateSpline(self.grid.Z1D,self.grid.R1D,self.nane_on_grid)
+        dne_ad_back_interp = RectBivariateSpline(self.grid.Z1D,self.grid.R1D,self.dne_ad_on_grid[toroidal_cross,time,:,:])
+        nane_back_interp = RectBivariateSpline(self.grid.Z1D,self.grid.R1D,self.nane_on_grid[toroidal_cross,time,:,:])
 
         #compare the points
-        dne_ad_error = np.abs(dne_ad_in - dne_ad_back_interp(Z_in,R_in)) / dne_ad_in
-        nane_error = np.abs(nane_in - nane_back_interp(Z_in,R_in)) / nane_in
+        dne_ad_interp = dne_ad_back_interp.ev(Z_in,R_in)
+        dne_ad_error = np.abs( (dne_ad_in - dne_ad_interp) / dne_ad_interp )
 
+        nane_interp = nane_back_interp.ev(Z_in,R_in)
+        nane_error = np.abs( (nane_in - nane_interp) / nane_interp )
+        
         #check if the error is within tolerance
-        dne_ad_violate_idx = np.where(dne_ad_error > tol)
-        nane_violate_idx = np.where(nane_error > tol)
+        dne_ad_exceed_tol_idx = np.where(dne_ad_error > tol)
+        nane_exceed_tol_idx = np.where(nane_error > tol)
+
+        #Sometimes, tolerance is exceeded because the original data is too small. Check for these cases, an warning is raised only if the original data is greater than 1e-5 * the max value in original data.
+
+        dne_ad_true_violate_idx = np.where(np.abs(dne_ad_in[dne_ad_exceed_tol_idx]) > np.max(np.abs(dne_ad_in))*1e-2 )
+        nane_true_violate_idx = np.where(np.abs(nane_in[nane_exceed_tol_idx]) > np.max(np.abs(nane_in))*1e-2 )
 
         #report the violation locations
         check_pass = True
-        ad_vio_count = len(dne_ad_in[dne_ad_violate_idx])
-        na_vio_count = len(nane_in[nane_violate_idx])
+        ad_vio_count = len(dne_ad_in[dne_ad_exceed_tol_idx][dne_ad_true_violate_idx])
+        na_vio_count = len(nane_in[nane_exceed_tol_idx][nane_true_violate_idx])
         if(ad_vio_count != 0):
             check_pass = False
             print "Warning: adiabatic electron density interpolation inaccurate! {0} points violated. Check the  returned value of method interp_check for detailed information.".format(ad_vio_count)
@@ -978,8 +994,8 @@ class XGC_loader():
         
         #return the tuple containing all information
 
-        adiabatic_error_info = (R_in[dne_ad_violate_idx],Z_in[dne_ad_violate_idx],dne_ad_error[dne_ad_violate_idx])
-        non_adiabatic_error_info = (R_in[nane_violate_idx],Z_in[nane_violate_idx],nane_error[nane_violate_idx])
+        adiabatic_error_info = (R_in[dne_ad_exceed_tol_idx][dne_ad_true_violate_idx],Z_in[dne_ad_exceed_tol_idx][dne_ad_true_violate_idx],dne_ad_in[dne_ad_exceed_tol_idx][dne_ad_true_violate_idx],dne_ad_interp[dne_ad_exceed_tol_idx][dne_ad_true_violate_idx],dne_ad_error[dne_ad_exceed_tol_idx][dne_ad_true_violate_idx])
+        non_adiabatic_error_info = (R_in[nane_exceed_tol_idx][nane_true_violate_idx],Z_in[nane_exceed_tol_idx][nane_true_violate_idx],nane_in[nane_exceed_tol_idx][nane_true_violate_idx],nane_interp[nane_exceed_tol_idx][nane_true_violate_idx],nane_error[nane_exceed_tol_idx][nane_true_violate_idx])
 
         return (check_pass,adiabatic_error_info,non_adiabatic_error_info)
             
@@ -1025,6 +1041,34 @@ class XGC_loader():
             saving_dic['Y1D'] = self.grid.Y1D
             saving_dic['Z1D'] = self.grid.Z1D
         np.savez(file_name,**saving_dic)
+
+    def load_dne(self, filename = 'dne_file.sav'):
+        """load the previously saved ne data file.
+        The geometry information needs to be the same, otherwise an error will be raised.
+        """
+
+        if 'npz' not in filename:
+            filename += '.npz'
+        nefile = np.load(filename)
+        if 'Z1D' in nefile.files:
+            dimension = 3
+        else:
+            dimension = 2
+        if(dimension != self.dimension):
+            raise XGC_Loader_Error('Geometry incompatible! Trying to load {0}d data onto {1}d grid.\nMake sure the geometry setup is the same as the data file.'.format(dimension,self.dimension))
+
+        #======== NEED MORE DETAILED GEOMETRY CHECKING HERE! CURRENT VERSION DOESN'T GUARANTEE SAME GRID. ERRORS WILL OCCUR WHEN READ SAVED FILE WITH A DIFFERENT GRID.
+        #=============================================#
+
+        self.mesh = {'R':nefile['X_origin'],'Z':nefile['Y_origin']}
+        self.dne_ad = nefile['dne_ad_org']
+        self.ne0_on_grid = nefile['ne0']
+        self.dne_ad_on_grid = nefile['dne_ad']
+
+        if 'nane' in nefile.files:
+            self.HaveElectrons = True
+            self.nane = nefile['nane_org']
+            self.nane_on_grid = nefile['nane']
         
 
 
@@ -1086,7 +1130,7 @@ class XGC_loader():
         elif (isinstance(self.grid, Cartesian3D)):
             self.cdf_output_3D(output_path,eq_file,filehead)
         else:
-            raise XGC_loader_Error('Wrong grid type! Grid should either be Cartesian2D or Cartesian3D.') 
+            raise XGC_Loader_Error('Wrong grid type! Grid should either be Cartesian2D or Cartesian3D.') 
         
 
     def cdf_output_2D(self,output_path,filehead='fluctuation'):

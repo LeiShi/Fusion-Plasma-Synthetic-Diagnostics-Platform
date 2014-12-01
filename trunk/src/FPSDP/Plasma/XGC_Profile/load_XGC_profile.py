@@ -10,6 +10,7 @@ from scipy.interpolate import griddata
 from scipy.interpolate import CloughTocher2DInterpolator
 from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.interpolate import interp1d
+from scipy.interpolate import RectBivariateSpline
 import matplotlib.pyplot as plt
 import scipy.io.netcdf as nc
 import pickle
@@ -252,7 +253,7 @@ class XGC_loader():
     """Loader for a given set of XGC output files
     """
 
-    def __init__(self,xgc_path,grid,t_start,t_end,dt,dn_amplifier = 1.0, n_cross_section = 1,equilibrium_mesh = '2D',Full_Load = True):
+    def __init__(self,xgc_path,grid,t_start,t_end,dt,dn_amplifier = 1.0, n_cross_section = 1,equilibrium_mesh = '2D',Full_Load = True, Fluc_Only = True):
         """The main caller of all functions to prepare a loaded XGC profile.
 
         Inputs:
@@ -262,7 +263,8 @@ class XGC_loader():
             dn_amplifier: double, the multiplier used to artificially change the fluctuation level, default to be 1, i.e. use original fluctuation data read from XGC output.
             n_cross_section: int, number of cross sections loaded for each time step, default to be 1, i.e. use only data on(near) number 0 cross-section. NOTE: this number can not be larger than the total cross-section used in the XGC simulation.
             equilibrium_mesh: string, a flag to choose from '2D' or '3D' equilibrium output style. Current FWR3D code read '2D' equilibrium data.
-            Full_Load: bool, A flag for debugging, default to be True, i.e. load all data when initializing, if set to be False, then only constants are set, no loading functions will be called during initialization, programmer can call them one by one afterwards.
+            Full_Load: boolean, A flag for debugging, default to be True, i.e. load all data when initializing, if set to be False, then only constants are set, no loading functions will be called during initialization, programmer can call them one by one afterwards.
+            Fluc_Only: boolean, A flag determining fluctuation loading method. Default to be True. Fluc_Only == True uses newer loading method to remove equilibrium relaxation effects. Fluc_Only == False uses old version and load all the calculated density deviations from the equilibrium.
             
         """
 
@@ -305,7 +307,10 @@ class XGC_loader():
                 print 'B loaded.'
                 self.load_eq_2D3D()
                 print 'equilibrium loaded.'
-                self.load_fluctuations_2D()
+                if (Fluc_Only):
+                    self.load_fluctuations_2D_fluc_only()
+                else:
+                    self.load_fluctuations_2D_all()
                 print 'fluctuations loaded.'
                 self.calc_total_ne_2D3D()
                 print 'total ne calculated.'
@@ -330,8 +335,12 @@ class XGC_loader():
 
                 self.load_eq_2D3D()
                 print 'equlibrium loaded.'
-            
-                self.load_fluctuations_3D()
+                
+                if (Fluc_Only):
+                    self.load_fluctuations_3D_fluc_only()
+                else:
+                    self.load_fluctuations_3D_all()
+           
                 print 'fluctuations loaded.'
 
                 self.calc_total_ne_2D3D()
@@ -375,7 +384,11 @@ class XGC_loader():
                 self.load_eq_2D3D()
                 print 'equlibrium loaded.'
 
-                self.load_fluctuations_3D()
+                if (Fluc_Only):
+                    self.load_fluctuations_3D_fluc_only()
+                else:
+                    self.load_fluctuations_3D_all()
+                    
                 print 'fluctuations loaded.'
 
                 self.calc_total_ne_2D3D()
@@ -404,7 +417,10 @@ class XGC_loader():
                 print 'B loaded.'
                 self.load_eq_2D3D()
                 print 'equilibrium loaded.'
-                self.load_fluctuations_2D()
+                if (Fluc_Only):
+                    self.load_fluctuations_2D_fluc_only()
+                else:
+                    self.load_fluctuations_2D_all()
                 print 'fluctuations loaded.'
                 self.calc_total_ne_2D3D()
                 print 'total ne calculated.'
@@ -510,9 +526,12 @@ class XGC_loader():
         self.CO_DIR = (np.sign(self.BPhi[0]) > 0)
         return 0
 
-    def load_fluctuations_2D(self):
+    def load_fluctuations_2D_all(this):
         """Load non-adiabatic electron density and electrical static potential fluctuations
         the mean value of these two quantities on each time step is also calculated.
+
+        Note that for full-F runs, the purturbed electron density includes both turbulent fluctuations and equilibrium relaxation, this loading method doesn't differentiate them and will read all of them.
+
         """
         if(self.HaveElectron):
             self.nane = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.mesh['R'])) )
@@ -538,6 +557,56 @@ class XGC_loader():
                     self.nane[j,i] -= self.nane_bar[i]
             fluc_mesh.close()
 
+
+        
+        
+        return 0
+
+
+    def load_fluctuations_2D_fluc_only(self):
+        """Load non-adiabatic electron density and electrical static potential fluctuations
+        the mean value of these two quantities on each time step is also calculated.
+
+        Since XGC-1 has full-f capability, the deviation from input equilibrium is not only fluctuations induced by turbulences, but also relaxation of the equilibrium. Since we are only interested in the former part, we need to screen out the latter effect.[*] The way of doing this is as follows:
+        Since the relaxation of equilibrium should be the same across the whole flux surface, it naturally is the same along toroidal direction. Given that no large n=0 mode exists in the turbulent spectra, the toroidal average of the calculated delta-n will mainly be the equilibrium relaxation. However, this effect might be important, so we keep the time-averaged relaxation effect to add it into the input equilibrium. The final formula for density fluctuation (as well as potential fluctuation) is then:
+            n_tilde = delta_n - <delta_n>_zeta ,
+        where delta_n is the calculated result, and <...>_zeta denotes average in toroidal direction.
+        and the effective equilibrium is given by: n0_eff = n0 + <delta_n>_zeta_t ,
+        where n0 is the input equilibrium, and <...>_zeta_t denotes average over both toroidal and time.
+        """
+        #first we load one file to obtain the total plane number used in the simulation
+        flucf = self.xgc_path + 'xgc.3d.'+str(self.time_steps[0]).zfill(5)+'.h5'
+        fluc_mesh = h5.File(flucf,'r')        
+        self.n_plane = fluc_mesh['dpot'].shape[1]
+        dn = int(self.n_plane/self.n_cross_section)#dn is the increment between two chosen cross-sections, if total chosen number is greater than total simulation plane number, an error will occur.
+        self.planes = np.arange(self.n_cross_section)*dn
+
+        if(self.HaveElectron):
+            self.nane = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.mesh['R'])))
+            nane_all = np.zeros( (self.n_plane, len(self.time_steps), len(self.mesh['R']) ) )
+        self.phi = np.zeros((self.n_cross_section,len(self.time_steps),len(self.mesh['R'])))
+        phi_all = np.zeros((self.n_plane,len(self.time_steps),len(self.mesh['R'])))
+
+        #after initializing the arrays to hold the data, we load the data from the first chosen step
+        for j in range(self.n_plane):
+            phi_all[j,0] += np.swapaxes(fluc_mesh['dpot'][...][:,j],0,1)
+            if(self.HaveElectron):
+                nane_all[j,0] += np.swapaxes(fluc_mesh['eden'][...][:,j],0,1)
+        fluc_mesh.close()
+        
+        for i in range(1,len(self.time_steps)):
+            #now we load all the data from rest of the chosen time steps. 
+            flucf = self.xgc_path + 'xgc.3d.'+str(self.time_steps[i]).zfill(5)+'.h5'
+            fluc_mesh = h5.File(flucf,'r')
+                
+            for j in range(self.n_plane):
+                phi_all[j,i] += np.swapaxes(fluc_mesh['dpot'][...][:,j],0,1)
+                if(self.HaveElectron):
+                    nane_all[j,i] += np.swapaxes(fluc_mesh['eden'][...][:,j],0,1)
+            fluc_mesh.close()
+
+
+
         #now, all data is ready, we need to pick the chosen cross sections and do some post process. Since XGC-1 has full-f capability, the deviation from input equilibrium is not only fluctuations induced by turbulences, but also relaxation of the equilibrium. Since we are only interested in the former part, we need to screen out the latter effect.[*] The way of doing this is as follows:
         # Since the relaxation of equilibrium should be the same across the whole flux surface, it naturally is the same along toroidal direction. Given that no large n=0 mode exists in the turbulent spectra, the toroidal average of the calculated delta-n will mainly be the equilibrium relaxation. However, this effect might be important, so we keep the time-averaged relaxation effect to add it into the input equilibrium. The final formula for density fluctuation (as well as potential fluctuation) is then:
         #   n_tilde = delta_n - <delta_n>_zeta , where delta_n is the calculated result, and <...>_zeta denotes average in toroidal direction.
@@ -546,29 +615,31 @@ class XGC_loader():
 
         # first, we calculate the n_tilde, note that we have adiabatic and non-adiabatic parts. The adiabatic part is given by the potential, and will be calculated later in calc_total_ne_2D3D.
         phi_avg_tor = np.average(phi_all,axis = 0)
-        if(this.HaveElectron):
+        if(self.HaveElectron):
             nane_avg_tor = np.average(nane_all,axis=0)
-        for j in range(this.n_cross_section):
-            this.phi[j,:,:] = phi_all[this.planes[j],:,:] - phi_avg_tor[:,:]
-            if(this.HaveElectron):
-                this.nane[j,:,:] = nane_all[this.planes[j],:,:] - nane_avg_tor[:,:]
+        for j in range(self.n_cross_section):
+            self.phi[j,:,:] = phi_all[self.planes[j],:,:] - phi_avg_tor[:,:]
+            if(self.HaveElectron):
+                self.nane[j,:,:] = nane_all[self.planes[j],:,:] - nane_avg_tor[:,:]
 
         # then, we add the averaged relaxation modification to the input equilibrium
 
-        this.ne0[:] += np.average(phi_avg_tor,axis = 0)
-        if(this.HaveElectron):
-            this.ne0[:] += np.average(nane_avg_tor,axis = 0)
+        self.ne0[:] += np.average(phi_avg_tor,axis = 0)
+        if(self.HaveElectron):
+            self.ne0[:] += np.average(nane_avg_tor,axis = 0)
         
         
         return 0
 
-    def load_fluctuations_3D(self):
-        """Load non-adiabatic electron density and electrical static potential fluctuations for 3D mesh. The required planes are calculated and stored in sorted array. fluctuation data on each plane is stored in the same order. 
+    def load_fluctuations_3D_all(self):
+        """Load non-adiabatic electron density and electrical static potential fluctuations for 3D mesh. The required planes are calculated and stored in sorted array. fluctuation data on each plane is stored in the same order.
+        Note that for full-F runs, the purturbed electron density includes both turbulent fluctuations and equilibrium relaxation, this loading method doesn't differentiate them and will read all of them.
+        
         the mean value of these two quantities on each time step is also calculated.
         for multiple cross-section runs, data is stored under each center_plane index.
         """
         #similar to the 2D case, we first read one file to determine the total toroidal plane number in the simulation
-        flucf = this.xgc_path + 'xgc.3d.'+str(this.time_steps[0]).zfill(5)+'.h5'
+        flucf = self.xgc_path + 'xgc.3d.'+str(self.time_steps[0]).zfill(5)+'.h5'
         fluc_mesh = h5.File(flucf,'r')
 
         self.planes = np.unique(np.array([np.unique(self.prevplane),np.unique(self.nextplane)]))
@@ -595,21 +666,60 @@ class XGC_loader():
                     self.nane_bar[i] += np.mean(fluc_mesh['eden'][...])
                     self.nane[i] -= self.nane_bar[i]
             fluc_mesh.close()
+            
+        return 0
+
+    def load_fluctuations_3D_fluc_only(self):
+        """Load non-adiabatic electron density and electrical static potential fluctuations for 3D mesh. The required planes are calculated and stored in sorted array. fluctuation data on each plane is stored in the same order. 
+        the mean value of these two quantities on each time step is also calculated.
+
+        similar to the 2D case, we take care of the equilibrium relaxation contribution. See details in the comments in 2D loading function.
+        
+        for multiple cross-section runs, data is stored under each center_plane index.
+        """
+        #similar to the 2D case, we first read one file to determine the total toroidal plane number in the simulation
+        flucf = self.xgc_path + 'xgc.3d.'+str(self.time_steps[0]).zfill(5)+'.h5'
+        fluc_mesh = h5.File(flucf,'r')
+
+        self.n_plane = fluc_mesh['dpot'].shape[1]
+        dn = int(self.n_plane/self.n_cross_section)
+        self.center_planes = np.arange(self.n_cross_section)*dn
+
+        self.planes = np.unique(np.array([np.unique(self.prevplane),np.unique(self.nextplane)]))
+        self.planeID = {self.planes[i]:i for i in range(len(self.planes))} #the dictionary contains the positions of each chosen plane, useful when we want to get the data on a given plane known only its plane number in xgc file.
+
+        #initialize the arrays
+        if(self.HaveElectron):
+            self.nane = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.planes),len(self.mesh['R'])) )
+            nane_all = np.zeros((self.n_plane,len(self.time_steps),len(self.mesh['R'])))
+        self.phi = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.planes),len(self.mesh['R'])) )
+        phi_all = np.zeros((self.n_plane,len(self.time_steps),len(self.mesh['R'])))
+
+        #load all the rest of the files
+        for i in range(1,len(self.time_steps)):
+            flucf = self.xgc_path + 'xgc.3d.'+str(self.time_steps[i]).zfill(5)+'.h5'
+            fluc_mesh = h5.File(flucf,'r')
+            for j in range(self.n_plane):
+                phi_all[j,i] += np.swapaxes(fluc_mesh['dpot'][...][:,j],0,1)
+                if(self.HaveElectron):
+                    nane_all[j,i] += np.swapaxes(fluc_mesh['eden'][...][:,j],0,1)
+            fluc_mesh.close()
+
 
         #similar to the 2D case, we take care of the equilibrium relaxation contribution. See details in the comments in 2D loading function.
         
         phi_avg_tor = np.average(phi_all,axis = 0)
-        if this.HaveElectron:
+        if self.HaveElectron:
             nane_avg_tor = np.average(nane_all,axis=0)
 
-        for j in range(this.n_cross_section):
-            this.phi[j,...] = np.swapaxes(phi_all[(this.center_planes[j] + this.planes)%this.n_plane,:,:],0,1) - phi_avg_tor[:,np.newaxis,:]
-            if this.HaveElectron:
-                this.nane[j,...] = np.swapaxes(nane_all[(this.center_planes[j] + this.planes)%this.n_plane,:,:],0,1) - nane_avg_tor[:,np.newaxis,:]
+        for j in range(self.n_cross_section):
+            self.phi[j,...] = np.swapaxes(phi_all[(self.center_planes[j] + self.planes)%self.n_plane,:,:],0,1) - phi_avg_tor[:,np.newaxis,:]
+            if self.HaveElectron:
+                self.nane[j,...] = np.swapaxes(nane_all[(self.center_planes[j] + self.planes)%self.n_plane,:,:],0,1) - nane_avg_tor[:,np.newaxis,:]
 
-        this.ne0[:] += np.average(phi_avg_tor,axis=0)
-        if this.HaveElectron:
-            this.ne0[:] += np.average(nane_avg_tor,axis=0)
+        self.ne0[:] += np.average(phi_avg_tor,axis=0)
+        if self.HaveElectron:
+            self.ne0[:] += np.average(nane_avg_tor,axis=0)
             
         return 0
     
@@ -807,26 +917,106 @@ class XGC_loader():
             
                     self.nane_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
 
+
+    def interp_check(self, tol = 1e-3):
+        """check if the interpolation has been carried out correctly
+
+        use the on_grid data to interpolate onto original data locations, and compare the result with the original data, if the relative difference is larger than the tolerance, report the locations and the error.
+
+        return:
+            tuple (check_pass,adiabatic_error_info,non_adiabatic_error_info)
+                check_pass: boolean, True if no violation founded.
+                adiabatic_error_info: tuple (R,Z,error), R,Z contains original coordinates where violations occur, error is the relative error.
+                non_adiabatic_error_info: tuple(R,Z,error), same meaning as in adiabatic case.
+        """
+
+        if(self.dimension == 3):
+            print "3D check is currently not available. The main difficulty is that the original data is on 2D plane, but the on grid data is on 3D mesh, which doesn't guarantee a X-Y slice to be correspondent to one original plane. This makes comparison between the interpolated data and the original data impractical. A new way to test the 3D interpolation is needed.\n Caution: NO interp_check done!"
+            return
+
+        Rmin = self.grid.R1D[0]
+        Rmax = self.grid.R1D[-1]
+        Zmin = self.grid.Z1D[0]
+        Zmax = self.grid.Z1D[-1]
+
+        R = self.mesh['R']
+        Z = self.mesh['Z']
+
+        #find the index where original R,Z are inside the interpolated grid
+
+        R_in_flag = np.logical_and( R>Rmin,R<Rmax )
+        Z_in_flag = np.logical_and( Z>Zmin,Z<Zmax )
+        idx = np.where(np.logical_and(R_in_flag,Z_in_flag))
+
+        R_in = R[idx]
+        Z_in = Z[idx]
+
+        dne_ad_in = self.dne_ad[idx]
+        nane_in = self.nane[idx]
+
+        dne_ad_back_interp = RectBivariateSpline(self.grid.Z1D,self.grid.R1D,self.dne_ad_on_grid)
+        nane_back_interp = RectBivariateSpline(self.grid.Z1D,self.grid.R1D,self.nane_on_grid)
+
+        #compare the points
+        dne_ad_error = np.abs(dne_ad_in - dne_ad_back_interp(Z_in,R_in)) / dne_ad_in
+        nane_error = np.abs(nane_in - nane_back_interp(Z_in,R_in)) / nane_in
+
+        #check if the error is within tolerance
+        dne_ad_violate_idx = np.where(dne_ad_error > tol)
+        nane_violate_idx = np.where(nane_error > tol)
+
+        #report the violation locations
+        check_pass = True
+        ad_vio_count = len(dne_ad_in[dne_ad_violate_idx])
+        na_vio_count = len(nane_in[nane_violate_idx])
+        if(ad_vio_count != 0):
+            check_pass = False
+            print "Warning: adiabatic electron density interpolation inaccurate! {0} points violated. Check the  returned value of method interp_check for detailed information.".format(ad_vio_count)
+        if(na_vio_count != 0):
+            check_pass = False
+            print "Warning: non-adiabatic electron density interpolation inaccurate! {0} points violated. Check the  returned value of method interp_check for detailed information.".format(na_vio_count)
+        
+        #return the tuple containing all information
+
+        adiabatic_error_info = (R_in[dne_ad_violate_idx],Z_in[dne_ad_violate_idx],dne_ad_error[dne_ad_violate_idx])
+        non_adiabatic_error_info = (R_in[nane_violate_idx],Z_in[nane_violate_idx],nane_error[nane_violate_idx])
+
+        return (check_pass,adiabatic_error_info,non_adiabatic_error_info)
+            
+
+        
+        
+        
     def save_dne(self,fname = 'dne_file.sav'):
-        """save the interpolated electron density fluctuations to a local .npz file
+        """save the original and interpolated electron density fluctuations to a local .npz file
 
         for 2D instances,The arrays saved are:
-            X1D: the 1D array of coordinates along R direction
-            Y1D: the 1D array of coordinates along Z direction
+            X1D: the 1D array of coordinates along R direction (major radius)
+            Y1D: the 1D array of coordinates along Z direction (vertical)
+            X_origin: major radius coordinates on original scattered grid
+            Y_origin: vertical coordinates on original scattered grid
+           
             dne_ad: the adiabatic electron density perturbation, in shape (NY,NX), where NX,NY are the dimensions of X1D, Y1D respectively
             nane: (if non-adiabatic electron is on in XGC simulation)the non-adiabatic electron density perturbation. same shape as dne_ad
+
+            dne_ad_org: the adiabatic electron density perturbation on original grid
+            nane_org: the non-adiabatic electron density perturbation on original grid
+            
             ne0: the equilibrium electron density.
         for 3D instances, in addition to the arrays above, one coordinate is also saved:
             Z1D: 1D coordinates along R cross Z direction.
-        
         """
         file_name = self.xgc_path + fname
         saving_dic = {
             'dne_ad':self.dne_ad_on_grid,
             'ne0':self.ne0_on_grid,
+            'dne_ad_org':self.dne_ad,
+            'X_origin':self.mesh['R'],
+            'Y_origin':self.mesh['Z']
             }
         if (self.HaveElectron):
             saving_dic['nane'] = self.nane_on_grid
+            saving_dic['nane_org'] = self.nane
         if (self.dimension == 2):
             saving_dic['X1D'] = self.grid.R1D
             saving_dic['Y1D'] = self.grid.Z1D
@@ -841,6 +1031,9 @@ class XGC_loader():
     def get_frequencies(self):
         """calculate the relevant frequencies along the plasma midplane,return them as a dictionary
 
+        arguments:
+            time_eval: boolean, a flag for time evolution. Default to be False
+
         return: dictionary contains all the frequency arrays
             keywords: 'f_pi','f_pe','f_ci','f_ce','f_uh','f_lh','f_lx','f_ux'
 
@@ -848,14 +1041,14 @@ class XGC_loader():
         """
         if(isinstance(self.grid,Cartesian2D)):#2D mesh
             Zmid = (self.grid.NZ-1)/2
-            ne = self.ne_on_grid[0,0,Zmid,:]*1e-6 #convert into cgs unit
+            ne = self.ne_on_grid[0,:,Zmid,:]*1e-6 #convert into cgs unit
             ni = ne #D plasma assumed,ignore the impurity. 
             mu = 2 # mu=m_i/m_p, in D plasma, it's 2
             B = self.B_on_grid[Zmid,:]*1e5 #convert to cgs unit
         else:#3D mesh
             Ymid = (self.grid.NY-1)/2
             Zmid = (self.grid.NZ-1)/2
-            ne = self.ne_on_grid[0,Zmid,Ymid,:]*1e-6
+            ne = self.ne_on_grid[0,:,Zmid,Ymid,:]*1e-6
             ni = ne
             mu = 2
             B = self.B_on_grid[Zmid,Ymid,:]*1e5

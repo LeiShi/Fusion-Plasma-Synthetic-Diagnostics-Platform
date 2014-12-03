@@ -811,7 +811,8 @@ class XGC_Loader():
         self.ne_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),R2D.shape[0],R2D.shape[1]))
         self.phi_on_grid = np.zeros(self.ne_on_grid.shape)
         self.dne_ad_on_grid = np.zeros(self.ne_on_grid.shape)
-        self.nane_on_grid = np.zeros(self.ne_on_grid.shape)
+        if self.HaveElectron:
+            self.nane_on_grid = np.zeros(self.ne_on_grid.shape)
 
         self.ne0_on_grid = griddata(self.points,self.ne0[:],(Z2D,R2D),method = 'linear',fill_value = 0)
 
@@ -870,6 +871,8 @@ class XGC_Loader():
             self.BY_on_grid = self.BZ_interp(y2D,x2D)
             self.BZ_on_grid = self.BPhi_interp(y2D,x2D)
 
+            self.B_on_grid = np.sqrt(self.BX_on_grid**2 + self.BY_on_grid**2 + self.BZ_on_grid**2)
+            
             #Te and Ti on grid
             self.te_on_grid = self.te0_sp(self.psi_on_grid)
             self.ti_on_grid = self.ti0_sp(self.psi_on_grid)
@@ -880,6 +883,8 @@ class XGC_Loader():
         
         #ne fluctuations on 3D grid
         self.dne_ad_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),r3D.shape[0],r3D.shape[1],r3D.shape[2]))
+        if self.HaveElectron:
+             self.nane_on_grid = np.zeros(self.dne_ad_on_grid.shape)
 
         
         
@@ -912,7 +917,6 @@ class XGC_Loader():
 
                 if self.HaveElectron:
                     #non-adiabatic ne data as well:
-                    self.nane_on_grid = np.zeros(self.dne_ad_on_grid.shape)
                     for j in range(len(self.planes)):
                         prev[prev_idx[j]] = griddata(self.points,self.nane[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
                         next[next_idx[j]] = griddata(self.points,self.nane[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
@@ -1003,8 +1007,8 @@ class XGC_Loader():
         
         
         
-    def save_dne(self,fname = 'dne_file.sav'):
-        """save the original and interpolated electron density fluctuations to a local .npz file
+    def save(self,fname = 'xgc_profile.sav'):
+        """save the original and interpolated electron density fluctuations and useful equilibrium quantities to a local .npz file
 
         for 2D instances,The arrays saved are:
             X1D: the 1D array of coordinates along R direction (major radius)
@@ -1019,8 +1023,15 @@ class XGC_Loader():
             nane_org: the non-adiabatic electron density perturbation on original grid
             
             ne0: the equilibrium electron density.
+            Te0: equilibrium electron temperature
+            Ti0: equilibrium ion temperature
+            B0: equilibrium magnetic field (toroidal)
+            
         for 3D instances, in addition to the arrays above, one coordinate is also saved:
             Z1D: 1D coordinates along R cross Z direction.
+
+            BX: radial magnetic field
+            BY: vertical magnetic field
         """
         file_name = self.xgc_path + fname
         saving_dic = {
@@ -1028,7 +1039,10 @@ class XGC_Loader():
             'ne0':self.ne0_on_grid,
             'dne_ad_org':self.dne_ad,
             'X_origin':self.mesh['R'],
-            'Y_origin':self.mesh['Z']
+            'Y_origin':self.mesh['Z'],
+            'Te0':self.te_on_grid,
+            'Ti0':self.ti_on_grid,
+            'psi':self.psi_on_grid
             }
         if (self.HaveElectron):
             saving_dic['nane'] = self.nane_on_grid
@@ -1036,15 +1050,20 @@ class XGC_Loader():
         if (self.dimension == 2):
             saving_dic['X1D'] = self.grid.R1D
             saving_dic['Y1D'] = self.grid.Z1D
+            saving_dic['B0'] = self.B_on_grid
         else:
             saving_dic['X1D'] = self.grid.X1D
             saving_dic['Y1D'] = self.grid.Y1D
             saving_dic['Z1D'] = self.grid.Z1D
+            saving_dic['B0'] = self.BZ_on_grid
+            saving_dic['BX'] = self.BX_on_grid
+            saving_dic['BY'] =  self.BY_on_grid
         np.savez(file_name,**saving_dic)
 
-    def load_dne(self, filename = 'dne_file.sav'):
-        """load the previously saved ne data file.
+    def load(self, filename = 'dne_file.sav'):
+        """load the previously saved xgc profile data file.
         The geometry information needs to be the same, otherwise an error will be raised.
+        WARNING: Currently no serious checking is performed. The user is responsible to make sure the XGC_Loader object is initialized properly to load the corresponding saving file. 
         """
 
         if 'npz' not in filename:
@@ -1065,10 +1084,26 @@ class XGC_Loader():
         self.ne0_on_grid = nefile['ne0']
         self.dne_ad_on_grid = nefile['dne_ad']
 
+        self.ne_on_grid = self.ne0_on_grid[np.newaxis,np.newaxis,:,:] + self.dne_ad_on_grid
+
         if 'nane' in nefile.files:
             self.HaveElectrons = True
             self.nane = nefile['nane_org']
             self.nane_on_grid = nefile['nane']
+            self.ne_on_grid += self.nane_on_grid
+
+        self.psi_on_grid = nefile['psi']
+        self.te_on_grid = nefile['Te0']
+        self.ti_on_grid = nefile['Ti0']
+
+        if dimension == 2:
+            self.B_on_grid = nefile['B0']
+        else:
+            self.BZ_on_grid = nefile['B0']
+            self.BX_on_grid = nefile['BX']
+            self.BY_on_grid = nefile['BY']
+            self.B_on_grid = np.sqrt(self.BX_on_grid**2 + self.BY_on_grid**2 + self.BZ_on_grid**2) 
+        
         
 
 
@@ -1083,19 +1118,22 @@ class XGC_Loader():
 
         using formula in Page 28, NRL_Formulary, 2011 and Section 2-3, Eqn.(7-9), Waves in Plasmas, Stix.
         """
-        if(isinstance(self.grid,Cartesian2D)):#2D mesh
+        if(isinstance(self.grid,Cartesian2D) ):#2D mesh
             Zmid = (self.grid.NZ-1)/2
-            ne = self.ne_on_grid[0,:,Zmid,:]*1e-6 #convert into cgs unit
+            ne = self.ne_on_grid[:,:,Zmid,:]*1e-6 #convert into cgs unit
             ni = ne #D plasma assumed,ignore the impurity. 
             mu = 2 # mu=m_i/m_p, in D plasma, it's 2
             B = self.B_on_grid[Zmid,:]*1e5 #convert to cgs unit
         else:#3D mesh
             Ymid = (self.grid.NY-1)/2
             Zmid = (self.grid.NZ-1)/2
-            ne = self.ne_on_grid[0,:,Zmid,Ymid,:]*1e-6
+            ne = self.ne_on_grid[:,:,Zmid,Ymid,:]*1e-6
             ni = ne
             mu = 2
-            B = self.B_on_grid[Zmid,Ymid,:]*1e5
+            if(self.equilibrium_mesh == '3D'):
+                B = self.B_on_grid[Zmid,Ymid,:]*1e5
+            else:
+                B = self.B_on_grid[Ymid,:]*1e5
 
         f_pi = 2.1e2*mu**(-0.5)*np.sqrt(ni)
         f_pe = 8.98e3*np.sqrt(ne)
@@ -1288,28 +1326,6 @@ class XGC_Loader():
                 else:
                     dne[:,:,:] = (self.dne_ad_on_grid[j,i,:,:,:] + self.nane_on_grid[j,i,:,:,:])*self.dn_amplifier
                 f.close()
-
-
-
-def save(my_xgc, record_file_name = 'xgc_loader_record.sav'):
-    """save the xgc_loader object to a binary file for later use.
-
-    NOTE:Currently not working.
-    """
-    
-    full_name = my_xgc.xgc_path+record_file_name
-    file_handler = open(full_name,'wb')
-    pickle.dump(my_xgc,file_handler,pickle.HIGHEST_PROTOCOL)
-    file_handler.close()
-
-def load(record_file_name='xgc_loader_record.sav'):
-    """load the saved binary file, returns the xgc_loader object
-
-    NOTE: Currently not working.
-    """
-
-    file_handler = open(record_file_name,'rb')
-    return pickle.load(file_handler,pickle.HIGHEST_PROTOCOL)
     
         
 
@@ -1317,11 +1333,11 @@ def get_ref_pos(my_xgc,freqs,mode = 'O'):
     """estimates the O-mode reflection position in R direction for given frequencies.
 
     Input:
-        my_xgc:XGC_loader object containing the profile information.
+        my_xgc:XGC_loader object containing the profile and fluctuation information.
         freqs:sequence of floats, all the probing frequencies in GHz.
         mode: 'O' or 'X', indication of the wave polarization.
     return:
-        sequence of floats, R coordinates of all the estimated reflection position on mid plane.
+        2D array of floats,in the shape of (time_steps,freqs). R coordinates of all the estimated reflection position on mid plane, for each timestep and frequency.
     """
     if(isinstance(my_xgc.grid,Cartesian2D)):
         R = my_xgc.grid.R1D
@@ -1337,22 +1353,24 @@ def get_ref_pos(my_xgc,freqs,mode = 'O'):
     else:
         print 'mode should be either O or X!'
         raise
-    ref_idx = np.zeros(freqs.shape)
-    ref_pos = np.zeros(freqs.shape)
+    ref_idx = np.zeros((cutoff.shape[0],cutoff.shape[1],freqs.shape[0]))
+    ref_pos = np.zeros((cutoff.shape[0],cutoff.shape[1],freqs.shape[0]))
 
-    for i in range(len(freqs)):
+    for j in range(cutoff.shape[0]):
+        for k in range(cutoff.shape[1]):
+            for i in range(len(freqs)):
     
-        ref_idx[i] = np.max(np.where(cutoff > freqs[i])[0])#The right most index where the wave has been cutoff
+                ref_idx[j,k,i] = np.max(np.where(cutoff[j,k,:] > freqs[i])[0])#The right most index where the wave has been cutoff
 
-        #linearly interpolate the wave frequency to the cutoff frequency curve, to find the reflected location
-        f1 = cutoff[ref_idx[i]+1]
-        f2 = cutoff[ref_idx[i]]
-        f3 = freqs[i]
-
-        R1 = R[ref_idx[i]+1]
-        R2 = R[ref_idx[i]]
-
-        ref_pos[i] = R2 + (f2-f3)/(f2-f1)*(R1-R2)
+                #linearly interpolate the wave frequency to the cutoff frequency curve, to find the reflected location
+                f1 = cutoff[j,k,ref_idx[j,k,i]+1]
+                f2 = cutoff[j,k,ref_idx[j,k,i]]
+                f3 = freqs[i]
+            
+                R1 = R[ref_idx[j,k,i]+1]
+                R2 = R[ref_idx[j,k,i]]
+            
+                ref_pos[j,k,i] = R2 + (f2-f3)/(f2-f1)*(R1-R2)
         
     
     return ref_pos

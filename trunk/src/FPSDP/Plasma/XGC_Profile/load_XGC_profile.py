@@ -545,15 +545,15 @@ class XGC_Loader():
                 self.n_plane = fluc_mesh['dpot'].shape[1]
                 dn = int(self.n_plane/self.n_cross_section)
                 self.planes = np.arange(self.n_cross_section) * dn
-                
+
+            self.phi_bar[i] = np.mean(fluc_mesh['dpot'][...])                
+            self.nane_bar[i] = np.mean(fluc_mesh['eden'][...])
             for j in range(self.n_cross_section):
                 self.phi[j,i] += np.swapaxes(fluc_mesh['dpot'][...][:,self.planes[j]],0,1)
-                self.phi_bar[i] += np.mean(fluc_mesh['dpot'][...])
                 self.phi[j,i] -= self.phi_bar[i]
 
                 if(self.HaveElectron):
                     self.nane[j,i] += np.swapaxes(fluc_mesh['eden'][...][:,self.planes[j]],0,1)
-                    self.nane_bar[i] += np.mean(fluc_mesh['eden'][...])
                     self.nane[j,i] -= self.nane_bar[i]
             fluc_mesh.close()
 
@@ -657,14 +657,15 @@ class XGC_Loader():
                 #self.n_plane = fluc_mesh['dpot'].shape[1]
                 dn = int(self.n_plane/self.n_cross_section)
                 self.center_planes = np.arange(self.n_cross_section)*dn
+
+            self.phi_bar[i] = np.mean(fluc_mesh['dpot'][...])
+            self.nane_bar[i] = np.mean(fluc_mesh['eden'][...])
             for j in range(self.n_cross_section):
                 self.phi[j,i] += np.swapaxes(fluc_mesh['dpot'][...][:,(self.center_planes[j] + self.planes)%self.n_plane],0,1)
-                self.phi_bar[i] += np.mean(fluc_mesh['dpot'][...])
                 self.phi[j,i] -= self.phi_bar[i]
                 if(self.HaveElectron):
-                    self.nane[i] += np.swapaxes(fluc_mesh['eden'][...][:,(self.center_planes[j] + self.planes)%self.n_plane],0,1)
-                    self.nane_bar[i] += np.mean(fluc_mesh['eden'][...])
-                    self.nane[i] -= self.nane_bar[i]
+                    self.nane[j,i] += np.swapaxes(fluc_mesh['eden'][...][:,(self.center_planes[j] + self.planes)%self.n_plane],0,1)
+                    self.nane[j,i] -= self.nane_bar[i]
             fluc_mesh.close()
             
         return 0
@@ -1103,57 +1104,6 @@ class XGC_Loader():
             self.BX_on_grid = nefile['BX']
             self.BY_on_grid = nefile['BY']
             self.B_on_grid = np.sqrt(self.BX_on_grid**2 + self.BY_on_grid**2 + self.BZ_on_grid**2) 
-        
-        
-
-
-    def get_frequencies(self):
-        """calculate the relevant frequencies along the plasma midplane,return them as a dictionary
-
-        arguments:
-            time_eval: boolean, a flag for time evolution. Default to be False
-
-        return: dictionary contains all the frequency arrays
-            keywords: 'f_pi','f_pe','f_ci','f_ce','f_uh','f_lh','f_lx','f_ux'
-
-        using formula in Page 28, NRL_Formulary, 2011 and Section 2-3, Eqn.(7-9), Waves in Plasmas, Stix.
-        """
-        if(isinstance(self.grid,Cartesian2D) ):#2D mesh
-            Zmid = (self.grid.NZ-1)/2
-            ne = self.ne_on_grid[:,:,Zmid,:]*1e-6 #convert into cgs unit
-            ni = ne #D plasma assumed,ignore the impurity. 
-            mu = 2 # mu=m_i/m_p, in D plasma, it's 2
-            B = self.B_on_grid[Zmid,:]*1e5 #convert to cgs unit
-        else:#3D mesh
-            Ymid = (self.grid.NY-1)/2
-            Zmid = (self.grid.NZ-1)/2
-            ne = self.ne_on_grid[:,:,Zmid,Ymid,:]*1e-6
-            ni = ne
-            mu = 2
-            if(self.equilibrium_mesh == '3D'):
-                B = self.B_on_grid[Zmid,Ymid,:]*1e5
-            else:
-                B = self.B_on_grid[Ymid,:]*1e5
-
-        f_pi = 2.1e2*mu**(-0.5)*np.sqrt(ni)
-        f_pe = 8.98e3*np.sqrt(ne)
-        f_ci = 1.52e3/mu*B
-        f_ce = 2.8e6*B
-
-        f_uh = np.sqrt(f_ce**2+f_pe**2)
-        f_lh = np.sqrt( 1/ ( 1/(f_ci**2+f_pi**2) + 1/(f_ci*f_ce) ) )
-
-        f_ux = 0.5*(f_ce + np.sqrt(f_ce**2+ 4*(f_pe**2 + f_ci*f_ce)))
-        f_lx = 0.5*(-f_ce + np.sqrt(f_ce**2+ 4*(f_pe**2 + f_ci*f_ce)))
-
-        return {'f_pi':f_pi,
-                'f_pe':f_pe,
-                'f_ci':f_ci,
-                'f_ce':f_ce,
-                'f_uh':f_uh,
-                'f_lh':f_lh,
-                'f_ux':f_ux,
-                'f_lx':f_lx}
 
 
     def cdf_output(self,output_path,eq_file = 'equilibrium.cdf',filehead = 'fluctuation'):
@@ -1329,50 +1279,5 @@ class XGC_Loader():
     
         
 
-def get_ref_pos(my_xgc,freqs,mode = 'O'):
-    """estimates the O-mode reflection position in R direction for given frequencies.
-
-    Input:
-        my_xgc:XGC_loader object containing the profile and fluctuation information.
-        freqs:sequence of floats, all the probing frequencies in GHz.
-        mode: 'O' or 'X', indication of the wave polarization.
-    return:
-        2D array of floats,in the shape of (time_steps,freqs). R coordinates of all the estimated reflection position on mid plane, for each timestep and frequency.
-    """
-    if(isinstance(my_xgc.grid,Cartesian2D)):
-        R = my_xgc.grid.R1D
-    else:
-        R = my_xgc.grid.X1D
-
-    plasma_freqs = my_xgc.get_frequencies()
-    
-    if(mode == 'O'):
-        cutoff = plasma_freqs['f_pe']*1e-9
-    elif(mode == 'X'):
-        cutoff = plasma_freqs['f_ux']*1e-9 #convert into GHz
-    else:
-        print 'mode should be either O or X!'
-        raise
-    ref_idx = np.zeros((cutoff.shape[0],cutoff.shape[1],freqs.shape[0]))
-    ref_pos = np.zeros((cutoff.shape[0],cutoff.shape[1],freqs.shape[0]))
-
-    for j in range(cutoff.shape[0]):
-        for k in range(cutoff.shape[1]):
-            for i in range(len(freqs)):
-    
-                ref_idx[j,k,i] = np.max(np.where(cutoff[j,k,:] > freqs[i])[0])#The right most index where the wave has been cutoff
-
-                #linearly interpolate the wave frequency to the cutoff frequency curve, to find the reflected location
-                f1 = cutoff[j,k,ref_idx[j,k,i]+1]
-                f2 = cutoff[j,k,ref_idx[j,k,i]]
-                f3 = freqs[i]
-            
-                R1 = R[ref_idx[j,k,i]+1]
-                R2 = R[ref_idx[j,k,i]]
-            
-                ref_pos[j,k,i] = R2 + (f2-f3)/(f2-f1)*(R1-R2)
-        
-    
-    return ref_pos
 
 

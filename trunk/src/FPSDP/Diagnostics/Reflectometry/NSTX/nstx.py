@@ -9,6 +9,12 @@ import h5py as h5
 import numpy as np
 from scipy.interpolate import interp1d
 
+class NSTX_Error(Exception):
+    def __init__(self,value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
 class NSTX_REF_Loader:
     """ Loader class which contains all the reading and post-processing methods
     """
@@ -29,24 +35,50 @@ class NSTX_REF_Loader:
         """returns the inphase component of the reflectometry signal 
         """
         f = h5.File(this.filename,'r')
-        I = f['mydata'][0]['INPHASE']
+        this.I = f['mydata'][0]['INPHASE']
         f.close()
-        return I
+        return this.I
         
     def getQ(this):
         """returns the out of phase component of the reflectometry signal 
         """
         f= h5.File(this.filename,'r')
-        Q = f['mydata'][0]['QUADRATURE']
+        this.Q = f['mydata'][0]['QUADRATURE']
         f.close()
-        return Q
+        return this.Q
     
     def getT(this):
         """returns the time array with the same shape as I and Q
         """
 
-        return this.t0 + this.dt*np.arange(this.nt)
+        this.T = this.t0 + this.dt*np.arange(this.nt)
+        return this.T
 
+    def signal(this,tstart,tend):
+        try:
+            if(tstart< this.t0 or tend > this.T[-1]):
+                raise NSTX_Error('Reading raw signal error: time period outside original data.')
+        except AttributeError:
+            this.getT()
+            if(tstart< this.t0 or tend > this.T[-1]):
+                raise NSTX_Error('Reading raw signal error: time period outside original data.')
+            
+        nstart = int( (tstart-this.t0)/this.dt )
+        nend = int( (tend-this.t0)/this.dt )
+
+        try:
+            I = this.I[nstart:nend+1]
+        except AttributeError:
+            this.getI()
+            I = this.I[nstart:nend+1]
+
+        try:
+            Q = this.Q[nstart:nend+1]
+        except AttributeError:
+            this.getQ()
+            Q = this.Q[nstart:nend+1]
+
+        return I + 1j * Q
 
 
 class FFT_result:
@@ -105,13 +137,13 @@ class Analyser:
         T = loader.getT()
         S = loader.getI()+loader.getQ()*1j #get the complex signal
         phase_raw = np.angle(S) # numpy.angle function gives the angle of a complex number in range[-pi,pi)
-        dph = phase_raw[1:-1]-phase_raw[0:-2] #the phase change is defined on each time intervals, so the total length will be 1 shorter than the phase array.
+        dph = phase_raw[1:]-phase_raw[0:-1] #the phase change is defined on each time intervals, so the total length will be 1 shorter than the phase array.
         dph_ext = np.array([dph-2*np.pi,dph,dph+2*np.pi]) #intermediate array that contains all 3 posibilities of the phase change
         dph_arg = np.argmin(np.abs(dph_ext),axis = 0) #numpy.argmin function pick out the index of the first occurance of the minimun value in the array along one chosen axis. Since the axis 0 in our array has just 3 elements, the dph_arg will contain only 0,1,2's.
         dph_new = dph + (dph_arg-1)*2*np.pi # notice that in dph_arg, 0 corresponds dph-2*pi being the chosen one, 1 -> dph, and 2 -> dph+2*pi, therefore, this expression is valid for all 3 cases.
         phase_mod = dph_new.cumsum() # numpy.ndarray.cumsum method returns the accumulated array, since we are accumulating the whole dph_new array, the phase we got is relative to the initial phase at the start of the experiment.
         phase_interp = interp1d(T[1:-1],phase_raw[0]+phase_mod) # note that the time array now needs to be shorten by 1.
-        return (phase_interp(time_arr),phase_interp)
+        return (phase_interp(time_arr),phase_interp,phase_mod,dph_new)
 
     
     def amp(this, time_arr, tol = 1e-5, **params):
@@ -138,7 +170,9 @@ class Analyser:
         
 
     def fft(this,tol = 1e-5, **params):
-        """FFT analysis in time.
+        """OUT OF DATE. WILL BE UPDATED SOON.
+
+        FFT analysis in time.
         arguments:
             keyword list:
             1)Time steps can be given by either of the following ways:
@@ -224,14 +258,8 @@ class Analyser:
         M = []
         
         for i in range(nf):
-            loader = this.loaders[i]
-            I = loader.getI()
-            Q = loader.getQ()
-            sig = I + 1j*Q
-            nstart = int( (tstart-loader.t0)/loader.dt )
-            nend = int( (tend-loader.t0)/loader.dt )
-            
-            M.append(sig[nstart:nend])
+            loader = this.loaders[i]            
+            M.append(loader.signal(tstart,tend))
 
         M = np.array(M)
         M_bar = np.average(M,axis = 1)
@@ -385,7 +413,10 @@ class Analyser:
                         corr[i,j,k] = np.mean(p1*p2)/np.sqrt(np.mean(p1**2)*np.mean(p2**2))
 
         return corr
-            
+
+
+
+  #  def 
             
             
 

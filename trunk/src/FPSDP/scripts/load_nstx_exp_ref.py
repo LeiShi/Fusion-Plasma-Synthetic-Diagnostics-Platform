@@ -34,6 +34,5 @@ def get_loaders(data_path,shot_num,freqs):
 
     return loaders
 
-
 loaders = get_loaders(data_path,shot_num,freqs)
 analyser = nstx.Analyser(loaders)

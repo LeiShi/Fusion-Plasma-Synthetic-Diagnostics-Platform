@@ -12,12 +12,12 @@ working_path = '/p/gkp/lshi/XGC1_NSTX_Case/'
 
 #toroidal cross sactions used
 
-n_cross_section = 16 #Total number of Cross Sections used
+n_cross_section = 1 #Total number of Cross Sections used
 
 #Time slices parameters
-time_start = 100
+time_start = 1
 time_end = 220
-time_inc = 10
+time_inc = 1
 
 time_arr = np.arange(time_start,time_end+1,time_inc)
 
@@ -36,7 +36,7 @@ receiver_antenna_pattern_head = 'antenna_pattern_receive_nstx'
 receiver_antenna_link_name = 'receiver_pattern.txt'
 
 #fluctuation file parameters
-fluc_path = working_path + 'new_2D_fluctuations/Amp1/'
+fluc_path = working_path + 'new_2D_fluctuations/fulltime/'
 fluc_head = 'fluctuation'
 fluc_link_name = 'plasma.cdf'
 
@@ -47,7 +47,7 @@ exe = 'drive_FWR2D'
 #Start creating directories and files
 
 #The tag of RUN. Each new run should be assigned a new number.
-run_No = '_new_FullF_multi_cross_Amp1_LT70'
+run_No = '_new_FullF_fulltime_75and50GHZ'
 
 full_output_path = working_path + 'Correlation_Runs/RUNS/RUN'+str(run_No)+'/'
 
@@ -142,9 +142,9 @@ def submit(f_arr=freqs,t_arr=time_arr,nc = n_cross_section):
 
 if __name__ == "__main__":
 
-    t_use = time_arr
-    f_use = freqs[0:13]
-    nc_use = 16
+    t_use =time_arr
+    f_use = [freqs[i] for i in [7,15]]
+    nc_use = 1
     make_dirs(t_arr = t_use,f_arr = f_use,nc = nc_use)
     make_batch(t_arr = t_use,f_arr = f_use,nc = nc_use)
     submit(t_arr = t_use,f_arr = f_use, nc = nc_use)

@@ -111,7 +111,7 @@ class Analyser:
         """Calculate the extended phase curve in a given time.
 
         The purpose of extending the phase range to (-infi,+infi) is to avoid jumps from +pi -> -pi or the other way around on the normal [-pi,pi) range. In this case, the phase curve looks much smoother and more meaningful.
-        The method we are using is first calculate the phase for each time step in the normal [-pi,pi) range, then, calculate the phase change for each time interval : dphi. For dphi>pi, we pick dphi-2*pi as the new phase change; and for dphi < -pi, we pick dphi+2*pi. In other words, we minimize the absolute value of the phse change. This treatment is valid if time step is small compared to plasma changing time scale, so the change of reflected phase shouldn't be very large.
+        The method we are using is first calculate the phase for each time step in the normal [-pi,pi) range, then, calculate the phase change for each time interval : dphi. For dphi>pi, we pick dphi-2*pi as the new phase change; and for dphi < -pi, we pick dphi+2*pi. In other words, we minimize the absolute value of the phase change. This treatment is valid if time step is small compared to plasma changing time scale, so the change of reflected phase shouldn't be very large.
 
         Arguments:
             time_arr: ndarray double, the time (real time in experimental record, unit: second) array on which we acquire the phase.

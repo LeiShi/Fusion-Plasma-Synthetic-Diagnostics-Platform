@@ -20,7 +20,7 @@ def load(dimension,full_load,fluc_only):
     return xgc_nstx_139047
 
 if (__name__=='__main__'):
-    xgc_nstx_139047 = load(True,False)
+    xgc_nstx_139047 = load(2,True,False)
     xgc_nstx_139047.cdf_output('/p/gkp/lshi/XGC1_NSTX_Case/new_2D_fluctuations/fulltime/')
     xgc_nstx_139047.save('/p/gkp/lshi/XGC1_NSTX_Case/FullF_XGC_ti191_output/xgc_prof_all_fulltime.sav')
 

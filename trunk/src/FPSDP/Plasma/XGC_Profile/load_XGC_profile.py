@@ -1224,18 +1224,16 @@ class XGC_Loader():
         zz = f.createVariable('zz','d',('nz',))
         zz[:] = self.grid.Y1D[:]
         rr.units = zz.units = 'm'
+
+        bp = np.sqrt(self.BX_on_grid[:,:]**2 + self.BY_on_grid[:,:]**2)
         
         bb = f.createVariable('bb','d',('nz','nr'))
-        bb[:,:] = self.BZ_on_grid[:,:]
+        bb[:,:] = np.sqrt(bp**2 + self.BZ_on_grid[:,:]**2)
         bb.units = 'Tesla'
 
-        br = f.createVariable('br','d',('nz','nr'))
-        br[:,:] = self.BX_on_grid[:,:]
-        br.units = 'Tesla'
-
-        bz = f.createVariable('bz','d',('nz','nr'))
-        bz[:,:] = self.BY_on_grid[:,:]
-        bz.units = 'Tesla'       
+        bpol = f.createVariable('bpol','d',('nz','nr'))
+        bpol[:,:] = bp[:,:]
+        bpol.units = 'Tesla'       
         
         ne = f.createVariable('ne','d',('nz','nr'))
         ne[:,:] = self.ne0_on_grid[:,:]

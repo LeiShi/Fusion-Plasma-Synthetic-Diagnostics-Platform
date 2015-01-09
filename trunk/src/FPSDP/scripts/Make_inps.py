@@ -12,7 +12,7 @@ import os
 ###########################
 
 # reflect3d executable location
-reflect3d = '/p/lpi/valeo/reflect3d/bin/ifort/O/reflect'
+reflect3d = '/p/gkp/lshi/reflect3d/bin/ifort/O/reflect'
 
 # existing input file location
 default_input_path = './inps/'
@@ -44,12 +44,12 @@ fullw_out = '.TRUE.'
 #****************
 
 # Y&Z mesh (assumed the same in all 3 regions) 
-Ymin = -30
-Ymax = 30
-Zmin = -30
-Zmax = 30
+Ymin = 26.5
+Ymax = 39.5
+Zmin = -6.5
+Zmax = 6.5
 NY = 128 # Y grid points, need to be 2**n number for FFT
-NZ = 128 # Z grid number, same reason 
+NZ = 32 # Z grid number, same reason 
 
 # 3 regions in X are:
 # vacuum region: from Antenna to the plasma boundary
@@ -59,22 +59,27 @@ NZ = 128 # Z grid number, same reason
 # 4 X coordinates needed:
 
 # antenna location 
-x_antenna = 160
+x_antenna = 846.2
 # plasma boundary (boundary between vacuum and paraxial region)
-x_paraxial_vacuum_bnd = 158
+x_paraxial_vacuum_bnd = 840
 # paraxial and fullwave boundary
-x_full_wave_paraxial_bnd = 151
+x_full_wave_paraxial_bnd = 819
 # left boundary of full wave region
-x_min_full_wave = 130
+x_min_full_wave = 815
 
+#MPI Processes number setup
+#Process number in x,y,z dimension:
+nproc_x = 4
+nproc_y = 4
+nproc_z = 2
 
 #Antenna wave frequency(Hz)
-ant_freq = 7.5E10
+ant_freq = 1.5E11
 
 # grid numbers for the inner 2 regions
-nx_paraxial = 8
+nx_paraxial = 93
 
-nx_full_wave = int((x_full_wave_paraxial_bnd-x_min_full_wave)*ant_freq/3e9) 
+nx_full_wave = 4*int((x_full_wave_paraxial_bnd-x_min_full_wave)*ant_freq/3e9) 
 
 dx_fw = float(x_full_wave_paraxial_bnd-x_min_full_wave)/nx_full_wave
 
@@ -86,24 +91,34 @@ dx_fw = float(x_full_wave_paraxial_bnd-x_min_full_wave)/nx_full_wave
 #code5 file flag, '.TRUE.' or '.FALSE.'
 read_code5_data = '.TRUE.'
 #code5 file
-code5_datafile = 'antenna_pattern.txt'
+code5_datafile = 'antenna_150.TXT'
 
-
-
+# center location in Y&Z 
+ant_center_y = 35
+ant_center_z = 0
 
 #information for analytical antenna setup
 # Antenna location (cm)
-# center location in Y&Z 
-ant_center = 0
+# center location in Y&Z already set
 
 # beam width (cm)
-ant_height = 20 #total width of the injecting light beam
+ant_height_y = 0 #total width of the injecting light beam in y
+ant_height_z = 0
 
 # focal length of the beam (cm)
-ant_focal = -400 
+ant_focal = 100 
 
 # launch angle (radian)
-ant_angle = -0.5*np.pi # np.pi is the constant PI stored in numpy module
+ant_angle_y = -0.5*np.pi # np.pi is the constant PI stored in numpy module
+ant_angle_z = -0.5*np.pi
+
+
+#modification parameters
+# antenna amplitude
+ant_amp = 1
+
+# number of images
+ant_nimg = 1
 
 #*********************
 # Full Wave Solver Parameters
@@ -121,10 +136,30 @@ read_paraxial = '.TRUE.'
 submesh = '.FALSE.'
 propagation_medium = '"plasma"'
 
+#absorbing boundary condition parameters
+#artificial collision frequency, in the unit of wave real frequency
+Nu_ampl = 1
+#absorption layer width in x,y,z direction, in the unit of vacuum wave length, symmetric on both ends assumed
+Nu_width_x = 0.5
+Nu_width_y = 0.5
+Nu_width_z = 0.5
+#switchs to turn on the absorbing layers
+absorb_x_min = '.FALSE.'
+absorb_x_max = '.TRUE.'
+absorb_y_min = '.TRUE.'
+absorb_y_max = '.TRUE.'
+absorb_z_min = '.TRUE.'
+absorb_z_max = '.TRUE.'
+
+#source turn on time, in unit of wave peroid
+src_ton = 1
+
 #source location for full wave solver (x indices of the 2 points in full wave mesh)
 ixs = [nx_full_wave*9/10,nx_full_wave*9/10+1]
+#location to collect reflected field, default to be one grid outside the source
+ix_refl = ixs[1]+1
 
-#total time step for output(Note that NX*NY*NZ*itime*16Byte should not exceed 4GB)
+#total time step for output(Note that NX*NY*NZ*itime*3*16Byte should not exceed 4GB)
 itime = 10
 iskip = int(nt/itime)
 
@@ -135,12 +170,12 @@ iskip = int(nt/itime)
 # plasma equilibrium loading type. dataset: loading from files
 generator = 'dataset'
 # plasma equilibrium file
-equilibrium_file = './equilibrium.cdf'
-# equilibrium file format
-data_file_format = 'leishi'
+equilibrium_file = './iter_ufile.cdf'
+# equilibrium file format: 'default' or 'leishi'
+data_file_format = 'default'
 
 #fluctuation flag
-with_fluctuations = '.TRUE.'
+with_fluctuations = '.FALSE.'
 generate_fluctuations = '.TRUE.'
 #fluctuation data format
 fluctuation_type = 'leishi_3d_dataset'
@@ -148,7 +183,7 @@ fluctuation_type = 'leishi_3d_dataset'
 fluctuation_file = 'fluctuation.cdf'
 
 # wave polarization (O or X) 
-polarization = 'O'
+polarization = 'X'
 
 
 
@@ -172,7 +207,8 @@ FILE_NAMES = {'ant':'antenna.inp',
               'mod':'model.inp',
               'bc_fft':'BC_fftk.inp',
               'bc_ker':'BC_kernel.inp',
-              'fw':'FW_expl.inp'
+              'fw':'VEC_FW_expl.inp',
+              'mpi':'MPI.inp'
              }
 
 # dictionary of all file heads:
@@ -187,7 +223,8 @@ NML_HEADS = {'ant':'&ANTENNA_NML\n',
              'mod':'&model_nml\n',
              'bc_fft':'BC_fftk_nml\n',
              'bc_ker':'BC_kernel_nml\n',
-             'fw':'&FW_EXPL_NML\n'
+             'fw':'&VEC_FW_EXPL_NML\n',
+             'mpi':'&MPI_nml\n'
              }
 
 NML_ENDS = {'ant':'\n/',
@@ -200,7 +237,8 @@ NML_ENDS = {'ant':'\n/',
             'mod':'\n/\n&FW_expl_interface_nml\nixs={0},{1}\n/'.format(ixs[0],ixs[1]),
             'bc_fft':'\n/',
             'bc_ker':'\n/',
-            'fw':'\n/'
+            'fw':'\n/',
+            'mpi':'\n/'
            }
 
 # dictionaries containing all the parameters
@@ -214,32 +252,37 @@ MOD_PARA= {}
 PARA_PARA = {}
 PP_PARA = {}
 VAC_PARA = {}
+MPI_PARA = {}
 EMPTY_PARA = {}
+
 
 
 def renew_para():
 
-    global ANT_PARA,EPS_PARA,GEO_PARA,FW_PARA,MOD_PARA,PARA_PARA,PP_PARA,VAC_PARA,NML_ENDS
+    global ANT_PARA,EPS_PARA,GEO_PARA,FW_PARA,MOD_PARA,PARA_PARA,PP_PARA,VAC_PARA,MPI_PARA,NML_ENDS
 
     #renew derived parameters:
 
-    nx_full_wave = int((x_full_wave_paraxial_bnd-x_min_full_wave)*ant_freq/3e9)
+    nx_full_wave = 4*int((x_full_wave_paraxial_bnd-x_min_full_wave)*ant_freq/3e9)
     dx_fw = float(x_full_wave_paraxial_bnd-x_min_full_wave)/nx_full_wave
     omega_dt = dx_fw*ant_freq*2*np.pi/6e10
     nt = nx_full_wave*nr_crossings*2
     iskip = int(nt/itime)
     ixs = [nx_full_wave*9/10,nx_full_wave*9/10+1]
+    ix_refl = ixs[1]+1
     
-    NML_ENDS['mod']='\n/\n&FW_expl_interface_nml\nixs={0},{1}\n/'.format(ixs[0],ixs[1])
+    NML_ENDS['mod']='\n/\n&FW_expl_interface_nml\nixs={0},{1}\n ix_refl = {2}\n/'.format(ixs[0],ixs[1],ix_refl)
 
     
     ANT_PARA = {'read_code5_data' : read_code5_data,
                 'code5_datafile' : '"'+code5_datafile+'"',   
-                'ANT_CENTER':ant_center,
-                'ANT_HEIGHT':ant_height,
+                'ANT_CENTER':'{0},{1}'.format(ant_center_y,ant_center_z),
+                'ANT_HEIGHT':'{0},{1}'.format(ant_height_y,ant_height_z),
                 'FOCAL_LENGTH':ant_focal,
-                'ANT_LAUNCH_ANGLE':ant_angle,
+                'ANT_LAUNCH_ANGLE':'{0},{1}'.format(ant_angle_y,ant_angle_z),
                 'ANT_FREQUENCY':ant_freq,
+                'ANT_AMPLITUDE':ant_amp,
+                'ANT_N_IMAGES':ant_nimg,
                 'OUTPUT':ant_out
                 }
     EPS_PARA = {'DATA_FILE':'"'+equilibrium_file+'"',
@@ -250,7 +293,7 @@ def renew_para():
                 'fluctuation_type':'"'+fluctuation_type+'"',
                 'fluctuation_file':'"'+fluctuation_file+'"',
                 'POLARIZATION':'"'+polarization+'"',            
-                'yz_cut':'0.,0.',
+                'yz_cut':'35.,0.',
                 'OUTPUT':eps_out,
                 'OUTPUT_EPS_1D':eps_1d_out
                 }
@@ -277,11 +320,15 @@ def renew_para():
 #            }
     FW_PARA = {'read_paraxial' : read_paraxial,
                'submesh' : submesh,
-               'propagation_medium':propagation_medium,
+#               'propagation_medium':propagation_medium,
                'nt':nt,
                'omega_dt':omega_dt,
                'iskip':iskip,
-               'do_output':fullw_out
+               'do_output':fullw_out,
+               'Nu_ampl' : Nu_ampl,
+               'Nu_width' : '{0},{1},{2}'.format(Nu_width_x,Nu_width_y,Nu_width_z),
+               'absorbing_layer': '{0},{1},{2},{3},{4},{5}'.format(absorb_x_min,absorb_x_max,absorb_y_min,absorb_y_max,absorb_z_min,absorb_z_max),
+               'src_ton':src_ton
                }
     
     MOD_PARA ={
@@ -289,9 +336,15 @@ def renew_para():
         'VACUUM' :'.TRUE.',
         'PARAXIAL':'.TRUE.',
         'FULL_WAVE':'.TRUE.',
-        'full_wave_solver':'"explicit"'
+        'full_wave_solver':'"explicit"',
+        'timer': '.TRUE.',
+        'detector': '.FALSE.',
+        'spectrum': '.FALSE.',
+        'zdim_is_unlimited': '.TRUE.',
+        'log':'.FALSE.'
         }
     PARA_PARA = {
+        'THETA':0.5,
         'OUTPUT':para_out,
         'OUTPUT_3D_FIELDS':para_out,
         'numerical_method':'"fft"'
@@ -305,6 +358,9 @@ def renew_para():
         }
     VAC_PARA = {
         'OUTPUT':vac_out
+        }
+    MPI_PARA = {
+        'nproc':'{0},{1},{2}'.format(nproc_x,nproc_y,nproc_z)
         }
 
     
@@ -342,8 +398,9 @@ def create_all_input_files():
     make_input('pp',**PP_PARA)
     make_input('vac',**VAC_PARA)
     make_input('mod',**MOD_PARA)
-    make_input('bc_fft',**EMPTY_PARA)
-    make_input('bc_ker',**EMPTY_PARA)
+    make_input('mpi',**MPI_PARA)
+#    make_input('bc_fft',**EMPTY_PARA)
+#    make_input('bc_ker',**EMPTY_PARA)
 
     if __name__ == 'main':
         print 'input files created.'

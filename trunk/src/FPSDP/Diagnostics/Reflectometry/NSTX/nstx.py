@@ -55,6 +55,14 @@ class NSTX_REF_Loader:
         return this.T
 
     def signal(this,tstart,tend):
+        """ returns the complex signal for a chosen time period, and the corresponding time array.
+        Inputs:
+            tstart,tend: double, the start and end of the chosen time period in seconds.
+        Outputs:
+            output1: the complex signal,with original resolution
+            output2: the corresponding time array
+        """
+        
         try:
             if(tstart< this.t0 or tend > this.T[-1]):
                 raise NSTX_Error('Reading raw signal error: time period outside original data.')
@@ -78,7 +86,13 @@ class NSTX_REF_Loader:
             this.getQ()
             Q = this.Q[nstart:nend+1]
 
-        return I + 1j * Q
+        try:
+            T = this.T[nstart:nend+1]
+        except AttributeError:
+            this.getT()
+            T = this.T[nstart:nend+1]
+
+        return (I + 1j * Q, T)
 
 
 class FFT_result:

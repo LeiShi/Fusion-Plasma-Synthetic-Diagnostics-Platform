@@ -207,9 +207,8 @@ class GTS_Loader:
         Variables:
         rr: 1D array, coordinates in radial direction, in m
         zz: 1D array, coordinates in vertical direction, in m
-        bb: 2D array, toroidal magnetic field on grids, in Tesla, shape in (nz,nr)
-        br: 2D array, magnetic field in radial direction, in Tesla
-        bz: 2D array, magnetic field in vertical direction, in Tesla
+        bb: 2D array, total magnetic field on grids, in Tesla, shape in (nz,nr)
+        bpol: 2D array, magnetic field in poloidal direction, in Tesla
         ne: 2D array, total electron density on grids, in cm^-3
         ti: 2D array, total ion temperature, in keV
         te: 2D array, total electron temperature, in keV
@@ -239,12 +238,12 @@ class GTS_Loader:
         rr.units = zz.units = 'm'
         
         bb = f.createVariable('bb','d',('nz','nr'))
-        bb[:,:] = self.Bt[0,:,:]
+        bb[:,:] = np.sqrt(self.Bt[0,:,:]**2 + self.Bp[0,:,:]**2)
         bb.units = 'Tesla'
 
-        bp = f.createVariable('bp','d',('nz','nr'))
-        bp[:,:] = self.Bp[0,:,:]
-        bp.units = 'Tesla'       
+        bpol = f.createVariable('bpol','d',('nz','nr'))
+        bpol[:,:] = self.Bp[0,:,:]
+        bpol.units = 'Tesla'       
         
         ne = f.createVariable('ne','d',('nz','nr'))
         ne[:,:] = self.ne0[0,:,:]

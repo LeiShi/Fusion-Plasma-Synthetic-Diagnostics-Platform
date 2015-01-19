@@ -78,8 +78,13 @@ class GTS_Loader:
                      GTSDataDir=self.gts_file_path)
        mmc.show_para_()
        self.get_fluctuations_from_GTS()
-       self.ne_on_grid = self.ne0_on_grid * (1 + self.dne_ad_on_grid + self.nane_on_grid)
-       self.B_on_grid = np.sqrt(self.Bt_on_grid**2 + self.Bp_on_grid**2)
+
+       if (self.dimension == 3):
+           self.dne_on_grid = self.ne0_on_grid[np.newaxis,np.newaxis,:,:,:] * (self.dne_ad_on_grid + self.nane_on_grid)
+           self.B_2d = np.sqrt(self.Bt_2d**2 + self.Bp_2d**2)
+       elif (self.dimension == 2):
+           self.ne_on_grid = self.ne0_on_grid * (1 + self.dne_ad_on_grid + self.nane_on_grid)
+           self.B_on_grid = np.sqrt(self.Bt_on_grid**2 + self.Bp_on_grid**2)
 
  
     def show_para(self):
@@ -99,33 +104,99 @@ class GTS_Loader:
         """
 
         if(self.dimension == 3):
+            x1d = self.grid.X1D
+            y1d = self.grid.Y1D
+            
+            x2d = np.zeros((1,self.ny,self.nx))+ x1d[np.newaxis,np.newaxis,:] 
+            y2d = np.zeros((1,self.ny,self.nx))+ y1d[np.newaxis,:,np.newaxis]
+            z2d = np.zeros((1,self.ny,self.nx))
+
             x3d = self.grid.X3D
             y3d = self.grid.Y3D
             z3d = self.grid.Z3D
+
+            self.dne_ad_on_grid = np.zeros((self.n_cross_section,self.nt,self.nz,self.ny,self.nx))
+            self.nane_on_grid = np.zeros((self.n_cross_section,self.nt,self.nz,self.ny,self.nx))
+            self.nate_on_grid = np.zeros_like(self.nane_on_grid)
+        
+            #Note that new equilibrium loading convention needs only 2D equilibrium data. 
+            self.ne0_2d = np.zeros((1,self.ny,self.nx))
+            self.Te0_2d = np.zeros((1,self.ny,self.nx))
+            self.Bt_2d = np.zeros((1,self.ny,self.nx))
+            self.Bp_2d = np.zeros((1,self.ny,self.nx))
+            
+            fluc_2d = np.zeros((self.nt,1,self.ny,self.nx))
+
+            mmc.set_para_(Xmin=self.xmin,Xmax=self.xmax,NX=self.nx,
+                          Ymin=self.ymin,Ymax=self.ymax,NY=self.ny,
+                          Zmin=0,Zmax=0,NZ=1,
+                          NBOUNDARY=self.n_boundary,
+                          TStart=self.t0,TStep=self.dt,NT=self.nt,
+                          Fluc_Amplification=self.amplification,
+                          FlucFilePath=self.fluc_file_path,
+                          EqFileName=self.eq_fname,
+                          NTFileName=self.prof_fname,
+                          PHIFileNameStart=self.phi_fname_head,
+                          DENFileNameStart = self.den_fname_head,
+                          GTSDataDir=self.gts_file_path)
+            
+            #one seperate 2D run to get all the equilibrium quantities
+            mmc.get_GTS_profiles_(x2d,y2d,z2d,self.ne0_2d,self.Te0_2d,self.Bt_2d,self.Bp_2d, fluc_2d,fluc_2d,fluc_2d,0)
+
+
+            mmc.set_para_(Xmin=self.xmin,Xmax=self.xmax,NX=self.nx,
+                          Ymin=self.ymin,Ymax=self.ymax,NY=self.ny,
+                          Zmin=self.zmin,Zmax=self.zmax,NZ=self.nz,
+                          NBOUNDARY=self.n_boundary,
+                          TStart=self.t0,TStep=self.dt,NT=self.nt,
+                          Fluc_Amplification=self.amplification,
+                          FlucFilePath=self.fluc_file_path,
+                          EqFileName=self.eq_fname,
+                          NTFileName=self.prof_fname,
+                          PHIFileNameStart=self.phi_fname_head,
+                          DENFileNameStart = self.den_fname_head,
+                          GTSDataDir=self.gts_file_path)            
+
+            #temporary arrays to hold 3D equilibrium quantities.
+            self.ne0_on_grid = np.zeros_like(x3d)
+            self.Te0_on_grid = np.zeros_like(x3d)
+            self.Bt_on_grid = np.zeros_like(x3d)
+            self.Bp_on_grid = np.zeros_like(x3d)
+
+            self.total_cross_section = mmc.get_GTS_profiles_(x3d,y3d,z3d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[0,...],self.nane_on_grid[0,...],self.nate_on_grid[0,...], 0)
+            
+            dcross = int(np.floor(self.total_cross_section / self.n_cross_section))
+            self.center_cross_sections = np.arange(self.n_cross_section) * dcross
+
+            for i in range(1,len(self.center_cross_sections)):
+                mmc.get_GTS_profiles_(x3d,y3d,z3d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[i,...],self.nane_on_grid[i,...],self.nate_on_grid[i,...],self.center_cross_sections[i])
+        
+
         elif(self.dimension == 2):
             x1d = self.grid.R1D
             y1d = self.grid.Z1D
-            x3d = np.zeros((1,self.grid.NZ,self.grid.NR))+ x1d[np.newaxis,np.newaxis,:]
-            y3d = np.zeros((1,self.grid.NZ,self.grid.NR))+ y1d[np.newaxis,:,np.newaxis]
-            z3d = np.zeros((1,self.grid.NZ,self.grid.NR))
+            x2d = np.zeros((1,self.ny,self.nx))+ x1d[np.newaxis,np.newaxis,:]
+            y2d = np.zeros((1,self.ny,self.nx))+ y1d[np.newaxis,:,np.newaxis]
+            z2d = np.zeros((1,self.ny,self.nx))
 
-        self.dne_ad_on_grid = np.zeros((self.n_cross_section,self.nt,self.nz,self.ny,self.nx))
-        self.nane_on_grid = np.zeros((self.n_cross_section,self.nt,self.nz,self.ny,self.nx))
-        self.nate_on_grid = np.zeros_like(self.nane_on_grid)
-        self.ne0_on_grid = np.zeros_like(x3d)
-        self.Te0_on_grid = np.zeros_like(x3d)
-        self.Bt_on_grid = np.zeros_like(x3d)
-        self.Bp_on_grid = np.zeros_like(x3d)
+            self.dne_ad_on_grid = np.zeros((self.n_cross_section,self.nt,1,self.ny,self.nx))
+            self.nane_on_grid = np.zeros((self.n_cross_section,self.nt,1,self.ny,self.nx))
+            self.nate_on_grid = np.zeros_like(self.nane_on_grid)
         
-        self.total_cross_section = mmc.get_GTS_profiles_(x3d,y3d,z3d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[0,...],self.nane_on_grid[0,...],self.nate_on_grid[0,...], 0)
-
-        dcross = int(np.floor(self.total_cross_section / self.n_cross_section))
-        self.center_cross_sections = np.arange(self.n_cross_section) * dcross
-
-        for i in range(1,len(self.center_cross_sections)):
-            mmc.get_GTS_profiles_(x3d,y3d,z3d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[i,...],self.nane_on_grid[i,...],self.nate_on_grid[i,...],self.center_cross_sections[i])
+            #Note that new equilibrium loading convention needs only 2D equilibrium data. 
+            self.ne0_on_grid = np.zeros((1,self.ny,self.nx))
+            self.Te0_on_grid = np.zeros((1,self.ny,self.nx))
+            self.Bt_on_grid = np.zeros((1,self.ny,self.nx))
+            self.Bp_on_grid = np.zeros((1,self.ny,self.nx))
         
+            self.total_cross_section = mmc.get_GTS_profiles_(x2d,y2d,z2d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[0,...],self.nane_on_grid[0,...],self.nate_on_grid[0,...], 0)
 
+            dcross = int(np.floor(self.total_cross_section / self.n_cross_section))
+            self.center_cross_sections = np.arange(self.n_cross_section) * dcross
+
+            for i in range(1,len(self.center_cross_sections)):
+                mmc.get_GTS_profiles_(x2d,y2d,z2d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[i,...],self.nane_on_grid[i,...],self.nate_on_grid[i,...],self.center_cross_sections[i])
+        
         
     def cdf_output(self,output_path,eq_file = 'equilibrium.cdf',filehead = 'fluctuation'):
         """
@@ -241,19 +312,19 @@ class GTS_Loader:
         rr.units = zz.units = 'm'
         
         bb = f.createVariable('bb','d',('nz','nr'))
-        bb[:,:] = np.sqrt(self.Bt_on_grid[0,:,:]**2 + self.Bp_on_grid[0,:,:]**2)
+        bb[:,:] = self.B_2d[0,:,:]
         bb.units = 'Tesla'
 
         bpol = f.createVariable('bpol','d',('nz','nr'))
-        bpol[:,:] = self.Bp_on_grid[0,:,:]
+        bpol[:,:] = self.Bp_2d[0,:,:]
         bpol.units = 'Tesla'       
         
         ne = f.createVariable('ne','d',('nz','nr'))
-        ne[:,:] = self.ne0_on_grid[0,:,:]
+        ne[:,:] = self.ne0_2d[0,:,:]
         ne.units = 'm^-3'
         
         te = f.createVariable('te','d',('nz','nr'))
-        te[:,:] = self.Te0_on_grid[0,:,:]
+        te[:,:] = self.Te0_2d[0,:,:]
         te.units = 'keV'
                 
         f.close()
@@ -279,7 +350,7 @@ class GTS_Loader:
                 dne = f.createVariable('dne','d',('nz','ny','nx'))
                 dne.units = 'm^-3'
                 
-                dne[:,:,:] = self.ne0_on_grid[:,:]* (self.dne_ad_on_grid[j,i,:,:,:] + self.nane_on_grid[j,i,:,:,:])
+                dne[:,:,:] = self.dne_on_grid[j,i,:,:,:]
                 f.close()
 
 #=======END of class GTS_Loader definition =======================================================

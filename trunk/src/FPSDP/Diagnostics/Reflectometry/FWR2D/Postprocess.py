@@ -231,30 +231,6 @@ def Cross_Correlation_by_fft(ref_output):
     return r
 
 
-def Coherent_signal_Expriment_Comparison(self_correlation,exp_coherent_signals):
-    """compare the simulated self_correlation signal with the coherent_signal time series from experiment. Find the least square difference time for all channels.
-
-    Arguments:
-        self_correlation: complex array shaped (NF), array of coherent signals from all channels, calculated from a given Reflectometry_Output object by Self_Correlation function. Make sure using the same frequency array as that in experiment analysis.
-        exp_coherent_signals: complex array shaped (NF,NT), returned from ..NSTX.nstx.Analyser.Coherent_over_time function.
-
-    Return:
-        tuple(time_idx,square_error)
-            time_idx:int, the index of the least error time
-            squre_error: double, the sum of the square of the errors in all the channels 
-    """
-
-    diff = exp_coherent_signals - self_correlation[:,np.newaxis]
-    nf = diff.shape[0]
-    abs_error = np.abs(diff)
-
-    time_idx = range(16)
-    for i in range(nf):
-        time_idx[i] =  np.argmin(abs_error[i,:])
-
-    return (time_idx,abs_error[range(nf),time_idx])
-
-
 def gaussian_fit(x,a):
     """function used for curve_fit
     """

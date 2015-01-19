@@ -1,15 +1,13 @@
 #!/usr/bin/env python
 import numpy as np
-import FPSDP.Plasma.GTS_Loader as cm 
+import FPSDP.Plasma.GTS_Profile.GTS_Loader as gts
+from FPSDP.Geometry.Grid import Cartesian2D, Cartesian3D
 #import matplotlib.pyplot as plt
 #set and show the parameters
 
 #Note that in XYZ(R-Z-PHI) coordinates, Z is increasing in opposite direction to small toroidal coordinate phi (in r-theta-phi), which means -Z is in increasing direction of toroidal data file numbers.(Those in PHI.000XX) Prepare the whole 32 files if not sure about the range of Z.
 
-cm.set_para(NT=1,TStart=1,TStep=1,Xmin=1,Xmax=2.5,Zmin=0,Zmax=0,NZ=1,NX=51,NY=51)
 
-#initialize the cartesian grids
-mesh = cm.make_grid()
 
 #initialize arrays for returning data
 ne = np.empty((cm.NT0,cm.NZ0,cm.NY0,cm.NX0))

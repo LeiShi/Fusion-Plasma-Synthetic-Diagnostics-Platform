@@ -8,7 +8,7 @@ grid2D = Grid.Cartesian2D(DownLeft = (-0.5,1.25),UpRight = (0.5,1.6),NR = 256, N
 grid3D = Grid.Cartesian3D(Xmin = 1.25,Xmax = 1.6,Ymin = -0.5, Ymax = 0.5, Zmin = -0.35, Zmax = 0.35, NX = 100,NY = 300,NZ = 80)
 
 time_start = 1
-time_end = 220
+time_end = 1
 time_step = 1
 
 def load(dimension,full_load,fluc_only):

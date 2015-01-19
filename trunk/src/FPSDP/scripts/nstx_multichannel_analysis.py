@@ -32,7 +32,8 @@ print 'FWR data loaded'
 
 #calculate cross-correlation matrix from experimental signals, note that for our case, the simulated time slice is at t=0.632s, so we choose corresponding experimental data from 0.632-0.640, the total sample number is chosen to be 2000 because larger sample doesn't bring in any difference, since the increased samples are not statistical independent.  
 
-cc_exp = nstx_exp.analyser.Cross_Correlation_by_fft(0.632,0.640,2000)
+cc_exp = nstx_exp.analyser.Cross_Correlation_by_fft(0.632,0.640,8000)
+#cc_exp_short = nstx_exp.analyser.Cross_Correlation_by_fft(0.634,0.6348,8000)
 
 #calculate coherent signal for all channels from NSTX. The result is an 2D array containing time series of coherent signal from all the channels.
 
@@ -43,8 +44,8 @@ print 'nstx data loaded'
 top_center = 11
 top_range = [8,12]
 
-bottom_center = 7
-bottom_range = [2,8]
+bottom_center = 6
+bottom_range = [2,7]
 
 #pick chosen data from whole correlation matrices
 

@@ -110,6 +110,61 @@ def create_profile2D():
     
     return profile
 
+class PlasmaModelError(Exception):
+    def __init__(self,value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
+class Model:
+    """base class for all plasma models
+
+    Attributes:
+        _name:The name of the model
+        _type:The type of the model, 'Geometry','Equilibrium', or 'Fluctuation'
+        _description: A short description explains the basic idea of the model
+
+    Method:
+        info(): prints info about the model
+    
+    """
+    def __init__(self):
+        
+        #Attributes:
+        self._name = 'Model_Base'
+        self._type = 'Base'
+        self._description = 'This is a base model object.'
+
+    def info(self):
+        print('name:{0}\ntype:{1}\n{2}').format(self._name,self._type,self._description)
+        
+        
+        
+    
+
+
+
+class TestPlasmaCreator:
+    """ A Class that contains all the plasma models, and creates plasma profile objects that has similar interface as those Loaders of simulation codes.
+
+    Existing Models:
+
+    Shape of Magnetic Geometry:
+        Concentric : all flux surfaces are concentric circles
+        Shafranov_Shifted: fluxsurfaces are circles that have been shifted outwards according to Shafranov shift
+    Equilibrium:
+        Exponential_Decay: profiles are exponentially decaying radially
+        Hmode_linear: profiles are slowly decreasing in the core region, and rapidly decreasing in the pedestal region. Both are linear in radial flux coordinate.
+        Hmode_tanh: profiles are in a shape of tanh function, where the half hight location corresponds the separatrix.
+
+    Fluctuations:
+        Single_Mode: add a single mode to a certain region. specify the mode frequency, amplitude, and mode numbers
+        Turbulence: add turbulent structure to a certain region. specify auto-correlation lengths and time, and fluctuation level.
+        
+    """
+
+    
+
     
     
     

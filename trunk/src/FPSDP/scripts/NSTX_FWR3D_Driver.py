@@ -4,7 +4,7 @@
 This script is used to create working directories, creating and copying necessary files, and submit batch jobs
 """
 import FPSDP.Plasma.XGC_Profile.load_XGC_profile as xgc
-import FPSDP.scripts.Make_inps as mi
+import FPSDP.scripts.Make_inps as Make_inps
 import numpy as np
 import subprocess as subp
 import os
@@ -25,6 +25,11 @@ time_arr = np.arange(time_start,time_end+1,time_inc)
 #frequencies in GHz
 
 freqs = [30,32.5,35,37.5,42.5,45,47.5,50,55,57.5,60,62.5,67.5,70,72.5,75]
+
+#MPI process info
+nproc_x = 4
+nproc_y = 8
+nproc_z = 1
 
 #input file parameters
 
@@ -116,6 +121,9 @@ def make_dirs(f_arr = freqs,t_arr = time_arr, nc = n_cross_section):
                         full_out = '.TRUE.'
                     else:
                         full_out = '.FALSE.'
+
+                    mi = Make_inps.FWR3D_input_maker()
+                    
                     mi.eps_out = full_out
                     mi.eps_1d_out = full_out
                     mi.vac_out = full_out
@@ -123,6 +131,9 @@ def make_dirs(f_arr = freqs,t_arr = time_arr, nc = n_cross_section):
                     mi.pp_out = full_out
                     #mi.fullw_out = full_out
 
+                    mi.nproc_x = nproc_x
+                    mi.nproc_y = nproc_y
+                    mi.nproc_z = nproc_z
                     mi.ant_freq = f*1e9
                     mi.equilibrium_file = equilibrium_link_name
                     mi.fluctuation_file = fluc_link_name

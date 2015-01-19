@@ -78,7 +78,10 @@ class GTS_Loader:
                      GTSDataDir=self.gts_file_path)
        mmc.show_para_()
        self.get_fluctuations_from_GTS()
-        
+       self.ne_on_grid = self.ne0_on_grid * (1 + self.dne_ad_on_grid + self.nane_on_grid)
+       self.B_on_grid = np.sqrt(self.Bt_on_grid**2 + self.Bp_on_grid**2)
+
+ 
     def show_para(self):
         mmc.show_para_()
 
@@ -86,13 +89,13 @@ class GTS_Loader:
         """load fluctuations on grid using C_function
         Create variables:
         equilibrium quantities:
-            ne0: double ndarray (nz,ny,nx), equilibrium electron density.
-            Te0: double ndarray (nz,ny,nx), equilibrium electron temperature.
-            Bt,Bp: double ndarray (nz,ny,nx), equilibrium toroidal and poloidal magnetic field.
+            ne0_on_grid: double ndarray (nz,ny,nx), equilibrium electron density.
+            Te0_on_grid: double ndarray (nz,ny,nx), equilibrium electron temperature.
+            Bt_on_grid,Bp_on_grid: double ndarray (nz,ny,nx), equilibrium toroidal and poloidal magnetic field.
         fluctuations:
-            dne_ad: double ndarray (nt,nz,ny,nx), adiabatic electron density, calculated from fluctuating potential phi: dne_ad/ne0 = e*phi/Te0
-            nane : double ndarray (nt,nz,ny,nx), non-adiabatic electron density, read from file. 
-            nate : double ndarray (nt,nz,ny,nx), non-adiabatic electron temperature, read from file. 
+            dne_ad_on_grid: double ndarray (nt,nz,ny,nx), adiabatic electron density, calculated from fluctuating potential phi: dne_ad_on_grid/ne0_on_grid = e*phi/Te0_on_grid
+            nane_on_grid : double ndarray (nt,nz,ny,nx), non-adiabatic electron density normalized to local equilibrium density, read from file. 
+            nate_on_grid : double ndarray (nt,nz,ny,nx), non-adiabatic electron temperature normalized to equilibrium temperature at a reference radius, read from file. 
         """
 
         if(self.dimension == 3):
@@ -106,21 +109,21 @@ class GTS_Loader:
             y3d = np.zeros((1,self.grid.NZ,self.grid.NR))+ y1d[np.newaxis,:,np.newaxis]
             z3d = np.zeros((1,self.grid.NZ,self.grid.NR))
 
-        self.dne_ad = np.zeros((self.n_cross_section,self.nt,self.nz,self.ny,self.nx))
-        self.nane = np.zeros((self.n_cross_section,self.nt,self.nz,self.ny,self.nx))
-        self.nate = np.zeros_like(self.nane)
-        self.ne0 = np.zeros_like(x3d)
-        self.Te0 = np.zeros_like(x3d)
-        self.Bt = np.zeros_like(x3d)
-        self.Bp = np.zeros_like(x3d)
+        self.dne_ad_on_grid = np.zeros((self.n_cross_section,self.nt,self.nz,self.ny,self.nx))
+        self.nane_on_grid = np.zeros((self.n_cross_section,self.nt,self.nz,self.ny,self.nx))
+        self.nate_on_grid = np.zeros_like(self.nane_on_grid)
+        self.ne0_on_grid = np.zeros_like(x3d)
+        self.Te0_on_grid = np.zeros_like(x3d)
+        self.Bt_on_grid = np.zeros_like(x3d)
+        self.Bp_on_grid = np.zeros_like(x3d)
         
-        self.total_cross_section = mmc.get_GTS_profiles_(x3d,y3d,z3d,self.ne0,self.Te0,self.Bt,self.Bp, self.dne_ad[0,...],self.nane[0,...],self.nate[0,...], 0)
+        self.total_cross_section = mmc.get_GTS_profiles_(x3d,y3d,z3d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[0,...],self.nane_on_grid[0,...],self.nate_on_grid[0,...], 0)
 
         dcross = int(np.floor(self.total_cross_section / self.n_cross_section))
         self.center_cross_sections = np.arange(self.n_cross_section) * dcross
 
         for i in range(1,len(self.center_cross_sections)):
-            mmc.get_GTS_profiles_(x3d,y3d,z3d,self.ne0,self.Te0,self.Bt,self.Bp, self.dne_ad[i,...],self.nane[i,...],self.nate[i,...],self.center_cross_sections[i])
+            mmc.get_GTS_profiles_(x3d,y3d,z3d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[i,...],self.nane_on_grid[i,...],self.nate_on_grid[i,...],self.center_cross_sections[i])
         
 
         
@@ -175,15 +178,15 @@ class GTS_Loader:
                 rr.units = zz.units = 'Meter'
 
                 bb = f.createVariable('bb','d',('z_dim','r_dim'))
-                bb[:,:] = self.Bt[0,:,:]**2+self.Bp[0,:,:]**2
+                bb[:,:] = self.B_on_grid[0,:,:]
                 bb.units = 'Tesla'
                 
                 ne = f.createVariable('ne','d',('z_dim','r_dim'))
-                ne[:,:] = self.ne0[0,:,:]* (1 + self.dne_ad[i,j,0,:,:] + self.nane[i,j,0,:,:])
+                ne[:,:] = self.ne_on_grid[i,j,0,:,:]
                 ne.units = 'per cubic meter'
 
                 te = f.createVariable('te','d',('z_dim','r_dim'))
-                te[:,:] = self.Te0[0,:,:]
+                te[:,:] = self.Te0_on_grid[0,:,:]
                 te.units = 'keV'
                 
                 f.close()
@@ -238,19 +241,19 @@ class GTS_Loader:
         rr.units = zz.units = 'm'
         
         bb = f.createVariable('bb','d',('nz','nr'))
-        bb[:,:] = np.sqrt(self.Bt[0,:,:]**2 + self.Bp[0,:,:]**2)
+        bb[:,:] = np.sqrt(self.Bt_on_grid[0,:,:]**2 + self.Bp_on_grid[0,:,:]**2)
         bb.units = 'Tesla'
 
         bpol = f.createVariable('bpol','d',('nz','nr'))
-        bpol[:,:] = self.Bp[0,:,:]
+        bpol[:,:] = self.Bp_on_grid[0,:,:]
         bpol.units = 'Tesla'       
         
         ne = f.createVariable('ne','d',('nz','nr'))
-        ne[:,:] = self.ne0[0,:,:]
+        ne[:,:] = self.ne0_on_grid[0,:,:]
         ne.units = 'm^-3'
         
         te = f.createVariable('te','d',('nz','nr'))
-        te[:,:] = self.Te0[0,:,:]
+        te[:,:] = self.Te0_on_grid[0,:,:]
         te.units = 'keV'
                 
         f.close()
@@ -276,7 +279,7 @@ class GTS_Loader:
                 dne = f.createVariable('dne','d',('nz','ny','nx'))
                 dne.units = 'm^-3'
                 
-                dne[:,:,:] = self.ne0[:,:]* (1 + self.dne_ad[j,i,:,:,:] + self.nane[j,i,:,:,:])
+                dne[:,:,:] = self.ne0_on_grid[:,:]* (self.dne_ad_on_grid[j,i,:,:,:] + self.nane_on_grid[j,i,:,:,:])
                 f.close()
 
 #=======END of class GTS_Loader definition =======================================================

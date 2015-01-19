@@ -7,35 +7,14 @@ from FPSDP.Geometry.Grid import Cartesian2D, Cartesian3D
 
 #Note that in XYZ(R-Z-PHI) coordinates, Z is increasing in opposite direction to small toroidal coordinate phi (in r-theta-phi), which means -Z is in increasing direction of toroidal data file numbers.(Those in PHI.000XX) Prepare the whole 32 files if not sure about the range of Z.
 
+#initialize the cartesian grids
+grid2D = Cartesian2D(DownLeft = (-0.4,0.3), UpRight = (0.4,1.0), NR = 101, NZ = 101)
+
+gts2D_Alcator = gts.GTS_Loader(grid2D, t0=1,dt=10,nt= 28,'~/workdir2/GTS_ALCATOR_Case/L_Mode/2D_Fluctuations/',eq_fname = '/scratch3/scratchdirs/wangw/Nov2014_1/EQ_C88497_835', prof_fname = '/global/scratch2/sd/shilei/GTS_ALCATOR_Case/L_Mode/profile_run/GTS_backg_profiles.nc' , gts_file_path = '/scratch3/scratchdirs/wangw/Nov2014_1/')
 
 
-#initialize arrays for returning data
-ne = np.empty((cm.NT0,cm.NZ0,cm.NY0,cm.NX0))
-Te = np.empty((cm.NZ0,cm.NY0,cm.NX0))
-Bm = np.empty((cm.NZ0,cm.NY0,cm.NX0))
 
-#show x3d,y3d,z3d
-print(mesh.X3D)
-print(mesh.Y3D)
-print(mesh.Z3D)
 
-#get the fluctuations
 
-cm.get_fluctuations_from_GTS(mesh.X3D,mesh.Y3D,mesh.Z3D,ne,Te,Bm)
-
-import matplotlib.pyplot as plt
-
-print 'NY0 = '+str(cm.NY0)
-print ne.shape
-
-plt.plot(mesh.X1D, ne[0,0,cm.NY0/2,:])
-
-#plt.plot(x1d, ne[9,0,cm.NY0/2,:])
-
-plt.figure(2)
-
-plt.imshow(ne[0,0,:,:])
-
-#cm.get_fluctuations_from_GTS(x3d,y3d,z3d,ne,Te,Bm)
 
 

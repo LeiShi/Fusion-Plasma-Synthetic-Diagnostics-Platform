@@ -42,10 +42,10 @@ class Cartesian2D(Grid):
         try:
             if ( 'DownLeft' in P.keys() and 'UpRight' in P.keys() ):
                 this.DownLeft ,this.UpRight = P['DownLeft'], P['UpRight']
-                Zmax,Rmax = this.UpRight
-                Zmin,Rmin = this.DownLeft
-                rangeR = float(Rmax - Rmin)
-                rangeZ = float(Zmax - Zmin)
+                this.Zmax,this.Rmax = this.UpRight
+                this.Zmin,this.Rmin = this.DownLeft
+                rangeR = float(this.Rmax - this.Rmin)
+                rangeZ = float(this.Zmax - this.Zmin)
                 if ( 'NR' in P.keys() and not 'ResR' in P.keys() ):
                     this.NR = P['NR']
                     this.ResR = rangeR / this.NR                
@@ -72,8 +72,8 @@ class Cartesian2D(Grid):
             raise
         
         #create 1D array for R and Z
-        this.R1D = np.linspace(Rmin,Rmax,this.NR)
-        this.Z1D = np.linspace(Zmin,Zmax,this.NZ)
+        this.R1D = np.linspace(this.Rmin,this.Rmax,this.NR)
+        this.Z1D = np.linspace(this.Zmin,this.Zmax,this.NZ)
         #now create the 2darrays for R and Z
         this.Z2D = np.zeros((this.NZ,this.NR)) + this.Z1D[:,np.newaxis]
         this.R2D = np.zeros(this.Z2D.shape) + this.R1D[np.newaxis,:]

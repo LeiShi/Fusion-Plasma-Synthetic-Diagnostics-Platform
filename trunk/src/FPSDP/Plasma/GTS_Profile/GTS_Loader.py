@@ -4,6 +4,8 @@ import Map_Mod_C as mmc
 import numpy as np
 from FPSDP.Geometry import Grid
 import scipy.io.netcdf as nc
+from scipy.interpolate import LinearNDInterpolator,NearestNDInterpolator
+from time import clock
 
 class GTS_loader_Error(Exception):
     """Exception class for handling GTS loading errors
@@ -162,15 +164,17 @@ class GTS_Loader:
             self.Te0_on_grid = np.zeros_like(x3d)
             self.Bt_on_grid = np.zeros_like(x3d)
             self.Bp_on_grid = np.zeros_like(x3d)
+            self.mismatch = np.zeros_like(x3d,dtype = 'int32')
 
-            self.total_cross_section = mmc.get_GTS_profiles_(x3d,y3d,z3d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[0,...],self.nane_on_grid[0,...],self.nate_on_grid[0,...], 0)
+            self.total_cross_section = mmc.get_GTS_profiles_(x3d,y3d,z3d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[0,...],self.nane_on_grid[0,...],self.nate_on_grid[0,...],self.mismatch, 0)
             
             dcross = int(np.floor(self.total_cross_section / self.n_cross_section))
             self.center_cross_sections = np.arange(self.n_cross_section) * dcross
 
             for i in range(1,len(self.center_cross_sections)):
-                mmc.get_GTS_profiles_(x3d,y3d,z3d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[i,...],self.nane_on_grid[i,...],self.nate_on_grid[i,...],self.center_cross_sections[i])
+                mmc.get_GTS_profiles_(x3d,y3d,z3d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[i,...],self.nane_on_grid[i,...],self.nate_on_grid[i,...],self.mismatch,self.center_cross_sections[i])
         
+            self._fill_mismatched(mismatch)
 
         elif(self.dimension == 2):
             x1d = self.grid.R1D
@@ -188,16 +192,69 @@ class GTS_Loader:
             self.Te0_on_grid = np.zeros((1,self.ny,self.nx))
             self.Bt_on_grid = np.zeros((1,self.ny,self.nx))
             self.Bp_on_grid = np.zeros((1,self.ny,self.nx))
+            self.mismatch = np.zeros_like(self.ne0_on_grid,dtype = 'int32')
         
-            self.total_cross_section = mmc.get_GTS_profiles_(x2d,y2d,z2d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[0,...],self.nane_on_grid[0,...],self.nate_on_grid[0,...], 0)
+            self.total_cross_section = mmc.get_GTS_profiles_(x2d,y2d,z2d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[0,...],self.nane_on_grid[0,...],self.nate_on_grid[0,...],self.mismatch, 0)
 
             dcross = int(np.floor(self.total_cross_section / self.n_cross_section))
             self.center_cross_sections = np.arange(self.n_cross_section) * dcross
 
             for i in range(1,len(self.center_cross_sections)):
-                mmc.get_GTS_profiles_(x2d,y2d,z2d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[i,...],self.nane_on_grid[i,...],self.nate_on_grid[i,...],self.center_cross_sections[i])
+                mmc.get_GTS_profiles_(x2d,y2d,z2d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[i,...],self.nane_on_grid[i,...],self.nate_on_grid[i,...],self.mismatch,self.center_cross_sections[i])
+            t1 = clock() 
+            self._fill_mismatched(self.mismatch)
+            t2 = clock()
+            print('Time used for interpolating mismatched points: {0}'.format(t2-t1))
+    def _fill_mismatched(self,mismatch):
+        """interpolate upon correctly matched values, to get values on mismatched points
+        """
+
+        print('Start correcting mismatched points.')
+        correct_idx = (mismatch == 0)
+        mismatch_idx =  (mismatch == 1)
+        if self.dimension == 3:
+            x_correct = self.grid.X3D[correct_idx]
+            y_correct = self.grid.Y3D[correct_idx]
+            z_correct = self.grid.Z3D[correct_idx]
         
+            xwant = self.grid.X3D[mismatch_idx]
+            ywant = self.grid.Y3D[mismatch_idx]
+            zwant = self.grid.Z3D[mismatch_idx]
+
+            points = np.array([z_correct,y_correct,x_correct]).T
+            points_want = np.array([zwant,ywant,xwant]).T
         
+            self.ne0_on_grid[mismatch_idx] = LinearNDInterpolator(points,self.ne0_on_grid[correct_idx])(points_want)
+            self.Te0_on_grid[mismatch_idx] = LinearNDInterpolator(points,self.Te0_on_grid[correct_idx])(points_want)
+            self.Bt_on_grid[mismatch_idx] = LinearNDInterpolator(points,self.Bt_on_grid[correct_idx])(points_want)
+            self.Bp_on_grid[mismatch_idx] = LinearNDInterpolator(points,self.Bp_on_grid[correct_idx])(points_want)
+            for i in range(self.n_cross_section):
+                for j in range(self.nt):
+                    self.dne_ad_on_grid[i,j][mismatch_idx] = LinearNDInterpolator(points,self.dne_ad_on_grid[i,j][correct_idx])(points_want)
+                    self.nane_on_grid[i,j][mismatch_idx] = LinearNDInterpolator(points,self.nane_on_grid[i,j][correct_idx])(points_want)
+                    self.nate_on_grid[i,j][mismatch_idx] = LinearNDInterpolator(points,self.nate_on_grid[i,j][correct_idx])(points_want)
+                print('Cross-section {0} finished.'.format(i))
+        else:
+            r_correct = self.grid.R2D[correct_idx[0,:,:]]
+            z_correct = self.grid.Z2D[correct_idx[0,:,:]]
+            rwant = self.grid.R2D[mismatch_idx[0,:,:]]
+            zwant = self.grid.Z2D[mismatch_idx[0,:,:]]
+            
+            points = np.array([z_correct,r_correct]).T
+            points_want = np.array([zwant,rwant]).T
+
+            self.ne0_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.ne0_on_grid[correct_idx])(points_want)
+            self.Te0_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.Te0_on_grid[correct_idx])(points_want)
+            self.Bt_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.Bt_on_grid[correct_idx])(points_want)
+            self.Bp_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.Bp_on_grid[correct_idx])(points_want)
+            for i in range(self.n_cross_section):
+                for j in range(self.nt):
+                    self.dne_ad_on_grid[i,j][mismatch_idx] = NearestNDInterpolator(points,self.dne_ad_on_grid[i,j][correct_idx])(points_want)
+                    self.nane_on_grid[i,j][mismatch_idx] = NearestNDInterpolator(points,self.nane_on_grid[i,j][correct_idx])(points_want)
+                    self.nate_on_grid[i,j][mismatch_idx] = NearestNDInterpolator(points,self.nate_on_grid[i,j][correct_idx])(points_want)
+                print('Cross-section {0} finished.'.format(i))           
+                
+
     def cdf_output(self,output_path,eq_file = 'equilibrium.cdf',filehead = 'fluctuation'):
         """
         Wrapper for cdf_output_2D and cdf_output_3D.

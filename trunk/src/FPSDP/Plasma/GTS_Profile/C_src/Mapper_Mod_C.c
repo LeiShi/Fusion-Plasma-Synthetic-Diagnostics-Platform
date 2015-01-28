@@ -69,9 +69,9 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   printf("C code entered.\n");
   //parse the arguments, get ne,Te,B arrays, ne has time series.
   int toroidal_startnum;
-  PyObject *input1,*input2,*input3,*input4,*input5,*input6,*input7,*input8,*input9,*input10;
-  PyArrayObject *x3d,*y3d,*z3d,*ne0_arr,*Te0_arr,*Bt_arr,*Bp_arr,*dne_ad_arr,*nane_arr,*nate_arr;
-  if(!PyArg_ParseTuple(args,"OOOOOOOOOOi",&input1,&input2,&input3,&input4,&input5,&input6,&input7,&input8,&input9,&input10,&toroidal_startnum))
+  PyObject *input1,*input2,*input3,*input4,*input5,*input6,*input7,*input8,*input9,*input10,*input11;
+  PyArrayObject *x3d,*y3d,*z3d,*ne0_arr,*Te0_arr,*Bt_arr,*Bp_arr,*dne_ad_arr,*nane_arr,*nate_arr, *mismatch_arr;
+  if(!PyArg_ParseTuple(args,"OOOOOOOOOOOi",&input1,&input2,&input3,&input4,&input5,&input6,&input7,&input8,&input9,&input10,&input11,&toroidal_startnum))
     return NULL;
   printf("arguments parsed.\n");
   x3d =(PyArrayObject*) PyArray_ContiguousFromObject(input1,PyArray_DOUBLE,3,3);
@@ -85,7 +85,8 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   dne_ad_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input8,PyArray_DOUBLE,4,4);
   nane_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input9,PyArray_DOUBLE,4,4);
   nate_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input10,PyArray_DOUBLE,4,4);
-  printf("arrays loaded.\n");
+  mismatch_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input11,PyArray_INT,3,3);
+  printf("arrays loaded.\n"); 
   
   //start dealing with GTS data
   int n3d = NX*NY*NZ;
@@ -118,9 +119,10 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   double Rinitial[n3d],Zinitial[n3d];//R,Z value of our initial guesses
   double Ract[n3d],Zact[n3d];//actual R,Z coordinates we have in the end
   int *InOutFlag = (int*) PyMem_Malloc(n3d*sizeof(int));//flags for points in or out LCFS
+  int *mismatch = (int*) mismatch_arr->data;
 
   printf("Finish allocate PYthon mem.\n");
-  getFluxCoords(n3d,a,theta,Btol,Ract,Zact,Rinitial,Zinitial,Rwant,Zwant,mag_axis_coords,InOutFlag); 
+  getFluxCoords(n3d,a,theta,Btol,Ract,Zact,Rinitial,Zinitial,Rwant,Zwant,mag_axis_coords,InOutFlag,mismatch); 
   
   printf("Finish get FluxCoords.\n");
 

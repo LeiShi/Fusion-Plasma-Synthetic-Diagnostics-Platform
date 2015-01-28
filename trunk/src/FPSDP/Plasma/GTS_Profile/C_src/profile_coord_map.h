@@ -69,13 +69,13 @@ int mesh3dGrid(REAL x3d[],REAL y3d[],REAL z3d[],REAL x1d[],REAL y1d[],REAL z1d[]
 int guessatheta(REAL a[],REAL theta[], REAL R[], REAL Z[],int n,REAL R0,REAL Z0);
 REAL error_amt(REAL R,REAL Z,REAL a,REAL theta);
 void print_state(size_t iter, gsl_multiroot_fsolver * s);
-int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[],REAL Zact[],REAL Bm[],REAL Rwant[], REAL Zwant[],int n,int flag[]);
+int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[],REAL Zact[],REAL Bm[],REAL Rwant[], REAL Zwant[],int n,int flag[],int mismatch[]);
 int coord_f(const gsl_vector *x,void *params,gsl_vector *f);
 int getBoundaryPoints(double R_bdy[],double Z_bdy[],int n_bdy);
 
 int get_mag_axis(REAL coords[]);
 int decayNToutsideLCFS(int npts,REAL a[],REAL ne[],REAL Te[],REAL Ti[],int* flag);
-int getFluxCoords(int npts,REAL a[],REAL theta[],REAL Bm[],REAL Ract[],REAL Zact[],REAL Rinitial[],REAL Zinitial[],REAL Rwant[],REAL Zwant[],REAL mag_axis_coords[],int flag[]);
+int getFluxCoords(int npts,REAL a[],REAL theta[],REAL Bm[],REAL Ract[],REAL Zact[],REAL Rinitial[],REAL Zinitial[],REAL Rwant[],REAL Zwant[],REAL mag_axis_coords[],int flag[], int mismatch[]);
 int getAllProfiles(int npts,REAL Bpol[],REAL Ti[],REAL Te[],REAL P[],REAL ne[],REAL qprofile[],REAL a[],REAL theta[],int InOutFlag[]);
 
 int getProfile(REAL a,REAL* ne,REAL* Ti,REAL* Te,REAL* a_p,REAL* n_p,REAL* Ti_p,REAL* Te_p,int n_prof );
@@ -589,7 +589,7 @@ void writeCDF(char* fname,int ntotal, double R[],double Z[],int n_bdy,double R_b
   
 }
 
-int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[], REAL Zact[],REAL Bm[],REAL Rwant[], REAL Zwant[],int n,int flag[]){
+int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[], REAL Zact[],REAL Bm[],REAL Rwant[], REAL Zwant[],int n,int flag[], int mismatch[]){
 
   // new version starts
 
@@ -599,6 +599,10 @@ int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[], REAL Zact[],REAL Bm[],R
   double b_axis;
   int single_point=1;
   double tol=1e-9;  //used in inner_check,when given point is near the bdy within tol distance, it's considered on the bdy.
+  double dR,dZ;
+  double match_tol = 1e-2;
+  
+
   double theta_guess;
   double theta_bdy;
   double a_guess;
@@ -617,9 +621,12 @@ int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[], REAL Zact[],REAL Bm[],R
   char logfile[20]="./sl_log.txt";
 
   FILE* errlog;
-  
-  errlog=fopen(logfile,"w");
 
+  dR = fabs(Rwant[1]-Rwant[0]);
+  match_tol *= dR; // absolute tolerance is the percentage tolerance times the finest grid resolution
+  fprintf(stderr,"match_tol = %lf\n", match_tol);
+  errlog=fopen(logfile,"w+");
+  fprintf(errlog,"match_tol = %lf\n", match_tol);
   esigetrzb_(&mag_axis_coords[0],&mag_axis_coords[1],&b_axis,&zero,&zero,&single_point);
 
 
@@ -637,16 +644,20 @@ int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[], REAL Zact[],REAL Bm[],R
   double b_tmp;
   for(i=0;i<n;i++){
     if(flag[i]==1){
-      //      fprintf(stderr,"point %d mapping start,",i);
+      //fprintf(stderr,"point %d mapping start,",i);
       int k=ESIrz2agq(&a[i],&theta[i],&Rwant[i],&Zwant[i],&ierror,single_point);
       if(k!=0){
-	fprintf(errlog,"Point %d (%lf,%lf) has encountered and error: %d in rz2agq.\n",i,Rwant[i],Zwant[i],ierror);
+	fprintf(errlog,"Point %d (%lf,%lf) has encountered an error: %d in rz2agq.\n",i,Rwant[i],Zwant[i],ierror);
       }
       esigetrzb_(&Ract[i],&Zact[i],&Bm[i],&a[i],&theta[i],&single_point);
       double err=hypot((Rwant[i]-Ract[i]),(Zwant[i]-Zact[i]));
       double dis=hypot((Rwant[i]-mag_axis_coords[0]),(Zwant[i]-mag_axis_coords[1]));
-      if( err > tol){
+      // output err and dis for checking
+      //fprintf(errlog,"Point %d (%lf,%lf) %lf away from axis has been mapped %lf away\n",i,Rwant[i],Zwant[i],dis,err);
+      if( err > match_tol){
 	fprintf(errlog,"Point %d (%lf,%lf) %lf away from axis has been mapped %lf away\n",i,Rwant[i],Zwant[i],dis,err);
+	mismatch[i] = 1;
+	//fprintf(stderr,"Point %d (%lf,%lf) %lf away from axis has been mapped %lf away\n",i,Rwant[i],Zwant[i],dis,err);
 	if(fabs(Zwant[i])<0.1)
 	{
 	  a[i]=0;
@@ -740,6 +751,7 @@ int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[], REAL Zact[],REAL Bm[],R
       exit(5);
     }   
   }
+  fclose(errlog);
   return 0;
 
   /*old version by Erik
@@ -1082,7 +1094,7 @@ int decayNToutsideLCFS(int npts,REAL a[],REAL ne[],REAL Te[],REAL Ti[],int* flag
     gives the initial guess (Rinitial,Zinitial), the flux coords (a,theta), and
     the actual (Ract,Zact) these flux coords map to.
  */
-int getFluxCoords(int npts,REAL a[],REAL theta[],REAL Bm[],REAL Ract[],REAL Zact[],REAL Rinitial[],REAL Zinitial[],REAL Rwant[],REAL Zwant[],REAL mag_axis_coords[],int flag[]){
+int getFluxCoords(int npts,REAL a[],REAL theta[],REAL Bm[],REAL Ract[],REAL Zact[],REAL Rinitial[],REAL Zinitial[],REAL Rwant[],REAL Zwant[],REAL mag_axis_coords[],int flag[], int mismatch[]){
   // field-line coords: a: flux (radial), theta: angle (poloidal), Bm: |B|
   // (Rwant,Zwant): the R,Z coordinatew we want to map to
   // (Rinitial,Zinitial): the R,Z coords of our initial guess
@@ -1090,7 +1102,7 @@ int getFluxCoords(int npts,REAL a[],REAL theta[],REAL Bm[],REAL Ract[],REAL Zact
   int k;
   //  k = guessatheta(a,theta,Rwant,Zwant,npts,mag_axis_coords[0],mag_axis_coords[1]); // initial guess for the flux coords
   //  k = esigetrzb_(Rinitial,Zinitial,Bm,a,theta,&npts); // map to cylindrical coords
-  k = findcorrectatheta(a,theta,Ract,Zact,Bm,Rwant,Zwant,npts,flag); // root-find to get flux coords
+  k = findcorrectatheta(a,theta,Ract,Zact,Bm,Rwant,Zwant,npts,flag,mismatch); // use esi provided interpolation to get flux coords
 
   return 0;
 }

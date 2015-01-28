@@ -28,5 +28,5 @@ module_Map_C = Extension('Map_Mod_C',
 setup(name = 'GTS_Profile',
       version = '0.1',
       description = 'Provide functions that read GTS output and create desired quantities on grids.',
-      ext_modules = [module_Map_C],
-      py_modules=['GTS_Loader'],)
+      ext_modules = [module_Map_C],)
+      #py_modules=['GTS_Loader'],)

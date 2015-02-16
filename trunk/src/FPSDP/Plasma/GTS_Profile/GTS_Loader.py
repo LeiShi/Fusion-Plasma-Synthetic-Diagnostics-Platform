@@ -104,13 +104,13 @@ class GTS_Loader:
             nane_on_grid : double ndarray (nt,nz,ny,nx), non-adiabatic electron density normalized to local equilibrium density, read from file. 
             nate_on_grid : double ndarray (nt,nz,ny,nx), non-adiabatic electron temperature normalized to equilibrium temperature at a reference radius, read from file. 
         """
-
+        t0 = clock()
         if(self.dimension == 3):
             x1d = self.grid.X1D
             y1d = self.grid.Y1D
             
-            x2d = np.zeros((1,self.ny,self.nx))+ x1d[np.newaxis,np.newaxis,:] 
-            y2d = np.zeros((1,self.ny,self.nx))+ y1d[np.newaxis,:,np.newaxis]
+            self.x2d = np.zeros((1,self.ny,self.nx))+ x1d[np.newaxis,np.newaxis,:] 
+            self.y2d = np.zeros((1,self.ny,self.nx))+ y1d[np.newaxis,:,np.newaxis]
             z2d = np.zeros((1,self.ny,self.nx))
 
             x3d = self.grid.X3D
@@ -126,6 +126,7 @@ class GTS_Loader:
             self.Te0_2d = np.zeros((1,self.ny,self.nx))
             self.Bt_2d = np.zeros((1,self.ny,self.nx))
             self.Bp_2d = np.zeros((1,self.ny,self.nx))
+            mismatched_eq = np.zeros_like(self.x2d,dtype = 'int32')
             
             fluc_2d = np.zeros((self.nt,1,self.ny,self.nx))
 
@@ -133,7 +134,7 @@ class GTS_Loader:
                           Ymin=self.ymin,Ymax=self.ymax,NY=self.ny,
                           Zmin=0,Zmax=0,NZ=1,
                           NBOUNDARY=self.n_boundary,
-                          TStart=self.t0,TStep=self.dt,NT=self.nt,
+                          TStart=1,TStep=1,NT=1,
                           Fluc_Amplification=self.amplification,
                           FlucFilePath=self.fluc_file_path,
                           EqFileName=self.eq_fname,
@@ -143,8 +144,9 @@ class GTS_Loader:
                           GTSDataDir=self.gts_file_path)
             
             #one seperate 2D run to get all the equilibrium quantities
-            mmc.get_GTS_profiles_(x2d,y2d,z2d,self.ne0_2d,self.Te0_2d,self.Bt_2d,self.Bp_2d, fluc_2d,fluc_2d,fluc_2d,0)
+            mmc.get_GTS_profiles_(self.x2d,self.y2d,z2d,self.ne0_2d,self.Te0_2d,self.Bt_2d,self.Bp_2d, fluc_2d,fluc_2d,fluc_2d,mismatched_eq,0)
 
+            self._fill_mismatched_eq(mismatched_eq)
 
             mmc.set_para_(Xmin=self.xmin,Xmax=self.xmax,NX=self.nx,
                           Ymin=self.ymin,Ymax=self.ymax,NY=self.ny,
@@ -174,7 +176,7 @@ class GTS_Loader:
             for i in range(1,len(self.center_cross_sections)):
                 mmc.get_GTS_profiles_(x3d,y3d,z3d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[i,...],self.nane_on_grid[i,...],self.nate_on_grid[i,...],self.mismatch,self.center_cross_sections[i])
         
-            self._fill_mismatched(mismatch)
+            self._fill_mismatched(self.mismatch)
 
         elif(self.dimension == 2):
             x1d = self.grid.R1D
@@ -204,7 +206,8 @@ class GTS_Loader:
             t1 = clock() 
             self._fill_mismatched(self.mismatch)
             t2 = clock()
-            print('Time used for interpolating mismatched points: {0}'.format(t2-t1))
+            print('Time used for interpolating mismatched points: {0}\nTotal time used:{1}'.format(t2-t1,t2-t0))
+
     def _fill_mismatched(self,mismatch):
         """interpolate upon correctly matched values, to get values on mismatched points
         """
@@ -224,15 +227,15 @@ class GTS_Loader:
             points = np.array([z_correct,y_correct,x_correct]).T
             points_want = np.array([zwant,ywant,xwant]).T
         
-            self.ne0_on_grid[mismatch_idx] = LinearNDInterpolator(points,self.ne0_on_grid[correct_idx])(points_want)
-            self.Te0_on_grid[mismatch_idx] = LinearNDInterpolator(points,self.Te0_on_grid[correct_idx])(points_want)
-            self.Bt_on_grid[mismatch_idx] = LinearNDInterpolator(points,self.Bt_on_grid[correct_idx])(points_want)
-            self.Bp_on_grid[mismatch_idx] = LinearNDInterpolator(points,self.Bp_on_grid[correct_idx])(points_want)
+            self.ne0_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.ne0_on_grid[correct_idx])(points_want)
+            self.Te0_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.Te0_on_grid[correct_idx])(points_want)
+            self.Bt_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.Bt_on_grid[correct_idx])(points_want)
+            self.Bp_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.Bp_on_grid[correct_idx])(points_want)
             for i in range(self.n_cross_section):
                 for j in range(self.nt):
-                    self.dne_ad_on_grid[i,j][mismatch_idx] = LinearNDInterpolator(points,self.dne_ad_on_grid[i,j][correct_idx])(points_want)
-                    self.nane_on_grid[i,j][mismatch_idx] = LinearNDInterpolator(points,self.nane_on_grid[i,j][correct_idx])(points_want)
-                    self.nate_on_grid[i,j][mismatch_idx] = LinearNDInterpolator(points,self.nate_on_grid[i,j][correct_idx])(points_want)
+                    self.dne_ad_on_grid[i,j][mismatch_idx] = NearestNDInterpolator(points,self.dne_ad_on_grid[i,j][correct_idx])(points_want)
+                    self.nane_on_grid[i,j][mismatch_idx] = NearestNDInterpolator(points,self.nane_on_grid[i,j][correct_idx])(points_want)
+                    self.nate_on_grid[i,j][mismatch_idx] = NearestNDInterpolator(points,self.nate_on_grid[i,j][correct_idx])(points_want)
                 print('Cross-section {0} finished.'.format(i))
         else:
             r_correct = self.grid.R2D[correct_idx[0,:,:]]
@@ -252,10 +255,32 @@ class GTS_Loader:
                     self.dne_ad_on_grid[i,j][mismatch_idx] = NearestNDInterpolator(points,self.dne_ad_on_grid[i,j][correct_idx])(points_want)
                     self.nane_on_grid[i,j][mismatch_idx] = NearestNDInterpolator(points,self.nane_on_grid[i,j][correct_idx])(points_want)
                     self.nate_on_grid[i,j][mismatch_idx] = NearestNDInterpolator(points,self.nate_on_grid[i,j][correct_idx])(points_want)
-                print('Cross-section {0} finished.'.format(i))           
+                print('Cross-section {0} finished.'.format(i)) 
+
+    def _fill_mismatched_eq(self,mismatch):
+        """Dedicated to interpolate equilibrium quantities on mismatched points for a 3D run. 
+        """
+
+        print('Start correcting mismatched points.')
+        correct_idx = (mismatch == 0)
+        mismatch_idx =  (mismatch == 1)
+        
+        r_correct = self.x2d[correct_idx]
+        z_correct = self.y2d[correct_idx]
+        rwant = self.x2d[mismatch_idx]
+        zwant = self.y2d[mismatch_idx]
+        
+        points = np.array([z_correct,r_correct]).T
+        points_want = np.array([zwant,rwant]).T
+        
+        self.ne0_2d[mismatch_idx] = NearestNDInterpolator(points,self.ne0_2d[correct_idx])(points_want)
+        self.Te0_2d[mismatch_idx] = NearestNDInterpolator(points,self.Te0_2d[correct_idx])(points_want)
+        self.Bt_2d[mismatch_idx] = NearestNDInterpolator(points,self.Bt_2d[correct_idx])(points_want)
+        self.Bp_2d[mismatch_idx] = NearestNDInterpolator(points,self.Bp_2d[correct_idx])(points_want)
+        
                 
 
-    def cdf_output(self,output_path,eq_file = 'equilibrium.cdf',filehead = 'fluctuation'):
+    def cdf_output(self,output_path,eq_file = 'equilibrium.cdf',filehead = 'fluctuation', WithBp = True):
         """
         Wrapper for cdf_output_2D and cdf_output_3D.
         Determining 2D/3D by checking the grid property.
@@ -265,7 +290,7 @@ class GTS_Loader:
         if ( self.dimension == 2 ):
             self.cdf_output_2D(output_path,filehead)
         elif (self.dimension == 3):
-            self.cdf_output_3D(output_path,eq_file,filehead)
+            self.cdf_output_3D(output_path,eq_file,filehead,WithBp)
         else:
             raise XGC_loader_Error('Wrong grid type! Grid should either be Cartesian2D or Cartesian3D.') 
 
@@ -319,7 +344,7 @@ class GTS_Loader:
                 
                 f.close()
 
-    def cdf_output_3D(self,output_path = './',eq_filename = 'equilibrium3D.cdf',flucfilehead='fluctuation'):
+    def cdf_output_3D(self,output_path = './',eq_filename = 'equilibrium3D.cdf',flucfilehead='fluctuation', WithBp = True):
         """write out cdf files for FWR3D code to use
 
         Arguments:
@@ -373,7 +398,10 @@ class GTS_Loader:
         bb.units = 'Tesla'
 
         bpol = f.createVariable('bpol','d',('nz','nr'))
-        bpol[:,:] = self.Bp_2d[0,:,:]
+        if(WithBp):
+            bpol[:,:] = self.Bp_2d[0,:,:]
+        else:
+            bpol[:,:] = np.zeros_like(self.Bp_2d[0])
         bpol.units = 'Tesla'       
         
         ne = f.createVariable('ne','d',('nz','nr'))

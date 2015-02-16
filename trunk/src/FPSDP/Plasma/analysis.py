@@ -279,9 +279,9 @@ def get_frequencies(prof_loader):
         ni = ne
         mu = 2
         if(prof_loader.equilibrium_mesh == '3D'):
-            B = prof_loader.B_on_grid[Zmid,Ymid,:]*1e5
+            B = prof_loader.B_on_grid[Zmid,Ymid,:]*1e4
         else:
-            B = prof_loader.B_on_grid[Ymid,:]*1e5
+            B = prof_loader.B_on_grid[Ymid,:]*1e4
             
     f_pi = 2.1e2*mu**(-0.5)*np.sqrt(ni)
     f_pe = 8.98e3*np.sqrt(ne)
@@ -370,13 +370,13 @@ def get_gts_frequencies(gts_loader):
     else:#3D mesh , NOT FINISHED!!
         Ymid = (gts_loader.grid.NY-1)/2
         Zmid = (gts_loader.grid.NZ-1)/2
-        ne = gts_loader.ne_on_grid[:,:,Zmid,Ymid,:]*1e-6
+        ne = gts_loader.ne0_on_grid[Zmid,Ymid,:]*1e-6
         ni = ne
         mu = 2
-        if(gts_loader.equilibrium_mesh == '3D'):
-            B = gts_loader.B_on_grid[Zmid,Ymid,:]*1e4
-        else:
-            B = gts_loader.B_on_grid[Ymid,:]*1e4
+        #if(gts_loader.equilibrium_mesh == '3D'):
+        #    B = gts_loader.B_on_grid[Zmid,Ymid,:]*1e5
+        #else:
+        B = gts_loader.Bt_2d[0,Ymid,:]*1e4
             
     f_pi = 2.1e2*mu**(-0.5)*np.sqrt(ni)
     f_pe = 8.98e3*np.sqrt(ne)

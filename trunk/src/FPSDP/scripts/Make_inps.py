@@ -49,12 +49,12 @@ class FWR3D_input_maker:
         #****************
 
         # Y&Z mesh (assumed the same in all 3 regions) 
-        self.Ymin = -50
-        self.Ymax = 50
-        self.Zmin = -20
-        self.Zmax = 20
-        self.NY = 1024 # Y grid points, need to be 2**n number for FFT
-        self.NZ = 32 # Z grid number, 2**n for same reason 
+        self.Ymin = -10
+        self.Ymax = 10
+        self.Zmin = -10
+        self.Zmax = 10
+        self.NY = 128 # Y grid points, need to be 2**n number for FFT
+        self.NZ = 128 # Z grid number, 2**n for same reason 
 
         # 3 regions in X are:
         # vacuum region: from Antenna to the plasma boundary
@@ -64,26 +64,26 @@ class FWR3D_input_maker:
         # 4 X coordinates needed:
 
         # antenna location 
-        self.x_antenna = 160
+        self.x_antenna = 120
         # plasma boundary (boundary between vacuum and paraxial region)
-        self.x_paraxial_vacuum_bnd = 158
+        self.x_paraxial_vacuum_bnd = 110
         # paraxial and fullwave boundary
-        self.x_full_wave_paraxial_bnd = 150
+        self.x_full_wave_paraxial_bnd = 90
         # left boundary of full wave region
-        self.x_min_full_wave = 135
+        self.x_min_full_wave = 80
 
         #MPI Processes number setup
         #Domain number in x,y,z dimension:
         #BE CAREFUL, the total number of domains (nproc_x*nproc_y*nproc_z) MUST be equal to the total number of the processes in MPI_COMM_WORLD, the latter is normally the total number of processors requested. 
-        self.nproc_x = 2
-        self.nproc_y = 8
-        self.nproc_z = 2
+        self.nproc_x = 4
+        self.nproc_y = 2
+        self.nproc_z = 1
 
         #Antenna wave frequency(Hz)
-        self.ant_freq = 5.5e10
+        self.ant_freq = 1.25e11
 
         # grid numbers for the inner 2 regions
-        self.nx_paraxial = 16
+        self.nx_paraxial = 300
 
         self.nx_full_wave = int((self.x_full_wave_paraxial_bnd-self.x_min_full_wave)*self.ant_freq/3e9) 
 
@@ -97,7 +97,7 @@ class FWR3D_input_maker:
         #code5 file flag, '.TRUE.' or '.FALSE.'
         self.read_code5_data = '.TRUE.'
         #code5 file
-        self.code5_datafile = 'antenna_pattern_launch_nstx550.txt'
+        self.code5_datafile = 'antenna_pattern_1250.txt'
 
         # center location in Y&Z
         # Note that if you read the antenna pattern from a code5 file, these coordinates will relocate your whole pattern, keep the center aligned. 
@@ -135,7 +135,7 @@ class FWR3D_input_maker:
         #time step allowed by stability condition
         self.omega_dt = self.dx_fw*self.ant_freq*2*np.pi/6e10
         # total simulation time in terms of time for light go through full wave region
-        self.nr_crossings = 3
+        self.nr_crossings = 1
         #total time steps calculated from dt and total simulation time
         self.nt = self.nx_full_wave*self.nr_crossings*2
 
@@ -171,7 +171,7 @@ class FWR3D_input_maker:
         self.ix_refl = self.ixs[1]+1
 
         #total time step for output(Note that NX*NY*itime*3*16Byte should not exceed 4GB)
-        self.itime = 0.9
+        self.itime = 5
         self.iskip = int(self.nt/self.itime)
 
         #********************
@@ -307,7 +307,7 @@ class FWR3D_input_maker:
                     'fluctuation_type':'"'+self.fluctuation_type+'"',
                     'fluctuation_file':'"'+self.fluctuation_file+'"',
                     'POLARIZATION':'"'+self.polarization+'"',            
-                    'yz_cut':'35.,0.',
+                    'yz_cut':'0,0',#self.x_full_wave_paraxial_bnd,
                     'OUTPUT':self.eps_out,
                     'OUTPUT_EPS_1D':self.eps_1d_out
                     }
@@ -423,8 +423,20 @@ class FWR3D_input_maker:
         """create links to executables
         """
         import subprocess as subp
-        subp.check_call(['ln','-s',self.reflect3d,self.run_path+'reflect_O'])
-        subp.check_call(['ln','-s',self.vec_fw,self.run_path+'mvfw_O'])
+        try:
+            subp.check_call(['ln','-s',self.reflect3d,self.run_path+'reflect_O'])
+            subp.check_call(['ln','-s',self.vec_fw,self.run_path+'mvfw_O'])
+        except subp.CalledProcessError as e:
+            clean = raw_input('Executable linknames already exist in {0}. Do you want to remove the existing ones and make new links?(y/n):  '.format(self.run_path))
+            if 'n' in clean:
+                print 'I take that as a NO. Process interupted.'
+                raise e
+            elif 'y' in clean:
+                print 'This means YES.'
+                subp.check_call(['rm',self.run_path+'reflect_O'])
+                subp.check_call(['rm',self.run_path+'mvfw_O'])
+                subp.check_call(['ln','-s',self.reflect3d,self.run_path+'reflect_O'])
+                subp.check_call(['ln','-s',self.vec_fw,self.run_path+'mvfw_O'])
 
 
     
@@ -432,7 +444,7 @@ class FWR3D_input_maker:
 
 if __name__ == '__main__':
     maker = FWR3D_input_maker()
-    maker.create_executable_links()
     maker.create_all_input_files()
+    maker.create_executable_links()
    
         

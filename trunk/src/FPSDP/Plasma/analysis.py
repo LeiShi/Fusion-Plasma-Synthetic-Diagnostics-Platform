@@ -168,7 +168,7 @@ class XGC_Density_Loader:
             ne = self.xgc_loader.ne_on_grid[:,:,Zmid,:]*1e-6 #convert into cgs unit
             ni = ne #D plasma assumed,ignore the impurity. 
             mu = 2 # mu=m_i/m_p, in D plasma, it's 2
-            B = self.xgc_loader.B_on_grid[Zmid,:]*1e5 #convert to cgs unit
+            B = self.xgc_loader.B_on_grid[Zmid,:]*1e4 #convert to cgs unit
         else:#3D mesh
             Ymid = (self.xgc_loader.grid.NY-1)/2
             Zmid = (self.xgc_loader.grid.NZ-1)/2
@@ -176,9 +176,9 @@ class XGC_Density_Loader:
             ni = ne
             mu = 2
             if(self.xgc_loader.equilibrium_mesh == '3D'):
-                B = self.xgc_loader.B_on_grid[Zmid,Ymid,:]*1e5
+                B = self.xgc_loader.B_on_grid[Zmid,Ymid,:]*1e4
             else:
-                B = self.xgc_loader.B_on_grid[Ymid,:]*1e5
+                B = self.xgc_loader.B_on_grid[Ymid,:]*1e4
                 
                 f_pi = 2.1e2*mu**(-0.5)*np.sqrt(ni)
                 f_pe = 8.98e3*np.sqrt(ne)
@@ -271,7 +271,7 @@ def get_frequencies(prof_loader):
         ne = prof_loader.ne_on_grid[:,:,Zmid,:]*1e-6 #convert into cgs unit
         ni = ne #D plasma assumed,ignore the impurity. 
         mu = 2 # mu=m_i/m_p, in D plasma, it's 2
-        B = prof_loader.B_on_grid[Zmid,:]*1e5 #convert to cgs unit
+        B = prof_loader.B_on_grid[Zmid,:]*1e4 #convert to cgs unit
     else:#3D mesh
         Ymid = (prof_loader.grid.NY-1)/2
         Zmid = (prof_loader.grid.NZ-1)/2
@@ -366,7 +366,7 @@ def get_gts_frequencies(gts_loader):
         ne = gts_loader.ne_on_grid[:,:,0,Zmid,:]*1e-6 #convert into cgs unit
         ni = ne #D plasma assumed,ignore the impurity. 
         mu = 2 # mu=m_i/m_p, in D plasma, it's 2
-        B = gts_loader.B_on_grid[0,Zmid,:]*1e5 #convert to cgs unit
+        B = gts_loader.B_on_grid[0,Zmid,:]*1e4 #convert to cgs unit
     else:#3D mesh , NOT FINISHED!!
         Ymid = (gts_loader.grid.NY-1)/2
         Zmid = (gts_loader.grid.NZ-1)/2
@@ -374,9 +374,9 @@ def get_gts_frequencies(gts_loader):
         ni = ne
         mu = 2
         if(gts_loader.equilibrium_mesh == '3D'):
-            B = gts_loader.B_on_grid[Zmid,Ymid,:]*1e5
+            B = gts_loader.B_on_grid[Zmid,Ymid,:]*1e4
         else:
-            B = gts_loader.B_on_grid[Ymid,:]*1e5
+            B = gts_loader.B_on_grid[Ymid,:]*1e4
             
     f_pi = 2.1e2*mu**(-0.5)*np.sqrt(ni)
     f_pe = 8.98e3*np.sqrt(ne)

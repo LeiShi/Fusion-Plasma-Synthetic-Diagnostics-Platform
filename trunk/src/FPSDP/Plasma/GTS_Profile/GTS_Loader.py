@@ -4,7 +4,7 @@ import Map_Mod_C as mmc
 import numpy as np
 from FPSDP.Geometry import Grid
 import scipy.io.netcdf as nc
-from scipy.interpolate import LinearNDInterpolator,NearestNDInterpolator
+from scipy.interpolate import NearestNDInterpolator
 from time import clock
 
 class GTS_loader_Error(Exception):
@@ -292,7 +292,7 @@ class GTS_Loader:
         elif (self.dimension == 3):
             self.cdf_output_3D(output_path,eq_file,filehead,WithBp)
         else:
-            raise XGC_loader_Error('Wrong grid type! Grid should either be Cartesian2D or Cartesian3D.') 
+            raise GTS_loader_Error('Wrong grid type! Grid should either be Cartesian2D or Cartesian3D.') 
 
     def cdf_output_2D(self,output_path,filehead='fluctuation'):
         """write out cdf files for old FWR2D code use

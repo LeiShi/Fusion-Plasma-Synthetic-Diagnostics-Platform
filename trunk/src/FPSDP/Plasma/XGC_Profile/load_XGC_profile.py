@@ -9,10 +9,8 @@ import numpy as np
 import h5py as h5
 from scipy.interpolate import griddata
 from scipy.interpolate import CloughTocher2DInterpolator
-from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.interpolate import interp1d
 from scipy.interpolate import RectBivariateSpline
-import matplotlib.pyplot as plt
 import scipy.io.netcdf as nc
 import pickle
 
@@ -282,6 +280,7 @@ class XGC_Loader():
         self.te_input_file = xgc_path+'te_input.in'
         self.ne_input_file = xgc_path+'ne_input.in'
         self.equilibrium_mesh = equilibrium_mesh
+        self.Fluc_Only = Fluc_Only
         
         print 'from directory:'+ self.xgc_path
 
@@ -385,7 +384,7 @@ class XGC_Loader():
                 self.load_eq_2D3D()
                 print 'equlibrium loaded.'
 
-                if (Fluc_Only):
+                if (self.Fluc_Only):
                     self.load_fluctuations_3D_fluc_only()
                 else:
                     self.load_fluctuations_3D_all()
@@ -418,7 +417,7 @@ class XGC_Loader():
                 print 'B loaded.'
                 self.load_eq_2D3D()
                 print 'equilibrium loaded.'
-                if (Fluc_Only):
+                if (self.Fluc_Only):
                     self.load_fluctuations_2D_fluc_only()
                 else:
                     self.load_fluctuations_2D_all()
@@ -1107,7 +1106,7 @@ class XGC_Loader():
             self.B_on_grid = np.sqrt(self.BX_on_grid**2 + self.BY_on_grid**2 + self.BZ_on_grid**2) 
 
 
-    def cdf_output(self,output_path,eq_file = 'equilibrium.cdf',filehead = 'fluctuation'):
+    def cdf_output(self,output_path,eq_file = 'equilibrium.cdf',filehead = 'fluctuation',WithBp=True):
         """
         Wrapper for cdf_output_2D and cdf_output_3D.
         Determining 2D/3D by checking the grid property.
@@ -1117,7 +1116,7 @@ class XGC_Loader():
         if ( isinstance(self.grid,Cartesian2D) ):
             self.cdf_output_2D(output_path,filehead)
         elif (isinstance(self.grid, Cartesian3D)):
-            self.cdf_output_3D(output_path,eq_file,filehead)
+            self.cdf_output_3D(output_path,eq_file,filehead,WithBp)
         else:
             raise XGC_Loader_Error('Wrong grid type! Grid should either be Cartesian2D or Cartesian3D.') 
         
@@ -1176,7 +1175,7 @@ class XGC_Loader():
 
                 f.close()
 
-    def cdf_output_3D(self,output_path = './',eq_filename = 'equilibrium3D.cdf',flucfilehead='fluctuation'):
+    def cdf_output_3D(self,output_path = './',eq_filename = 'equilibrium3D.cdf',flucfilehead='fluctuation',WithBp=True):
         """write out cdf files for FWR3D code to use
 
         Arguments:
@@ -1195,9 +1194,8 @@ class XGC_Loader():
         Variables:
         rr: 1D array, coordinates in radial direction, in m
         zz: 1D array, coordinates in vertical direction, in m
-        bb: 2D array, toroidal magnetic field on grids, in Tesla, shape in (nz,nr)
-        br: 2D array, magnetic field in radial direction, in Tesla
-        bz: 2D array, magnetic field in vertical direction, in Tesla
+        bb: 2D array, total magnetic field on grids, in Tesla, shape in (nz,nr)
+        bpol: 2D array, poloidal magnetic field on grids, in Tesla
         ne: 2D array, total electron density on grids, in cm^-3
         ti: 2D array, total ion temperature, in keV
         te: 2D array, total electron temperature, in keV
@@ -1233,7 +1231,10 @@ class XGC_Loader():
         bb.units = 'Tesla'
 
         bpol = f.createVariable('bpol','d',('nz','nr'))
-        bpol[:,:] = bp[:,:]
+        if(WithBp):        
+            bpol[:,:] = bp[:,:]
+        else:
+            bpol[:,:] = np.zeros_like(bp)
         bpol.units = 'Tesla'       
         
         ne = f.createVariable('ne','d',('nz','nr'))

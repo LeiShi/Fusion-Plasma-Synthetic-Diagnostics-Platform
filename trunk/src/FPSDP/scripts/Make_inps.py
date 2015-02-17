@@ -70,17 +70,17 @@ class FWR3D_input_maker:
         # paraxial and fullwave boundary
         self.x_full_wave_paraxial_bnd = 90
         # left boundary of full wave region
-        self.x_min_full_wave = 80
+        self.x_min_full_wave = 75
 
         #MPI Processes number setup
         #Domain number in x,y,z dimension:
         #BE CAREFUL, the total number of domains (nproc_x*nproc_y*nproc_z) MUST be equal to the total number of the processes in MPI_COMM_WORLD, the latter is normally the total number of processors requested. 
-        self.nproc_x = 4
+        self.nproc_x = 8
         self.nproc_y = 2
-        self.nproc_z = 1
+        self.nproc_z = 2
 
         #Antenna wave frequency(Hz)
-        self.ant_freq = 1.25e11
+        self.ant_freq = 1.40e11
 
         # grid numbers for the inner 2 regions
         self.nx_paraxial = 300

@@ -28,6 +28,7 @@ def load_m(fname):
     f.close()
     return result
 
+
 def get_interp_planes(my_xgc):
     """Get the plane numbers used for interpolation for each point 
     """
@@ -547,7 +548,8 @@ class XGC_Loader():
                 self.planes = np.arange(self.n_cross_section) * dn
 
             self.phi_bar[i] = np.mean(fluc_mesh['dpot'][...])                
-            self.nane_bar[i] = np.mean(fluc_mesh['eden'][...])
+            if(self.HaveElectron):
+                self.nane_bar[i] = np.mean(fluc_mesh['eden'][...])
             for j in range(self.n_cross_section):
                 self.phi[j,i] += np.swapaxes(fluc_mesh['dpot'][...][:,self.planes[j]],0,1)
                 self.phi[j,i] -= self.phi_bar[i]
@@ -659,7 +661,8 @@ class XGC_Loader():
                 self.center_planes = np.arange(self.n_cross_section)*dn
 
             self.phi_bar[i] = np.mean(fluc_mesh['dpot'][...])
-            self.nane_bar[i] = np.mean(fluc_mesh['eden'][...])
+            if (self.HaveElectron):
+                self.nane_bar[i] = np.mean(fluc_mesh['eden'][...])
             for j in range(self.n_cross_section):
                 self.phi[j,i] += np.swapaxes(fluc_mesh['dpot'][...][:,(self.center_planes[j] + self.planes)%self.n_plane],0,1)
                 self.phi[j,i] -= self.phi_bar[i]

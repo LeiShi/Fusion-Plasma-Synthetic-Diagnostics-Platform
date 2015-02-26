@@ -1,7 +1,6 @@
 
 """Load XGC output data, interpolate electron density perturbation onto desired Cartesian grid mesh. 
 """
-from ...GeneralSettings.UnitSystem import SI
 from ...Geometry.Grid import Cartesian2D,Cartesian3D
 from ...IO.IO_funcs import parse_num
 
@@ -253,7 +252,7 @@ class XGC_Loader():
     """Loader for a given set of XGC output files
     """
 
-    def __init__(self,xgc_path,grid,t_start,t_end,dt,dn_amplifier = 1.0, n_cross_section = 1,equilibrium_mesh = '2D',Full_Load = True, Fluc_Only = True):
+    def __init__(self,xgc_path,grid,t_start,t_end,dt,dn_amplifier = 1.0, n_cross_section = 1,equilibrium_mesh = '2D',Equilibrium_Only = False,Full_Load = True, Fluc_Only = True):
         """The main caller of all functions to prepare a loaded XGC profile.
 
         Inputs:
@@ -281,6 +280,7 @@ class XGC_Loader():
         self.te_input_file = xgc_path+'te_input.in'
         self.ne_input_file = xgc_path+'ne_input.in'
         self.equilibrium_mesh = equilibrium_mesh
+        self.Equilibrium_Only = Equilibrium_Only
         self.Fluc_Only = Fluc_Only
         
         print 'from directory:'+ self.xgc_path
@@ -516,8 +516,8 @@ class XGC_Loader():
         self.BZ = B[:,1]
         self.BPhi = B[:,2]
 
-        self.BR_interp = CloughTocher2DInterpolator(self.points, self.BR, fill_value = 0)
-        self.BZ_interp = CloughTocher2DInterpolator(self.points, self.BZ, fill_value = 0)
+        self.BR_interp = CloughTocher2DInterpolator(self.points, self.BR, fill_value = np.inf) #use np.inf as a flag for outside points, deal with them later in interpolation function
+        self.BZ_interp = CloughTocher2DInterpolator(self.points, self.BZ, fill_value = np.inf)
         self.BPhi_interp = CloughTocher2DInterpolator(self.points, self.BPhi, fill_value = np.sign(self.BPhi[0])*np.min(np.absolute(self.BPhi)))
 
         
@@ -745,8 +745,10 @@ class XGC_Loader():
             self.HaveElectron = True
             eq_te = eq_mesh['e_perp_temperature_1d'][0,:]
             eq_ne = eq_mesh['e_gc_density_1d'][0,:]
-            self.te0_sp = interp1d(eq_psi,eq_te,bounds_error = False,fill_value = 0)
-            self.ne0_sp = interp1d(eq_psi,eq_ne,bounds_error = False,fill_value = 0)
+            te_min = np.min(eq_te)
+            ne_min = np.min(eq_ne)
+            self.te0_sp = interp1d(eq_psi,eq_te,bounds_error = False,fill_value = te_min/2)
+            self.ne0_sp = interp1d(eq_psi,eq_ne,bounds_error = False,fill_value = ne_min/10)
 
         else:
             self.HaveElectron = False
@@ -871,10 +873,16 @@ class XGC_Loader():
             self.psi_on_grid = self.psi_interp(y2D,x2D)
 
             #B field on grid
-            self.BX_on_grid = self.BR_interp(y2D,x2D)
+            self.BX_on_grid = self.BR_interp(y2D,x2D) #outside points will be set to nan
+            #now deal with outside points: for each horizontal line, the outside points will be set as the same value as the outmost point which has a valid value.            
+            for i in range(x2D.shape[0]):
+                bx_hor = self.BX_on_grid[i,:]
+                bx_hor[bx_hor==np.inf] = bx_hor[bx_hor != np.inf][-1]
             self.BY_on_grid = self.BZ_interp(y2D,x2D)
-            self.BZ_on_grid = self.BPhi_interp(y2D,x2D)
-
+            for i in range(x2D.shape[0]):
+                by_hor = self.BY_on_grid[i,:]
+                by_hor[by_hor==np.inf] = by_hor[by_hor != np.inf][-1]
+            self.BZ_on_grid = self.BPhi_interp(y2D,x2D) #note that toroidal field outside points are filled with smallest BZ already
             self.B_on_grid = np.sqrt(self.BX_on_grid**2 + self.BY_on_grid**2 + self.BZ_on_grid**2)
             
             #Te and Ti on grid
@@ -886,46 +894,48 @@ class XGC_Loader():
         
         
         #ne fluctuations on 3D grid
-        self.dne_ad_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),r3D.shape[0],r3D.shape[1],r3D.shape[2]))
-        if self.HaveElectron:
-             self.nane_on_grid = np.zeros(self.dne_ad_on_grid.shape)
-
         
-        
-        interp_positions = find_interp_positions_v2(self)
-
-        for k in range(self.n_cross_section):
-            print 'center plane {0}.'.format(self.center_planes[k])
-            for i in range(len(self.time_steps)):
-                print 'time step {0}'.format(self.time_steps[i])
-                #for each time step, first create the 2 arrays of quantities for interpolation
-                prev = np.zeros( (self.grid.NZ,self.grid.NY,self.grid.NX) )
-                next = np.zeros(prev.shape)
+        if(not self.Equilibrium_Only):
+            self.dne_ad_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),r3D.shape[0],r3D.shape[1],r3D.shape[2]))
+            if self.HaveElectron:
+                 self.nane_on_grid = np.zeros(self.dne_ad_on_grid.shape)
+    
             
-                #create index dictionary, for each key as plane number and value the corresponding indices where the plane is used as previous or next plane.
-                prev_idx = {}
-                next_idx = {}
-                for j in range(len(self.planes)):
-                    prev_idx[j] = np.where(self.prevplane == self.planes[j] )
-                    next_idx[j] = np.where(self.nextplane == self.planes[j] )
-
-                #now interpolate adiabatic ne on each toroidal plane for the points using it as previous or next plane.
-                for j in range(len(self.planes)):
-                    if(prev[prev_idx[j]].size != 0):
-                        prev[prev_idx[j]] = griddata(self.points,self.dne_ad[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'linear', fill_value = 0)
-                    if(next[next_idx[j]].size != 0):
-                        next[next_idx[j]] = griddata(self.points,self.dne_ad[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'linear', fill_value = 0)
-                # on_grid adiabatic ne is then calculated by linearly interpolating values between these two planes
             
-                self.dne_ad_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
-
-                if self.HaveElectron:
-                    #non-adiabatic ne data as well:
+            interp_positions = find_interp_positions_v2(self)
+    
+            for k in range(self.n_cross_section):
+                print 'center plane {0}.'.format(self.center_planes[k])
+                for i in range(len(self.time_steps)):
+                    print 'time step {0}'.format(self.time_steps[i])
+                    #for each time step, first create the 2 arrays of quantities for interpolation
+                    prev = np.zeros( (self.grid.NZ,self.grid.NY,self.grid.NX) )
+                    next = np.zeros(prev.shape)
+                
+                    #create index dictionary, for each key as plane number and value the corresponding indices where the plane is used as previous or next plane.
+                    prev_idx = {}
+                    next_idx = {}
                     for j in range(len(self.planes)):
-                        prev[prev_idx[j]] = griddata(self.points,self.nane[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
-                        next[next_idx[j]] = griddata(self.points,self.nane[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
-            
-                    self.nane_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
+                        prev_idx[j] = np.where(self.prevplane == self.planes[j] )
+                        next_idx[j] = np.where(self.nextplane == self.planes[j] )
+    
+                    #now interpolate adiabatic ne on each toroidal plane for the points using it as previous or next plane.
+                    for j in range(len(self.planes)):
+                        if(prev[prev_idx[j]].size != 0):
+                            prev[prev_idx[j]] = griddata(self.points,self.dne_ad[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'linear', fill_value = 0)
+                        if(next[next_idx[j]].size != 0):
+                            next[next_idx[j]] = griddata(self.points,self.dne_ad[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'linear', fill_value = 0)
+                    # on_grid adiabatic ne is then calculated by linearly interpolating values between these two planes
+                
+                    self.dne_ad_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
+    
+                    if self.HaveElectron:
+                        #non-adiabatic ne data as well:
+                        for j in range(len(self.planes)):
+                            prev[prev_idx[j]] = griddata(self.points,self.nane[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
+                            next[next_idx[j]] = griddata(self.points,self.nane[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
+                
+                        self.nane_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
 
 
     def interp_check(self, tol = 0.2, toroidal_cross = 0, time = 0):
@@ -1238,7 +1248,18 @@ class XGC_Loader():
             bpol[:,:] = bp[:,:]
         else:
             bpol[:,:] = np.zeros_like(bp)
-        bpol.units = 'Tesla'       
+        bpol.units = 'Tesla'  
+        
+        b_r = f.createVariable('b_r','d',('nz','nr'))
+        b_r[:,:] = self.BX_on_grid[:,:]
+        
+        b_phi = f.createVariable('b_phi','d',('nz','nr'))
+        b_phi[:,:] = -self.BZ_on_grid[:,:]
+        
+        b_z = f.createVariable('b_z','d',('nz','nr'))
+        b_z[:,:] = self.BY_on_grid[:,:]
+        
+        
         
         ne = f.createVariable('ne','d',('nz','nr'))
         ne[:,:] = self.ne0_on_grid[:,:]
@@ -1254,31 +1275,31 @@ class XGC_Loader():
         
         f.close()
 
-        
-        file_start = output_path + flucfilehead
-        for j in range(self.n_cross_section):
-            for i in range(len(self.time_steps)):
-                fname = file_start + str(self.time_steps[i]) +'_'+ str(j)+ '.cdf'
-                f = nc.netcdf_file(fname,'w')
-                f.createDimension('nx',self.grid.NX)
-                f.createDimension('ny',self.grid.NY)
-                f.createDimension('nz',self.grid.NZ)
-
-                xx = f.createVariable('xx','d',('nx',))
-                xx[:] = self.grid.X1D[:]
-                yy = f.createVariable('yy','d',('ny',))
-                yy[:] = self.grid.Y1D[:]
-                zz = f.createVariable('zz','d',('nz',))
-                zz[:] = self.grid.Z1D[:]            
-                xx.units = yy.units = zz.units = 'm'
-            
-                dne = f.createVariable('dne','d',('nz','ny','nx'))
-                dne.units = 'm^-3'
-                if(not self.HaveElectron):
-                    dne[:,:,:] = self.dne_ad_on_grid[j,i,:,:,:]*self.dn_amplifier          
-                else:
-                    dne[:,:,:] = (self.dne_ad_on_grid[j,i,:,:,:] + self.nane_on_grid[j,i,:,:,:])*self.dn_amplifier
-                f.close()
+        if(not self.Equilibrium_Only):
+            file_start = output_path + flucfilehead
+            for j in range(self.n_cross_section):
+                for i in range(len(self.time_steps)):
+                    fname = file_start + str(self.time_steps[i]) +'_'+ str(j)+ '.cdf'
+                    f = nc.netcdf_file(fname,'w')
+                    f.createDimension('nx',self.grid.NX)
+                    f.createDimension('ny',self.grid.NY)
+                    f.createDimension('nz',self.grid.NZ)
+    
+                    xx = f.createVariable('xx','d',('nx',))
+                    xx[:] = self.grid.X1D[:]
+                    yy = f.createVariable('yy','d',('ny',))
+                    yy[:] = self.grid.Y1D[:]
+                    zz = f.createVariable('zz','d',('nz',))
+                    zz[:] = self.grid.Z1D[:]            
+                    xx.units = yy.units = zz.units = 'm'
+                
+                    dne = f.createVariable('dne','d',('nz','ny','nx'))
+                    dne.units = 'm^-3'
+                    if(not self.HaveElectron):
+                        dne[:,:,:] = self.dne_ad_on_grid[j,i,:,:,:]*self.dn_amplifier          
+                    else:
+                        dne[:,:,:] = (self.dne_ad_on_grid[j,i,:,:,:] + self.nane_on_grid[j,i,:,:,:])*self.dn_amplifier
+                    f.close()
     
         
 

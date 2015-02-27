@@ -45,3 +45,49 @@ def linear_3d_3point(X,Y,Z,x,y,tol = 1e-8):
     print d, d-Nx*x-Ny*y
 
     return (d - Nx*x - Ny*y)/float(Nz)*z0
+
+
+def trilinear_interp_1pt(X,Y,Z,F,x):
+    """ Trilinear interpolation (3D) for 1 point on a cubic mesh
+    See Wikipedia for a better description than the following:
+    First choose a direction and interpolate all the corners along this 
+    direction (so 8pts -> 4pts) at the value of the wanted point.
+    Choose a second direction and interpolate the 4pts at the wanted point
+    (4pts -> 2pts).
+    Finish with the interpolation along the last line
+    
+    Arguments:
+    X  -- 1D array containing the X coordinate of F
+    Y  -- 1D array containing the Y coordinate of F
+    Z  -- 1D array containing the Z coordinate of F
+    F  -- 3D array containing the data
+    x  -- position (3D) where the interpolation 
+
+    return value:
+    interpolated z value on given (x,y)
+    """
+
+    # First find the x,y,z coordinate of the corner of the cube
+    indx = max(max(np.where(X <= x[0])))
+    indy = max(max(np.where(Y <= x[1])))
+    indz = max(max(np.where(Z <= x[2])))
+
+    # relative coordinates
+    rx = (x[0]-X[indx])/(X[indx+1]-X[indx])
+    ry = (x[1]-Y[indy])/(Y[indy+1]-Y[indy])
+    rz = (x[2]-Z[indz])/(Z[indz+1]-Z[indz])
+
+    # compute the first linear interpolation
+    temp = 1-rx
+    c00 = F[indx,indy,indz]*temp + F[indx+1,indy,indz]*rx
+    c10 = F[indx,indy+1,indz]*temp + F[indx+1,indy+1,indz]*rx
+    c01 = F[indx,indy,indz+1]*temp + F[indx+1,indy,indz+1]*rx
+    c11 = F[indx,indy+1,indz+1]*temp + F[indx+1,indy+1,indz+1]*rx
+
+    # compute the second linear interpolation
+    temp = 1-ry
+    c0 = c00*temp + c10*ry
+    c1 = c01*temp + c11*ry
+
+    # compute the last linear interpolation
+    return c0*(1-rz) + c1*rz

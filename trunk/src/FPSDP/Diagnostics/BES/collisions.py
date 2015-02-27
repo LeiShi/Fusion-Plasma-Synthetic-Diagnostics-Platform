@@ -61,6 +61,8 @@ class Collisions:
         #interpolation over the temperature
         tck = interpolate.splrep(T,coef_T/coef_T[index])
         coef = coef * interpolate.splev(temperature,tck)
+        if coef <= 0:
+            raise NameError('Attenuation coefficient smaller than 0')
         return coef
 
     def get_Tref(self,file_number):

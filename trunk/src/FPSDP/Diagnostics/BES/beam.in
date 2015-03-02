@@ -1,0 +1,36 @@
+# For double input, put .0 for assuring that the data is read as
+# double
+
+[Beam geometry]
+# position of the beam (X,Y,Z) (in meters)
+position = [1.31,-0.29,0]
+# ending point of the beam (X,Y,Z) (will be normalized)
+direction = [1.0,1.0,0]
+# standard deviation of the beam (in meter)
+std_dev = 0.5
+# number of points for the discretization along the beam direction
+# the ending point is computed with the help of the mesh
+# (the beam line goes from the position until the end of the mesh)
+Nz = 256
+
+
+[Beam energy]
+# total power of the beam (in W)
+power = 1.2e6
+# fraction of power between the different beam components (in percent)
+f = [77,17.0,6.0]
+# Energy of the different components (keV)
+E = [75.0,37.5,25.0]
+# mass of each components of the beam
+mass_b = [1.0,2.0,3.0]
+
+[Collisions]
+# ADAS files (separated by ,)
+adas_file =  ["bms98#h_fast_h1.dat" , "bms93#h_he2.dat", "bms93#h_he2.dat"]
+# collision considered (index start to 0)
+# first index is for a file (in adas_file) and second is
+# for the beam component
+collisions = [[0,0], [1,0], [1,1]]
+
+# lifetime of the excited state (same order than file)
+lifetimes = [1.2e-9, 1.6e-9, 1.3e-9]

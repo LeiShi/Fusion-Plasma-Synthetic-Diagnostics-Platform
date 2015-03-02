@@ -31,6 +31,20 @@ class Beam_ADAS_File:
     """ Class containing all the data from one ADAS file
         Use a cubic spline for the interpolation
         Is used for the collisions
+
+       Attributs:
+    
+       n_b         -- number of beam energies in the first table
+       n_density   -- number of densities in the first table
+       T_ref       -- reference temperature of the first table
+       adas_beam   -- beam energies of the first table (1D array)
+       densities   -- densities of the first table (1D array)
+       coef_dens   -- first table (2D array)
+       n_T         -- number of temperature for the second table
+       E_ref       -- reference beam energy for the second table
+       dens_ref    -- reference density for the second table
+       temperature -- temperatures for the second table (1D array)
+       coef_T      -- second table (1D array)
     """
     def __init__(self,name):
         """ Read the file and store everything as attributes
@@ -67,7 +81,7 @@ class Beam_ADAS_File:
         # contains the coefficients as a function of densities and the beam
         # energies
         self.coef_dens = np.zeros((self.n_density,self.n_b))
-        # coeff_dens[i,j] -- i for beam, j for densities                #!
+        # coef_dens[i,j] -- i for beam, j for densities                #!
 
         for j in range(self.n_density):
             i = read_block(data,i,self.coef_dens[j],self.n_b)
@@ -80,7 +94,7 @@ class Beam_ADAS_File:
         # reference energy
         self.E_ref = float(temp[1].split('=')[1])                       #!
         # reference density
-        self.rho_ref = float(temp[2].split('=')[1])                     #!
+        self.dens_ref = float(temp[2].split('=')[1])                     #!
         
         i += 2 # goes to next line, and remove line with ----
         

@@ -7,6 +7,29 @@ class Collisions:
     """ Class containing all the physics about the collisions
         Read the files from ADAS database, compute the lifetiime, and compute
         the cross-sections (cubic spline interpolation is used)
+
+        Methods:
+
+          read_adas()     --  load the data from the ADAS file
+          get_attenutation(beam,density,temperature,file_number)
+                          --  gives the attenuation coefficient
+          
+    
+          Access data in ADAS file:
+            get_Tref(file_number)             --  reference temperature
+            get_coef_density(file_number)     --  first table
+            get_coef_T(file_number)           --  second table  
+            get_list_temperature(file_number) --  list temperatures
+            get_list_density(file_number)     --  list densities
+            get_list_beams(self,file_number)  --  list beams
+
+        Attributes:
+    
+        files      -- list of ADAS files
+        lifetimes  -- list with the lifetime of the excited states
+        beam_data  -- list of the beams
+        
+      
     """
 
     def __init__(self,files,lifetimes):
@@ -19,9 +42,9 @@ class Collisions:
             lifetime    -- list of the lifetime of the excited states (same 
                            order than the other lists)
         """
-        self.files = files
-        self.lifetimes = lifetimes
-        self.beam_data = []
+        self.files = files                                                   #!
+        self.lifetimes = lifetimes                                           #!
+        self.beam_data = []                                                  #!
         self.read_adas()
         
     def read_adas(self):

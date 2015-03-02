@@ -252,7 +252,8 @@ class XGC_Loader():
     """Loader for a given set of XGC output files
     """
 
-    def __init__(self,xgc_path,grid,t_start,t_end,dt,dn_amplifier = 1.0, n_cross_section = 1,equilibrium_mesh = '2D',Equilibrium_Only = False,Full_Load = True, Fluc_Only = True):
+    def __init__(self,xgc_path,grid,t_start,t_end,dt,dn_amplifier = 1.0, n_cross_section = 1,equilibrium_mesh = '2D',Equilibrium_Only = False,Full_Load = True, Fluc_Only = True,
+                 load_ions = False):
         """The main caller of all functions to prepare a loaded XGC profile.
 
         Inputs:
@@ -275,6 +276,7 @@ class XGC_Loader():
         self.time_steps = np.arange(t_start,t_end+1,dt)
         self.grid = grid
         self.dn_amplifier = dn_amplifier #
+        self.load_ions = load_ions #
         self.n_cross_section = n_cross_section
         self.unit_file = xgc_path+'units.m'
         self.te_input_file = xgc_path+'te_input.in'
@@ -537,6 +539,10 @@ class XGC_Loader():
         if(self.HaveElectron):
             self.nane = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.mesh['R'])) )
             self.nane_bar = np.zeros((len(self.time_steps)))
+        if(self.load_ions):
+            self.nani = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.mesh['R'])) )
+            self.nani_bar = np.zeros((len(self.time_steps)))
+            
         self.phi = np.zeros((self.n_cross_section,len(self.time_steps),len(self.mesh['R'])))
         self.phi_bar = np.zeros((len(self.time_steps)))
         for i in range(len(self.time_steps)):
@@ -550,6 +556,8 @@ class XGC_Loader():
             self.phi_bar[i] = np.mean(fluc_mesh['dpot'][...])                
             if(self.HaveElectron):
                 self.nane_bar[i] = np.mean(fluc_mesh['eden'][...])
+            if(self.load_ions):
+                self.nani_bar[i] = np.mean(fluc_mesh['iden'][...])
             for j in range(self.n_cross_section):
                 self.phi[j,i] += np.swapaxes(fluc_mesh['dpot'][...][:,self.planes[j]],0,1)
                 self.phi[j,i] -= self.phi_bar[i]
@@ -557,6 +565,9 @@ class XGC_Loader():
                 if(self.HaveElectron):
                     self.nane[j,i] += np.swapaxes(fluc_mesh['eden'][...][:,self.planes[j]],0,1)
                     self.nane[j,i] -= self.nane_bar[i]
+                if(self.load_ions):
+                    self.nani[j,i] += np.swapaxes(fluc_mesh['iden'][...][:,self.planes[j]],0,1)
+                    self.nani[j,i] -= self.nani_bar[i]
             fluc_mesh.close()
 
 
@@ -586,6 +597,9 @@ class XGC_Loader():
         if(self.HaveElectron):
             self.nane = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.mesh['R'])))
             nane_all = np.zeros( (self.n_plane, len(self.time_steps), len(self.mesh['R']) ) )
+        if(self.load_ions):
+            self.nani = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.mesh['R'])))
+            nani_all = np.zeros( (self.n_plane, len(self.time_steps), len(self.mesh['R']) ) )
         self.phi = np.zeros((self.n_cross_section,len(self.time_steps),len(self.mesh['R'])))
         phi_all = np.zeros((self.n_plane,len(self.time_steps),len(self.mesh['R'])))
 
@@ -594,6 +608,8 @@ class XGC_Loader():
             phi_all[j,0] += np.swapaxes(fluc_mesh['dpot'][...][:,j],0,1)
             if(self.HaveElectron):
                 nane_all[j,0] += np.swapaxes(fluc_mesh['eden'][...][:,j],0,1)
+            if(self.load_ions):
+                nani_all[j,0] += np.swapaxes(fluc_mesh['iden'][...][:,j],0,1)
         fluc_mesh.close()
         
         for i in range(1,len(self.time_steps)):
@@ -605,6 +621,8 @@ class XGC_Loader():
                 phi_all[j,i] += np.swapaxes(fluc_mesh['dpot'][...][:,j],0,1)
                 if(self.HaveElectron):
                     nane_all[j,i] += np.swapaxes(fluc_mesh['eden'][...][:,j],0,1)
+                if(self.load_ions):
+                    nani_all[j,i] += np.swapaxes(fluc_mesh['iden'][...][:,j],0,1)
             fluc_mesh.close()
 
 
@@ -619,16 +637,23 @@ class XGC_Loader():
         phi_avg_tor = np.average(phi_all,axis = 0)
         if(self.HaveElectron):
             nane_avg_tor = np.average(nane_all,axis=0)
+        if(self.load_ions):
+            nani_avg_tor = np.average(nani_all,axis=0)
         for j in range(self.n_cross_section):
             self.phi[j,:,:] = phi_all[self.planes[j],:,:] - phi_avg_tor[:,:]
             if(self.HaveElectron):
                 self.nane[j,:,:] = nane_all[self.planes[j],:,:] - nane_avg_tor[:,:]
+            if(self.load_ions):
+                self.nani[j,:,:] = nani_all[self.planes[j],:,:] - nani_avg_tor[:,:]
 
         # then, we add the averaged relaxation modification to the input equilibrium
 
         self.ne0[:] += np.average(phi_avg_tor,axis = 0)
         if(self.HaveElectron):
             self.ne0[:] += np.average(nane_avg_tor,axis = 0)
+        self.ni0[:] += np.average(phi_avg_tor,axis = 0)
+        if(self.load_ions):
+            self.ni0[:] += np.average(nani_avg_tor,axis = 0)
         
         
         return 0
@@ -649,6 +674,11 @@ class XGC_Loader():
         if(self.HaveElectron):
             self.nane = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.planes),len(self.mesh['R'])) )
             self.nane_bar = np.zeros((len(self.time_steps)))
+
+        if(self.load_ions):
+            self.nani = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.planes),len(self.mesh['R'])) )
+            self.nani_bar = np.zeros((len(self.time_steps)))
+
         self.phi = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.planes),len(self.mesh['R'])) )
         self.phi_bar = np.zeros((len(self.time_steps)))
         for i in range(len(self.time_steps)):
@@ -663,12 +693,18 @@ class XGC_Loader():
             self.phi_bar[i] = np.mean(fluc_mesh['dpot'][...])
             if (self.HaveElectron):
                 self.nane_bar[i] = np.mean(fluc_mesh['eden'][...])
+            if (self.load_ions):
+                self.nani_bar[i] = np.mean(fluc_mesh['iden'][...])
+                
             for j in range(self.n_cross_section):
                 self.phi[j,i] += np.swapaxes(fluc_mesh['dpot'][...][:,(self.center_planes[j] + self.planes)%self.n_plane],0,1)
                 self.phi[j,i] -= self.phi_bar[i]
                 if(self.HaveElectron):
                     self.nane[j,i] += np.swapaxes(fluc_mesh['eden'][...][:,(self.center_planes[j] + self.planes)%self.n_plane],0,1)
                     self.nane[j,i] -= self.nane_bar[i]
+                if(self.load_ions):
+                    self.nani[j,i] += np.swapaxes(fluc_mesh['iden'][...][:,(self.center_planes[j] + self.planes)%self.n_plane],0,1)
+                    self.nani[j,i] -= self.nani_bar[i]
             fluc_mesh.close()
             
         return 0
@@ -696,6 +732,9 @@ class XGC_Loader():
         if(self.HaveElectron):
             self.nane = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.planes),len(self.mesh['R'])) )
             nane_all = np.zeros((self.n_plane,len(self.time_steps),len(self.mesh['R'])))
+        if(self.load_ions):
+            self.nani = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.planes),len(self.mesh['R'])) )
+            nani_all = np.zeros((self.n_plane,len(self.time_steps),len(self.mesh['R'])))
         self.phi = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.planes),len(self.mesh['R'])) )
         phi_all = np.zeros((self.n_plane,len(self.time_steps),len(self.mesh['R'])))
 
@@ -707,6 +746,8 @@ class XGC_Loader():
                 phi_all[j,i] += np.swapaxes(fluc_mesh['dpot'][...][:,j],0,1)
                 if(self.HaveElectron):
                     nane_all[j,i] += np.swapaxes(fluc_mesh['eden'][...][:,j],0,1)
+                if(self.load_ions):
+                    nani_all[j,i] += np.swapaxes(fluc_mesh['iden'][...][:,j],0,1)
             fluc_mesh.close()
 
 
@@ -715,15 +756,22 @@ class XGC_Loader():
         phi_avg_tor = np.average(phi_all,axis = 0)
         if self.HaveElectron:
             nane_avg_tor = np.average(nane_all,axis=0)
+        if self.load_ions:
+            nani_avg_tor = np.average(nani_all,axis=0)
 
         for j in range(self.n_cross_section):
             self.phi[j,...] = np.swapaxes(phi_all[(self.center_planes[j] + self.planes)%self.n_plane,:,:],0,1) - phi_avg_tor[:,np.newaxis,:]
             if self.HaveElectron:
                 self.nane[j,...] = np.swapaxes(nane_all[(self.center_planes[j] + self.planes)%self.n_plane,:,:],0,1) - nane_avg_tor[:,np.newaxis,:]
+            if self.load_ions:
+                self.nani[j,...] = np.swapaxes(nani_all[(self.center_planes[j] + self.planes)%self.n_plane,:,:],0,1) - nani_avg_tor[:,np.newaxis,:]
 
         self.ne0[:] += np.average(phi_avg_tor,axis=0)
         if self.HaveElectron:
             self.ne0[:] += np.average(nane_avg_tor,axis=0)
+        self.ni0[:] += np.average(phi_avg_tor,axis=0)
+        if self.load_ions:
+            self.ni0[:] += np.average(nani_avg_tor,axis=0)
             
         return 0
     
@@ -739,7 +787,10 @@ class XGC_Loader():
         eq_psi = eq_psi.flatten()[0:n_psi] #pick up the first n psi values.
 
         eq_ti = eq_mesh['i_perp_temperature_1d'][0,:]
+        eq_ni = eq_mesh['i_gc_density_1d'][0,:]
+        ni_min = np.min(eq_ni)
         self.ti0_sp = interp1d(eq_psi,eq_ti,bounds_error = False,fill_value = 0)
+        self.ni0_sp = interp1d(eq_psi,eq_ni,bounds_error = False,fill_value = ni_min/10)
         if('e_perp_temperature_1d' in eq_mesh.keys() ):
             #simulation has electron dynamics
             self.HaveElectron = True
@@ -757,6 +808,9 @@ class XGC_Loader():
         
         self.te0 = self.te0_sp(self.psi)
         self.ne0 = self.ne0_sp(self.psi)
+
+        self.ti0 = self.ti0_sp(self.psi)
+        self.ni0 = self.ni0_sp(self.psi)
 
     def load_eq_tene_nonElectronRun(self):
         """For ion only silumations, te and ne are read from simulation input files.
@@ -781,7 +835,7 @@ class XGC_Loader():
         
 
     def calc_total_ne_2D3D(self):
-        """calculate the total electron density in raw XGC grid points
+        """calculate the total electron and ion density in raw XGC grid points
         """
         ne0 = self.ne0
         te0 = self.te0
@@ -796,6 +850,20 @@ class XGC_Loader():
         if(self.HaveElectron):
             na_valid_idx = np.where(np.absolute(self.nane)<= np.absolute(self.ne))
             self.ne[na_valid_idx] += self.nane[na_valid_idx]*self.dn_amplifier
+
+        ni0 = self.ni0
+        ti0 = self.ti0
+        inner_idx = np.where(ti0>0)[0]
+        self.dni_ad = np.zeros(self.phi.shape)
+        self.dni_ad[...,inner_idx] += ni0[inner_idx] * self.phi[...,inner_idx] /self.ti0[inner_idx]
+        ad_valid_idx = np.where(np.absolute(self.dni_ad)<= np.absolute(ni0))
+
+        self.ni = np.zeros(self.dni_ad.shape)
+        self.ni += ni0[:]
+        self.ni[ad_valid_idx] += self.dni_ad[ad_valid_idx]*self.dn_amplifier
+        if(self.load_ions):
+            na_valid_idx = np.where(np.absolute(self.nani)<= np.absolute(self.ni))
+            self.ni[na_valid_idx] += self.nani[na_valid_idx]*self.dn_amplifier
 
     def interpolate_all_on_grid_2D(self):
         """ create all interpolated quantities on given grid.
@@ -815,12 +883,18 @@ class XGC_Loader():
         
         #total ne and fluctuations
         self.ne_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),R2D.shape[0],R2D.shape[1]))
+        self.ni_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),R2D.shape[0],R2D.shape[1]))
+        
         self.phi_on_grid = np.zeros(self.ne_on_grid.shape)
         self.dne_ad_on_grid = np.zeros(self.ne_on_grid.shape)
+        self.dni_ad_on_grid = np.zeros(self.ni_on_grid.shape)
         if self.HaveElectron:
             self.nane_on_grid = np.zeros(self.ne_on_grid.shape)
-
+        if self.load_ions:
+            self.nani_on_grid = np.zeros(self.ni_on_grid.shape)
+        
         self.ne0_on_grid = griddata(self.points,self.ne0[:],(Z2D,R2D),method = 'linear',fill_value = 0)
+        self.ni0_on_grid = griddata(self.points,self.ni0[:],(Z2D,R2D),method = 'linear',fill_value = 0)
 
         for i in range(self.ne.shape[0]):
             for j in range(self.ne.shape[1]):
@@ -830,6 +904,11 @@ class XGC_Loader():
                 self.dne_ad_on_grid[i,j,...] += griddata(self.points,self.dne_ad[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
                 if(self.HaveElectron):
                     self.nane_on_grid[i,j,...] += griddata(self.points,self.nane[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
+
+                self.ni_on_grid[i,j,...] += griddata(self.points,self.ni[i,j,:],(Z2D,R2D),method = 'linear', fill_value = 0)
+                self.dni_ad_on_grid[i,j,...] += griddata(self.points,self.dni_ad[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
+                if(self.load_ions):
+                    self.nani_on_grid[i,j,...] += griddata(self.points,self.nani[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
 
         self.interp_check() # after the interpolation, check if the perturbations are interpolated within a reasonable error
 
@@ -862,6 +941,7 @@ class XGC_Loader():
 
             #ne0 on grid
             self.ne0_on_grid = self.ne0_sp(self.psi_on_grid)
+            self.ni0_on_grid = self.ni0_sp(self.psi_on_grid)
         elif(self.equilibrium_mesh == '2D'):
             #interpolation on 2D mesh: (used in FWR3D, the FWR3D code will then rotate the whole equilibrium to get the values on 3D mesh.)
             x1D = self.grid.X1D
@@ -891,14 +971,18 @@ class XGC_Loader():
 
             #ne0 on grid
             self.ne0_on_grid = self.ne0_sp(self.psi_on_grid)            
+            self.ni0_on_grid = self.ni0_sp(self.psi_on_grid)            
         
         
         #ne fluctuations on 3D grid
         
         if(not self.Equilibrium_Only):
             self.dne_ad_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),r3D.shape[0],r3D.shape[1],r3D.shape[2]))
+            self.dni_ad_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),r3D.shape[0],r3D.shape[1],r3D.shape[2]))
             if self.HaveElectron:
-                 self.nane_on_grid = np.zeros(self.dne_ad_on_grid.shape)
+                self.nane_on_grid = np.zeros(self.dne_ad_on_grid.shape)
+            if self.load_ions:
+                self.nani_on_grid = np.zeros(self.dni_ad_on_grid.shape)
     
             
             
@@ -928,6 +1012,7 @@ class XGC_Loader():
                     # on_grid adiabatic ne is then calculated by linearly interpolating values between these two planes
                 
                     self.dne_ad_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
+
     
                     if self.HaveElectron:
                         #non-adiabatic ne data as well:
@@ -936,6 +1021,31 @@ class XGC_Loader():
                             next[next_idx[j]] = griddata(self.points,self.nane[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
                 
                         self.nane_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
+
+                    """   NOW WE WORK WITH IONS   """
+                    
+                    #for each time step, first create the 2 arrays of quantities for interpolation
+                    prev = np.zeros( (self.grid.NZ,self.grid.NY,self.grid.NX) )
+                    next = np.zeros(prev.shape)
+                
+                    #now interpolate adiabatic ni on each toroidal plane for the points using it as previous or next plane.
+                    for j in range(len(self.planes)):
+                        if(prev[prev_idx[j]].size != 0):
+                            prev[prev_idx[j]] = griddata(self.points,self.dni_ad[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'linear', fill_value = 0)
+                        if(next[next_idx[j]].size != 0):
+                            next[next_idx[j]] = griddata(self.points,self.dni_ad[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'linear', fill_value = 0)
+                    # on_grid adiabatic ni is then calculated by linearly interpolating values between these two planes
+                
+                    self.dni_ad_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
+
+    
+                    if self.load_ions:
+                        #non-adiabatic ni data as well:
+                        for j in range(len(self.planes)):
+                            prev[prev_idx[j]] = griddata(self.points,self.nani[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
+                            next[next_idx[j]] = griddata(self.points,self.nani[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
+                
+                        self.nani_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
 
 
     def interp_check(self, tol = 0.2, toroidal_cross = 0, time = 0):
@@ -960,6 +1070,9 @@ class XGC_Loader():
             print "3D check is currently not available. The main difficulty is that the original data is on 2D plane, but the on grid data is on 3D mesh, which doesn't guarantee a X-Y slice to be correspondent to one original plane. This makes comparison between the interpolated data and the original data impractical. A new way to test the 3D interpolation is needed.\n Caution: NO interp_check done!"
             return
 
+        if(self.load_ions):
+            print "interp_check does not take in account the ions"
+            "for adding the ions, just copy the part about electrons and change all ne->ni, Te->Ti, ..."
         Rmin = self.grid.R1D[0]
         Rmax = self.grid.R1D[-1]
         Zmin = self.grid.Z1D[0]

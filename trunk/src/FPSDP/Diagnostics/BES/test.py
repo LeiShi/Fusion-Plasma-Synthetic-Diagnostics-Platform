@@ -26,11 +26,9 @@ class XGC:
         x,y,z = np.meshgrid(self.grid.X3D,self.grid.Y3D,self.grid.Z3D)
         xav = (self.grid.Xmax + self.grid.Xmin)/2.0
         yav = (self.grid.Ymax + self.grid.Ymin)/2.0
-        self.ne = np.exp(-(x-xav)**2/0.001 - (y-yav)**2/0.001 - z**2/0.01)
+        self.ne_on_grid = 1e19*np.exp(-(x-xav)**2/0.001 - (y-yav)**2/0.001 - z**2/0.01)
+        self.ni_on_grid = 1e19*np.exp(-(x-xav)**2/0.002 - (y-yav)**2/0.003 - z**2/0.005)
 
-files = ['bms98#h_fast_h1.dat']
-beams = [10e5]
-lifetimes = [1.6e-9]
 config_file = "beam.in"
 xgc = XGC()
 

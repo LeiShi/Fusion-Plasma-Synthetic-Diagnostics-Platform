@@ -28,7 +28,7 @@ def read_block(data,i,array,n):
 
 
 class Beam_ADAS_File:
-    """ Class containing all the data from one ADAS file
+    """ Class containing all the data from one ADAS file (adf21)
         Use a cubic spline for the interpolation
         Is used for the collisions
 

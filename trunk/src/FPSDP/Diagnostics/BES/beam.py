@@ -19,7 +19,7 @@ class Beam1D:
         self.timesteps = timesteps                                           #!
         config = psr.ConfigParser()
         config.read(self.cfg_file)
-
+        
         # load data for collisions
         adas_files = json.loads(config.get('Collisions','adas_file'))
         lifetimes = json.loads(config.get('Collisions','lifetimes'))
@@ -110,7 +110,8 @@ class Beam1D:
             pos  --  position (3D array) where to compute the density
         """
         return Fint.trilinear_interp_1pt(self.data.grid.X3D,self.data.grid.Y3D,
-                                         self.data.grid.Z3D,self.data.ne,pos)
+                                         self.data.grid.Z3D,
+                                         self.data.ne_on_grid,pos)
                                  
     def get_ion_density(self,pos):
         """ get the ion density (from the data) at pos
@@ -118,9 +119,11 @@ class Beam1D:
             Argument:
             pos  --  position (3D array) where to compute the density
         """
-        print "CHANGE FOR ION DENSITY"
+        # FOR ADDING MUTLIPLE IONS SPECIES CHANGE HERE [add an argument and see
+        # where it does not work, and after add the loop over element]
         return Fint.trilinear_interp_1pt(self.data.grid.X3D,self.data.grid.Y3D,
-                                         self.data.grid.Z3D,self.data.ne,pos)
+                                         self.data.grid.Z3D,
+                                         self.data.ni_on_grid,pos)
 
                     
     def compute_beam_on_mesh(self):

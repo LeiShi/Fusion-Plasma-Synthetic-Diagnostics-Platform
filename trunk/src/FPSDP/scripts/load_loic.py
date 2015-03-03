@@ -22,8 +22,11 @@ def load(full_load,fluc_only):
 
 xgc = load(True,False)
 
-print max(xgc.ne[0][0][:])
 
+print np.max(xgc.ti_on_grid)
+print np.min(xgc.ti_on_grid)
+print np.max(xgc.te_on_grid)
+print np.min(xgc.te_on_grid)
 if test == 0:
     plt.figure()
     plt.contourf(xgc.ni_on_grid[0][0][:][:])

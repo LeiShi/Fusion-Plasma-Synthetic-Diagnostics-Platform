@@ -4,9 +4,7 @@ import numpy as np
 import collisions as col
 import ConfigParser as psr
 import os,sys,inspect
-print 'REMOVE THIS'
-sys.path.insert(1, os.path.join(sys.path[0], '../..'))
-import Maths.Interpolation as Fint
+import FPSDP.Maths.Interpolation as Fint
 
 
 class Beam1D:

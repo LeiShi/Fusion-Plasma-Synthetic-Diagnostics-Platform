@@ -4,7 +4,28 @@ import numpy as np
 from beam import *
 import math
 
-class GRID:
+import FPSDP.Plasma.XGC_Profile.load_XGC_profile as xgc
+import FPSDP.Geometry.Grid as Grid
+import scipy.io as sio
+
+
+xgc_path = '/global/project/projectdirs/m499/jlang/particle_pinch/'
+
+grid3D = Grid.Cartesian3D(Xmin = 1.4,Xmax = 2.0,Ymin = -0.5, Ymax = 0.5, Zmin = -0.5, Zmax = 0.5, NX = 64,NY = 64,NZ = 32)
+
+
+time_start = 180
+time_end = 180
+time_step = 1
+
+def load(full_load,fluc_only):
+    xgc_ = xgc.XGC_Loader(xgc_path,grid3D,time_start,time_end,time_step,dn_amplifier = 1,n_cross_section = 1, Equilibrium_Only = False,Full_Load = full_load, Fluc_Only = fluc_only, load_ions=True)
+
+    return xgc_
+
+xgc_ = load(True,False)
+
+"""class GRID:
     def __init__(self,X=(1.3,1.6), Y=(-0.3,0.5), Z=(-0.5,0.5),NX=64,NY=64,NZ=32):
         self.Xmin = X[0]
         self.Ymin = Y[0]
@@ -30,11 +51,11 @@ class XGC:
         self.ni_on_grid = 1e19*np.exp(-(x-xav)**2/0.002 - (y-yav)**2/0.003 - z**2/0.005)
         self.ti_on_grid = 1e4*np.exp(-(x-xav)**2/0.0001 - (y-yav)**2/0.0002 - z**2/0.01)
         self.te_on_grid = 1e4*np.exp(-(x-xav)**2/0.002 - (y-yav)**2/0.002 - z**2/0.004)
+"""
+config_file = "FPSDP/Diagnostics/BES/beam.in"
+#xgc = XGC()
 
-config_file = "beam.in"
-xgc = XGC()
-
-b1d = Beam1D(config_file,1,xgc)
+b1d = Beam1D(config_file,1,xgc_)
 dl = np.sqrt(np.sum((b1d.get_mesh()-b1d.get_origin())**2,axis = 1))
 
 mp.plot(dl,b1d.density_beam[0,:],'kx')

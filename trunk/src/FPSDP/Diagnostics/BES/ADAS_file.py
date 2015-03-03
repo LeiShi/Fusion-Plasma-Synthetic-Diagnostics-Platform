@@ -60,6 +60,7 @@ class Beam_ADAS_File:
         temp = data[2].split()
         # number of different beams in the ADAS file
         self.n_b = int(temp[0])           #! (this sign indicates an attribute)
+        # change of unit
         # number of different densities for the target
         self.n_density = int(temp[1])                                   #!
         # reference temperature
@@ -76,6 +77,8 @@ class Beam_ADAS_File:
         # same as before but with the densities
         self.densities = np.zeros(self.n_density)                       #!
         i = read_block(data,i,self.densities,self.n_density)
+        # change of unit cm-3 -> m-3
+        self.densities *= 100**3
         i += 1 # remove line with ----
         
         # contains the coefficients as a function of densities and the beam
@@ -88,7 +91,9 @@ class Beam_ADAS_File:
             
             
         i += 1 # remove line with ----
-            
+        # change of unit cm -> m
+        self.coef_dens /= 100**3
+        
         temp = data[i].split()
         self.n_T = int(temp[0]) # number of different temperature       #!
         # reference energy
@@ -107,4 +112,7 @@ class Beam_ADAS_File:
         # read the coefficients as a function of the temperature
         self.coef_T = np.zeros(self.n_T)                                #!
         i = read_block(data,i,self.coef_T,self.n_T)
+
+        # change of unit
+        self.coef_T /= 100**3
         # END OF READING

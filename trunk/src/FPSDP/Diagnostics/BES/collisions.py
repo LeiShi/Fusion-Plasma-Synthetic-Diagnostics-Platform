@@ -53,13 +53,14 @@ class Collisions:
         for name in self.files:
             self.beam_data.append(adas.Beam_ADAS_File(name))
 
-    def get_attenutation(self,beam,density,temperature,file_number):
+    def get_attenutation(self,beam,density,mass_b,temperature,file_number):
         """ get the attenuation value for a given density, beam energy, and
             temperature
 
             Arguments:
             beam        -- beam energy wanted
             density     -- ion (in plasma) density wanted
+            mass_b      -- mass of an atom (of the beam in amu)
             temperature -- temperature wanted (default = -1)
                            if value == -1, the temperature of the ADAS file
                            is used
@@ -67,7 +68,7 @@ class Collisions:
         """
         # get data
         ldensities = self.get_list_density(file_number)
-        lbeams = self.get_list_beams(file_number)
+        lbeams = self.get_list_beams(mass_b,file_number)
         coef_dens = self.get_coef_density(file_number)
         lbeams, ldens = np.meshgrid(lbeams, ldensities)
         
@@ -113,6 +114,9 @@ class Collisions:
         """ return the list of densities given by ADAS"""
         return self.beam_data[file_number].densities
 
-    def get_list_beams(self,file_number):
-        """ return the list of beams given by ADAS"""
-        return self.beam_data[file_number].adas_beam
+    def get_list_beams(self,mass_b,file_number):
+        """ return the list of beams given by ADAS
+            multiply by the mass of the beam atoms due to ADAS
+        """
+        # multiply by the mass due to ADAS
+        return mass_b*self.beam_data[file_number].adas_beam

@@ -28,15 +28,18 @@ class XGC:
         yav = (self.grid.Ymax + self.grid.Ymin)/2.0
         self.ne_on_grid = 1e19*np.exp(-(x-xav)**2/0.001 - (y-yav)**2/0.001 - z**2/0.01)
         self.ni_on_grid = 1e19*np.exp(-(x-xav)**2/0.002 - (y-yav)**2/0.003 - z**2/0.005)
+        self.ti_on_grid = 1e4*np.exp(-(x-xav)**2/0.0001 - (y-yav)**2/0.0002 - z**2/0.01)
+        self.te_on_grid = 1e4*np.exp(-(x-xav)**2/0.002 - (y-yav)**2/0.002 - z**2/0.004)
 
 config_file = "beam.in"
 xgc = XGC()
 
 b1d = Beam1D(config_file,1,xgc)
+dl = np.sqrt(np.sum((b1d.get_mesh()-b1d.get_origin())**2,axis = 1))
 
-mp.plot(b1d.density_beam[0,:],'kx')
-mp.plot(b1d.density_beam[1,:],'bx')
-mp.plot(b1d.density_beam[2,:],'rx')
+mp.plot(dl,b1d.density_beam[0,:],'kx')
+mp.plot(dl,b1d.density_beam[1,:],'bx')
+mp.plot(dl,b1d.density_beam[2,:],'rx')
 
 mp.show()
 """

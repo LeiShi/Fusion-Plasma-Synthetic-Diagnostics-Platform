@@ -35,7 +35,7 @@ extern REAL findMin(int n,REAL data[]);
 
 // --- local function declarations
 int fluc_info_file();
-int get_fluctuations(int npts,size_t nTimeSteps,int* ntoroidal,REAL phi[],REAL te[],REAL ne[], REAL a[],REAL theta[],REAL zeta[],int timeSteps[],int flag[],int toroidal_startnum);
+int get_fluctuations(int npts,size_t nTimeSteps,int* ntoroidal,REAL phi[],REAL ne[],REAL te[], REAL a[],REAL theta[],REAL zeta[],int timeSteps[],int flag[],int toroidal_startnum);
 int total_fluctuations(int npts,size_t nTimeSteps,REAL ne_tilde[],REAL ne0[],REAL phi[],int* flag);
 int interpolateTorPolPsi(int npts,REAL phi[npts],REAL a[npts],int ntoroidal,int mgrid,
 			 REAL **potential,REAL deltazeta[npts][N_NEAREST_TOROIDAL],
@@ -103,7 +103,7 @@ int get_fluctuations(int npts,size_t nTimeSteps,int* ntoroidal_out,REAL phi[], R
 
 
 //#if VERBOSE
-  fprintf(stderr,"Number of fluctuation time steps:%d, using time step:%d to %d every %d\n",nsteps,timeSteps[0],timeSteps[nTimeSteps-1]);
+  fprintf(stderr,"Number of fluctuation time steps:%d, using time step:%d to %d every %d.\n",nsteps,timeSteps[0],timeSteps[nTimeSteps-1],timeSteps[1]-timeSteps[0]);
 //#endif
   // unpack the integer array
   int mpsi = phi_ints[2];	// igrid,mtheta,itran,qtinv,deltat,vth_grid have mpsi elements

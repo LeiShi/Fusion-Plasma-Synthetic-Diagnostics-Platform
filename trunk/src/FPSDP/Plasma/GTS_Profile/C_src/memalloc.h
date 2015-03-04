@@ -43,6 +43,9 @@ void *xmalloc(size_t size){
   return value;
 }
 
+void xfree(void* p){
+  PyMem_Free(p);
+}
 //! Allocates a contiguous block of memory for a 2d array
 /*! Access using either: ptr[npages][nrows][ncols]
      or ptr[i*nrows*ncols + j*ncols + k]

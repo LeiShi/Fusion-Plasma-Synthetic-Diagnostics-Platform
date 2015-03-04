@@ -96,9 +96,10 @@ class GTS_Loader:
         """load fluctuations on grid using C_function
         Create variables:
         equilibrium quantities:
-            ne0_on_grid: double ndarray (nz,ny,nx), equilibrium electron density.
-            Te0_on_grid: double ndarray (nz,ny,nx), equilibrium electron temperature.
-            Bt_on_grid,Bp_on_grid: double ndarray (nz,ny,nx), equilibrium toroidal and poloidal magnetic field.
+            ne0_on_grid: double ndarray (1,ny,nx), equilibrium electron density.
+            Te0_on_grid: double ndarray (1,ny,nx), equilibrium electron temperature.
+            Bt_on_grid,Bp_on_grid,BR_on_grid,BZ_on_grid: double ndarray (1,ny,nx), equilibrium toroidal and poloidal magnetic field, and R,Z component of Bpol.
+            
         fluctuations:
             dne_ad_on_grid: double ndarray (nt,nz,ny,nx), adiabatic electron density, calculated from fluctuating potential phi: dne_ad_on_grid/ne0_on_grid = e*phi/Te0_on_grid
             nane_on_grid : double ndarray (nt,nz,ny,nx), non-adiabatic electron density normalized to local equilibrium density, read from file. 
@@ -126,6 +127,8 @@ class GTS_Loader:
             self.Te0_2d = np.zeros((1,self.ny,self.nx))
             self.Bt_2d = np.zeros((1,self.ny,self.nx))
             self.Bp_2d = np.zeros((1,self.ny,self.nx))
+            self.BR_2d = np.zeros((1,self.ny,self.nx))
+            self.BZ_2d = np.zeros((1,self.ny,self.nx))
             mismatched_eq = np.zeros_like(self.x2d,dtype = 'int32')
             
             fluc_2d = np.zeros((self.nt,1,self.ny,self.nx))
@@ -144,7 +147,7 @@ class GTS_Loader:
                           GTSDataDir=self.gts_file_path)
             
             #one seperate 2D run to get all the equilibrium quantities
-            mmc.get_GTS_profiles_(self.x2d,self.y2d,z2d,self.ne0_2d,self.Te0_2d,self.Bt_2d,self.Bp_2d, fluc_2d,fluc_2d,fluc_2d,mismatched_eq,0)
+            mmc.get_GTS_profiles_(self.x2d,self.y2d,z2d,self.ne0_2d,self.Te0_2d,self.Bt_2d,self.Bp_2d, self.BR_2d, self.BZ_2d, fluc_2d,fluc_2d,fluc_2d,mismatched_eq,0)
 
             self._fill_mismatched_eq(mismatched_eq)
 
@@ -166,15 +169,17 @@ class GTS_Loader:
             self.Te0_on_grid = np.zeros_like(x3d)
             self.Bt_on_grid = np.zeros_like(x3d)
             self.Bp_on_grid = np.zeros_like(x3d)
+            self.BR_on_grid = np.zeros_like(x3d)
+            self.BZ_on_grid = np.zeros_like(x3d)
             self.mismatch = np.zeros_like(x3d,dtype = 'int32')
 
-            self.total_cross_section = mmc.get_GTS_profiles_(x3d,y3d,z3d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[0,...],self.nane_on_grid[0,...],self.nate_on_grid[0,...],self.mismatch, 0)
+            self.total_cross_section = mmc.get_GTS_profiles_(x3d,y3d,z3d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid,self.BR_on_grid,self.BZ_on_grid, self.dne_ad_on_grid[0,...],self.nane_on_grid[0,...],self.nate_on_grid[0,...],self.mismatch, 0)
             
             dcross = int(np.floor(self.total_cross_section / self.n_cross_section))
             self.center_cross_sections = np.arange(self.n_cross_section) * dcross
 
             for i in range(1,len(self.center_cross_sections)):
-                mmc.get_GTS_profiles_(x3d,y3d,z3d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[i,...],self.nane_on_grid[i,...],self.nate_on_grid[i,...],self.mismatch,self.center_cross_sections[i])
+                mmc.get_GTS_profiles_(x3d,y3d,z3d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid,self.BR_on_grid,self.BZ_on_grid, self.dne_ad_on_grid[i,...],self.nane_on_grid[i,...],self.nate_on_grid[i,...],self.mismatch,self.center_cross_sections[i])
         
             self._fill_mismatched(self.mismatch)
 
@@ -194,15 +199,17 @@ class GTS_Loader:
             self.Te0_on_grid = np.zeros((1,self.ny,self.nx))
             self.Bt_on_grid = np.zeros((1,self.ny,self.nx))
             self.Bp_on_grid = np.zeros((1,self.ny,self.nx))
+            self.BR_on_grid = np.zeros((1,self.ny,self.nx))
+            self.BZ_on_grid = np.zeros((1,self.ny,self.nx))
             self.mismatch = np.zeros_like(self.ne0_on_grid,dtype = 'int32')
         
-            self.total_cross_section = mmc.get_GTS_profiles_(x2d,y2d,z2d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[0,...],self.nane_on_grid[0,...],self.nate_on_grid[0,...],self.mismatch, 0)
+            self.total_cross_section = mmc.get_GTS_profiles_(x2d,y2d,z2d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid,self.BR_on_grid,self.BZ_on_grid, self.dne_ad_on_grid[0,...],self.nane_on_grid[0,...],self.nate_on_grid[0,...],self.mismatch, 0)
 
             dcross = int(np.floor(self.total_cross_section / self.n_cross_section))
             self.center_cross_sections = np.arange(self.n_cross_section) * dcross
 
             for i in range(1,len(self.center_cross_sections)):
-                mmc.get_GTS_profiles_(x2d,y2d,z2d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid, self.dne_ad_on_grid[i,...],self.nane_on_grid[i,...],self.nate_on_grid[i,...],self.mismatch,self.center_cross_sections[i])
+                mmc.get_GTS_profiles_(x2d,y2d,z2d,self.ne0_on_grid,self.Te0_on_grid,self.Bt_on_grid,self.Bp_on_grid,self.BR_on_grid,self.BZ_on_grid, self.dne_ad_on_grid[i,...],self.nane_on_grid[i,...],self.nate_on_grid[i,...],self.mismatch,self.center_cross_sections[i])
             t1 = clock() 
             self._fill_mismatched(self.mismatch)
             t2 = clock()
@@ -231,6 +238,8 @@ class GTS_Loader:
             self.Te0_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.Te0_on_grid[correct_idx])(points_want)
             self.Bt_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.Bt_on_grid[correct_idx])(points_want)
             self.Bp_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.Bp_on_grid[correct_idx])(points_want)
+            self.BR_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.BR_on_grid[correct_idx])(points_want)
+            self.BZ_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.BZ_on_grid[correct_idx])(points_want)
             for i in range(self.n_cross_section):
                 for j in range(self.nt):
                     self.dne_ad_on_grid[i,j][mismatch_idx] = NearestNDInterpolator(points,self.dne_ad_on_grid[i,j][correct_idx])(points_want)
@@ -250,6 +259,8 @@ class GTS_Loader:
             self.Te0_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.Te0_on_grid[correct_idx])(points_want)
             self.Bt_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.Bt_on_grid[correct_idx])(points_want)
             self.Bp_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.Bp_on_grid[correct_idx])(points_want)
+            self.BR_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.BR_on_grid[correct_idx])(points_want)
+            self.BZ_on_grid[mismatch_idx] = NearestNDInterpolator(points,self.BZ_on_grid[correct_idx])(points_want)
             for i in range(self.n_cross_section):
                 for j in range(self.nt):
                     self.dne_ad_on_grid[i,j][mismatch_idx] = NearestNDInterpolator(points,self.dne_ad_on_grid[i,j][correct_idx])(points_want)
@@ -277,7 +288,8 @@ class GTS_Loader:
         self.Te0_2d[mismatch_idx] = NearestNDInterpolator(points,self.Te0_2d[correct_idx])(points_want)
         self.Bt_2d[mismatch_idx] = NearestNDInterpolator(points,self.Bt_2d[correct_idx])(points_want)
         self.Bp_2d[mismatch_idx] = NearestNDInterpolator(points,self.Bp_2d[correct_idx])(points_want)
-        
+        self.BR_2d[mismatch_idx] = NearestNDInterpolator(points,self.BR_2d[correct_idx])(points_want)        
+        self.BZ_2d[mismatch_idx] = NearestNDInterpolator(points,self.BZ_2d[correct_idx])(points_want)
                 
 
     def cdf_output(self,output_path,eq_file = 'equilibrium.cdf',filehead = 'fluctuation', WithBp = True):
@@ -402,7 +414,21 @@ class GTS_Loader:
             bpol[:,:] = self.Bp_2d[0,:,:]
         else:
             bpol[:,:] = np.zeros_like(self.Bp_2d[0])
-        bpol.units = 'Tesla'       
+        bpol.units = 'Tesla'
+
+        br = f.createVariable('br','d',('nz','nr'))
+        if(WithBp):
+            br[:,:] = self.BR_2d[0,:,:]
+        else:
+            br[:,:] = np.zeros_like(self.BR_2d[0])
+        br.units = 'Tesla'
+
+        bz = f.createVariable('bz','d',('nz','nr'))
+        if(WithBp):
+            bz[:,:] = self.BZ_2d[0,:,:]
+        else:
+            bz[:,:] = np.zeros_like(self.BZ_2d[0])
+        bz.units = 'Tesla'        
         
         ne = f.createVariable('ne','d',('nz','nr'))
         ne[:,:] = self.ne0_2d[0,:,:]

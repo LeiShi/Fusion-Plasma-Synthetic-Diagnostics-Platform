@@ -12,6 +12,7 @@
 #include <gsl/gsl_vector.h>	// needed for 2-d root-finding
 #include <gsl/gsl_multiroots.h>
 #include <gsl/gsl_linalg.h>
+#include "eq_quantity.h"
 
 
 #ifndef REAL_TYPEDEF
@@ -69,14 +70,17 @@ int mesh3dGrid(REAL x3d[],REAL y3d[],REAL z3d[],REAL x1d[],REAL y1d[],REAL z1d[]
 int guessatheta(REAL a[],REAL theta[], REAL R[], REAL Z[],int n,REAL R0,REAL Z0);
 REAL error_amt(REAL R,REAL Z,REAL a,REAL theta);
 void print_state(size_t iter, gsl_multiroot_fsolver * s);
-int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[],REAL Zact[],REAL Bm[],REAL Rwant[], REAL Zwant[],int n,int flag[],int mismatch[]);
+int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[],REAL Zact[],REAL Bm[],REAL Rwant[], REAL Zwant[],int n,int flag[],int location[],int mismatch[]);
 int coord_f(const gsl_vector *x,void *params,gsl_vector *f);
-int getBoundaryPoints(double R_bdy[],double Z_bdy[],int n_bdy);
+int getBoundaryPoints(double** R_bdy,double** Z_bdy,int n_bdy);
+void free_BoundaryPoints(double* R_bdy,double* Z_bdy);
 
 int get_mag_axis(REAL coords[]);
 int decayNToutsideLCFS(int npts,REAL a[],REAL ne[],REAL Te[],REAL Ti[],int* flag);
-int getFluxCoords(int npts,REAL a[],REAL theta[],REAL Bm[],REAL Ract[],REAL Zact[],REAL Rinitial[],REAL Zinitial[],REAL Rwant[],REAL Zwant[],REAL mag_axis_coords[],int flag[], int mismatch[]);
-int getAllProfiles(int npts,REAL Bpol[],REAL Ti[],REAL Te[],REAL P[],REAL ne[],REAL qprofile[],REAL a[],REAL theta[],int InOutFlag[]);
+
+int getFluxCoords(int npts,REAL a[],REAL theta[],REAL Bm[],REAL Ract[],REAL Zact[],REAL Rinitial[],REAL Zinitial[],REAL Rwant[],REAL Zwant[],REAL mag_axis_coords[],int flag[],int location[], int mismatch[]);
+
+int getAllProfiles(int npts,REAL Bpol[],REAL BR[],REAL BZ[],REAL Ti[],REAL Te[],REAL P[],REAL ne[],REAL qprofile[],REAL a[],REAL theta[],REAL Rwant[],REAL Zwant[],REAL R_bdy[],REAL Z_bdy[],int InOutFlag[],int location[]);
 
 int getProfile(REAL a,REAL* ne,REAL* Ti,REAL* Te,REAL* a_p,REAL* n_p,REAL* Ti_p,REAL* Te_p,int n_prof );
 
@@ -589,13 +593,17 @@ void writeCDF(char* fname,int ntotal, double R[],double Z[],int n_bdy,double R_b
   
 }
 
-int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[], REAL Zact[],REAL Bm[],REAL Rwant[], REAL Zwant[],int n,int flag[], int mismatch[]){
-
+int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[], REAL Zact[],REAL Bm[], REAL Rwant[], REAL Zwant[],int n,int flag[],int location[], int mismatch[]){
+  // find correct a theta coordinates, for inside LCFS points, a theta are obtained by ESIrz2agq function, for outside points, a is assumed to be proportional to the distance from the magnetic axis, and theta is chosen as the same value as the corresponding boundary point. The corresponding boundary point is chosen to be the boundary point closest to the connecting line of magnetic axis and the desired location. 
+  // Note that in this function, magnetude of B, BR and BZ are also calculated. BR and BZ calculation is not trivial, look into the attached file "Calc_BR_BZ.txt" for more detailed discussion.
   // new version starts
 
   extern int NBOUNDARY;
-  double R_bdy[NBOUNDARY],Z_bdy[NBOUNDARY];
-  getBoundaryPoints(R_bdy,Z_bdy,NBOUNDARY);
+  extern double* R_bdy,*Z_bdy;
+  fprintf(stderr,"start findcorrecttheta.\n");
+  getBoundaryPoints(&R_bdy,&Z_bdy,NBOUNDARY);
+  fprintf(stderr,"after getBoundaryPoints.\n");
+  
   double b_axis;
   int single_point=1;
   double tol=1e-9;  //used in inner_check,when given point is near the bdy within tol distance, it's considered on the bdy.
@@ -629,9 +637,9 @@ int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[], REAL Zact[],REAL Bm[],R
   fprintf(errlog,"match_tol = %lf\n", match_tol);
   esigetrzb_(&mag_axis_coords[0],&mag_axis_coords[1],&b_axis,&zero,&zero,&single_point);
 
-
+  fprintf(stderr,"before inner_check.\n");
   inner_check(Rwant,Zwant,R_bdy,Z_bdy,flag,n,NBOUNDARY,tol);
- 
+  fprintf(stderr,"after before write CDF.\n");
   writeCDF(CDFfname,n,Rwant,Zwant,NBOUNDARY,R_bdy,Z_bdy,flag);
   int i;
 
@@ -642,6 +650,8 @@ int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[], REAL Zact[],REAL Bm[],R
   */
   int ierror;
   double b_tmp;
+
+  fprintf(stderr,"Start getting locations.\n");
   for(i=0;i<n;i++){
     if(flag[i]==1){
       //fprintf(stderr,"point %d mapping start,",i);
@@ -664,6 +674,7 @@ int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[], REAL Zact[],REAL Bm[],R
 	  theta[i]=0;
 	}
       }
+      location[i]=-1; // inside points do not need location information
     }
     else if(flag[i]==0){
       //      fprintf(stderr,"outter point.\n");
@@ -730,13 +741,13 @@ int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[], REAL Zact[],REAL Bm[],R
 
 	  sign_cur=theta_guess>=theta_bdy?1:-1;
 	  if(sign_ini*sign_cur<0){ //if passes the theta we want and is not on the opposite side, then we find the right boundary point
-	    loc=j;
+	    location[i]=j;
 	    break;
 	  }
 	  
 	}
       if(j==NBOUNDARY)
-	loc=0;
+	location[i]=0;
 
       Z_rel=Zwant[i]-mag_axis_coords[1];
       R_rel=Rwant[i]-mag_axis_coords[0];
@@ -751,6 +762,7 @@ int findcorrectatheta(REAL a[],REAL theta[],REAL Ract[], REAL Zact[],REAL Bm[],R
       exit(5);
     }   
   }
+  fprintf(stderr,"finish getting locations.\n");
   fclose(errlog);
   return 0;
 
@@ -919,17 +931,24 @@ old version ends*/
 
 //! Calculates the (R,Z) coordinates of the boundary of the last-closed-flux-surface
 /*! Assumes the LCFS is given by the macro ABOUNDARY (set to 1.0 by default) */
-int getBoundaryPoints(double R_bdy[],double Z_bdy[],int n_bdy){
+int getBoundaryPoints(double** R_bdy,double** Z_bdy,int n_bdy){
   double dtheta = 2*M_PI/(n_bdy-1);
   double a[n_bdy],theta[n_bdy],B_bdy[n_bdy];
+  *R_bdy = (double*)xmalloc(sizeof(double)*n_bdy);
+  *Z_bdy = (double*)xmalloc(sizeof(double)*n_bdy);
   int i,k;
   for(i=0;i<n_bdy;i++){
     theta[i] = dtheta*i;
     a[i] = ABOUNDARY;
   }
 
-  k=esigetrzb_(R_bdy,Z_bdy,B_bdy,a,theta,&n_bdy);
+  k=esigetrzb_(*R_bdy,*Z_bdy,B_bdy,a,theta,&n_bdy);
 
+}
+
+void free_BoundaryPoints(double* R_bdy,double* Z_bdy){
+  xfree(R_bdy);
+  xfree(Z_bdy);
 }
 
 
@@ -944,9 +963,9 @@ int get_mag_axis(REAL coords[]){
 
   // get the position of the magnetic axis
 
-  printf("before esigetrzb_\n");
+  //printf("before esigetrzb_\n");
   int k = esigetrzb_(&coords[0],&coords[1],&bm,&mag_axis,&mag_axis,&single_point);
-  printf("after esigetrzb_\n");
+  //printf("after esigetrzb_\n");
   return 0;
 }
 
@@ -1094,7 +1113,7 @@ int decayNToutsideLCFS(int npts,REAL a[],REAL ne[],REAL Te[],REAL Ti[],int* flag
     gives the initial guess (Rinitial,Zinitial), the flux coords (a,theta), and
     the actual (Ract,Zact) these flux coords map to.
  */
-int getFluxCoords(int npts,REAL a[],REAL theta[],REAL Bm[],REAL Ract[],REAL Zact[],REAL Rinitial[],REAL Zinitial[],REAL Rwant[],REAL Zwant[],REAL mag_axis_coords[],int flag[], int mismatch[]){
+int getFluxCoords(int npts,REAL a[],REAL theta[],REAL Bm[],REAL Ract[],REAL Zact[],REAL Rinitial[],REAL Zinitial[],REAL Rwant[],REAL Zwant[],REAL mag_axis_coords[],int flag[],int location[], int mismatch[]){
   // field-line coords: a: flux (radial), theta: angle (poloidal), Bm: |B|
   // (Rwant,Zwant): the R,Z coordinatew we want to map to
   // (Rinitial,Zinitial): the R,Z coords of our initial guess
@@ -1102,9 +1121,11 @@ int getFluxCoords(int npts,REAL a[],REAL theta[],REAL Bm[],REAL Ract[],REAL Zact
   int k;
   //  k = guessatheta(a,theta,Rwant,Zwant,npts,mag_axis_coords[0],mag_axis_coords[1]); // initial guess for the flux coords
   //  k = esigetrzb_(Rinitial,Zinitial,Bm,a,theta,&npts); // map to cylindrical coords
-  k = findcorrectatheta(a,theta,Ract,Zact,Bm,Rwant,Zwant,npts,flag,mismatch); // use esi provided interpolation to get flux coords
+  
+  fprintf(stderr, "before findcorrectatheta.\n");
+  k = findcorrectatheta(a,theta,Ract,Zact,Bm,Rwant,Zwant,npts,flag,location,mismatch); // use esi provided interpolation to get flux coords
 
-  return 0;
+  return k;
 }
 
 
@@ -1123,7 +1144,7 @@ int getProfile(REAL a,REAL* ne,REAL* Ti,REAL* Te,REAL* a_p,REAL* n_p,REAL* Ti_p,
 }
 
 
-int getAllProfiles(int npts,REAL Bpol[],REAL Ti[],REAL Te[],REAL P[],REAL ne[],REAL qprofile[],REAL a[],REAL theta[],int InOutFlag[]){
+int getAllProfiles(int npts,REAL Bpol[], REAL BR[],REAL BZ[] ,REAL Ti[],REAL Te[],REAL P[],REAL ne[],REAL qprofile[],REAL a[],REAL theta[], REAL Rwant[], REAL Zwant[],REAL R_bdy[],REAL Z_bdy[],int InOutFlag[], int location[]){
   // used by esilink2c and esiget2dfunctions
   REAL *F = (REAL *)PyMem_Malloc(npts*sizeof(REAL));
   REAL *Fa = (REAL *)PyMem_Malloc(npts*sizeof(REAL));
@@ -1172,7 +1193,6 @@ int getAllProfiles(int npts,REAL Bpol[],REAL Ti[],REAL Te[],REAL P[],REAL ne[],R
 
   // get density and temperature profiles 
   for(i=0;i<npts;i++){
-
     if(InOutFlag[i]==1){
       getProfile(a[i],&ne[i],&Ti[i],&Te[i],*a_p,*n_p,*Ti_p,*Te_p,**n_prof);
       Ti[i] *= 100;
@@ -1184,28 +1204,119 @@ int getAllProfiles(int npts,REAL Bpol[],REAL Ti[],REAL Te[],REAL P[],REAL ne[],R
       Ti[i]=0;
       Te[i]=0;
     }
-
-    /* Old version of getting profiles
-// need to call Fortran functions
-    this_a = MINIMUM(a[i],ABOUNDARY); // in order to keep from erroring out on rh4
-    //this_a = a[i]; // in order to keep from erroring out on rh4
-    Ti[i] = temperature_(&this_a,&theta[i])*NORM_TO_KEV;
-    ne[i] = density_(&this_a,&theta[i])*INVCM3_TO_INVM3;
-    Te[i] = temperature_e_(&this_a,&theta[i])*NORM_TO_KEV;	// use this instead for Te, since esiget2dfunctions doesn't give reasonable values 
-    */
   }
 
-  // get poloidal magnetic field
-  REAL grad_a;
-  for(i=0;i<npts;i++){
+  //get BR, BZ for new FWR3D
+  // the basic idea is using flux coordinates to express BR = B dot grad(R). 
+  // look into attached pdf file for more details about calculating these two components.
+
+  fprintf(stderr,"before getting BR,BZ. \n");
+  //get magnetic axis coordinates
+  double mag_axis_coords[2];
+  get_mag_axis(mag_axis_coords);
+
+  for (i=0;i<npts;i++){
     if(InOutFlag[i]==1){
-      grad_a = hypot(rq[i],zq[i])/(za[i]*rq[i]-zq[i]*ra[i]);
-      Bpol[i] = -grad_a/r[i]*gYa[i];
+
+      // for inside points, all relavent quantites can be gotten from ESI equilibrium reading functions defined in eq_quantity.h
+
+      //fprintf(stderr,"inside point [%d].\n",i);
+      initialize_esi_out(&a[i],&theta[i],1);
+      //fprintf(stderr,"esi_out initialized.\n");
+      //fprintf(stderr,"a=%lf,theta=%lf,n=%d.\n",esi_output.aaa[0],esi_output.the[0],esi_output.n);
+      load_esi_quantities();
+      //fprintf(stderr,"esi_quantities loaded\n");
+      double** metric = get_metric_elements();
+      //fprintf(stderr,"metric_elements got.\n");
+      double gaa = metric[0][0];
+      double gtt = metric[1][0];
+      double gat = metric[3][0];
+      double* J = get_Jacobian();
+      //fprintf(stderr,"Jacobian got.\n");
+      double dpsi_da = -esi_output.gYaj[0];
+      double dr_dth = esi_output.rqj[0];
+      double dr_da = esi_output.raj[0];
+      double dz_dth = esi_output.zqj[0];
+      double dz_da = esi_output.zaj[0];
+      
+      // now, define some intermediate quantities:
+      double mod_grad_R = sqrt(dr_da*dr_da*gaa + dr_dth*dr_dth*gtt + 2*dr_da*dr_dth*gat);
+      double mod_grad_Z = sqrt(dz_da*dz_da*gaa + dz_dth*dz_dth*gtt + 2*dz_da*dz_dth*gat);
+      
+      // calculate BR, BZ at this point
+      //fprintf(stderr,"before assigning BR,BZ. \n");
+      BR[i] = -dpsi_da*dr_dth/(mod_grad_R*J[0]);
+      BZ[i] = -dpsi_da*dz_dth/(mod_grad_Z*J[0]);
+      
+      // clean up
+      //fprintf(stderr,"before cleaning up.");
+      free_all(metric,J);
     }
     else{
-      Bpol[i] = 0;
+      //if the point is outside of the LCFS, we estimate the BR, BZ using the information gotten from the corresponding points ON the LCFS. Assume Bpol is decaying proportionally to the distance away from the magnetic axis.
+      //fprintf(stderr,"outside point[%d].\n",i); 
+      extern double* R_bdy,*Z_bdy;
+      extern int NBOUNDARY;
+      int loc = location[i];
+      //fprintf(stderr,"location got.\n");
+
+      double theta_loc = 2*M_PI/(NBOUNDARY-1) * loc; //Note that the convention is that the first and last boundary points corresponds to the same location(theta =0 and 2*pi), so boundary points form a closed circle.
+      double a_loc = ABOUNDARY;
+      double Rb = R_bdy[loc];
+      double Zb = Z_bdy[loc];
+
+      //fprintf(stderr,"Rb,Zb got.\n");
+      
+      // for the boundary point, do the same thing to obtain BR, BZ there.
+      initialize_esi_out(&a_loc,&theta_loc,1);
+      //fprintf(stderr,"esi_out initialized.\n");
+      load_esi_quantities();
+      //fprintf(stderr,"esi_quantities loaded. \n");
+      double** metric = get_metric_elements();
+      //fprintf(stderr,"metric elements got.\n");
+      double gaa = metric[0][0];
+      double gtt = metric[1][0];
+      double gat = metric[3][0];
+      double* J = get_Jacobian();
+      //fprintf(stderr,"Jacobian got.\n");
+      double dpsi_da = -esi_output.gYaj[0];
+      double dr_dth = esi_output.rqj[0];
+      double dr_da = esi_output.raj[0];
+      double dz_dth = esi_output.zqj[0];
+      double dz_da = esi_output.zaj[0];
+      
+      // now, define some intermediate quantities:
+      double mod_grad_R = sqrt(dr_da*dr_da*gaa + dr_dth*dr_dth*gtt + 2*dr_da*dr_dth*gat);
+      double mod_grad_Z = sqrt(dz_da*dz_da*gaa + dz_dth*dz_dth*gtt + 2*dz_da*dz_dth*gat);
+      
+      // calculate BR, BZ at this point
+      double BR_bdy = -dpsi_da*dr_dth/(mod_grad_R*J[0]);
+      double BZ_bdy = -dpsi_da*dz_dth/(mod_grad_Z*J[0]);
+      //fprintf(stderr,"BR,BZ bdy got.\n");
+      // clean up
+      free_all(metric,J);
+
+      // now calculate the BR, BZ at the outside point
+      double R = Rwant[i];
+      double Z = Zwant[i];
+      
+      //calculate the distances between relavent points
+      double dis_want = hypot(R-mag_axis_coords[0],Z-mag_axis_coords[1]);
+      double dis_bdy = hypot(Rb-mag_axis_coords[0],Zb-mag_axis_coords[1]);
+      
+      //get BR, BZ based on the ratio of distances to magnetic axis
+      BR[i] = BR_bdy * dis_bdy / dis_want;
+      BZ[i] = BZ_bdy * dis_bdy / dis_want;
+            
     }
   }
+
+  //calculate Bpol
+  for(i=0;i<npts;i++){
+    Bpol[i] = sqrt(BR[i]*BR[i] + BZ[i]*BZ[i]);
+  }
+  
+  fprintf(stderr,"after getting BR,BZ. \n");
 
   // free arrays that are no longer needed:
   clearNTProfiles(n_prof,a_p,n_p,Ti_p,Te_p);

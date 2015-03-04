@@ -14,6 +14,7 @@ extern double findMin(int n,REAL data[]);
 
 double Xmin=2.0,Xmax=2.6,Ymin=-0.6,Ymax=0.6,Zmin=0,Zmax=0;
 int NX=101,NY=201,NZ=1, NBOUNDARY = 1001;
+double* R_bdy,*Z_bdy;
 int TStart=100, TStep=10, NT=10;
 double Fluc_Amplification = 50;
 char* FlucFilePath="./Fluctuations/";
@@ -69,9 +70,9 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   printf("C code entered.\n");
   //parse the arguments, get ne,Te,B arrays, ne has time series.
   int toroidal_startnum;
-  PyObject *input1,*input2,*input3,*input4,*input5,*input6,*input7,*input8,*input9,*input10,*input11;
-  PyArrayObject *x3d,*y3d,*z3d,*ne0_arr,*Te0_arr,*Bt_arr,*Bp_arr,*dne_ad_arr,*nane_arr,*nate_arr, *mismatch_arr;
-  if(!PyArg_ParseTuple(args,"OOOOOOOOOOOi",&input1,&input2,&input3,&input4,&input5,&input6,&input7,&input8,&input9,&input10,&input11,&toroidal_startnum))
+  PyObject *input1,*input2,*input3,*input4,*input5,*input6,*input7,*input8,*input9,*input10,*input11,*input12,*input13;
+  PyArrayObject *x3d,*y3d,*z3d,*ne0_arr,*Te0_arr,*Bt_arr,*Bp_arr,*BR_arr,*BZ_arr,*dne_ad_arr,*nane_arr,*nate_arr, *mismatch_arr;
+  if(!PyArg_ParseTuple(args,"OOOOOOOOOOOOOi",&input1,&input2,&input3,&input4,&input5,&input6,&input7,&input8,&input9,&input10,&input11,&input12,&input13,&toroidal_startnum))
     return NULL;
   printf("arguments parsed.\n");
   x3d =(PyArrayObject*) PyArray_ContiguousFromObject(input1,PyArray_DOUBLE,3,3);
@@ -82,10 +83,12 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   Te0_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input5,PyArray_DOUBLE,3,3);
   Bt_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input6,PyArray_DOUBLE,3,3);
   Bp_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input7,PyArray_DOUBLE,3,3);
-  dne_ad_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input8,PyArray_DOUBLE,4,4);
-  nane_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input9,PyArray_DOUBLE,4,4);
-  nate_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input10,PyArray_DOUBLE,4,4);
-  mismatch_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input11,PyArray_INT,3,3);
+  BR_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input8,PyArray_DOUBLE,3,3);
+  BZ_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input9,PyArray_DOUBLE,3,3);
+  dne_ad_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input10,PyArray_DOUBLE,4,4);
+  nane_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input11,PyArray_DOUBLE,4,4);
+  nate_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input12,PyArray_DOUBLE,4,4);
+  mismatch_arr = (PyArrayObject*)PyArray_ContiguousFromObject(input13,PyArray_INT,3,3);
   printf("arrays loaded.\n"); 
   
   //start dealing with GTS data
@@ -119,10 +122,11 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   double Rinitial[n3d],Zinitial[n3d];//R,Z value of our initial guesses
   double Ract[n3d],Zact[n3d];//actual R,Z coordinates we have in the end
   int *InOutFlag = (int*) PyMem_Malloc(n3d*sizeof(int));//flags for points in or out LCFS
+  int location[n3d]; // record of corresponding location of boundary point for each outside point
   int *mismatch = (int*) mismatch_arr->data;
 
   printf("Finish allocate PYthon mem.\n");
-  getFluxCoords(n3d,a,theta,Btol,Ract,Zact,Rinitial,Zinitial,Rwant,Zwant,mag_axis_coords,InOutFlag,mismatch); 
+  getFluxCoords(n3d,a,theta,Btol,Ract,Zact,Rinitial,Zinitial,Rwant,Zwant,mag_axis_coords,InOutFlag,location,mismatch); 
   
   printf("Finish get FluxCoords.\n");
 
@@ -130,9 +134,13 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   double *Te0 = (double*) Te0_arr->data;
   double *ne0 = (double*) ne0_arr->data;
   double *Bpol = (double*) Bp_arr->data;
+  double *BR = (double*) BR_arr->data;
+  double *BZ = (double*) BZ_arr->data;
   double Ti0[n3d],P[n3d],qprofile[n3d];
   
-  getAllProfiles(n3d,Bpol,Ti0,Te0,P,ne0,qprofile,a,theta,InOutFlag);
+  getAllProfiles(n3d,Bpol,BR,BZ,Ti0,Te0,P,ne0,qprofile,a,theta,Rwant,Zwant,R_bdy,Z_bdy,InOutFlag,location);
+
+  free_BoundaryPoints(R_bdy,Z_bdy);
 
   printf("Finish get All profiles.\n");
 
@@ -163,7 +171,7 @@ get_GTS_profiles_(PyObject* self, PyObject* args){
   
   printf("Finish adiabatic response.\n"); 
 
-
+  esifree();
   PyMem_Free(InOutFlag);
   PyMem_Free(FlucInOutFlag);
   Py_DECREF(x3d);

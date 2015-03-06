@@ -981,9 +981,10 @@ class XGC_Loader():
             self.dni_ad_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),r3D.shape[0],r3D.shape[1],r3D.shape[2]))
             if self.HaveElectron:
                 self.nane_on_grid = np.zeros(self.dne_ad_on_grid.shape)
+                self.ne_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),r3D.shape[0],r3D.shape[1],r3D.shape[2]))
             if self.load_ions:
                 self.nani_on_grid = np.zeros(self.dni_ad_on_grid.shape)
-    
+                self.ni_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),r3D.shape[0],r3D.shape[1],r3D.shape[2]))    
             
             
             interp_positions = find_interp_positions_v2(self)
@@ -995,7 +996,9 @@ class XGC_Loader():
                     #for each time step, first create the 2 arrays of quantities for interpolation
                     prev = np.zeros( (self.grid.NZ,self.grid.NY,self.grid.NX) )
                     next = np.zeros(prev.shape)
-                
+                    prevne = np.zeros( (self.grid.NZ,self.grid.NY,self.grid.NX) )
+                    nextne = np.zeros(prev.shape)
+
                     #create index dictionary, for each key as plane number and value the corresponding indices where the plane is used as previous or next plane.
                     prev_idx = {}
                     next_idx = {}
@@ -1019,32 +1022,42 @@ class XGC_Loader():
                         for j in range(len(self.planes)):
                             prev[prev_idx[j]] = griddata(self.points,self.nane[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
                             next[next_idx[j]] = griddata(self.points,self.nane[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
-                
+                            prevne[prev_idx[j]] = griddata(self.points,self.ne[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
+                            nextne[next_idx[j]] = griddata(self.points,self.ne[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
                         self.nane_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
-
+                        self.ne_on_grid[k,i,...] = prevne * interp_positions[1,2,...] + nextne * interp_positions[0,2,...]
+                        
                     """   NOW WE WORK WITH IONS   """
-                    
-                    #for each time step, first create the 2 arrays of quantities for interpolation
-                    prev = np.zeros( (self.grid.NZ,self.grid.NY,self.grid.NX) )
-                    next = np.zeros(prev.shape)
+                        
+                    if self.load_ions:
+                        #for each time step, first create the 2 arrays of quantities for interpolation
+                        prev = np.zeros( (self.grid.NZ,self.grid.NY,self.grid.NX) )
+                        next = np.zeros(prev.shape)
+                        prevni = np.zeros( (self.grid.NZ,self.grid.NY,self.grid.NX) )
+                        nextni = np.zeros(prev.shape)
+
+
+                        #now interpolate adiabatic ni on each toroidal plane for the points using it as previous or next plane.
+                        for j in range(len(self.planes)):
+                           if(prev[prev_idx[j]].size != 0):
+                               prev[prev_idx[j]] = griddata(self.points,self.dni_ad[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'linear', fill_value = 0)
+                           if(next[next_idx[j]].size != 0):
+                               next[next_idx[j]] = griddata(self.points,self.dni_ad[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'linear', fill_value = 0)
+                               # on_grid adiabatic ni is then calculated by linearly interpolating values between these two planes
                 
-                    #now interpolate adiabatic ni on each toroidal plane for the points using it as previous or next plane.
-                    for j in range(len(self.planes)):
-                        if(prev[prev_idx[j]].size != 0):
-                            prev[prev_idx[j]] = griddata(self.points,self.dni_ad[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'linear', fill_value = 0)
-                        if(next[next_idx[j]].size != 0):
-                            next[next_idx[j]] = griddata(self.points,self.dni_ad[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'linear', fill_value = 0)
-                    # on_grid adiabatic ni is then calculated by linearly interpolating values between these two planes
-                
-                    self.dni_ad_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
+                        self.dni_ad_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
 
     
-                    if self.load_ions:
+
                         #non-adiabatic ni data as well:
                         for j in range(len(self.planes)):
-                            prev[prev_idx[j]] = griddata(self.points,self.nani[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
-                            next[next_idx[j]] = griddata(self.points,self.nani[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
-                
+                           prev[prev_idx[j]] = griddata(self.points,self.nani[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
+                           next[next_idx[j]] = griddata(self.points,self.nani[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
+                           
+                           prevni[prev_idx[j]] = griddata(self.points,self.ni[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
+                           nextni[next_idx[j]] = griddata(self.points,self.ni[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
+                        self.ni_on_grid[k,i,...] = prevni * interp_positions[1,2,...] + nextni * interp_positions[0,2,...]
+
                         self.nani_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
 
 

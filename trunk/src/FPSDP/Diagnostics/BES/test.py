@@ -11,19 +11,22 @@ import scipy.io as sio
 
 xgc_path = '/global/project/projectdirs/m499/jlang/particle_pinch/'
 
-grid3D = Grid.Cartesian3D(Xmin = 1.4,Xmax = 2.0,Ymin = -0.5, Ymax = 0.5, Zmin = -0.5, Zmax = 0.5, NX = 64,NY = 64,NZ = 32)
+grid3D = Grid.Cartesian3D(Xmin = 1.4,Xmax = 2.0,Ymin = -0.2, Ymax = 0.2, Zmin = -0.5, Zmax = 0.5, NX = 64,NY = 16,NZ = 32)
 
 
 time_start = 180
 time_end = 180
 time_step = 1
+time_ = [100]#, 120, 140, 160, 180]
 
 def load(full_load,fluc_only):
-    xgc_ = xgc.XGC_Loader(xgc_path,grid3D,time_start,time_end,time_step,dn_amplifier = 1,n_cross_section = 1, Equilibrium_Only = False,Full_Load = full_load, Fluc_Only = fluc_only, load_ions=True)
+    xgc_ = xgc.XGC_Loader(xgc_path,grid3D,time_start,time_end,time_step,dn_amplifier = 1,n_cross_section = 1, Equilibrium_Only = False,Full_Load = full_load, Fluc_Only = fluc_only, load_ions=True, equilibrium_mesh = '3D')
 
     return xgc_
 
 xgc_ = load(True,False)
+
+
 
 """class GRID:
     def __init__(self,X=(1.3,1.6), Y=(-0.3,0.5), Z=(-0.5,0.5),NX=64,NY=64,NZ=32):
@@ -52,17 +55,47 @@ class XGC:
         self.ti_on_grid = 1e4*np.exp(-(x-xav)**2/0.0001 - (y-yav)**2/0.0002 - z**2/0.01)
         self.te_on_grid = 1e4*np.exp(-(x-xav)**2/0.002 - (y-yav)**2/0.002 - z**2/0.004)
 """
-config_file = "FPSDP/Diagnostics/BES/beam.in"
+config_file1 = "FPSDP/Diagnostics/BES/beam.in"
+config_file2 = "FPSDP/Diagnostics/BES/beam1.in"
+config_file3 = "FPSDP/Diagnostics/BES/beam2.in"
+config_file4 = "FPSDP/Diagnostics/BES/beam3.in"
+config_file5 = "FPSDP/Diagnostics/BES/beam4.in"
 #xgc = XGC()
 
-b1d = Beam1D(config_file,1,xgc_)
-dl = np.sqrt(np.sum((b1d.get_mesh()-b1d.get_origin())**2,axis = 1))
+b1d1 = Beam1D(config_file1,range(len(time_)),xgc_)
+dl1 = np.sqrt(np.sum((b1d1.get_mesh()-b1d1.get_origin())**2,axis = 1))
+b1d2 = Beam1D(config_file2,range(len(time_)),xgc_)
+dl2 = np.sqrt(np.sum((b1d2.get_mesh()-b1d2.get_origin())**2,axis = 1))
+b1d3 = Beam1D(config_file3,range(len(time_)),xgc_)
+dl3 = np.sqrt(np.sum((b1d3.get_mesh()-b1d3.get_origin())**2,axis = 1))
+b1d4 = Beam1D(config_file4,range(len(time_)),xgc_)
+dl4 = np.sqrt(np.sum((b1d4.get_mesh()-b1d4.get_origin())**2,axis = 1))
+b1d5 = Beam1D(config_file5,range(len(time_)),xgc_)
+dl5 = np.sqrt(np.sum((b1d5.get_mesh()-b1d5.get_origin())**2,axis = 1))
 
-mp.plot(dl,b1d.density_beam[0,:],'kx')
-mp.plot(dl,b1d.density_beam[1,:],'bx')
-mp.plot(dl,b1d.density_beam[2,:],'rx')
+#print b1d.density_beam[0,0,:]
+mp.contourf(xgc_.grid.Z3D[:,0,:],xgc_.grid.X3D[:,0,:],xgc_.ne_on_grid[0,0,:,0,:])
+mp.plot(b1d1.get_mesh()[:,1],b1d1.get_mesh()[:,0],'kx')
+mp.plot(b1d2.get_mesh()[:,1],b1d2.get_mesh()[:,0],'mx')
+mp.plot(b1d3.get_mesh()[:,1],b1d3.get_mesh()[:,0],'rx')
+mp.plot(b1d4.get_mesh()[:,1],b1d4.get_mesh()[:,0],'bx')
+mp.plot(b1d5.get_mesh()[:,1],b1d5.get_mesh()[:,0],'gx')
+mp.colorbar()
 
+mp.figure()
+mp.plot(dl1,b1d1.density_beam[0,0,:],'k-', label='pt1')
+mp.plot(dl2,b1d2.density_beam[0,0,:],'m-', label='pt2')
+mp.plot(dl3,b1d3.density_beam[0,0,:],'r-', label='pt3')
+mp.plot(dl4,b1d4.density_beam[0,0,:],'b-', label='pt4')
+mp.plot(dl5,b1d5.density_beam[0,0,:],'g-', label='pt5')
+#mp.plot(dl,b1d.density_beam[0,1,:],'b-', label='E2')
+#mp.plot(dl,b1d.density_beam[0,2,:],'r-', label='E3')
+mp.legend()
+
+print b1d1.get_beam_density([1.920,0.125,0.0],0)
 mp.show()
+
+
 """
 #!/usr/bin/env python
 from FPSDP.Plasma.XGC_Profile.load_XGC_profile import *

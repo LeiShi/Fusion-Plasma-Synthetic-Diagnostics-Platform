@@ -61,16 +61,15 @@ def trilinear_interp_1pt(X,Y,Z,F,x):
     Y  -- 1D array containing the Y coordinate of F
     Z  -- 1D array containing the Z coordinate of F
     F  -- 3D array containing the data
-    x  -- position (3D) where the interpolation 
+    x  -- position (3D) where the interpolation is wanted
 
     return value:
     interpolated z value on given (x,y)
     """
-
     # First find the x,y,z coordinate of the corner of the cube
-    indx = max(max(np.where(X <= x[0])))
-    indy = max(max(np.where(Y <= x[1])))
-    indz = max(max(np.where(Z <= x[2])))
+    indx = max(np.where(X < x[0])[0])
+    indy = max(np.where(Y < x[1])[0])
+    indz = max(np.where(Z < x[2])[0])
 
     # relative coordinates
     rx = (x[0]-X[indx])/(X[indx+1]-X[indx])

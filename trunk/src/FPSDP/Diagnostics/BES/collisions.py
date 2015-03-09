@@ -32,26 +32,31 @@ class Collisions:
       
     """
 
-    def __init__(self,files,lifetimes):
+    def __init__(self,files_atte,files_emis,lifetimes):
         """ Copy the input inside the instance
             
             Arguments:
-            files       -- list containing the name of all files
+            files_atte  -- list containing the name of the attenuation files
+            files_emis  -- list containing the name of the emission files
             beams       -- list of the different energy beam (should be in the 
                            same order than the files)
             lifetime    -- list of the lifetime of the excited states (same 
                            order than the other lists)
         """
-        self.files = files                                                   #!
+        self.files_atte = files_atte                                         #!
+        self.files_emis = file_emis                                          #!
         self.lifetimes = lifetimes                                           #!
-        self.beam_data = []                                                  #!
+        self.beam_emis = []                                                  #!
+        self.beam_atte = []                                                  #!
         self.read_adas()
         
     def read_adas(self):
         """ Read the ADAS files and stores them as attributes
         """
-        for name in self.files:
-            self.beam_data.append(adas.Beam_ADAS_File(name))
+        for name in self.files_atte:
+            self.beam_atte.append(adas.ADAS21(name))
+        for name in self.files_emis:
+            self.beam_emis.append(adas.ADAS22(name))
 
     def get_attenutation(self,beam,density,mass_b,temperature,file_number):
         """ get the attenuation value for a given density, beam energy, and
@@ -89,34 +94,86 @@ class Collisions:
             raise NameError('Attenuation coefficient smaller than 0')
         return coef
 
-    def get_Tref(self,file_number):
-        """ Return the reference temperature for coef_density """
-        return self.beam_data[file_number].T_ref
+    def get_Tref(self,typ,file_number):
+        """ Return the reference temperature for coef_density
+            Argument:
+            typ         --  'emis' or 'atte' (specify in which list)
+            file_number --  file number in the list
+        """
+        if typ == 'emis':
+            return self.beam_emis[file_number].T_ref
+        elif typ == 'atte':
+            return self.beam_atte[file_number].T_ref
+        else:
+            raise NameError('No list with this name: {0}'.format(typ))
     
-    def get_coef_density(self,file_number):
+    def get_coef_density(self,typ,file_number):
         """ return the list of attenuation coefficient given by ADAS
             as a function of the energy beam and the density
+            Argument:
+            typ         --  'emis' or 'atte' (specify in which list)
+            file_number --  file number in the list
         """
-        return self.beam_data[file_number].coef_dens
+        if typ == 'emis':
+            return self.beam_emis[file_number].coef_dens
+        elif typ == 'atte':
+            return self.beam_atte[file_number].coef_dens
+        else:
+            raise NameError('No list with this name: {0}'.format(typ))
 
-    def get_coef_T(self,file_number):
+    def get_coef_T(self,typ,file_number):
         """ return the list of attenuation coefficient given by ADAS
             as a function of the temperature
+            Argument:
+            typ         --  'emis' or 'atte' (specify in which list)
+            file_number --  file number in the list
         """
-        return self.beam_data[file_number].coef_T
+        if typ == 'emis':
+            return self.beam_emis[file_number].coef_T
+        elif typ == 'atte':
+            return self.beam_atte[file_number].coef_T
+        else:
+            raise NameError('No list with this name: {0}'.format(typ))
 
     
-    def get_list_temperature(self,file_number):
-        """ return the list of temperature given by ADAS"""
-        return self.beam_data[file_number].temperature
+    def get_list_temperature(self,typ,file_number):
+        """ return the list of temperature given by ADAS
+            Argument:
+            typ         --  'emis' or 'atte' (specify in which list)
+            file_number --  file number in the list
+        """
+        if typ == 'emis':
+            return self.beam_emis[file_number].temperature
+        elif typ == 'atte':
+            return self.beam_atte[file_number].temperature
+        else:
+            raise NameError('No list with this name: {0}'.format(typ))
     
-    def get_list_density(self,file_number):
-        """ return the list of densities given by ADAS"""
-        return self.beam_data[file_number].densities
+    def get_list_density(self,typ,file_number):
+        """ return the list of densities given by ADAS
+            Argument:
+            typ         --  'emis' or 'atte' (specify in which list)
+            file_number --  file number in the list
+        """
+        if typ == 'emis':
+            return self.beam_emis[file_number].densities
+        elif typ == 'atte':
+            return self.beam_atte[file_number].densities
+        else:
+            raise NameError('No list with this name: {0}'.format(typ))
 
-    def get_list_beams(self,mass_b,file_number):
+    def get_list_beams(self,mass_b,typ,file_number):
         """ return the list of beams given by ADAS
             multiply by the mass of the beam atoms due to ADAS
+            Argument:
+            typ         --  'emis' or 'atte' (specify in which list)
+            file_number --  file number in the list
         """
-        # multiply by the mass due to ADAS
-        return mass_b*self.beam_data[file_number].adas_beam
+        if typ == 'emis':
+            # multiply by the mass due to ADAS
+            return mass_b*self.beam_emis[file_number].adas_beam
+        elif typ == 'atte':
+            return mass_b*self.beam_atte[file_number].adas_beam
+        else:
+            raise NameError('No list with this name: {0}'.format(typ))
+

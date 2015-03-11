@@ -110,7 +110,7 @@ class ADAS21(ADAS_file):
         # reference energy
         self.E_ref = float(temp[1].split('=')[1])                       #!
         # reference density
-        self.dens_ref = float(temp[2].split('=')[1])                     #!
+        self.dens_ref = float(temp[2].split('=')[1])*100**3             #!
         
         i += 2 # goes to next line, and remove line with ----
         
@@ -141,12 +141,15 @@ class ADAS22(ADAS_file):
        T_ref       -- reference temperature of the first table
        adas_beam   -- beam energies of the first table (1D array)
        densities   -- densities of the first table (1D array)
-       emis_dens   -- first table (2D array)
+       coef_dens   -- first table (2D array) [the choice of the name
+                      coef is for having the same naming convention
+                      in all the ADAS file, the user should know the
+                      class of the object]]
        n_T         -- number of temperature for the second table
        E_ref       -- reference beam energy for the second table
        dens_ref    -- reference density for the second table
        temperature -- temperatures for the second table (1D array)
-       emis_T      -- second table (1D array)
+       coef_T      -- second table (1D array)
     """
     def __init__(self,name):
         """ Read the file and store everything as attributes
@@ -201,7 +204,7 @@ class ADAS22(ADAS_file):
         # reference energy
         self.E_ref = float(temp[1].split('=')[1])                       #!
         # reference density
-        self.dens_ref = float(temp[2].split('=')[1])                     #!
+        self.dens_ref = float(temp[2].split('=')[1])*100**3             #!
         
         i += 2 # goes to next line, and remove line with ----
         

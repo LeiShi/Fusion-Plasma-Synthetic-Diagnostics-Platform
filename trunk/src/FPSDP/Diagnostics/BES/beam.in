@@ -26,11 +26,15 @@ mass_b = [1.0,2.0,3.0]
 
 [Collisions]
 # ADAS files (separated by ,)
-adas_file =  ["bms98#h_fast_h1.dat" , "bms93#h_he2.dat", "bms93#h_he2.dat"]
-# collision considered (index start to 0)
+# attenuation
+adas_atte = ["bms98#h_fast_h1.dat" , "bms93#h_he2.dat", "bms93#h_he2.dat"]
+# emission
+adas_emis = ["bme97#h_h1.dat"]
+# collisions considered (index start to 0)
 # first index is for a file (in adas_file) and second is
 # for the beam component
-collisions = [[0,0], [0,1], [0,2]]
+coll_atte = [[0,0], [0,1], [0,2]]
+coll_emis = [[0,0], [0,1], [0,2]]
 
 # lifetime of the excited state (same order than file) [sec]
 lifetimes = [1.2e-9, 1.6e-9, 1.3e-9]

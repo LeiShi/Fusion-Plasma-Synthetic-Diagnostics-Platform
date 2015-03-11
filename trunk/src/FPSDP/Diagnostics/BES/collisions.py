@@ -13,7 +13,8 @@ class Collisions:
           read_adas()     --  load the data from the ADAS file
           get_attenutation(beam,density,temperature,file_number)
                           --  gives the attenuation coefficient
-          
+          get_emission(beam,density,mass_b,temperature,file_number):
+                          --  gives <sigma*v> for the exitation
     
           Access data in ADAS file:
             get_Tref(file_number)             --  reference temperature
@@ -44,7 +45,7 @@ class Collisions:
                            order than the other lists)
         """
         self.files_atte = files_atte                                         #!
-        self.files_emis = file_emis                                          #!
+        self.files_emis = files_emis                                         #!
         self.lifetimes = lifetimes                                           #!
         self.beam_emis = []                                                  #!
         self.beam_atte = []                                                  #!
@@ -72,9 +73,9 @@ class Collisions:
             file_number -- file number wanted (should be simplify in Beam.py)
         """
         # get data
-        ldensities = self.get_list_density(file_number)
-        lbeams = self.get_list_beams(mass_b,file_number)
-        coef_dens = self.get_coef_density(file_number)
+        ldensities = self.get_list_density('atte',file_number)
+        lbeams = self.get_list_beams(mass_b,'atte',file_number)
+        coef_dens = self.get_coef_density('atte',file_number)
         lbeams, ldens = np.meshgrid(lbeams, ldensities)
         
         # interpolation over beam and density
@@ -82,9 +83,9 @@ class Collisions:
         coef = interpolate.bisplev(beam,density,tck)
 
         # get data for the interpolation in temperature
-        T = self.get_list_temperature(file_number)
-        coef_T = self.get_coef_T(file_number)
-        Tref = self.get_Tref(file_number)
+        T = self.get_list_temperature('atte',file_number)
+        coef_T = self.get_coef_T('atte',file_number)
+        Tref = self.get_Tref('atte',file_number)
         index = np.where(abs((Tref-T)/Tref) < 1e-4)[0][0]
 
         #interpolation over the temperature
@@ -92,6 +93,43 @@ class Collisions:
         coef = coef * interpolate.splev(temperature,tck)
         if coef <= 0:
             raise NameError('Attenuation coefficient smaller than 0')
+        return coef
+
+    def get_emission(self,beam,density,mass_b,temperature,file_number):
+        """ get the emission value for a given density, beam energy, and
+            temperature
+
+            Arguments:
+            beam        -- beam energy wanted
+            density     -- ion (in plasma) density wanted
+            mass_b      -- mass of an atom (of the beam in amu)
+            temperature -- temperature wanted (default = -1)
+                           if value == -1, the temperature of the ADAS file
+                           is used
+            file_number -- file number wanted (should be simplify in Beam.py)
+        """
+        # get data
+        ldensities = self.get_list_density('emis',file_number)
+        lbeams = self.get_list_beams(mass_b,'emis',file_number)
+        coef_dens = self.get_coef_density('emis',file_number)
+        lbeams, ldens = np.meshgrid(lbeams, ldensities)
+        
+        # interpolation over beam and density
+        tck = interpolate.bisplrep(lbeams,ldens,coef_dens)
+        be = beam*np.ones(len(density))
+        coef = interpolate.bisplev(be,density,tck)
+
+        # get data for the interpolation in temperature
+        T = self.get_list_temperature('emis',file_number)
+        coef_T = self.get_coef_T('emis',file_number)
+        Tref = self.get_Tref('emis',file_number)
+        index = np.where(abs((Tref-T)/Tref) < 1e-4)[0][0]
+
+        #interpolation over the temperature
+        tck = interpolate.splrep(T,coef_T/coef_T[index])
+        coef = coef * interpolate.splev(temperature,tck)
+        if coef <= 0:
+            raise NameError('Emission coefficient smaller than 0')
         return coef
 
     def get_Tref(self,typ,file_number):

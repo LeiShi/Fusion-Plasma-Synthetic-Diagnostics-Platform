@@ -6,7 +6,7 @@
 # Z is for the height
 position = [1.99,-0.49,0.0]
 # direction of the beam, it will be normalized in the code
-direction = [-0.08,0.7,0.0]
+direction = [-0.2,0.7,0.0]
 # beam width (FWHM in meter)
 beam_width = 0.01
 # number of points for the discretization along the beam direction

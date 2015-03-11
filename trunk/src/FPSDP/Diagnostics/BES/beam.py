@@ -54,6 +54,10 @@ class Beam1D:
         get_ion_temp(self,pos)
                             -- same as before
 
+        get_electron_density_fluc(pos,t_)
+                            -- same as before
+
+
         compute_beam_on_mesh()
                             -- compute the density of the beam on the mesh with a
                                Gauss-Legendre formula (two points)
@@ -70,6 +74,11 @@ class Beam1D:
 
 
         get_emis(pos,t_)    -- compute the emissivity \epsilon 
+
+        get_emis_fluc(pos,t_)
+                            -- compute the fluctuation of the emissivity with only
+                               the fluctuation part of the density
+        get_emis_ave(pos)   -- compute the fluctuation using the average over time
 
         Attribut:
     
@@ -124,7 +133,7 @@ class Beam1D:
         self.mass_b = json.loads(config.get('Beam energy','mass_b'))         #!
         self.mass_b = np.array(self.mass_b)
         self.beam_comp = json.loads(config.get('Beam energy','E'))           #!
-        self.beam_comp = np.array(self.beam_comp)
+        self.beam_comp = 1000*np.array(self.beam_comp)
         self.power = float(config.get('Beam energy','power'))                #!
         self.power = np.array(self.power)
         self.frac = json.loads(config.get('Beam energy','f'))                #!
@@ -221,6 +230,20 @@ class Beam1D:
         return Fint.trilinear_interp_1pt(self.data.grid.Z1D,self.data.grid.Y1D,
                                          self.data.grid.X1D,
                                          self.data.ne_on_grid[0,t_,:,:,:],a)
+
+    def get_electron_density_fluc(self,pos,t_):
+        """ get the fluctuation in the electron density (from the data) at pos
+           
+            Argument:
+            pos  --  position (3D array) where to compute the density
+        """
+        a = to_other_index(pos)
+        print 'Warning inefficient'
+        dne = self.data.ne_on_grid[0,t_,:,:,:] - self.data.ne0_on_grid
+        # the order of the grid is due to the XGC loading coordinate
+        return Fint.trilinear_interp_1pt(self.data.grid.Z1D,self.data.grid.Y1D,
+                                         self.data.grid.X1D,
+                                         dne,a)
     
     def get_ion_density(self,pos,t_):
         """ get the ion density (from the data) at pos
@@ -254,7 +277,7 @@ class Beam1D:
         self.dens = np.zeros((len(self.timesteps),len(self.mesh[0,:])))      #!
 
         for t_ in range(len(self.timesteps)):
-            print 'Timestep number: ', t_, ' over ', len(self.timesteps)
+            print 'Timestep number: ', t_ + 1, ' over ', len(self.timesteps)
             for j in range(len(self.mesh[0,:])):
                 # density over the central line (usefull for some check)
                 self.dens[t_,j] = self.get_electron_density(self.mesh[:,j],t_)
@@ -414,3 +437,59 @@ class Beam1D:
         for i in range(len(self.beam_comp)):
             emis[i] *= n_e*n_b[i,:]
         return emis
+
+
+    def get_emis_fluc(self,pos,t_):
+        """ Return the fluctuation of the emissivity at pos and time t_ 
+            epsilon = <sigma*v> n_b \delta n_e
+            Argument:
+            pos   -- 2D array, first index is for X,Y,Z
+        """
+        print 'DO NOT TAKE LIFETIME EFFECT'
+        # first take all the value needed for the computation
+        n_b = self.get_beam_density(pos,t_)
+        dn_e = self.get_electron_density_fluc(pos,t_)
+        emis = np.zeros((len(self.beam_comp),len(pos[0,:])))
+        Te = self.get_electron_temp(pos)
+        # loop over all the type of collisions
+        for k in self.coll_atte:
+            file_nber = k[0]
+            beam_nber = k[1]
+            # compute the emission coefficient
+            emis[beam_nber,:] += self.collisions.get_emission(
+                self.beam_comp[beam_nber],dn_e,self.mass_b[beam_nber],Te,file_nber)
+        # compute the emissivity
+        for i in range(len(self.beam_comp)):
+            emis[i] *= dn_e*n_b[i,:]
+        return emis
+
+
+    
+    def get_emis_ave(self,pos):
+        """ Return the fluctuation of the emissivity at pos
+            epsilon = <sigma*v> n_b n_e - <epsilon>_t
+            Argument:
+            pos   -- 2D array, first index is for X,Y,Z
+        """
+        print 'DO NOT TAKE LIFETIME EFFECT'
+        # first take all the value needed for the computation
+        emis = np.zeros((len(self.timesteps),len(self.beam_comp),len(pos[0,:])))
+        Te = self.get_electron_temp(pos)
+        for t_ in range(len(self.timesteps)):
+            n_b = self.get_beam_density(pos,t_)
+            n_e = self.get_electron_density(pos,t_)
+            # loop over all the type of collisions
+            for k in self.coll_atte:
+                file_nber = k[0]
+                beam_nber = k[1]
+                # compute the emission coefficient
+                emis[t_,beam_nber,:] += self.collisions.get_emission(
+                    self.beam_comp[beam_nber],n_e,self.mass_b[beam_nber],Te,file_nber)
+            # compute the emissivity
+            for i in range(len(self.beam_comp)):
+                emis[t_,i] *= n_e*n_b[i,:]
+        ave = np.sum(emis, axis=0)/len(self.timesteps)
+        for t_ in range(len(self.timesteps)):
+            emis[t_,:,:] -= ave
+        return emis
+    

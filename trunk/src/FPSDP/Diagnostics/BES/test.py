@@ -11,13 +11,13 @@ import scipy.io as sio
 
 xgc_path = '/global/project/projectdirs/m499/jlang/particle_pinch/'
 
-grid3D = Grid.Cartesian3D(Xmin = 1.4,Xmax = 2.0,Ymin = -0.2, Ymax = 0.2, Zmin = -0.5, Zmax = 0.5, NX = 64,NY = 16,NZ = 32)
+grid3D = Grid.Cartesian3D(Xmin = 1.4,Xmax = 2.1,Ymin = -0.2, Ymax = 0.2, Zmin = -0.5, Zmax = 0.5, NX = 128,NY = 32,NZ = 64)
 
 
-time_start = 160
+time_start = 140
 time_end = 180
 time_step = 20
-time_ = [160, 180]#, 120, 140, 160, 180]
+time_ = [140, 160, 180]#, 120, 140, 160, 180]
 
 def load(full_load,fluc_only):
     xgc_ = xgc.XGC_Loader(xgc_path,grid3D,time_start,time_end,time_step,dn_amplifier = 1,n_cross_section = 1, Equilibrium_Only = False,Full_Load = full_load, Fluc_Only = fluc_only, load_ions=True, equilibrium_mesh = '3D')
@@ -85,10 +85,10 @@ mp.contourf(xgc_.grid.X3D[:,0,:].T,xgc_.grid.Z3D[:,0,:].T,xgc_.ne_on_grid[0,0,:,
 #z = np.reshape(xgc_.grid.Z3D,-1)
 #x = np.reshape(xgc_.grid.X3D,-1)
 #y = np.reshape(xgc_.grid.Y3D,-1)
-radius = 0.01
-z = np.linspace(0.001,1.4,100)
-r = np.linspace(-radius,radius,20)
-direct =  np.array([-0.08,0.7,0.0])
+radius = 0.03
+z = np.linspace(0.001,1.4,500)
+r = np.linspace(-radius,radius,40)
+direct =  np.array([-0.2,0.7,0.0])
 ori = np.array([1.99,-0.49,0.0])
 perp = np.array([1,-direct[0]/direct[1],0])
 perp = perp/sum(perp**2)
@@ -103,11 +103,31 @@ mp.plot(pos[0,:],pos[1,:])
 emis1 = b1d1.get_emis(pos,0)
 emis2 = b1d1.get_emis(pos,1)
 emis = emis1-emis2
-print emis.shape
 #emis = np.reshape(emis[0,:],(len(R[0,:]),len(Z[0,0,:])))
 mp.figure()
 mp.tricontourf(pos[0,:],pos[1,:],emis[0,:])
+#mp.tricontourf(pos[0,:]-0.1,pos[1,:],emis1[0,:])
+mp.title('emission')
+mp.colorbar()
+
+emis1 = b1d1.get_emis_fluc(pos,0)
+emis2 = b1d1.get_emis_fluc(pos,1)
+emis = emis1-emis2
+#emis = np.reshape(emis[0,:],(len(R[0,:]),len(Z[0,0,:])))
+mp.figure()
+#mp.tricontourf(pos[0,:],pos[1,:],emis[0,:])
 mp.tricontourf(pos[0,:]-0.1,pos[1,:],emis1[0,:])
+mp.title('emission fluc')
+mp.colorbar()
+
+emistot = b1d1.get_emis_ave(pos)
+emis1 = emistot[0,:,:]
+emis2 = emistot[1,:,:]
+emis = emis1-emis2
+mp.figure()
+#mp.tricontourf(pos[0,:],pos[1,:],emis[0,:])
+mp.tricontourf(pos[0,:]-0.1,pos[1,:],emis1[0,:])
+mp.title('emission average')
 mp.colorbar()
 
 #mp.figure()

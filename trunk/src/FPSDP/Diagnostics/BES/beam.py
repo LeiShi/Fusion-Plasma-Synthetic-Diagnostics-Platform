@@ -48,7 +48,7 @@ class Beam1D:
         self.mass_b = json.loads(config.get('Beam energy','mass_b'))         #!
         self.mass_b = np.array(self.mass_b)
         self.beam_comp = json.loads(config.get('Beam energy','E'))           #!
-        self.beam_comp = 1000*np.array(self.beam_comp)
+        self.beam_comp = np.array(self.beam_comp)
         self.power = float(config.get('Beam energy','power'))                #!
         self.power = np.array(self.power)
         self.frac = json.loads(config.get('Beam energy','f'))                #!
@@ -88,10 +88,10 @@ class Beam1D:
         self.inters = self.find_wall()                                       #!
         length = np.sqrt(sum((self.pos-self.inters)**2))
         self.dl = np.linspace(0,length,self.Nz)
-        self.mesh = np.zeros((self.Nz,3))                                    #!
-        self.mesh[:,0] = self.pos[0] + self.dl*self.direc[0]
-        self.mesh[:,1] = self.pos[1] + self.dl*self.direc[1]
-        self.mesh[:,2] = self.pos[2] + self.dl*self.direc[2]
+        self.mesh = np.zeros((3,self.Nz))                                    #!
+        self.mesh[0,:] = self.pos[0] + self.dl*self.direc[0]
+        self.mesh[1,:] = self.pos[1] + self.dl*self.direc[1]
+        self.mesh[2,:] = self.pos[2] + self.dl*self.direc[2]
                     
     def find_wall(self, eps=1e-6):
         """ find the wall (of the mesh) that will stop the beam and return
@@ -168,20 +168,21 @@ class Beam1D:
         n0 = np.zeros(len(self.beam_comp))
         n0 = np.sqrt(2*self.mass_b*1.660538921e-27)*math.pi*self.power
         n0 *= self.frac*self.std_dev2/(self.beam_comp*1.60217733e-16)**(1.5)
-        self.dens = np.zeros((len(self.timesteps),len(self.mesh[:,0])))
+        self.dens = np.zeros((len(self.timesteps),len(self.mesh[0,:])))
 
         for t_ in range(len(self.timesteps)):
-            for j in range(len(self.mesh[:,0])):
+            print t_
+            for j in range(len(self.mesh[0,:])):
                 # density over the central line
-                self.dens[t_,j] = self.get_electron_density(self.mesh[j,:],t_)
+                self.dens[t_,j] = self.get_electron_density(self.mesh[:,j],t_)
                 if j is not 0:
                     temp_beam = np.zeros(len(self.beam_comp))
                     for k in self.coll_atte:
                         file_nber = k[0]
                         beam_nber = k[1]
                         # limit of the integral
-                        a = self.mesh[j-1,:]
-                        b = self.mesh[j,:]
+                        a = self.mesh[:,j-1]
+                        b = self.mesh[:,j]
                         # avoid to compute it twice
                         temp = np.sqrt(1.0/3.0)
                         # average
@@ -287,8 +288,10 @@ class Beam1D:
             indin =  np.where((proj > 0) & (proj < self.dl[-1]))
             # cubic spline for finding the value along the axis
             for i in range(len(self.beam_comp)):
+                print self.density_beam.shape
                 tck = interpolate.splrep(self.dl,self.density_beam[t_,i,:])
-                nb[i,indin] = interpolate.splev(proj[indin],tck)
+                for j in range(len(indin)):
+                    nb[i,indin[j]] = interpolate.splev(proj[indin[j]],tck)
             # radius^2 on the plane perpendicular to the beam
             R2 = np.zeros(dist.shape)
             R2[0,:] = dist[0,:] - proj*self.direc[0]
@@ -311,13 +314,13 @@ class Beam1D:
         print 'DO NOT TAKE LIFETIME EFFECT'
         n_b = self.get_beam_density(pos,t_)
         n_e = self.get_electron_density(pos,t_)
-        emis = np.zeros(len(self.beam_comp))
+        emis = np.zeros((len(self.beam_comp),len(pos[0,:])))
         Te = self.get_electron_temp(pos)
         for k in self.coll_atte:
             file_nber = k[0]
             beam_nber = k[1]
-            emis[beam_nber] += self.collisions.get_emission(
+            emis[beam_nber,:] += self.collisions.get_emission(
                 self.beam_comp[beam_nber],n_e,self.mass_b[beam_nber],Te,file_nber)
-        for i in range(self.beam_comp):
-            emis[i] *= n_e*n_b
+        for i in range(len(self.beam_comp)):
+            emis[i] *= n_e*n_b[i,:]
         return emis

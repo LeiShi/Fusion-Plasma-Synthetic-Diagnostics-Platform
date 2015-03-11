@@ -84,7 +84,8 @@ class ADAS21(ADAS_file):
         # read all the beam energies taken in account in the
         # ADAS file
         i = read_block(data,i,self.adas_beam,self.n_b)
-        
+
+        self.adas_beam /= 1000 # change of unit eV -> keV
         # same as before but with the densities
         self.densities = np.zeros(self.n_density)                       #!
         i = read_block(data,i,self.densities,self.n_density)
@@ -178,7 +179,7 @@ class ADAS22(ADAS_file):
         # read all the beam energies taken in account in the
         # ADAS file
         i = read_block(data,i,self.adas_beam,self.n_b)
-        
+        self.adas_beam /= 1000
         # same as before but with the densities
         self.densities = np.zeros(self.n_density)                       #!
         i = read_block(data,i,self.densities,self.n_density)

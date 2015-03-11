@@ -100,9 +100,9 @@ def trilinear_interp_1pt(X,Y,Z,F,x):
         G = np.zeros(len(x[0,:]))
         # First find the x,y,z coordinate of the corner of the cube
         for i in range(len(x[0,:])):
-            indx = max(np.where(X <= x[0,i])[0])
-            indy = max(np.where(Y <= x[1,i])[0])
-            indz = max(np.where(Z <= x[2,i])[0])
+            indx = np.where(X <= x[0,i])[0].max()
+            indy = np.where(Y <= x[1,i])[0].max()
+            indz = np.where(Z <= x[2,i])[0].max()
 
             if x[0,i] == X[indx]:
                 y,z = np.meshgrid(Y,Z)
@@ -121,9 +121,9 @@ def trilinear_interp_1pt(X,Y,Z,F,x):
                 #G[i] = interpolate.bisplev(x[0,i],x[1,i],tck)
             else:
                 # relative coordinates
-                rx = (x[0]-X[indx])/(X[indx+1]-X[indx])
-                ry = (x[1]-Y[indy])/(Y[indy+1]-Y[indy])
-                rz = (x[2]-Z[indz])/(Z[indz+1]-Z[indz])
+                rx = (x[0,i]-X[indx])/(X[indx+1]-X[indx])
+                ry = (x[1,i]-Y[indy])/(Y[indy+1]-Y[indy])
+                rz = (x[2,i]-Z[indz])/(Z[indz+1]-Z[indz])
                 
                 # compute the first linear interpolation
                 temp = 1-rx
@@ -139,6 +139,6 @@ def trilinear_interp_1pt(X,Y,Z,F,x):
                 
                 # compute the last linear interpolation
                 G[i] = c0*(1-rz) + c1*rz
-            return G
+        return G
     else:
         raise NameError('Error: wrong shape of the position to interpolate')

@@ -14,10 +14,10 @@ xgc_path = '/global/project/projectdirs/m499/jlang/particle_pinch/'
 grid3D = Grid.Cartesian3D(Xmin = 1.4,Xmax = 2.0,Ymin = -0.2, Ymax = 0.2, Zmin = -0.5, Zmax = 0.5, NX = 64,NY = 16,NZ = 32)
 
 
-time_start = 180
+time_start = 160
 time_end = 180
-time_step = 1
-time_ = [100]#, 120, 140, 160, 180]
+time_step = 20
+time_ = [160, 180]#, 120, 140, 160, 180]
 
 def load(full_load,fluc_only):
     xgc_ = xgc.XGC_Loader(xgc_path,grid3D,time_start,time_end,time_step,dn_amplifier = 1,n_cross_section = 1, Equilibrium_Only = False,Full_Load = full_load, Fluc_Only = fluc_only, load_ions=True, equilibrium_mesh = '3D')
@@ -62,7 +62,7 @@ config_file1 = "FPSDP/Diagnostics/BES/beam.in"
 #config_file5 = "FPSDP/Diagnostics/BES/beam4.in"
 
 b1d1 = Beam1D(config_file1,range(len(time_)),xgc_)
-dl1 = np.sqrt(np.sum((b1d1.get_mesh()-b1d1.get_origin())**2,axis = 1))
+#dl1 = np.sqrt(np.sum((b1d1.get_mesh()-b1d1.get_origin())**2,axis = 0))
 #b1d2 = Beam1D(config_file2,range(len(time_)),xgc_)
 #dl2 = np.sqrt(np.sum((b1d2.get_mesh()-b1d2.get_origin())**2,axis = 1))
 #b1d3 = Beam1D(config_file3,range(len(time_)),xgc_)
@@ -73,21 +73,44 @@ dl1 = np.sqrt(np.sum((b1d1.get_mesh()-b1d1.get_origin())**2,axis = 1))
 #dl5 = np.sqrt(np.sum((b1d5.get_mesh()-b1d5.get_origin())**2,axis = 1))
 
 #print b1d.density_beam[0,0,:]
-mp.contourf(xgc_.grid.Z3D[:,0,:],xgc_.grid.X3D[:,0,:],xgc_.ne_on_grid[0,0,:,0,:])
-mp.plot(b1d1.get_mesh()[:,1],b1d1.get_mesh()[:,0],'kx')
+mp.contourf(xgc_.grid.X3D[:,0,:].T,xgc_.grid.Z3D[:,0,:].T,xgc_.ne_on_grid[0,0,:,0,:].T)
+#mp.plot(b1d1.get_mesh()[0,:],b1d1.get_mesh()[1,:],'kx')
 #mp.plot(b1d2.get_mesh()[:,1],b1d2.get_mesh()[:,0],'mx')
 #mp.plot(b1d3.get_mesh()[:,1],b1d3.get_mesh()[:,0],'rx')
 #mp.plot(b1d4.get_mesh()[:,1],b1d4.get_mesh()[:,0],'bx')
 #mp.plot(b1d5.get_mesh()[:,1],b1d5.get_mesh()[:,0],'gx')
+#mp.colorbar()
+
+#mp.figure()
+#z = np.reshape(xgc_.grid.Z3D,-1)
+#x = np.reshape(xgc_.grid.X3D,-1)
+#y = np.reshape(xgc_.grid.Y3D,-1)
+radius = 0.01
+z = np.linspace(0.001,1.4,100)
+r = np.linspace(-radius,radius,20)
+direct =  np.array([-0.08,0.7,0.0])
+ori = np.array([1.99,-0.49,0.0])
+perp = np.array([1,-direct[0]/direct[1],0])
+perp = perp/sum(perp**2)
+R,Z = np.meshgrid(r,z)
+R_ = np.reshape(R,-1)
+Z_ = np.reshape(Z,-1)
+pos = np.zeros((3,len(R_)))
+pos[0,:] = ori[0] + direct[0]*Z_ + R_*perp[0]
+pos[1,:] = ori[1] + direct[1]*Z_ + R_*perp[1]
+mp.plot(pos[0,:],pos[1,:])
+
+emis1 = b1d1.get_emis(pos,0)
+emis2 = b1d1.get_emis(pos,1)
+emis = emis1-emis2
+print emis.shape
+#emis = np.reshape(emis[0,:],(len(R[0,:]),len(Z[0,0,:])))
+mp.figure()
+mp.tricontourf(pos[0,:],pos[1,:],emis[0,:])
+mp.tricontourf(pos[0,:]-0.1,pos[1,:],emis1[0,:])
 mp.colorbar()
 
-mp.figure()
-z = np.reshape(xgc_.grid.Z3D,-1)
-x = np.reshape(xgc_.grid.X3D,-1)
-y = np.reshape(xgc_.grid.Y3D,-1)
-pos = np.array([x,z,y])
-emis = b1d1.get_emis(pos,0)
-mp.contourf(xgc_.grid.Z3D[:,0,:],xgc_.grid.X3D[:,0,:],emis)
+#mp.figure()
 #mp.plot(dl1,b1d1.density_beam[0,0,:],'k-', label='pt1')
 #mp.plot(dl2,b1d2.density_beam[0,0,:],'m-', label='pt2')
 #mp.plot(dl3,b1d3.density_beam[0,0,:],'r-', label='pt3')

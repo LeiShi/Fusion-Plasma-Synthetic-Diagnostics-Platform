@@ -7,7 +7,7 @@ position = [1.99,-0.49,0.0]
 # ending point of the beam (X,Y,Z) (will be normalized)
 direction = [-0.08,0.7,0.0]
 # beam width (FWHM in meter)
-beam_width = 0.5
+beam_width = 0.01
 # number of points for the discretization along the beam direction
 # the ending point is computed with the help of the mesh
 # (the beam line goes from the position until the end of the mesh)

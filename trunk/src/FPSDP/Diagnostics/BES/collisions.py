@@ -117,9 +117,13 @@ class Collisions:
         # interpolation over beam and density
         tck = interpolate.bisplrep(lbeams,ldens,coef_dens)
         be = beam*np.ones(len(density))
-        coef = interpolate.bisplev(be,density,tck)
+        coef = np.zeros(len(be))
+        for i in range(len(be)):
+            coef[i] = interpolate.bisplev(be[i],density[i],tck)
+            if coef[i] < 0:
+                coef[i] = 0
 
-        # get data for the interpolation in temperature
+        # Get data for the interpolation in temperature
         T = self.get_list_temperature('emis',file_number)
         coef_T = self.get_coef_T('emis',file_number)
         Tref = self.get_Tref('emis',file_number)
@@ -128,8 +132,6 @@ class Collisions:
         #interpolation over the temperature
         tck = interpolate.splrep(T,coef_T/coef_T[index])
         coef = coef * interpolate.splev(temperature,tck)
-        if coef <= 0:
-            raise NameError('Emission coefficient smaller than 0')
         return coef
 
     def get_Tref(self,typ,file_number):

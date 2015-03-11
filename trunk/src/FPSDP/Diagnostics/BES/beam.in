@@ -1,15 +1,16 @@
 # For double input, put .0 for assuring that the data is read as
-# double
+# a float
 
 [Beam geometry]
 # position of the beam (X,Y,Z) (in meters)
+# Z is for the height
 position = [1.99,-0.49,0.0]
-# ending point of the beam (X,Y,Z) (will be normalized)
+# direction of the beam, it will be normalized in the code
 direction = [-0.08,0.7,0.0]
 # beam width (FWHM in meter)
 beam_width = 0.01
 # number of points for the discretization along the beam direction
-# the ending point is computed with the help of the mesh
+# the ending point is computed with the window of the scan
 # (the beam line goes from the position until the end of the mesh)
 Nz = 128
 

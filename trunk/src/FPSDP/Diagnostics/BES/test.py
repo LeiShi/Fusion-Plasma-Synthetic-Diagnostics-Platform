@@ -1,8 +1,7 @@
 import scipy.interpolate as ip
 import matplotlib.pyplot as mp
 import numpy as np
-from beam import *
-from ADAS_file import *
+import FPSDP.Diagnostics.Beam.beam as be
 import math
 
 import FPSDP.Plasma.XGC_Profile.load_XGC_profile as xgc
@@ -11,7 +10,7 @@ import scipy.io as sio
 
 xgc_path = '/global/project/projectdirs/m499/jlang/particle_pinch/'
 
-grid3D = Grid.Cartesian3D(Xmin = 1.4,Xmax = 2.1,Ymin = -0.2, Ymax = 0.2, Zmin = -0.5, Zmax = 0.5, NX = 128,NY = 32,NZ = 64)
+grid3D = Grid.Cartesian3D(Xmin = 1.4,Xmax = 2.1,Ymin = -0.2, Ymax = 0.2, Zmin = -0.5, Zmax = 0.5, NX = 128,NY = 16,NZ = 128)
 
 
 time_start = 140
@@ -61,7 +60,7 @@ config_file1 = "FPSDP/Diagnostics/BES/beam.in"
 #config_file4 = "FPSDP/Diagnostics/BES/beam3.in"
 #config_file5 = "FPSDP/Diagnostics/BES/beam4.in"
 
-b1d1 = Beam1D(config_file1,range(len(time_)),xgc_)
+b1d1 = be.Beam1D(config_file1,range(len(time_)),xgc_)
 #dl1 = np.sqrt(np.sum((b1d1.get_mesh()-b1d1.get_origin())**2,axis = 0))
 #b1d2 = Beam1D(config_file2,range(len(time_)),xgc_)
 #dl2 = np.sqrt(np.sum((b1d2.get_mesh()-b1d2.get_origin())**2,axis = 1))
@@ -85,9 +84,9 @@ mp.contourf(xgc_.grid.X3D[:,0,:].T,xgc_.grid.Z3D[:,0,:].T,xgc_.ne_on_grid[0,0,:,
 #z = np.reshape(xgc_.grid.Z3D,-1)
 #x = np.reshape(xgc_.grid.X3D,-1)
 #y = np.reshape(xgc_.grid.Y3D,-1)
-radius = 0.03
-z = np.linspace(0.001,1.4,500)
-r = np.linspace(-radius,radius,40)
+radius = 0.01
+z = np.linspace(1,1.4,30)
+r = np.linspace(-radius,radius,20)
 direct =  np.array([-0.2,0.7,0.0])
 ori = np.array([1.99,-0.49,0.0])
 perp = np.array([1,-direct[0]/direct[1],0])
@@ -99,24 +98,38 @@ pos = np.zeros((3,len(R_)))
 pos[0,:] = ori[0] + direct[0]*Z_ + R_*perp[0]
 pos[1,:] = ori[1] + direct[1]*Z_ + R_*perp[1]
 mp.plot(pos[0,:],pos[1,:])
+pos = pos.T
 
-emis1 = b1d1.get_emis(pos,0)
-emis2 = b1d1.get_emis(pos,1)
-emis = emis1-emis2
-#emis = np.reshape(emis[0,:],(len(R[0,:]),len(Z[0,0,:])))
+emis1 = b1d1.get_emis_lifetime(pos,[0, 1])
+emis_test = b1d1.get_emis(pos,[0])
+emis = emis1[0,:,:]-emis1[1,:,:]
+diff = emis_test - emis1[0,:,:]
+
 mp.figure()
-mp.tricontourf(pos[0,:],pos[1,:],emis[0,:])
-#mp.tricontourf(pos[0,:]-0.1,pos[1,:],emis1[0,:])
+mp.tricontourf(pos[:,0],pos[:,1],emis[0,:])
+mp.title('turbulence')
+mp.colorbar()
+
+mp.figure()
+mp.tricontourf(pos[:,0],pos[:,1],emis1[0,0,:])
 mp.title('emission')
 mp.colorbar()
 
-emis1 = b1d1.get_emis_fluc(pos,0)
+mp.figure()
+mp.tricontourf(pos[:,0],pos[:,1],diff[0,0,:])
+mp.title('diff')
+mp.colorbar()
+
+mp.show()
+
+
+"""emis1 = b1d1.get_emis_fluc(pos,0)
 emis2 = b1d1.get_emis_fluc(pos,1)
 emis = emis1-emis2
 #emis = np.reshape(emis[0,:],(len(R[0,:]),len(Z[0,0,:])))
 mp.figure()
 #mp.tricontourf(pos[0,:],pos[1,:],emis[0,:])
-mp.tricontourf(pos[0,:]-0.1,pos[1,:],emis1[0,:])
+mp.tricontourf(pos[:,0]-0.1,pos[:,1],emis1[0,:])
 mp.title('emission fluc')
 mp.colorbar()
 
@@ -126,7 +139,7 @@ emis2 = emistot[1,:,:]
 emis = emis1-emis2
 mp.figure()
 #mp.tricontourf(pos[0,:],pos[1,:],emis[0,:])
-mp.tricontourf(pos[0,:]-0.1,pos[1,:],emis1[0,:])
+mp.tricontourf(pos[:,0]-0.1,pos[:,1],emis1[0,:])
 mp.title('emission average')
 mp.colorbar()
 
@@ -141,4 +154,4 @@ mp.colorbar()
 #mp.legend()
 
 mp.show()
-
+"""

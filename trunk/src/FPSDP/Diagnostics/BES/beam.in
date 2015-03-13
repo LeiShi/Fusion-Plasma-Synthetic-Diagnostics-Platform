@@ -39,3 +39,8 @@ coll_emis = [[0,0], [0,1], [0,2]]
 
 # lifetime of the excited state (same order than file) [sec]
 lifetimes = [1.2e-9, 1.6e-9, 1.3e-9]
+# number of points for the discretization of the lifetime effect
+# small distance, so do not need a big number
+Nlt = 4
+# t_max*lifetime = upper value of the integrale for the lifetime effect
+t_max = 4

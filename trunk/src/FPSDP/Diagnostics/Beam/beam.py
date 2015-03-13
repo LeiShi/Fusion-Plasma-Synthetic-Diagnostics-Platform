@@ -1,7 +1,7 @@
 import math
 import json
 import numpy as np
-import collisions as col
+import FPSDP.Plasma.Collisions.collisions as col
 import ConfigParser as psr
 import FPSDP.Maths.Interpolation as Fint
 from scipy import interpolate
@@ -15,7 +15,7 @@ from scipy import interpolate
 def to_other_index(pos):
     " Change the order of the index "
     if len(pos.shape) == 2:
-        a = np.array([pos[1,:],pos[2,:],pos[0,:]])
+        a = np.array([pos[:,1],pos[:,2],pos[:,0]])
     elif len(pos.shape) == 1:
         a = np.array([pos[1],pos[2],pos[0]])
     else:
@@ -80,6 +80,9 @@ class Beam1D:
                                the fluctuation part of the density
         get_emis_ave(pos)   -- compute the fluctuation using the average over time
 
+        get_emis_lifetime(pos,t_)
+                            -- same as get_emis but compute the lifetime effect
+
         Attribut:
     
         cfg_file     --  name of the config file
@@ -99,6 +102,9 @@ class Beam1D:
         direc        --  direction of the beam
         beam_width   --  FWHM of the beam at the origin
         Nz           --  number of point on the beam mesh
+        Nlt          --  number of point for the lifetime effect
+        t_max        --  upper boundary of the integral for the lifetime effect
+                         (in unit of the lifetime)
 
         inters       --  ending point of the mesh
         mesh         --  mesh (first index for the dimension)
@@ -128,6 +134,9 @@ class Beam1D:
                                          self.adas_emis,lifetimes)           #!
         self.coll_atte = json.loads(config.get('Collisions','coll_atte'))    #!
         self.coll_emis = json.loads(config.get('Collisions','coll_emis'))    #!
+        self.Nlt = int(json.loads(config.get('Collisions','Nlt')))           #!
+        self.t_max = json.loads(config.get('Collisions','t_max'))            #!
+        
 
         # load data about the beam energy
         self.mass_b = json.loads(config.get('Beam energy','mass_b'))         #!
@@ -174,11 +183,11 @@ class Beam1D:
         length = np.sqrt(sum((self.pos-self.inters)**2))
         # distance to the origin along the central line
         self.dl = np.linspace(0,length,self.Nz)
-        self.mesh = np.zeros((3,self.Nz))                                    #!
+        self.mesh = np.zeros((self.Nz,3))                                    #!
         # the first index corresponds to the dimension (X,Y,Z)
-        self.mesh[0,:] = self.pos[0] + self.dl*self.direc[0]
-        self.mesh[1,:] = self.pos[1] + self.dl*self.direc[1]
-        self.mesh[2,:] = self.pos[2] + self.dl*self.direc[2]
+        self.mesh[:,0] = self.pos[0] + self.dl*self.direc[0]
+        self.mesh[:,1] = self.pos[1] + self.dl*self.direc[1]
+        self.mesh[:,2] = self.pos[2] + self.dl*self.direc[2]
                     
     def find_wall(self, eps=1e-6):
         """ find the wall (of the mesh) that will stop the beam and return
@@ -218,16 +227,16 @@ class Beam1D:
             raise NameError('Cannot find the wall for the beam')
 
         return self.pos + self.direc*t*(1-eps)
-
+        
     def get_electron_density(self,pos,t_):
         """ get the electron density (from the data) at pos
            
             Argument:
             pos  --  position (3D array) where to compute the density
         """
-        a = to_other_index(pos)
+        a = to_other_index(pos).T
         # the order of the grid is due to the XGC loading coordinate
-        return Fint.trilinear_interp_1pt(self.data.grid.Z1D,self.data.grid.Y1D,
+        return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
                                          self.data.grid.X1D,
                                          self.data.ne_on_grid[0,t_,:,:,:],a)
 
@@ -237,11 +246,11 @@ class Beam1D:
             Argument:
             pos  --  position (3D array) where to compute the density
         """
-        a = to_other_index(pos)
+        a = to_other_index(pos).T
         print 'Warning inefficient'
         dne = self.data.ne_on_grid[0,t_,:,:,:] - self.data.ne0_on_grid
         # the order of the grid is due to the XGC loading coordinate
-        return Fint.trilinear_interp_1pt(self.data.grid.Z1D,self.data.grid.Y1D,
+        return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
                                          self.data.grid.X1D,
                                          dne,a)
     
@@ -253,8 +262,8 @@ class Beam1D:
         """
         # FOR ADDING MUTLIPLE IONS SPECIES CHANGE HERE [add an argument and see
         # where it does not work, and after add the loop over element]
-        a = to_other_index(pos)
-        return Fint.trilinear_interp_1pt(self.data.grid.Z1D,self.data.grid.Y1D,
+        a = to_other_index(pos).T
+        return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
                                          self.data.grid.X1D,
                                          self.data.ni_on_grid[0,t_,:,:,:],a)
                     
@@ -274,21 +283,21 @@ class Beam1D:
         n0 = np.zeros(len(self.beam_comp))
         n0 = np.sqrt(2*self.mass_b*1.660538921e-27)*math.pi*self.power
         n0 *= self.frac*self.std_dev2/(self.beam_comp*1.60217733e-16)**(1.5)
-        self.dens = np.zeros((len(self.timesteps),len(self.mesh[0,:])))      #!
+        self.dens = np.zeros((len(self.timesteps),len(self.mesh[:,0])))      #!
 
         for t_ in range(len(self.timesteps)):
-            print 'Timestep number: ', t_ + 1, ' over ', len(self.timesteps)
-            for j in range(len(self.mesh[0,:])):
+            print 'Timestep number: ', t_ + 1, '/ ', len(self.timesteps)
+            for j in range(len(self.mesh[:,0])):
                 # density over the central line (usefull for some check)
-                self.dens[t_,j] = self.get_electron_density(self.mesh[:,j],t_)
+                self.dens[t_,j] = self.get_electron_density(self.mesh[j,:],t_)
                 if j is not 0:
                     temp_beam = np.zeros(len(self.beam_comp))
                     for k in self.coll_atte:
                         file_nber = k[0]
                         beam_nber = k[1]
                         # limit of the integral
-                        a = self.mesh[:,j-1]
-                        b = self.mesh[:,j]
+                        a = self.mesh[j-1,:]
+                        b = self.mesh[j,:]
                         # avoid to compute it twice
                         temp = np.sqrt(1.0/3.0)
                         # average
@@ -335,8 +344,8 @@ class Beam1D:
         """ Return the value of the electron temperature from the
             simulation
         """
-        a = to_other_index(pos)
-        return Fint.trilinear_interp_1pt(self.data.grid.Z1D,self.data.grid.Y1D,
+        a = to_other_index(pos).T
+        return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
                                          self.data.grid.X1D,
                                          self.data.te_on_grid,a)
     
@@ -345,8 +354,8 @@ class Beam1D:
         """ Return the value of the ion temperature from the
             simulation 
         """
-        a = to_other_index(pos)
-        return Fint.trilinear_interp_1pt(self.data.grid.Z1D,self.data.grid.Y1D,
+        a = to_other_index(pos).T
+        return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
                                          self.data.grid.X1D,
                                          self.data.ti_on_grid,a)
 
@@ -382,34 +391,30 @@ class Beam1D:
             return nb
         elif len(pos.shape) == 2:
             # array to return
-            nb = np.zeros((len(self.beam_comp),len(pos[0,:])))
+            nb = np.zeros((len(self.beam_comp),len(pos[:,0])))
             # vector from beam origin to the wanted position
             dist = np.zeros(pos.shape)
-            dist[0,:] = pos[0,:] - self.get_origin()[0]
-            dist[1,:] = pos[1,:] - self.get_origin()[1]
-            dist[2,:] = pos[2,:] - self.get_origin()[2]
+            dist[:,0] = pos[:,0] - self.get_origin()[0]
+            dist[:,1] = pos[:,1] - self.get_origin()[1]
+            dist[:,2] = pos[:,2] - self.get_origin()[2]
             # result is a 1D array containing the projection of the distance
             # from the origin over the direction of the beam
-            proj = np.einsum('ij,i->j',dist,self.direc)
+            proj = np.einsum('ij,j->i',dist,self.direc)
             stddev2 = self.get_width(proj)**2
-            # before the beam, the density will be set to 0
-            indout = np.where((proj < 0) | (proj > self.dl[-1]))
-            indin =  np.where((proj > 0) & (proj < self.dl[-1]))
             # cubic spline for finding the value along the axis
             for i in range(len(self.beam_comp)):
                 tck = interpolate.splrep(self.dl,self.density_beam[t_,i,:])
-                for j in range(len(indin)):
-                    nb[i,indin[j]] = interpolate.splev(proj[indin[j]],tck)
+                for j in range(len(pos[:,0])):
+                    nb[i,j] = interpolate.splev(proj[j],tck, ext=1)
             # radius^2 on the plane perpendicular to the beam
             R2 = np.zeros(dist.shape)
-            R2[0,:] = dist[0,:] - proj*self.direc[0]
-            R2[1,:] = dist[1,:] - proj*self.direc[1]
-            R2[2,:] = dist[2,:] - proj*self.direc[2]
+            R2[:,0] = dist[:,0] - proj*self.direc[0]
+            R2[:,1] = dist[:,1] - proj*self.direc[1]
+            R2[:,2] = dist[:,2] - proj*self.direc[2]
             # compute the norm of each position
-            R2 = np.einsum('ij,ij->j',R2,R2)
+            R2 = np.einsum('ij,ij->i',R2,R2)
             for i in range(len(self.beam_comp)):
                 nb[i,:] = nb[i,:]*np.exp(-R2/(2*stddev2))
-            nb[:,indout] = 0.0
             return nb
         else:
             raise NameError('Error: wrong shape for pos')
@@ -420,22 +425,22 @@ class Beam1D:
             Argument:
             pos   -- 2D array, first index is for X,Y,Z
         """
-        print 'DO NOT TAKE LIFETIME EFFECT'
         # first take all the value needed for the computation
-        n_b = self.get_beam_density(pos,t_)
-        n_e = self.get_electron_density(pos,t_)
-        emis = np.zeros((len(self.beam_comp),len(pos[0,:])))
+        emis = np.zeros((len(t_),len(self.beam_comp),len(pos[:,0])))
         Te = self.get_electron_temp(pos)
         # loop over all the type of collisions
-        for k in self.coll_atte:
-            file_nber = k[0]
-            beam_nber = k[1]
-            # compute the emission coefficient
-            emis[beam_nber,:] += self.collisions.get_emission(
-                self.beam_comp[beam_nber],n_e,self.mass_b[beam_nber],Te,file_nber)
-        # compute the emissivity
-        for i in range(len(self.beam_comp)):
-            emis[i] *= n_e*n_b[i,:]
+        for tstep in range(len(t_)):
+            n_b = self.get_beam_density(pos,t_[tstep])
+            n_e = self.get_electron_density(pos,t_[tstep])
+            for k in self.coll_atte:
+                file_nber = k[0]
+                beam_nber = k[1]
+                # compute the emission coefficient
+                emis[tstep,beam_nber,:] += self.collisions.get_emission(
+                    self.beam_comp[beam_nber],n_e,self.mass_b[beam_nber],Te,file_nber)
+            # compute the emissivity
+            for i in range(len(self.beam_comp)):
+                emis[tstep,i] *= n_e*n_b[i,:]
         return emis
 
 
@@ -445,11 +450,10 @@ class Beam1D:
             Argument:
             pos   -- 2D array, first index is for X,Y,Z
         """
-        print 'DO NOT TAKE LIFETIME EFFECT'
         # first take all the value needed for the computation
         n_b = self.get_beam_density(pos,t_)
         dn_e = self.get_electron_density_fluc(pos,t_)
-        emis = np.zeros((len(self.beam_comp),len(pos[0,:])))
+        emis = np.zeros((len(self.beam_comp),len(pos[:,0])))
         Te = self.get_electron_temp(pos)
         # loop over all the type of collisions
         for k in self.coll_atte:
@@ -471,9 +475,8 @@ class Beam1D:
             Argument:
             pos   -- 2D array, first index is for X,Y,Z
         """
-        print 'DO NOT TAKE LIFETIME EFFECT'
         # first take all the value needed for the computation
-        emis = np.zeros((len(self.timesteps),len(self.beam_comp),len(pos[0,:])))
+        emis = np.zeros((len(self.timesteps),len(self.beam_comp),len(pos[:,0])))
         Te = self.get_electron_temp(pos)
         for t_ in range(len(self.timesteps)):
             n_b = self.get_beam_density(pos,t_)
@@ -492,4 +495,61 @@ class Beam1D:
         for t_ in range(len(self.timesteps)):
             emis[t_,:,:] -= ave
         return emis
-    
+
+
+    def get_emis_lifetime(self,pos,t_):
+        """ Return the emissivity at pos and time t_ 
+            epsilon = <sigma*v> n_b n_e with the effect
+            of the lifetime
+            Argument:
+            pos   -- 2D array, first index is for X,Y,Z
+        """
+        print 'use Gauss-Laguerre'
+        emis = np.zeros((len(self.timesteps),len(self.beam_comp),len(pos[:,0])))
+        # avoid the computation at each time
+        temp = np.sqrt(1.0/3.0)
+        index = 0
+        for tstep in range(len(t_)):
+            for k in self.coll_emis:
+                index += 1
+                print 'Emissivity: ', index, ' / ', len(self.coll_emis)*len(t_)
+                file_nber = k[0]
+                beam_nber = k[1]
+                l = self.collisions.lifetimes[file_nber]
+                # variable for integrating
+                delta = np.linspace(0,self.t_max*l,self.Nlt)
+                # average position (a+b)/2
+                av = 0.5*(delta[0:-2] + delta[1:-1])
+                # half distance (b-a)/2
+                diff = 0.5*(-delta[0:-2] + delta[1:-1])
+                # integration points at each interval
+                pt1 = -diff*temp + av
+                pt2 = diff*temp + av
+                # loop over all the position
+                for i in range(len(pos[:,0])):
+                    # points in 3D space
+                    x1 = np.zeros((len(av),3))
+                    x2 = np.zeros((len(av),3))
+                    x1[:,0] = pos[i,0] - self.direc[0]*pt1
+                    x1[:,1] = pos[i,1] - self.direc[1]*pt1
+                    x1[:,2] = pos[i,2] - self.direc[2]*pt1
+                    x2[:,0] = pos[i,0] - self.direc[0]*pt2
+                    x2[:,1] = pos[i,1] - self.direc[1]*pt2
+                    x2[:,2] = pos[i,2] - self.direc[2]*pt2
+                    n_b1 = self.get_beam_density(x1,t_[tstep])
+                    n_e1 = self.get_electron_density(x1,t_[tstep])
+                    Te1 = self.get_electron_temp(x1)
+                    n_b2 = self.get_beam_density(x2,t_[tstep])
+                    n_e2 = self.get_electron_density(x2,t_[tstep])
+                    Te2 = self.get_electron_temp(x2)
+
+                    f1 = self.collisions.get_emission(
+                        self.beam_comp[beam_nber],n_e1,self.mass_b[beam_nber],Te1,file_nber)
+                    f2 = self.collisions.get_emission(
+                        self.beam_comp[beam_nber],n_e2,self.mass_b[beam_nber],Te2,file_nber)
+                    f1 *= n_e1*n_b1[beam_nber]*np.exp(-pt1/(l*self.speed[beam_nber]))/self.speed[beam_nber]
+                    f2 *= n_e2*n_b2[beam_nber]*np.exp(-pt2/(l*self.speed[beam_nber]))/self.speed[beam_nber]
+                    
+                    emis[t_,beam_nber,i] += sum((f1 + f2)*diff)/l
+
+        return emis

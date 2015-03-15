@@ -10,7 +10,8 @@ import scipy.io as sio
 
 xgc_path = '/global/project/projectdirs/m499/jlang/particle_pinch/'
 
-grid3D = Grid.Cartesian3D(Xmin = 1.4,Xmax = 2.1,Ymin = -0.2, Ymax = 0.2, Zmin = -0.5, Zmax = 0.5, NX = 128,NY = 16,NZ = 128)
+grid3D = Grid.Cartesian3D(Xmin = 1.4,Xmax = 2.1,Ymin = -0.2, Ymax = 0.2, Zmin = -0.5, Zmax = 0.5, NX = 64,NY =16,NZ = 64)
+#grid3D = Grid.Cartesian3D(Xmin = 1.4,Xmax = 2.1,Ymin = -0.2, Ymax = 0.2, Zmin = -0.5, Zmax = 0.5, NX = 256,NY = 32,NZ = 256)
 
 
 time_start = 140
@@ -61,7 +62,7 @@ config_file1 = "FPSDP/Diagnostics/BES/beam.in"
 #config_file5 = "FPSDP/Diagnostics/BES/beam4.in"
 
 b1d1 = be.Beam1D(config_file1,range(len(time_)),xgc_)
-#dl1 = np.sqrt(np.sum((b1d1.get_mesh()-b1d1.get_origin())**2,axis = 0))
+dl1 = np.sqrt(np.sum((b1d1.get_mesh()-b1d1.get_origin())**2,axis = 1))
 #b1d2 = Beam1D(config_file2,range(len(time_)),xgc_)
 #dl2 = np.sqrt(np.sum((b1d2.get_mesh()-b1d2.get_origin())**2,axis = 1))
 #b1d3 = Beam1D(config_file3,range(len(time_)),xgc_)
@@ -72,7 +73,6 @@ b1d1 = be.Beam1D(config_file1,range(len(time_)),xgc_)
 #dl5 = np.sqrt(np.sum((b1d5.get_mesh()-b1d5.get_origin())**2,axis = 1))
 
 #print b1d.density_beam[0,0,:]
-mp.contourf(xgc_.grid.X3D[:,0,:].T,xgc_.grid.Z3D[:,0,:].T,xgc_.ne_on_grid[0,0,:,0,:].T)
 #mp.plot(b1d1.get_mesh()[0,:],b1d1.get_mesh()[1,:],'kx')
 #mp.plot(b1d2.get_mesh()[:,1],b1d2.get_mesh()[:,0],'mx')
 #mp.plot(b1d3.get_mesh()[:,1],b1d3.get_mesh()[:,0],'rx')
@@ -84,11 +84,11 @@ mp.contourf(xgc_.grid.X3D[:,0,:].T,xgc_.grid.Z3D[:,0,:].T,xgc_.ne_on_grid[0,0,:,
 #z = np.reshape(xgc_.grid.Z3D,-1)
 #x = np.reshape(xgc_.grid.X3D,-1)
 #y = np.reshape(xgc_.grid.Y3D,-1)
-radius = 0.01
-z = np.linspace(1,1.4,30)
+radius = 0.008
+z = np.linspace(0,0.4,100)
 r = np.linspace(-radius,radius,20)
 direct =  np.array([-0.2,0.7,0.0])
-ori = np.array([1.99,-0.49,0.0])
+ori = np.array([2.0,-0.49,0.0])
 perp = np.array([1,-direct[0]/direct[1],0])
 perp = perp/sum(perp**2)
 R,Z = np.meshgrid(r,z)
@@ -97,7 +97,8 @@ Z_ = np.reshape(Z,-1)
 pos = np.zeros((3,len(R_)))
 pos[0,:] = ori[0] + direct[0]*Z_ + R_*perp[0]
 pos[1,:] = ori[1] + direct[1]*Z_ + R_*perp[1]
-mp.plot(pos[0,:],pos[1,:])
+#mp.contourf(xgc_.grid.X3D[:,0,:].T,xgc_.grid.Z3D[:,0,:].T,xgc_.ne_on_grid[0,0,:,0,:].T)
+#mp.plot(pos[0,:],pos[1,:])
 pos = pos.T
 
 emis1 = b1d1.get_emis_lifetime(pos,[0, 1])
@@ -105,23 +106,51 @@ emis_test = b1d1.get_emis(pos,[0])
 emis = emis1[0,:,:]-emis1[1,:,:]
 diff = emis_test - emis1[0,:,:]
 
-mp.figure()
-mp.tricontourf(pos[:,0],pos[:,1],emis[0,:])
-mp.title('turbulence')
-mp.colorbar()
+#mp.figure()
+#mp.tricontourf(pos[:,0],pos[:,1],emis[0,:])
+#mp.title('turbulence')
+#mp.colorbar()
+
+#mp.figure()
+#mp.tricontourf(pos[:,0],pos[:,1],emis1[0,0,:])
+#mp.title('emission')
+#mp.colorbar()
+
+#mp.figure()
+#mp.tricontourf(pos[:,0],pos[:,1],diff[0,0,:])
+#mp.title('diff')
+#mp.colorbar()
+
+
+"""mp.figure()
+mp.title('ne')
+mp.plot(dl1,b1d1.dens[0,:])
 
 mp.figure()
-mp.tricontourf(pos[:,0],pos[:,1],emis1[0,0,:])
-mp.title('emission')
-mp.colorbar()
+mp.title('Ti')
+mp.plot(dl1,b1d1.ti[0,:])
 
 mp.figure()
-mp.tricontourf(pos[:,0],pos[:,1],diff[0,0,:])
-mp.title('diff')
-mp.colorbar()
+mp.title('ne*S')
+mp.plot(dl1,b1d1.dens[0,:]*b1d1.S[0,:])
 
+mp.figure()
+mp.title('S_cr')
+mp.plot(dl1,b1d1.S[0,:])
+"""
+mp.figure()
+mp.title('nb')
+mp.plot(dl1,b1d1.density_beam[0,0,:])
+
+mp.figure()
+mp.title('epsilon')
+test = b1d1.get_emis(b1d1.mesh,[0])
+mp.plot(dl1[0:-2],test[0,0,0:-2])
+
+mp.figure()
+mp.title('epsilon lifetime')
+mp.plot(dl1,b1d1.get_emis_lifetime(b1d1.mesh,[0])[0,0,:])
 mp.show()
-
 
 """emis1 = b1d1.get_emis_fluc(pos,0)
 emis2 = b1d1.get_emis_fluc(pos,1)

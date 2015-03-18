@@ -286,8 +286,8 @@ class XGC_Loader():
         self.Fluc_Only = Fluc_Only
         
         print 'from directory:'+ self.xgc_path
-
-        self.tstep = load_m(self.unit_file)['sml_dt']
+        self.unit_dic = load_m(self.unit_file)
+        self.tstep = self.unit_dic['sml_dt']*self.unit_dic['diag_1d_period']
         self.dt = self.tstep * dt
         self.t = self.time_steps * self.tstep
 

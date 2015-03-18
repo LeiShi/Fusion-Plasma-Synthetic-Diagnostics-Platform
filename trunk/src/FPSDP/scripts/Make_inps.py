@@ -21,7 +21,7 @@ class FWR3D_input_maker:
 
         # reflect3d executable location
         self.reflect3d = '/p/gkp/lshi/reflect3d/bin/ifort/O/reflect'
-        self.vec_fw = '/p/gkp/lshi/reflect3d/bin/ifort/O/vec_fw'
+        self.vec_fw = '/p/gkp/lshi/reflect3d/bin/ifort/O/mpi_vec_fw'
 
         # directory to put the new input files and link to executable
         self.run_path = './'

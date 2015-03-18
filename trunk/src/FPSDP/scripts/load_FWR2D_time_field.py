@@ -11,11 +11,11 @@ from matplotlib.gridspec import GridSpec
 import pickle
 import Image
 
-run_path = '/p/gkp/lshi/GTS_ALCATOR_Case/L_mode/RUNS/productive_RUNS/RUN_fulltime_125GHz/125/'
+run_path = '/p/gkp/lshi/GTS_ALCATOR_Case/L_mode/RUNS/test_RUNS/RUN_TEST_MULTIPROC_batch/140/'
 
-t_arr = range(1,276)
+t_arr = range(1,200,30)
 
-freq = 125
+freq = 140
 
 def fwr2d_output_fname(path,freq):
 
@@ -43,12 +43,12 @@ class FWR2D_time_data:
         f0 = netcdf_file(fname,'r')
 
         #get coordinates and dimensions
-        self.p_x = f0.variables['p_x'].data
-        self.s_x = f0.variables['s_x'].data
-        self.y = f0.variables['p_y'].data
-        self.p_nx = f0.dimensions['p_nx']
-        self.s_nx = f0.dimensions['s_nx']
-        self.ny = f0.dimensions['p_ny']
+        self.p_x = np.copy(f0.variables['p_x'].data)
+        self.s_x = np.copy(f0.variables['s_x'].data)
+        self.y = np.copy(f0.variables['p_y'].data)
+        self.p_nx = np.copy(f0.dimensions['p_nx'])
+        self.s_nx = np.copy(f0.dimensions['s_nx'])
+        self.ny = np.copy(f0.dimensions['p_ny'])
 
         f0.close()
         # setup ndarrays for field data
@@ -157,6 +157,10 @@ class Animator:
         self.time_line.set_segments([[[self.t_arr[t],np.min(self.phase_data)],[self.t_arr[t],np.max(self.phase_data)]]])
 
     def start_animation(self,**Params):
+        """useful animiation parameters:
+            repeat:bool, if True, animation automatically repeat after end of frames
+            interval: int, draw new frame every 'interval' miliseconds
+        """
         self.anim = FuncAnimation(self.fig,self.update_frame, frames = self.nt,**Params)
         plt.show()
 

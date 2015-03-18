@@ -110,7 +110,7 @@ class C5_reader:
         data = np.loadtxt(this.filename,comments = '!', skiprows = this.comment_line + 6)
         if(this.params['Datatype'] == 'Complex'):
             data = data.reshape((ny,nx,2))
-            this.E_field = data[:,:,0]+ 1j* data[:,:,1]
+            this.E_field = np.copy(data[:,:,0]+ 1j* data[:,:,1])
         else:
             raise C5_Error( 'Right now, only complex data is accepted.')
         

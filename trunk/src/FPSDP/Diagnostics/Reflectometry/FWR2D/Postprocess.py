@@ -15,7 +15,7 @@ import numpy as np
 import scipy.io.netcdf as nc
 from scipy.optimize import curve_fit
 from scipy.integrate import dblquad
-from scipy.interpolate import RectBivariateSpline
+from scipy.interpolate import interp2d
 
 
 class Reflectometer_Output:
@@ -25,7 +25,7 @@ class Reflectometer_Output:
     
     """
 
-    def __init__(this,file_path,f_arr,t_arr,n_cross_section, FWR_dimension = 2,full_load = True):
+    def __init__(this,file_path,f_arr,t_arr,n_cross_section, FWR_dimension = 2,full_load = True,receiver_file_name='receiver_pattern.txt'):
         """initialize the output object, read the output files in file_path specified by frequencies and timesteps.
         """
         this.file_path = file_path
@@ -34,6 +34,7 @@ class Reflectometer_Output:
         this.timesteps = t_arr
         this.NT = len(t_arr)
         this.n_cross_section = n_cross_section
+        this.receiver_file_name = receiver_file_name
         this.dimension = FWR_dimension
         if (full_load):
             this.create_received_signals()
@@ -51,7 +52,7 @@ class Reflectometer_Output:
             for t_idx in range(this.NT):
                 for i in range(this.n_cross_section):
                     fwr_file = this.make_file_name(this.frequencies[f_idx],this.timesteps[t_idx],i)
-                    receiver_file = this.make_receiver_file_name(this.frequencies[f_idx],this.timesteps[t_idx],i)
+                    receiver_file = this.make_receiver_file_name(this.frequencies[f_idx],this.timesteps[t_idx],i,this.receiver_file_name)
                     this.E_out[f_idx,t_idx,i] = this.read_E_out(fwr_file,receiver_file)
             print 'frequency '+str(this.frequencies[f_idx])+' read.'
         return 0
@@ -69,11 +70,10 @@ class Reflectometer_Output:
             
         return full_path + file_name
 
-    def make_receiver_file_name(this,f,t,nc):
+    def make_receiver_file_name(this,f,t,nc,file_name):
         """create the receiver antenna pattern file name. Rightnow, it works with the NSTX_FWR_Driver.py script default.
         """
         full_path = '{0}{1}/{2}/{3}/'.format(this.file_path,str(f),str(t),str(nc))
-        file_name = 'receiver_pattern.txt'
         return full_path + file_name
     
 
@@ -85,10 +85,10 @@ class Reflectometer_Output:
         #print 'finish reading.'
 
         if(this.dimension == 2):
-            y = f.variables['a_y'][:]
-            z = f.variables['a_z'][:]
+            y = np.copy(f.variables['a_y'].data)
+            z = np.copy(f.variables['a_z'].data)
             z_idx = f.dimensions['a_nz']/2 -1
-            E_ref = f.variables['a_Er'][1,z_idx,:] + 1j*f.variables['a_Ei'][1,z_idx,:]
+            E_ref = np.copy(f.variables['a_Er'][1,z_idx,:] + 1j*f.variables['a_Ei'][1,z_idx,:])
             f.close()
 
             receiver = c5.C5_reader(rec_file)
@@ -101,8 +101,8 @@ class Reflectometer_Output:
             y = f.variables['a_y'][:]
             z = f.variables['a_z'][:]
             
-            E_ref_re_interp = RectBivariateSpline(z,y,f.variables['a_Er'][1,:,:])
-            E_ref_im_interp = RectBivariateSpline(z,y,f.variables['a_Ei'][1,:,:])            
+            E_ref_re_interp = interp2d(z,y,f.variables['a_Er'][1,:,:],kind='cubic',fill_value=0)
+            E_ref_im_interp = interp2d(z,y,f.variables['a_Ei'][1,:,:],kind='cubic',fill_value=0)            
             f.close()
 
             receiver = c5.C5_reader(rec_file)
@@ -138,7 +138,7 @@ class Reflectometer_Output:
         
         
 
-def Self_Correlation(ref_output):
+def Self_Correlation(ref_output,tstart=None, tend=None):
     """Calculate the self correlation function for each frequency
 
     self correlation function is defined as:
@@ -149,8 +149,14 @@ def Self_Correlation(ref_output):
 
     input: Reflectometer_Output object
     """
-
-    M = ref_output.E_out
+    if( tstart== None and tend == None):
+        M = ref_output.E_out
+    elif(tstart == None):
+        M = ref_output.E_out[:,:tend+1,:]
+    elif(tend == None):
+        M = ref_output.E_out[:,tstart:,:]
+    else:
+        M = ref_output.E_out[:,tstart:tend+1,:]
 
     M_bar = np.average(np.average(M,axis = 2),axis = 1)
 

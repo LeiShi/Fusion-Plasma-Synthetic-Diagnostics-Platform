@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Temporary Driver Script for NSTX_139047 reflectometry analysis
+"""Temporary Driver Script for reflectometry analysis
 
 This script is used to create working directories, creating and copying necessary files, and start FWR2D runs
 
@@ -13,9 +13,40 @@ $ipcluster start -n 64
 
 This will start a cluster with 64 processes
 
-Google "IPython start cluster" for more information
+Google 'IPython start cluster' for more information
 
+==========================================================
+PREPARATION:
+
+Before using this script, a working path must be set up by hand. The directory shoud have the following subirectories:
+
+inputs/ : this directory should have 2 kinds of input files:
+    1) input files for FWR2D executable: input file specifying FWR2D parameters.
+       Filename convention: 'input' + {$frequency}*10 + '.txt'
+    2) launching and receiving antenna pattern Code5 files.
+       Filename convention: 'antenna_pattern_launch_' + {$frequency}*10 + '.txt'
+                            'antenna_pattern_receive_'+ {$frequency}*10 + '.txt'
+2D_fluctuations/ : this directory contains plasma cdf files created by Plasma package modules
+
+bin/ : this directory contains executable: drive_FWR2D
+
+RUNS/ : this is where new runs will be placed
+
+SCRIPTS/: this script is recommended to be placed here.
+==========================================================
+
+USAGE:
+
+$FWR2D_Driver.py -h
+
+This will print out the available options.
+
+Make sure you modify 'run_No' in this script before submit a new run. Otherwise the result from the last run may be overwritten.
 """
+
+#The tag of RUN. Each new run should be assigned a new number.
+run_No = '_140GHz_275t'
+
 
 from IPython.parallel import Client
 c = Client()
@@ -33,7 +64,7 @@ with dv.sync_imports():
 dv.execute('np=numpy')
 dv.execute('subp=subprocess')
 
-working_path = '/p/gkp/lshi/XGC1_NSTX_Case/'
+working_path = '/p/gkp/lshi/GTS_ALCATOR_Case/L_mode/'
 
 #toroidal cross sactions used
 
@@ -41,27 +72,31 @@ n_cross_section = 1 #Total number of Cross Sections used
 
 #Time slices parameters
 time_start = 1
-time_end = 220
+time_end = 275
 time_inc = 1
 
 time_arr = np.arange(time_start,time_end+1,time_inc)
 
 #frequencies in GHz
 
-freqs = [30,32.5,35,37.5,42.5,45,47.5,50,55,57.5,60,62.5,67.5,70,72.5,75]
+freqs = [140]
 
 #input file parameters
 
 input_path = working_path+'inputs/'
-FWR_driver_input_head = 'input'
+FWR_driver_input_head = 'input'#followed by '{$frequency*10}.txt'
 FWR_driver_link_name = 'input.txt'
-incident_antenna_pattern_head = 'antenna_pattern_launch_nstx'
+
+#following names are default to be used in other scripts. DO NOT CHANGE THEM UNLESS YOU KNOW WHAT ELSE YOU NEED TO MODIFY. (list of dependent scripts:FWR_driver_input_file,Postprocess script using FPSDP.Diagnostics.Reflectometry.FWR2D.Postprocess)
+incident_antenna_pattern_head = 'antenna_pattern_launch_'#followed by '{$frequency*10}.txt'
+receiver_antenna_pattern_head = 'antenna_pattern_receive_'#followed by '{$frequency*10}.txt'
 incident_antenna_link_name = 'antenna_pattern.txt'
-receiver_antenna_pattern_head = 'antenna_pattern_receive_nstx'
 receiver_antenna_link_name = 'receiver_pattern.txt'
+#END of the default names
+
 
 #fluctuation file parameters
-fluc_path = working_path + 'new_2D_fluctuations/Amp1_All/'
+fluc_path = working_path + '2D_fluctuations/'
 fluc_head = 'fluctuation'
 fluc_link_name = 'plasma.cdf'
 
@@ -69,14 +104,11 @@ fluc_link_name = 'plasma.cdf'
 bin_path = working_path + 'bin/'
 exe = 'drive_FWR2D'
 
-#Start creating directories and files
+full_output_path = working_path + 'RUNS/RUN'+str(run_No)+'/'
 
-#The tag of RUN. Each new run should be assigned a new number.
-run_No = '_TEST_MULTIPROC_batch'#'_NSTX_139047_All_Channel_All_Time'
-
-full_output_path = working_path + 'Correlation_Runs/RUNS/RUN'+str(run_No)+'/'
-
+#Broadcast useful names to all worker nodes
 dv.push(dict(working_path = working_path,
+             full_output_path = full_output_path,
              n_cross_section = n_cross_section,
              time_arr = time_arr,
              freqs = freqs,
@@ -86,7 +118,7 @@ dv.push(dict(working_path = working_path,
 
 def make_dirs(f_arr = freqs,t_arr = time_arr, nc = n_cross_section, ask=True):
     
-    os.chdir(working_path+'Correlation_Runs/RUNS/')
+    os.chdir(working_path+'RUNS/')
     #create the RUN directory for the new run
     try:
         subp.check_call(['mkdir','RUN'+str(run_No)])
@@ -113,8 +145,8 @@ def make_dirs(f_arr = freqs,t_arr = time_arr, nc = n_cross_section, ask=True):
         else:
             raise e
 
-    os.chdir(working_path+'Correlation_Runs/RUNS/RUN'+str(run_No))
-    subp.check_call(['cp','../SCRIPT/NSTX_FWR_Driver.py','./'])    
+    os.chdir(full_output_path)
+    subp.check_call(['cp',working_path+'SCRIPTS/ALCATOR_FWR2D_Driver.py','./'])    
     #create the subdirectories for each detector(frequency) and plasma realization, add necessary links and copies of corresponding files.
 
     for f in f_arr:
@@ -138,49 +170,12 @@ def make_dirs(f_arr = freqs,t_arr = time_arr, nc = n_cross_section, ask=True):
             print 'Something is wrong, check the running environment.'
             raise
 
-        
-#make_batch method is depracated in Multiprocess version
-'''
-def make_batch(f_arr=freqs,t_arr=time_arr,nc = n_cross_section):
-    """write batch job files for chosen frequencies and time slices
-    """
-    os.chdir(working_path+'Correlation_Runs/RUNS/RUN'+str(run_No))
-    for f in f_arr:
-        for t in t_arr:
-            for j in range(nc):
-                os.chdir(str(f)+'/'+str(t)+'/'+str(j))
-                batch_file = open('batch','w')
-                batch_file.write('#PBS -N reflect_'+str(f)+'_'+str(t)+'_'+str(j)+'\n')
-                batch_file.write('#PBS -m a\n')
-                batch_file.write('#PBS -M lshi@pppl.gov\n')
-                batch_file.write('#PBS -l nodes=1:ppn=1\n')
-                batch_file.write('#PBS -l mem=1000mb\n')
-                batch_file.write('#PBS -l walltime=3:00:00\n')
-                batch_file.write('#PBS -r n\n')
-                batch_file.write('cd $PBS_O_WORKDIR\n\n')
-                batch_file.write(exe+' '+FWR_driver_link_name+'\n')
-                batch_file.close()
-                os.chdir('../../..')
-    
-    
-#submit method is deprecated in Multiprocess version
-def submit(f_arr=freqs,t_arr=time_arr,nc = n_cross_section):
-    """ submit the batch jobs
-    """
-    os.chdir(working_path+'Correlation_Runs/RUNS/RUN'+str(run_No))
-    for f in f_arr:
-        for t in t_arr:
-            for j in range(nc):
-                os.chdir(str(f)+'/'+str(t)+'/'+str(j))
-                subp.check_call(['qsub','./batch'])
-                os.chdir('../../..')
-'''
 
 def start_run(params):
     """ start an FWR2D run with specific frequency, time and cross-section.
     """
     f,t,nc = params
-    os.chdir(working_path+'Correlation_Runs/RUNS/RUN'+str(run_No)+'/'+str(f)+'/'+str(t)+'/'+str(nc))
+    os.chdir(full_output_path+'/'+str(f)+'/'+str(t)+'/'+str(nc))
     with open('./output.txt','w') as output:
         subp.check_call([exe,FWR_driver_link_name,],stdout=output) 
 
@@ -210,8 +205,8 @@ def main(argv):
         print 'unexpected option. use -h to see allowed options.'
         sys.exit(2)
     
-    t_use =[1]#time_arr
-    f_use = freqs[0]
+    t_use = time_arr
+    f_use = freqs #[freqs[i] for i in range(1)]
     nc_use = 1
     
     for opt,arg in opts:

@@ -68,16 +68,16 @@ def trilinear_interp(X,Y,Z,F,x, fill_value=0.0):
     interpolated z value on given (x,y)
     """
     if len(x.shape) == 1:
-        # First find the x,y,z coordinate of the corner of the cube
-        indx = max(np.where(X < x[0])[0])
-        indy = max(np.where(Y < x[1])[0])
-        indz = max(np.where(Z < x[2])[0])
-
         # if outside the box, put the value to fill_value
-        if indx == [] or indy == [] or indz == 0\
-           or x[0] > X[-1] or x[1] > Y[-1] or x[2] > Z[-1]:
+        if x[0] < X[0] or x[1] < Y[0] or x[2] < Z[0]\
+               or x[0] > X[-1] or x[1] > Y[-1] or x[2] > Z[-1]:
             return fill_value
         else:
+            # First find the x,y,z coordinate of the corner of the cube
+            indx = np.where(X < x[0])[0].max()
+            indy = np.where(Y < x[1])[0].max()
+            indz = np.where(Z < x[2])[0].max()
+
             # relative coordinates
             rx = (x[0]-X[indx])/(X[indx+1]-X[indx])
             ry = (x[1]-Y[indy])/(Y[indy+1]-Y[indy])
@@ -105,14 +105,15 @@ def trilinear_interp(X,Y,Z,F,x, fill_value=0.0):
         G = np.zeros(len(x[:,0]))
         # First find the x,y,z coordinate of the corner of the cube
         for i in range(len(x[:,0])):
-            indx = np.where(X <= x[i,0])[0].max()
-            indy = np.where(Y <= x[i,1])[0].max()
-            indz = np.where(Z <= x[i,2])[0].max()
-
-            if indx == [] or indy == [] or indz == 0\
+            if x[i,0] < X[0] or x[i,1] < Y[0] or x[i,2] < Z[0]\
                or x[i,0] > X[-1] or x[i,1] > Y[-1] or x[i,2] > Z[-1]:
                 G[i] = fill_value
+
             else:
+                indx = np.where(X <= x[i,0])[0].max()
+                indy = np.where(Y <= x[i,1])[0].max()
+                indz = np.where(Z <= x[i,2])[0].max()
+                
                 # relative coordinates
                 rx = (x[i,0]-X[indx])/(X[indx+1]-X[indx])
                 ry = (x[i,1]-Y[indy])/(Y[indy+1]-Y[indy])

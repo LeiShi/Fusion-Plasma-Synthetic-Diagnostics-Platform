@@ -8,11 +8,14 @@ position = [2,-0.49,0.0]
 # direction of the beam, it will be normalized in the code
 direction = [-0.2,0.7,0.0]
 # beam width (FWHM in meter)
-beam_width = 0.01
+# horizontal
+beam_width_h = 0.13
+# vertical
+beam_width_v = 0.27
 # number of points for the discretization along the beam direction
 # the ending point is computed with the window of the scan
 # (the beam line goes from the position until the end of the mesh)
-Nz = 1024
+Nz = 128
 
 
 [Beam energy]
@@ -28,23 +31,54 @@ mass_b = [1.0,2.0,3.0]
 [Collisions]
 # ADAS files (separated by ,)
 # attenuation
-adas_atte = ["bms98#h_fast_h1.dat" , "bms93#h_he2.dat"]
+adas_atte = ["bms10#h_h1.dat"]
 # emission
-adas_emis = ["bme97#h_h1.dat"]
+adas_emis = ["bme10#h_h1.dat"]
 # collisions considered (index start to 0)
 # first index is for a file (in adas_file) and second is
 # for the beam component
-coll_atte = [[1,0], [1,1], [1,2]]
+coll_atte = [[0,0], [0,1], [0,2]]
 coll_emis = [[0,0], [0,1], [0,2]]
 
-# lifetime of the excited state (same order than emission file) [sec]
-lifetimes = [1.2e-9]
 # quantum number of the low energy state and the excited one
-n_quant = [(2,3), (2,3), (2,3)]
-# wavelength of each emission files [in Angstrom]
-wavelength = [6561, 6561,6561]
+n_low = 2
+n_high = 3
 # number of points for the discretization of the lifetime effect
 # small distance, so do not need a big number
 Nlt = 4
 # t_max*lifetime = upper value of the integrale for the lifetime effect
-t_max = 5
+t_max = 3
+
+[Fiber]
+# position of each fiber
+X = [1.608, 1.609, 1.605, 1.603]
+Y = [-0.388, -0.388, -0.388, -0.388]
+Z = [0.0, 0.0, 0.0, 0.0]
+
+[Optics]
+# direction of the optics (will be normalized)
+dir = [1.0,1.0,0.0]
+# focal of the last lens [meter]
+foc = 0.4
+# entrance pupil
+rad_pup = 0.2
+# radius of the focus point
+rad_foc = 0.01
+# integration of the intensity along
+# the sightline
+# in [foc-int*w, foc+int*w] where w is the
+# average of the horizontal and vertical
+# beam width
+int = 2
+# number of intervals for the integration
+Nint = 20
+
+[Data]
+# path to the simulation data
+data_path = /global/project/projectdirs/m499/jlang/particle_pinch/
+# precision for all the axis
+N = [32, 32, 8]
+# timestep wanted
+timestart = 180
+timeend = 180
+timestep = 20

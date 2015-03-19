@@ -5,30 +5,6 @@ import numpy as np
 import scipy.interpolate as ip
 
 
-def read_block(data,i,array,n):
-    """ Read a block of the ADAS file (Beam stopping rate) and return the 
-        number of the final line
-
-        Arguments:
-        data -- list of string containing the file (see read_adas for an 
-                example)
-        i    -- first line to look at
-        list -- list where to add the data
-        n    -- number of item contains in data
-    """
-    # loop over all the data block
-    index = 0
-    while index is not n:
-        temp = data[i].split()
-        # loop over one line for taking all the datas
-        # inside this line
-        for j in range(len(temp)):
-            array[index] = temp[j]
-            index += 1
-        i += 1
-    return i
-
-
 class ADAS_file:
     """ Global class for defining the different kind of database
         DO NOT USE
@@ -36,7 +12,30 @@ class ADAS_file:
     def __init__(self,name):
         self.name = name
 
+    def read_block(self,data,i,array,n):
+        """ Read a block of the ADAS file (Beam stopping rate) and return the 
+        number of the final line
         
+        Arguments:
+        data -- list of string containing the file (see read_adas for an 
+                example)
+        i    -- first line to look at
+        list -- list where to add the data
+        n    -- number of item contains in data
+        """
+        # loop over all the data block
+        index = 0
+        while index is not n:
+            temp = data[i].split()
+            # loop over one line for taking all the datas
+            # inside this line
+            for j in range(len(temp)):
+                array[index] = temp[j]
+                index += 1
+            i += 1
+        return i
+
+
 
 class ADAS21(ADAS_file):
     """ Class containing all the data from one ADAS file (adf21)
@@ -83,13 +82,13 @@ class ADAS21(ADAS_file):
         i = 4
         # read all the beam energies taken in account in the
         # ADAS file
-        i = read_block(data,i,self.adas_beam,self.n_b)
+        i = self.read_block(data,i,self.adas_beam,self.n_b)
 
         # same as before but with the densities
         self.densities = np.zeros(self.n_density)                       #!
-        i = read_block(data,i,self.densities,self.n_density)
+        i = self.read_block(data,i,self.densities,self.n_density)
         # change of unit cm-3 -> m-3
-        self.densities *= 100**3
+        self.densities *= 100.0**3
         i += 1 # remove line with ----
         
         # contains the coefficients as a function of densities and the beam
@@ -98,12 +97,12 @@ class ADAS21(ADAS_file):
         # coef_dens[i,j] -- i for beam, j for densities                #!
 
         for j in range(self.n_density):
-            i = read_block(data,i,self.coef_dens[j],self.n_b)
+            i = self.read_block(data,i,self.coef_dens[j],self.n_b)
             
             
         i += 1 # remove line with ----
         # change of unit cm -> m
-        self.coef_dens /= 100**3
+        self.coef_dens /= 100.0**3
         
         temp = data[i].split()
         self.n_T = int(temp[0]) # number of different temperature       #!
@@ -116,16 +115,16 @@ class ADAS21(ADAS_file):
         
         # list of temperature
         self.temperature = np.zeros(self.n_T)                           #!
-        i = read_block(data,i,self.temperature,self.n_T)
+        i = self.read_block(data,i,self.temperature,self.n_T)
 
         i += 1 # remove line with ----
         
         # read the coefficients as a function of the temperature
         self.coef_T = np.zeros(self.n_T)                                #!
-        i = read_block(data,i,self.coef_T,self.n_T)
+        i = self.read_block(data,i,self.coef_T,self.n_T)
 
         # change of unit
-        self.coef_T /= 100**3
+        self.coef_T /= 100.0**3
         # END OF READING
 
 
@@ -177,13 +176,13 @@ class ADAS22(ADAS_file):
         i = 4
         # read all the beam energies taken in account in the
         # ADAS file
-        i = read_block(data,i,self.adas_beam,self.n_b)
+        i = self.read_block(data,i,self.adas_beam,self.n_b)
 
         # same as before but with the densities
         self.densities = np.zeros(self.n_density)                       #!
-        i = read_block(data,i,self.densities,self.n_density)
+        i = self.read_block(data,i,self.densities,self.n_density)
         # change of unit cm-3 -> m-3
-        self.densities *= 100**3
+        self.densities *= 100.0**3
         i += 1 # remove line with ----
         
         # contains the coefficients as a function of densities and the beam
@@ -192,12 +191,12 @@ class ADAS22(ADAS_file):
         # coef_dens[i,j] -- i for beam, j for densities                #!
 
         for j in range(self.n_density):
-            i = read_block(data,i,self.coef_dens[j],self.n_b)
+            i = self.read_block(data,i,self.coef_dens[j],self.n_b)
             
             
         i += 1 # remove line with ----
         # change of unit cm -> m
-        self.coef_dens /= 100**3
+        self.coef_dens /= 100.0**3
         
         temp = data[i].split()
         self.n_T = int(temp[0]) # number of different temperature       #!
@@ -210,15 +209,15 @@ class ADAS22(ADAS_file):
         
         # list of temperature
         self.temperature = np.zeros(self.n_T)                           #!
-        i = read_block(data,i,self.temperature,self.n_T)
+        i = self.read_block(data,i,self.temperature,self.n_T)
 
         i += 1 # remove line with ----
         
         # read the coefficients as a function of the temperature
         self.coef_T = np.zeros(self.n_T)                                #!
-        i = read_block(data,i,self.coef_T,self.n_T)
+        i = self.read_block(data,i,self.coef_T,self.n_T)
 
         # change of unit
-        self.coef_T /= 100**3
+        self.coef_T /= 100.0**3
         # END OF READING
     

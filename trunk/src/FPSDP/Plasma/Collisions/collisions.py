@@ -11,10 +11,12 @@ class Collisions:
         Methods:
 
           read_adas()     --  load the data from the ADAS file
-          get_attenutation(beam,density,temperature,file_number)
+          get_attenutation(beam,ne,Ti,file_number)
                           --  gives the attenuation coefficient
-          get_emission(beam,density,mass_b,temperature,file_number):
+          get_emission(beam,ne,mass_b,Ti,file_number):
                           --  gives <sigma*v> for the exitation
+          get_lifetime(ne,Te,Ti,beam,mass_b,file_number):
+                          --  gives the lifetime of the excited state
     
           Access data in ADAS file:
             get_Tref(file_number)             --  reference temperature
@@ -22,18 +24,19 @@ class Collisions:
             get_coef_T(file_number)           --  second table  
             get_list_temperature(file_number) --  list temperatures
             get_list_density(file_number)     --  list densities
-            get_list_beams(self,file_number)  --  list beams
+            get_list_beams(file_number)       --  list beams
 
         Attributes:
     
-        files      -- list of ADAS files
-        lifetimes  -- list with the lifetime of the excited states
+        files_atte -- list of ADAS files for the attenuation
+        files_emis -- list of ADAS files for the emission
         beam_data  -- list of the beams
+        n_low      -- quantum number of the lower state
+        n_high     -- quantum number of the higher state
         
-      
     """
 
-    def __init__(self,files_atte,files_emis,lifetimes):
+    def __init__(self,files_atte,files_emis,states):
         """ Copy the input inside the instance
             
             Arguments:
@@ -46,9 +49,12 @@ class Collisions:
         """
         self.files_atte = files_atte                                         #!
         self.files_emis = files_emis                                         #!
-        self.lifetimes = lifetimes                                           #!
         self.beam_emis = []                                                  #!
         self.beam_atte = []                                                  #!
+        print 'The lifetime assume an hydrogen atom'
+        self.n_low = states[0]                                               #!
+        self.n_high = states[1]                                              #!
+        self.E0 = -13.6
         self.read_adas()
         
     def read_adas(self):
@@ -59,17 +65,15 @@ class Collisions:
         for name in self.files_emis:
             self.beam_emis.append(adas.ADAS22(name))
 
-    def get_attenutation(self,beam,density,mass_b,temperature,file_number):
+    def get_attenutation(self,beam,ne,mass_b,Ti,file_number):
         """ get the attenuation value for a given density, beam energy, and
             temperature
 
             Arguments:
             beam        -- beam energy wanted
-            density     -- ion (in plasma) density wanted
+            ne          -- electron density (in plasma) density wanted
             mass_b      -- mass of an atom (of the beam in amu)
-            temperature -- temperature wanted (default = -1)
-                           if value == -1, the temperature of the ADAS file
-                           is used
+            Ti          -- ion temperature 
             file_number -- file number wanted (should be simplify in Beam.py)
         """
         # get data
@@ -80,7 +84,7 @@ class Collisions:
         
         # interpolation over beam and density
         tck = interpolate.bisplrep(lbeams,ldens,coef_dens)
-        coef = interpolate.bisplev(beam,density,tck)
+        coef = interpolate.bisplev(beam,ne,tck)
 
         # get data for the interpolation in temperature
         T = self.get_list_temperature('atte',file_number)
@@ -90,22 +94,20 @@ class Collisions:
 
         #interpolation over the temperature
         tck = interpolate.splrep(T,coef_T/coef_T[index])
-        coef = coef * interpolate.splev(temperature,tck)
+        coef = coef * interpolate.splev(Ti,tck)
         if coef <= 0:
             raise NameError('Attenuation coefficient smaller than 0')
         return coef
 
-    def get_emission(self,beam,density,mass_b,temperature,file_number):
+    def get_emission(self,beam,ne,mass_b,Ti,file_number):
         """ get the emission value for a given density, beam energy, and
             temperature
 
             Arguments:
             beam        -- beam energy wanted
-            density     -- ion (in plasma) density wanted
+            ne          -- electron (in plasma) density wanted
             mass_b      -- mass of an atom (of the beam in amu)
-            temperature -- temperature wanted (default = -1)
-                           if value == -1, the temperature of the ADAS file
-                           is used
+            Ti          -- ion temperature
             file_number -- file number wanted (should be simplify in Beam.py)
         """
         # get data
@@ -116,12 +118,18 @@ class Collisions:
         
         # interpolation over beam and density
         tck = interpolate.bisplrep(lbeams,ldens,coef_dens)
-        be = beam*np.ones(len(density))
-        coef = np.zeros(len(be))
-        for i in range(len(be)):
-            coef[i] = interpolate.bisplev(be[i],density[i],tck)
-            if coef[i] < 0:
-                coef[i] = 0
+        if not isinstance(ne,float):
+            be = beam*np.ones(len(ne))
+            coef = np.zeros(len(be))
+            for i in range(len(be)):
+                coef[i] = interpolate.bisplev(be[i],ne[i],tck)
+                if coef[i] < 0:
+                    coef[i] = 0
+        else:
+            be = beam
+            coef =  interpolate.bisplev(be,ne,tck)
+            if coef < 0:
+                coef = 0
 
         # Get data for the interpolation in temperature
         T = self.get_list_temperature('emis',file_number)
@@ -131,7 +139,7 @@ class Collisions:
 
         #interpolation over the temperature
         tck = interpolate.splrep(T,coef_T/coef_T[index])
-        coef = coef * interpolate.splev(temperature,tck)
+        coef = coef * interpolate.splev(Ti,tck)
         return coef
 
     def get_Tref(self,typ,file_number):
@@ -217,3 +225,21 @@ class Collisions:
         else:
             raise NameError('No list with this name: {0}'.format(typ))
 
+    def get_lifetime(self,ne,Te,Ti,beam,mass_b,file_number):
+        """ Compute the lifetime of the excited state following the formula
+            given by I. H. Hutchinson, Plasma Phys. Controlled Fusion 44,71 (2002)
+            assuming an hydrogen atom
+
+            Arguments:
+            beam        -- beam energy wanted
+            ne          -- electron (in plasma) density wanted
+            mass_b      -- mass of an atom (of the beam in amu)
+            Te          -- electron temperature
+            Ti          -- ion temperature
+            file_number -- file number wanted (should be simplify in Beam.py)
+        """
+        return 1.68e-9
+        #frac = (float(self.n_low)/float(self.n_high))**2
+        #E = -self.E0*(1.0/self.n_low**2 - 1.0/self.n_high**2)
+        #sigv = frac*np.exp(E/Te)*self.get_emission(beam,ne,mass_b,Ti,file_number)
+        #return 1.0/(sigv*ne)

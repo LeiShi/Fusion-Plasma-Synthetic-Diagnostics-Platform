@@ -129,9 +129,10 @@ class Beam1D:
         # load data for collisions
         self.adas_atte = json.loads(config.get('Collisions','adas_atte'))    #!
         self.adas_emis = json.loads(config.get('Collisions','adas_emis'))    #!
-        lifetimes = json.loads(config.get('Collisions','lifetimes'))
-        self.collisions = col.Collisions(self.adas_atte,
-                                         self.adas_emis,lifetimes)           #!
+        n_low = json.loads(config.get('Collisions','n_low'))
+        n_high = json.loads(config.get('Collisions','n_high'))
+        self.collisions = col.Collisions(self.adas_atte,self.adas_emis,
+                                         (n_low,n_high))                     #!
         self.coll_atte = json.loads(config.get('Collisions','coll_atte'))    #!
         self.coll_emis = json.loads(config.get('Collisions','coll_emis'))    #!
         self.Nlt = int(json.loads(config.get('Collisions','Nlt')))           #!
@@ -157,10 +158,18 @@ class Beam1D:
         self.direc = json.loads(config.get('Beam geometry','direction'))     #!
         self.direc = np.array(self.direc)
         self.direc = self.direc/np.sqrt(sum(self.direc**2))
-        self.beam_width = json.loads(
-            config.get('Beam geometry','beam_width'))                        #!
+        self.beam_width_h = json.loads(
+            config.get('Beam geometry','beam_width_h'))                      #!
+        self.beam_width_v = json.loads(
+            config.get('Beam geometry','beam_width_v'))                      #!
         self.Nz = int(config.get('Beam geometry','Nz'))                      #!
 
+        # get the standard deviation at the origin
+        self.stddev_h = self.beam_width_h/(2*np.sqrt(2*np.log(2)))
+        self.stddev_v = self.beam_width_v/(2*np.sqrt(2*np.log(2)))
+        self.stddev_h **= 2
+        self.stddev_v **= 2
+        
         print 'Creating mesh'
         self.create_mesh()
         print 'Computing density of the beam'
@@ -172,7 +181,8 @@ class Beam1D:
             Used for simplification in the case that someone want to add the
             beam divergence
         """
-        return self.beam_width*np.ones(dist.shape)
+        return np.array([self.stddev_h*np.ones(dist.shape),
+                         self.stddev_v*np.ones(dist.shape)])
 
     def create_mesh(self):
         """ create the 1D mesh between the source of the beam and the end 
@@ -276,20 +286,25 @@ class Beam1D:
         # speed of each beam
         self.speed = np.zeros(len(self.beam_comp))                           #!
         self.speed = np.sqrt(2*self.beam_comp*9.6485383e10/self.mass_b)
-        # get the standard deviation at the origin
-        self.std_dev = self.beam_width/(2*np.sqrt(2*np.log(2)))              #!
-        self.std_dev2 = self.std_dev**2
         # density of the beam at the origin
         n0 = np.zeros(len(self.beam_comp))
         n0 = np.sqrt(2*self.mass_b*1.660538921e-27)*math.pi*self.power
-        n0 *= self.frac*self.std_dev2/(self.beam_comp*1.60217733e-16)**(1.5)
+        n0 *= self.frac*self.stddev_h*self.stddev_v/(self.beam_comp*
+                                                       1.60217733e-16)**(1.5)
         self.dens = np.zeros((len(self.timesteps),len(self.mesh[:,0])))      #!
+        self.ti = np.zeros((len(self.timesteps),len(self.mesh[:,0])))        #!
+        self.S = np.zeros((len(self.timesteps),len(self.mesh[:,0])))         #!
+        print 'test'
 
         for t_ in range(len(self.timesteps)):
             print 'Timestep number: ', t_ + 1, '/ ', len(self.timesteps)
             for j in range(len(self.mesh[:,0])):
                 # density over the central line (usefull for some check)
                 self.dens[t_,j] = self.get_electron_density(self.mesh[j,:],t_)
+                self.ti[t_,j] = self.get_electron_temp(self.mesh[j,:])
+                self.S[t_,j] = self.collisions.get_attenutation(
+                            self.beam_comp[0],self.mass_b[0],
+                            self.dens[t_,j],self.ti[t_,j],0)
                 if j is not 0:
                     temp_beam = np.zeros(len(self.beam_comp))
                     for k in self.coll_atte:
@@ -317,16 +332,13 @@ class Beam1D:
                         T1 = self.get_ion_temp(pt1)
                         T2 = self.get_ion_temp(pt2)
                         
-                        ni1 = self.get_ion_density(pt1,t_)
-                        ni2 = self.get_ion_density(pt2,t_)
-
                         # attenuation coefficient from adas
                         S1 = self.collisions.get_attenutation(
                             self.beam_comp[beam_nber],self.mass_b[beam_nber],
-                            ni1,T1,file_nber)
+                            ne1,T1,file_nber)
                         S2 = self.collisions.get_attenutation(
                             self.beam_comp[beam_nber],self.mass_b[beam_nber],
-                            ni2,T2,file_nber)
+                            ne2,T2,file_nber)
                         # half distance between a & b
                         norm_ = 0.5*np.sqrt(sum((b-a)**2))
                         temp1 = (ne1*S1 + ne2*S2)
@@ -386,8 +398,9 @@ class Beam1D:
                 nb[i] = interpolate.splev(proj,tck)
             # radius^2 on the plane perpendicular to the beam
             R2 = dist - proj*self.direc
-            R2 = sum(R2**2)
-            nb = nb*np.exp(-R2/(2*stddev2))
+            xy = np.sum(R2[1:2]**2)
+            z = R2[2]**2
+            nb = nb*np.exp(-xy/(2*stddev2[0]) - z/(2*stddev2[1]))
             return nb
         elif len(pos.shape) == 2:
             # array to return
@@ -412,9 +425,10 @@ class Beam1D:
             R2[:,1] = dist[:,1] - proj*self.direc[1]
             R2[:,2] = dist[:,2] - proj*self.direc[2]
             # compute the norm of each position
-            R2 = np.einsum('ij,ij->i',R2,R2)
+            xy = np.sum(R2[:,1:2]**2, axis=1)
+            z = R2[:,2]**2
             for i in range(len(self.beam_comp)):
-                nb[i,:] = nb[i,:]*np.exp(-R2/(2*stddev2))
+                nb[i,:] = nb[i,:]*np.exp(-xy/(2*stddev2[0]) - z/(2*stddev2[1]))
             return nb
         else:
             raise NameError('Error: wrong shape for pos')
@@ -427,20 +441,21 @@ class Beam1D:
         """
         # first take all the value needed for the computation
         emis = np.zeros((len(t_),len(self.beam_comp),len(pos[:,0])))
-        Te = self.get_electron_temp(pos)
+        Ti = self.get_ion_temp(pos)
+
         # loop over all the type of collisions
         for tstep in range(len(t_)):
             n_b = self.get_beam_density(pos,t_[tstep])
             n_e = self.get_electron_density(pos,t_[tstep])
-            for k in self.coll_atte:
+            for k in self.coll_emis:
                 file_nber = k[0]
                 beam_nber = k[1]
                 # compute the emission coefficient
                 emis[tstep,beam_nber,:] += self.collisions.get_emission(
-                    self.beam_comp[beam_nber],n_e,self.mass_b[beam_nber],Te,file_nber)
+                    self.beam_comp[beam_nber],n_e,self.mass_b[beam_nber],Ti,file_nber)
             # compute the emissivity
             for i in range(len(self.beam_comp)):
-                emis[tstep,i] *= n_e*n_b[i,:]
+                emis[tstep,i,:] *= n_e*n_b[i,:]
         return emis
 
 
@@ -454,14 +469,14 @@ class Beam1D:
         n_b = self.get_beam_density(pos,t_)
         dn_e = self.get_electron_density_fluc(pos,t_)
         emis = np.zeros((len(self.beam_comp),len(pos[:,0])))
-        Te = self.get_electron_temp(pos)
+        Ti = self.get_ion_temp(pos)
         # loop over all the type of collisions
         for k in self.coll_atte:
             file_nber = k[0]
             beam_nber = k[1]
             # compute the emission coefficient
             emis[beam_nber,:] += self.collisions.get_emission(
-                self.beam_comp[beam_nber],dn_e,self.mass_b[beam_nber],Te,file_nber)
+                self.beam_comp[beam_nber],dn_e,self.mass_b[beam_nber],Ti,file_nber)
         # compute the emissivity
         for i in range(len(self.beam_comp)):
             emis[i] *= dn_e*n_b[i,:]
@@ -477,7 +492,7 @@ class Beam1D:
         """
         # first take all the value needed for the computation
         emis = np.zeros((len(self.timesteps),len(self.beam_comp),len(pos[:,0])))
-        Te = self.get_electron_temp(pos)
+        Ti = self.get_ion_temp(pos)
         for t_ in range(len(self.timesteps)):
             n_b = self.get_beam_density(pos,t_)
             n_e = self.get_electron_density(pos,t_)
@@ -487,7 +502,7 @@ class Beam1D:
                 beam_nber = k[1]
                 # compute the emission coefficient
                 emis[t_,beam_nber,:] += self.collisions.get_emission(
-                    self.beam_comp[beam_nber],n_e,self.mass_b[beam_nber],Te,file_nber)
+                    self.beam_comp[beam_nber],n_e,self.mass_b[beam_nber],Ti,file_nber)
             # compute the emissivity
             for i in range(len(self.beam_comp)):
                 emis[t_,i] *= n_e*n_b[i,:]
@@ -500,11 +515,12 @@ class Beam1D:
     def get_emis_lifetime(self,pos,t_):
         """ Return the emissivity at pos and time t_ 
             epsilon = <sigma*v> n_b n_e with the effect
-            of the lifetime
+            of the lifetime (depends on the position))
             Argument:
             pos   -- 2D array, first index is for X,Y,Z
         """
         print 'use Gauss-Laguerre'
+        print 'wavelength!!!'
         emis = np.zeros((len(self.timesteps),len(self.beam_comp),len(pos[:,0])))
         # avoid the computation at each time
         temp = np.sqrt(1.0/3.0)
@@ -512,44 +528,60 @@ class Beam1D:
         for tstep in range(len(t_)):
             for k in self.coll_emis:
                 index += 1
-                print 'Emissivity: ', index, ' / ', len(self.coll_emis)*len(t_)
                 file_nber = k[0]
                 beam_nber = k[1]
-                l = self.collisions.lifetimes[file_nber]
-                # variable for integrating
-                delta = np.linspace(0,self.t_max*l,self.Nlt)
-                # average position (a+b)/2
-                av = 0.5*(delta[0:-2] + delta[1:-1])
-                # half distance (b-a)/2
-                diff = 0.5*(-delta[0:-2] + delta[1:-1])
-                # integration points at each interval
-                pt1 = -diff*temp + av
-                pt2 = diff*temp + av
                 # loop over all the position
                 for i in range(len(pos[:,0])):
+                    ne_in = self.get_electron_density(pos[i,:],t_[tstep])
+                    Ti_in = self.get_ion_temp(pos[i,:])
+                    Te_in = self.get_electron_temp(pos[i,:])
+
+                    l = self.collisions.get_lifetime(ne_in,Te_in,Ti_in,
+                                                     self.beam_comp[beam_nber],
+                                                     self.mass_b[beam_nber],file_nber)
+                    dist = np.sqrt(np.sum((pos[i,:]-self.pos)**2))
+                    # used for avoiding the discontinuity before the origin
+                    # of the beam
+                    up_lim = min(l*self.t_max*self.speed[beam_nber],dist)
+                    # variable for integrating
+                    delta = np.linspace(0,up_lim,self.Nlt)
+                    # average position (a+b)/2
+                    av = 0.5*(delta[0:-2] + delta[1:-1])
+                    # half distance (b-a)/2
+                    diff = 0.5*(-delta[0:-2] + delta[1:-1])
+                    # integration points at each interval
+                    pt1 = -diff*temp + av
+                    pt2 = diff*temp + av
+                    
                     # points in 3D space
                     x1 = np.zeros((len(av),3))
                     x2 = np.zeros((len(av),3))
+
                     x1[:,0] = pos[i,0] - self.direc[0]*pt1
                     x1[:,1] = pos[i,1] - self.direc[1]*pt1
                     x1[:,2] = pos[i,2] - self.direc[2]*pt1
+
                     x2[:,0] = pos[i,0] - self.direc[0]*pt2
                     x2[:,1] = pos[i,1] - self.direc[1]*pt2
                     x2[:,2] = pos[i,2] - self.direc[2]*pt2
+
+                    
                     n_b1 = self.get_beam_density(x1,t_[tstep])
                     n_e1 = self.get_electron_density(x1,t_[tstep])
-                    Te1 = self.get_electron_temp(x1)
+                    Ti1 = self.get_ion_temp(x1)
+                    
                     n_b2 = self.get_beam_density(x2,t_[tstep])
                     n_e2 = self.get_electron_density(x2,t_[tstep])
-                    Te2 = self.get_electron_temp(x2)
+                    Ti2 = self.get_ion_temp(x2)
 
+                    
                     f1 = self.collisions.get_emission(
-                        self.beam_comp[beam_nber],n_e1,self.mass_b[beam_nber],Te1,file_nber)
+                        self.beam_comp[beam_nber],n_e1,self.mass_b[beam_nber],Ti1,file_nber)
                     f2 = self.collisions.get_emission(
-                        self.beam_comp[beam_nber],n_e2,self.mass_b[beam_nber],Te2,file_nber)
+                        self.beam_comp[beam_nber],n_e2,self.mass_b[beam_nber],Ti2,file_nber)
                     f1 *= n_e1*n_b1[beam_nber]*np.exp(-pt1/(l*self.speed[beam_nber]))/self.speed[beam_nber]
                     f2 *= n_e2*n_b2[beam_nber]*np.exp(-pt2/(l*self.speed[beam_nber]))/self.speed[beam_nber]
                     
-                    emis[t_,beam_nber,i] += sum((f1 + f2)*diff)/l
+                    emis[tstep,beam_nber,i] = sum((f1 + f2)*diff)/l
 
         return emis

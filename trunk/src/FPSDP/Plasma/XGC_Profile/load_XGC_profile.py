@@ -858,6 +858,7 @@ class XGC_Loader():
         self.dni_ad[...,inner_idx] += ni0[inner_idx] * self.phi[...,inner_idx] /self.ti0[inner_idx]
         ad_valid_idx = np.where(np.absolute(self.dni_ad)<= np.absolute(ni0))
 
+
         self.ni = np.zeros(self.dni_ad.shape)
         self.ni += ni0[:]
         self.ni[ad_valid_idx] += self.dni_ad[ad_valid_idx]*self.dn_amplifier

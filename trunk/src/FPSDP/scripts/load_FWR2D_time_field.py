@@ -13,7 +13,7 @@ import Image
 
 run_path = '/p/gkp/lshi/GTS_ALCATOR_Case/L_mode/RUNS/test_RUNS/RUN_TEST_MULTIPROC_batch/140/'
 
-t_arr = range(1,200,30)
+t_arr = [1,101]#range(1,200,30)
 
 freq = 140
 

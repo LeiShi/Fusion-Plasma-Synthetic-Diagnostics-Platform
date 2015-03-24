@@ -97,6 +97,13 @@ def find_interp_positions_v2(my_xgc):
         BPhi_FWD = BPhi(Z_FWD,R_FWD)
         dR_FWD = RdPhi_FWD * BR(Z_FWD,R_FWD) / BPhi_FWD
         dZ_FWD = RdPhi_FWD * BZ(Z_FWD,R_FWD) / BPhi_FWD
+        
+        if(dR_FWD == np.inf):
+            #when the point gets outside of the XGC mesh, set BR,BZ to zero.
+            dR_FWD = 0
+        if(dZ_FWD == np.inf):
+            dZ_FWD = 0
+        
         s_FWD += np.sqrt(RdPhi_FWD**2 + dR_FWD**2 + dZ_FWD**2)
         R_FWD += dR_FWD
         Z_FWD += dZ_FWD
@@ -107,6 +114,12 @@ def find_interp_positions_v2(my_xgc):
         BPhi_BWD = BPhi(Z_BWD,R_BWD)
         dR_BWD = RdPhi_BWD * BR(Z_BWD,R_BWD) / BPhi_BWD
         dZ_BWD = RdPhi_BWD * BZ(Z_BWD,R_BWD) / BPhi_BWD
+        
+        if(dR_BWD == np.inf):
+            dR_BWD = 0
+        if(dZ_BWD == np.inf):
+            dZ_BWD == 0
+        
         s_BWD += np.sqrt(RdPhi_BWD**2 + dR_BWD**2 + dZ_BWD**2)
         R_BWD += dR_BWD
         Z_BWD += dZ_BWD
@@ -954,7 +967,7 @@ class XGC_Loader():
             self.psi_on_grid = self.psi_interp(y2D,x2D)
 
             #B field on grid
-            self.BX_on_grid = self.BR_interp(y2D,x2D) #outside points will be set to nan
+            self.BX_on_grid = self.BR_interp(y2D,x2D) #outside points will be set to np.inf
             #now deal with outside points: for each horizontal line, the outside points will be set as the same value as the outmost point which has a valid value.            
             for i in range(x2D.shape[0]):
                 bx_hor = self.BX_on_grid[i,:]

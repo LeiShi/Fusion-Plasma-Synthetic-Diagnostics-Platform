@@ -22,14 +22,13 @@ def heuman(phi,m):
 def angle(v1,v2):
     return np.arccos(np.dot(v1,v2)/(np.linalg.norm(v1)*np.linalg.norm(v2)))
 
-def solid_angle_circle_off_axis(pos,r):
+def solid_angle_disk(pos,r):
     """ Compute the solid angle of a circle on/off-axis from the pos
         the center of the circle should be in (0,0,0)
 
         look the paper of Paxton: "Solid Angle Calculation for a 
         Circular Disk" in 1959
     """
-    print 'change name'
     # define a few value
     R = np.sqrt(np.sum(pos[:,0:1]**2, axis=1))
     ind1 = np.where(R != 0)[0]
@@ -52,7 +51,7 @@ def solid_angle_circle_off_axis(pos,r):
     solid[ind1[indb]] = 2.0*np.pi - LK_R[indb] - pilam[indb]
     solid[ind1[indc]] = - LK_R[indc] - pilam[indc]
 
-    solid[ind2] = 2*np.pi*pos[ind2,2]*(1.0/pos[ind2,2] - 1.0/np.sqrt(r**2 - pos[ind2,2]**2))
+    solid[ind2] = 2*np.pi*pos[ind2,2]*(1.0/pos[ind2,2] - 1.0/np.sqrt(np.abs(r**2 + pos[ind2,2]**2)))
     return solid
 
 class BES:
@@ -78,6 +77,8 @@ class BES:
         self.rad_pup = json.loads(config.get('Optics','rad_pup'))            #!
         self.inter = json.loads(config.get('Optics','int'))                  #!
         self.Nint = json.loads(config.get('Optics','Nint'))                  #!
+        self.Nsol = json.loads(config.get('Optics','Nsol'))                  #!
+    
         
         # Fiber part
         X = json.loads(config.get('Fiber','X'))
@@ -95,20 +96,91 @@ class BES:
         end = json.loads(config.get('Data','timeend'))
         timestep = json.loads(config.get('Data','timestep'))
         self.time = np.arange(start,end+1,timestep)                          #!
-        # position swap due to a difference in the axis
-        grid3D = Grid.Cartesian3D(Xmin=1.4, Xmax=2.1, Ymin=-0.2, Ymax=0.2,
-                                  Zmin=-0.5, Zmax=0.5, NX=self.N[0], NY=self.N[2], NZ=self.N[1])
+        self.beam = be.Beam1D(input_file,range(len(self.time)))              #!
+        self.compute_limits()      # compute the limits of the mesh
+        # position swap due to a difference in the axis        
+        grid3D = Grid.Cartesian3D(Xmin=self.Xmin, Xmax=self.Xmax, Ymin=self.Zmin, Ymax=self.Zmax,
+                                  Zmin=self.Ymax, Zmax=self.Ymax, NX=self.N[0], NY=self.N[2], NZ=self.N[1])
         xgc_ = xgc.XGC_Loader(self.data_path, grid3D, start, end, timestep,
                               Fluc_Only = False, load_ions=True, equilibrium_mesh = '3D')
 
-        self.beam = be.Beam1D(input_file,range(len(self.time)),xgc_)         #!
-
+        self.beam.set_data(xgc_)
         print 'no check of division by zero'
         self.perp1 = np.array([1,-self.op_direc[0]/self.op_direc[1],0])
         self.perp1 = self.perp1/np.sqrt(np.sum(self.perp1**2))
         self.perp2 = np.cross(self.op_direc,self.perp1)
-        
 
+    def compute_limits(self, eps=1e-3, dxmin = 0.1, dymin = 0.1, dzmin = 0.5):
+        """ Compute the limits of the mesh that should be loaded
+            The only limitation comes from the sampling volume
+            eps is for adding a small amount to the limits (avoids problems)
+        """
+        print 'need to take in account the lifetime effect'
+        w = 0.5*(self.beam.stddev_h + self.beam.stddev_v)
+        d = self.inter*w
+        center_max = np.zeros((self.fib_pos.shape[0],3))
+        center_max[:,0] = self.fib_pos[:,0] + \
+                          (self.focal + d)*self.op_direc[0]
+        center_max[:,1] = self.fib_pos[:,1] + \
+                          (self.focal + d)*self.op_direc[1]
+        center_max[:,2] = self.fib_pos[:,2] + \
+                          (self.focal + d)*self.op_direc[2]
+
+        center_min = np.zeros((self.fib_pos.shape[0],3))
+        center_min[:,0] = self.fib_pos[:,0] + \
+                          (self.focal - d)*self.op_direc[0]
+        center_min[:,1] = self.fib_pos[:,1] + \
+                          (self.focal - d)*self.op_direc[1]
+        center_min[:,2] = self.fib_pos[:,2] + \
+                          (self.focal - d)*self.op_direc[2]
+
+        w_min = self.get_width(np.array([0.0,0.0,self.focal - d]))
+        w_max = self.get_width(np.array([0.0,0.0,self.focal + d]))
+        # first in X
+        self.Xmax = np.max([center_max[:,0] + w_max,
+                            center_min[:,0] - w_min])
+
+        self.Xmin = np.min([center_max[:,0] + w_max,
+                            center_min[:,0] - w_min])
+        # second in Y
+        self.Ymax = np.max([center_max[:,1] + w_max,
+                            center_min[:,1] - w_min])
+
+        self.Ymin = np.min([center_max[:,1] + w_max,
+                            center_min[:,1] - w_min])
+        # third in Z
+        self.Zmax = np.max([center_max[:,2] + w_max,
+                            center_min[:,2] - w_min])
+
+        self.Zmin = np.min([center_max[:,2] + w_max,
+                            center_min[:,2] - w_min])
+
+        # try to keep an interval big enough
+        dX = self.Xmax-self.Xmin
+        dY = self.Ymax-self.Ymin
+        dZ = self.Zmax-self.Zmin
+        if dX < dxmin:
+            dX = dxmin
+            av = 0.5*(self.Xmin + self.Xmax)
+            self.Xmin = av - 0.5*dX
+            self.Xmax = av + 0.5*dX
+        if dY < dymin:
+            dY = dymin
+            av = 0.5*(self.Ymin + self.Ymax)
+            self.Ymin = av - 0.5*dY
+            self.Ymax = av + 0.5*dY
+        if dZ < dzmin:
+            dZ = dzmin
+            av = 0.5*(self.Zmin + self.Zmax)
+            self.Zmin = av - 0.5*dZ
+            self.Zmax = av + 0.5*dZ
+        self.Xmax += dX*eps
+        self.Xmin -= dX*eps
+        self.Ymax += dY*eps
+        self.Ymin -= dY*eps
+        self.Zmax += dZ*eps
+        self.Zmin -= dZ*eps
+                
     def to_cart_coord(self,pos,fiber_nber):
         """ return the cartesian coordinate from the coordinate of the lens
             Attribut:
@@ -130,7 +202,7 @@ class BES:
 
     def get_width(self,pos):
         """ Return the radius of the light cone at pos (optical coordinate)
-            Assume two cones that meet 
+            Assume two cones that meet at the focus disk
         """
         if len(pos.shape) == 1:
             # distance from the ring
@@ -146,7 +218,6 @@ class BES:
     def check_in(self,pos):
         """ Check if the position (optical coordinate) is inside the first cone
             (if the focus ring matter or not)
-            ASSUME THE SAME Z COORDINATE for all the pos!
         """
         ret = np.zeros(pos.shape[0], dtype=bool)
         # before the focus point
@@ -157,7 +228,7 @@ class BES:
         # distance from the focus point along the z-axis
         a = self.focal-pos[ind2,2]
         # size of the 'ring' scaled to this position
-        a *= (self.rad_pup-self.rad_foc)/self.focal + self.rad_foc
+        a = a*(self.rad_foc-self.rad_pup)/self.focal + self.rad_foc
         # distance from the axis
         R = np.sqrt(np.sum(pos[ind2,0:1]**2, axis=1))
         ind1 = np.where(a > R)
@@ -205,7 +276,7 @@ class BES:
         Z = 0.5*(border[0:-2] + border[1:-1])
         ba2 = 0.5*(border[2]-border[1])
         for z in Z:
-            pt = z + ba2*quad.pts
+            pt = z + ba2*quad.pts + self.focal
             I += np.einsum('k,kij->ij',quad.w,self.light_from_plane(pt,t_,fiber_nber))
         I *= ba2
         return I
@@ -235,7 +306,8 @@ class BES:
         solid = np.zeros(pos.shape[0])
 
         # first case
-        solid[ind1] = solid_angle_circle_off_axis(pos[ind1,:],self.rad_pup)
+        print len(ind1), len(ind2)
+        solid[ind1] = solid_angle_disk(pos[ind1,:],self.rad_pup)
 
         # second case
         # first find the position of the 'intersection' between the lens and the ring
@@ -248,11 +320,10 @@ class BES:
         A = (self.rad_pup**2 - self.rad_foc*f**2 - R2*(1.0+f)**2)/(2.0*f*(1.0+f))
         print('check need here too')
         delta = 4.0*(ratio2 - (1.0-ratio2)*((A/pos[ind2,1])**2 - self.rad_foc))
-
         # first case
         ind = np.where(delta > 0)[0]
         if len(ind) != 0:
-            print ind
+            raise NameError('implementation not finished')
             x1 = np.zeros((len(ind),2))
             x1[:,0] = 2*pos[ind2[ind],0]/pos[ind2[ind],1] + np.sqrt(delta)
             x1[:,0] /= 2.0*(1-ratio2)
@@ -275,7 +346,8 @@ class BES:
             # compute the scalar product between the lens and the radius is simply pos_z
             # the norm is at power 3 due to the normalization of the scalar product
             solid[ind2[ind]] = pos[ind2[ind],2]*S/solid**3
-
+            print 'bouh'
+            solid = self.solid_angle_mix_case(pos[ind2[ind]],[x1, x2],[y1, y2])
         # second case
         ind = np.where(delta < 0)[0]
         if len(ind) != 0:
@@ -284,3 +356,69 @@ class BES:
             solid[ind2[ind]] = solid_angle_circle_off_axis(q,self.rad_foc)
             
         return solid
+
+    def solid_angle_mix_case(self,pos,x,y):
+        """ Compute numerically the solid angle for the mixted case
+            (where the lens AND the ring limit the size of the solid angle)
+            Arguments:
+            pos -- position of the emission
+            x   -- position of the intersection on the ring
+            y   -- position of the intersection on the lens
+        """
+        omega = self.solid_angle_seg(pos,x,self.rad_foc)
+        omega +=self.solid_angle_seg(pos,y,self.rad_pup)
+        return omega
+
+
+    def solid_angle_seg(self,pos,x,r):
+        """
+            Compute the solid angle of a disk without a segment
+            Argument:
+            pos -- position of the emission
+            x   -- position of the intersection
+            r   -- radius of the disk
+        """
+        print x
+        x1 = x[0]
+        x2 = x[1]
+        const = pos[:,2]
+        theta = np.linspace(0,2*np.pi,self.Nsol)
+        quadr = integ.integration_points(1,'GL3') # Gauss-Legendre order 3
+        quadt = integ.integration_points(1,'GL3') # Gauss-Legendre order 3
+
+        av = 0.5*(theta[:-1] + theta[1:])
+        diff = 0.5*np.diff(theta)
+        # first compute the integral of the biggest part (use the diff between the full computation
+        # the biggest part if not the good one)
+        omega = 0.0
+        dxperp = np.array([x1-x2])# unit vector perpendicular to the straight line x1->x2 (sign does not matter)
+        temp = dxperp/np.sqrt(np.sum(dxperp**2,axis=1))
+        dxperp =  np.array([-temp[1], temp[0]])
+        for i in range(self.Nsol):
+            thpts = diff[i]*quadt.pts + av[i]
+            # first check if the radius is full or not
+            # project along x1, x2
+            co = np.cos(thpts) # x-coord
+            si = np.sin(thpts) # y-coord
+            proj1 = [co[i]*x[0,0] + si[i]*x[0,1] in range(len(quadt.pts))]
+            proj2 = [co[i]*x[1,0] + si[i]*x[1,1] in range(len(quadt.pts))]
+            ind = np.where(proj1 > 0 & proj2 > 0)[0]
+            rmax = r*np.ones(len(ind))
+            print [co[ind],si[ind]]
+            rmax[ind] = np.einsum('ij,i->j',[co[ind],si[ind]],dxperp)
+            """rmax = 2.0
+            pts = quad.pts
+            rpts = 0.5*rmax*(pts + 1.0)
+            I = 0.0
+            for i in range(len(av)):
+            th = av[i]+diff[i]*pts
+            R, T = np.meshgrid(rpts,th)
+            I_r = np.einsum('i,ij->j',quad.w,f(R,T))
+            I_th = 0.5*rmax*diff[i]*np.sum(quad.w*I_r)
+            I += I_th
+            """
+            omega += a
+        # assume a constant angle
+        omega *= const*diff[0]/2.0
+
+        # for the side, scalar product

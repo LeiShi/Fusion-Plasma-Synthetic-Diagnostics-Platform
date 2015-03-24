@@ -84,8 +84,12 @@ class Collisions:
         
         # interpolation over beam and density
         tck = interpolate.bisplrep(lbeams,ldens,coef_dens)
-        coef = interpolate.bisplev(beam,ne,tck)
-
+        if len(ne.shape) == 1:
+            coef = np.zeros(ne.shape)
+            for i,n in enumerate(ne):
+                coef[i] = interpolate.bisplev(beam,n,tck)
+        else:
+            coef = interpolate.bisplev(beam,ne,tck)
         # get data for the interpolation in temperature
         T = self.get_list_temperature('atte',file_number)
         coef_T = self.get_coef_T('atte',file_number)
@@ -95,7 +99,8 @@ class Collisions:
         #interpolation over the temperature
         tck = interpolate.splrep(T,coef_T/coef_T[index])
         coef = coef * interpolate.splev(Ti,tck)
-        if coef <= 0:
+        if (coef <= 0).any():
+            print coef
             raise NameError('Attenuation coefficient smaller than 0')
         return coef
 

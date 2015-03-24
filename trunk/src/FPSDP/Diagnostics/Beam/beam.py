@@ -2,6 +2,7 @@ import math
 import json
 import numpy as np
 import FPSDP.Plasma.Collisions.collisions as col
+import FPSDP.Maths.Integration as integ
 import ConfigParser as psr
 import FPSDP.Maths.Interpolation as Fint
 from scipy import interpolate
@@ -117,14 +118,15 @@ class Beam1D:
 
     """
     
-    def __init__(self,config_file,timesteps,data):
+    def __init__(self,config_file,timesteps):
         """ Load everything from the config file"""
         self.cfg_file = config_file                                          #!
-        self.data = data                                                     #!
         self.timesteps = timesteps                                           #!
         print 'Reading config file (beam)'
         config = psr.ConfigParser()
         config.read(self.cfg_file)
+
+        # The example input is well commented
         
         # load data for collisions
         self.adas_atte = json.loads(config.get('Collisions','adas_atte'))    #!
@@ -167,9 +169,14 @@ class Beam1D:
         # get the standard deviation at the origin
         self.stddev_h = self.beam_width_h/(2*np.sqrt(2*np.log(2)))
         self.stddev_v = self.beam_width_v/(2*np.sqrt(2*np.log(2)))
-        self.stddev_h **= 2
-        self.stddev_v **= 2
-        
+        self.stddev2_h = self.stddev_h**2
+        self.stddev2_v = self.stddev_v**2
+
+
+    def set_data(self,data):
+        """ Split the initialization in two part due to bes
+        """
+        self.data = data                                                     #!
         print 'Creating mesh'
         self.create_mesh()
         print 'Computing density of the beam'
@@ -205,48 +212,40 @@ class Beam1D:
             eps is used to avoid the end of the mesh
         """
         # X-direction
-        # choose the right wall
-        if self.direc[0] > 0:
-            tx = abs(self.data.grid.Xmax-self.pos[0])/self.direc[0]
-        elif self.direc[0] < 0:
-            tx = -abs(self.data.grid.Xmin-self.pos[0])/self.direc[0]
-        else:
-            tx = float('Inf')
-
+        tx1 = abs((self.data.grid.Xmax-self.pos[0])/self.direc[0])
+        tx2 = abs((self.data.grid.Xmin-self.pos[0])/self.direc[0])
+        
         # Y-direction
-        # choose the right wall
-        if self.direc[1] > 0:
-            ty = abs(self.data.grid.Zmax-self.pos[1])/self.direc[1]
-        elif self.direc[1] < 0:
-            ty = -abs(self.data.grid.Zmin-self.pos[1])/self.direc[1]
-        else:
-            ty = float('Inf')
-
+        ty1 = abs((self.data.grid.Zmax-self.pos[1])/self.direc[1])
+        ty2 = abs((self.data.grid.Zmin-self.pos[1])/self.direc[1])
+        
         # Z-direction
-        # choose the right wall
-        if self.direc[2] > 0:
-            tz = abs(self.data.grid.Ymax-self.pos[2])/self.direc[2]
-        elif self.direc[2] < 0:
-            tz = -abs(self.data.grid.Ymin-self.pos[2])/self.direc[2]
-        else:
-            tz = float('Inf')
+        tz1 = abs((self.data.grid.Ymax-self.pos[2])/self.direc[2])
+        tz2 = abs((self.data.grid.Ymin-self.pos[2])/self.direc[2])
 
-        t = min([tx,ty,tz])
-        # check if there is an intersection
-        if t is float('Inf'):
-            raise NameError('Cannot find the wall for the beam')
-
+        t = np.argmax([tx1,tx2,ty1,ty2,tz1,tz2])
+        
         return self.pos + self.direc*t*(1-eps)
         
-    def get_electron_density(self,pos,t_):
+    def get_electron_density(self,pos,t_,eq=False):
         """ get the electron density (from the data) at pos
            
             Argument:
             pos  --  position (3D array) where to compute the density
         """
-        a = to_other_index(pos).T
-        # the order of the grid is due to the XGC loading coordinate
-        return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
+        
+        if eq: # read the data from the equilibrium
+            if len(pos.shape) == 1:
+                R = np.sqrt(pos[0]**2 + pos[1]**2)
+                psi = self.data.psi_interp(pos[2],R)
+            else:
+                R = np.sqrt(np.sum(pos[:,0:1]**2,axis=1))
+                psi = self.data.psi_interp(pos[:,2],R)
+            return self.data.ne0_sp(psi)
+        else:
+            a = to_other_index(pos).T
+            # the order of the grid is due to the XGC loading coordinate
+            return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
                                          self.data.grid.X1D,
                                          self.data.ne_on_grid[0,t_,:,:,:],a)
 
@@ -257,14 +256,14 @@ class Beam1D:
             pos  --  position (3D array) where to compute the density
         """
         a = to_other_index(pos).T
-        print 'Warning inefficient'
+        print 'Warning inefficient' # the copy of next line is done at each call
         dne = self.data.ne_on_grid[0,t_,:,:,:] - self.data.ne0_on_grid
         # the order of the grid is due to the XGC loading coordinate
         return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
                                          self.data.grid.X1D,
                                          dne,a)
     
-    def get_ion_density(self,pos,t_):
+    def get_ion_density(self,pos,t_, eq=False):
         """ get the ion density (from the data) at pos
            
             Argument:
@@ -272,12 +271,22 @@ class Beam1D:
         """
         # FOR ADDING MUTLIPLE IONS SPECIES CHANGE HERE [add an argument and see
         # where it does not work, and after add the loop over element]
-        a = to_other_index(pos).T
-        return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
+        if eq:
+            if len(pos.shape) == 1:
+                R = np.sqrt(pos[0]**2 + pos[1]**2)
+                psi = self.data.psi_interp(pos[2],R)
+            else:
+                R = np.sqrt(np.sum(pos[:,0:1]**2,axis=1))
+                psi = self.data.psi_interp(pos[:,2],R)
+            return self.data.ni0_sp(psi)
+        # the order of the grid is due to the XGC loading coordinate
+        else:
+            a = to_other_index(pos).T
+            return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
                                          self.data.grid.X1D,
                                          self.data.ni_on_grid[0,t_,:,:,:],a)
                     
-    def compute_beam_on_mesh(self):
+    def compute_beam_on_mesh(self,eq=True):
         """ compute the beam intensity at each position of the mesh 
             with the Gauss-Legendre quadrature (2 points)
         """
@@ -285,26 +294,20 @@ class Beam1D:
                                      len(self.beam_comp),self.Nz))           #!
         # speed of each beam
         self.speed = np.zeros(len(self.beam_comp))                           #!
-        self.speed = np.sqrt(2*self.beam_comp*9.6485383e10/self.mass_b)
+        self.speed = np.sqrt(2*self.beam_comp*9.6485383e7/self.mass_b)
         # density of the beam at the origin
         n0 = np.zeros(len(self.beam_comp))
-        n0 = np.sqrt(2*self.mass_b*1.660538921e-27)*math.pi*self.power
-        n0 *= self.frac*self.stddev_h*self.stddev_v/(self.beam_comp*
-                                                       1.60217733e-16)**(1.5)
-        self.dens = np.zeros((len(self.timesteps),len(self.mesh[:,0])))      #!
-        self.ti = np.zeros((len(self.timesteps),len(self.mesh[:,0])))        #!
-        self.S = np.zeros((len(self.timesteps),len(self.mesh[:,0])))         #!
+        n0 = np.sqrt(2*self.mass_b*1.660538921e-27)*self.power
+        n0 *= self.frac/(self.beam_comp*1.60217733e-19)**(1.5)
+        
+        # define the quadrature formula for this method
+        quad = integ.integration_points(1,'GL3') # Gauss-Legendre order 3
         print 'test'
 
         for t_ in range(len(self.timesteps)):
             print 'Timestep number: ', t_ + 1, '/ ', len(self.timesteps)
             for j in range(len(self.mesh[:,0])):
                 # density over the central line (usefull for some check)
-                self.dens[t_,j] = self.get_electron_density(self.mesh[j,:],t_)
-                self.ti[t_,j] = self.get_electron_temp(self.mesh[j,:])
-                self.S[t_,j] = self.collisions.get_attenutation(
-                            self.beam_comp[0],self.mass_b[0],
-                            self.dens[t_,j],self.ti[t_,j],0)
                 if j is not 0:
                     temp_beam = np.zeros(len(self.beam_comp))
                     for k in self.coll_atte:
@@ -313,35 +316,24 @@ class Beam1D:
                         # limit of the integral
                         a = self.mesh[j-1,:]
                         b = self.mesh[j,:]
-                        # avoid to compute it twice
-                        temp = np.sqrt(1.0/3.0)
                         # average
                         av = (a+b)/2.0
                         # difference
                         diff = (b-a)/2.0
-                        # first point
-                        pt1 = -temp*diff + av
-                        # second point
-                        pt2 = temp*diff + av
-
+                        # integration point
+                        pt = np.array([quad.pts*diff[i] + av[i] for i in range(3)]).T
                         # compute all the values needed for the integral
-                        # at the 2 positions
-                        ne1 = self.get_electron_density(pt1,t_)
-                        ne2 = self.get_electron_density(pt2,t_)
+                        ne = self.get_electron_density(pt,t_,eq)
                     
-                        T1 = self.get_ion_temp(pt1)
-                        T2 = self.get_ion_temp(pt2)
+                        T = self.get_ion_temp(pt,eq)
                         
                         # attenuation coefficient from adas
-                        S1 = self.collisions.get_attenutation(
-                            self.beam_comp[beam_nber],self.mass_b[beam_nber],
-                            ne1,T1,file_nber)
-                        S2 = self.collisions.get_attenutation(
-                            self.beam_comp[beam_nber],self.mass_b[beam_nber],
-                            ne2,T2,file_nber)
+                        S = self.collisions.get_attenutation(
+                            self.beam_comp[beam_nber],ne,self.mass_b[beam_nber],
+                            T,file_nber)
                         # half distance between a & b
                         norm_ = 0.5*np.sqrt(sum((b-a)**2))
-                        temp1 = (ne1*S1 + ne2*S2)
+                        temp1 = sum(ne*S*quad.w)
                         temp1 *= norm_/self.speed[beam_nber]
                         temp_beam[beam_nber] += temp1
 
@@ -352,22 +344,43 @@ class Beam1D:
             for i in range(len(self.beam_comp)):
                 self.density_beam[t_,i,:] = n0[i]*np.exp(self.density_beam[t_,i,:])
 
-    def get_electron_temp(self,pos):
+    def get_electron_temp(self,pos, eq=False):
         """ Return the value of the electron temperature from the
             simulation
+            eq is used for computing the value of the equilibrium
         """
-        a = to_other_index(pos).T
-        return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
+        if eq:
+            if len(pos.shape) == 1:
+                R = np.sqrt(pos[0]**2 + pos[1]**2)
+                psi = self.data.psi_interp(pos[2],R)
+            else:
+                R = np.sqrt(np.sum(pos[:,0:1]**2,axis=1))
+                psi = self.data.psi_interp(pos[:,2],R)
+            return self.data.te0_sp(psi)
+        # the order of the grid is due to the XGC loading coordinate
+        else:
+            a = to_other_index(pos).T
+            return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
                                          self.data.grid.X1D,
                                          self.data.te_on_grid,a)
     
 
-    def get_ion_temp(self,pos):
+    def get_ion_temp(self,pos, eq=False):
         """ Return the value of the ion temperature from the
             simulation 
         """
-        a = to_other_index(pos).T
-        return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
+        if eq:
+            if len(pos.shape) == 1:
+                R = np.sqrt(pos[0]**2 + pos[1]**2)
+                psi = self.data.psi_interp(pos[2],R)
+            else:
+                R = np.sqrt(np.sum(pos[:,0:1]**2,axis=1))
+                psi = self.data.psi_interp(pos[:,2],R)
+            return self.data.ti0_sp(psi)
+        # the order of the grid is due to the XGC loading coordinate
+        else:
+            a = to_other_index(pos).T
+            return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
                                          self.data.grid.X1D,
                                          self.data.ti_on_grid,a)
 
@@ -388,8 +401,11 @@ class Beam1D:
             nb = np.zeros(len(self.beam_comp))
             # vector from beam origin to the wanted position
             dist = pos - self.get_origin()
+            # projection along the axis
             proj = np.dot(dist,self.direc)
-            stddev2 = self.get_width(proj)**2
+            # width of the beam
+            stddev = self.get_width(proj)
+            stddev2 = stddev**2
             if proj < 0:
                 raise NameError('Point before the origin of the beam')
             # cubic spline for finding the value along the axis
@@ -398,9 +414,14 @@ class Beam1D:
                 nb[i] = interpolate.splev(proj,tck)
             # radius^2 on the plane perpendicular to the beam
             R2 = dist - proj*self.direc
+            # radius in the horizontal plane
             xy = np.sum(R2[1:2]**2)
+            # radius in the vertical plane
             z = R2[2]**2
-            nb = nb*np.exp(-xy/(2*stddev2[0]) - z/(2*stddev2[1]))
+            print 'need to check'
+            # gaussian beam
+            nb = nb*np.exp(-xy/(2*stddev2[0]) - z/(2*stddev2[1]))/(
+                2*np.pi*stddev[0]*stddev[1])
             return nb
         elif len(pos.shape) == 2:
             # array to return
@@ -413,7 +434,8 @@ class Beam1D:
             # result is a 1D array containing the projection of the distance
             # from the origin over the direction of the beam
             proj = np.einsum('ij,j->i',dist,self.direc)
-            stddev2 = self.get_width(proj)**2
+            stddev = self.get_width(proj)
+            stddev2 = stddev**2
             # cubic spline for finding the value along the axis
             for i in range(len(self.beam_comp)):
                 tck = interpolate.splrep(self.dl,self.density_beam[t_,i,:])
@@ -428,7 +450,8 @@ class Beam1D:
             xy = np.sum(R2[:,1:2]**2, axis=1)
             z = R2[:,2]**2
             for i in range(len(self.beam_comp)):
-                nb[i,:] = nb[i,:]*np.exp(-xy/(2*stddev2[0]) - z/(2*stddev2[1]))
+                nb[i,:] = nb[i,:]*np.exp(-xy/(2*stddev2[0]) - z/(2*stddev2[1]))/(
+                    2*np.pi*stddev[0]*stddev[1])
             return nb
         else:
             raise NameError('Error: wrong shape for pos')
@@ -521,13 +544,12 @@ class Beam1D:
         """
         print 'use Gauss-Laguerre'
         print 'wavelength!!!'
+        print 'need to improve speed'
+        quad = integ.integration_points(1,'GL3') # Gauss-Legendre order 3
         emis = np.zeros((len(self.timesteps),len(self.beam_comp),len(pos[:,0])))
         # avoid the computation at each time
-        temp = np.sqrt(1.0/3.0)
-        index = 0
         for tstep in range(len(t_)):
             for k in self.coll_emis:
-                index += 1
                 file_nber = k[0]
                 beam_nber = k[1]
                 # loop over all the position
@@ -546,42 +568,34 @@ class Beam1D:
                     # variable for integrating
                     delta = np.linspace(0,up_lim,self.Nlt)
                     # average position (a+b)/2
-                    av = 0.5*(delta[0:-2] + delta[1:-1])
+                    av = 0.5*(delta[:-1] + delta[1:])
                     # half distance (b-a)/2
-                    diff = 0.5*(-delta[0:-2] + delta[1:-1])
+                    diff = 0.5*(-delta[:-1] + delta[1:])
                     # integration points at each interval
-                    pt1 = -diff*temp + av
-                    pt2 = diff*temp + av
-                    
+                    pt = np.zeros((len(diff),len(quad.w)))
                     # points in 3D space
-                    x1 = np.zeros((len(av),3))
-                    x2 = np.zeros((len(av),3))
+                    x = np.zeros((pt.shape[0],pt.shape[1],3))
+                    for j in range(len(diff)):
+                        pt[j,:] = diff[j]*quad.pts + av[j]
+                        x[j,:,0] = pos[i,0] - self.direc[0]*pt[j,:]
+                        x[j,:,1] = pos[i,1] - self.direc[1]*pt[j,:]
+                        x[j,:,2] = pos[i,2] - self.direc[2]*pt[j,:]
 
-                    x1[:,0] = pos[i,0] - self.direc[0]*pt1
-                    x1[:,1] = pos[i,1] - self.direc[1]*pt1
-                    x1[:,2] = pos[i,2] - self.direc[2]*pt1
+                    n_b = np.array([self.get_beam_density(x[j,:,:],t_[tstep])
+                                    for j in range(pt.shape[0])])
+                    n_e = np.array([self.get_electron_density(x[j,:,:],t_[tstep])
+                                    for j in range(pt.shape[0])])
+                    Ti = np.array([self.get_ion_temp(x[j,:,:])
+                                   for j in range(pt.shape[0])])
 
-                    x2[:,0] = pos[i,0] - self.direc[0]*pt2
-                    x2[:,1] = pos[i,1] - self.direc[1]*pt2
-                    x2[:,2] = pos[i,2] - self.direc[2]*pt2
+                    f = np.array([self.collisions.get_emission(
+                        self.beam_comp[beam_nber],n_e[j],self.mass_b[beam_nber],Ti[j],file_nber)
+                         for j in range(pt.shape[0])])
 
-                    
-                    n_b1 = self.get_beam_density(x1,t_[tstep])
-                    n_e1 = self.get_electron_density(x1,t_[tstep])
-                    Ti1 = self.get_ion_temp(x1)
-                    
-                    n_b2 = self.get_beam_density(x2,t_[tstep])
-                    n_e2 = self.get_electron_density(x2,t_[tstep])
-                    Ti2 = self.get_ion_temp(x2)
-
-                    
-                    f1 = self.collisions.get_emission(
-                        self.beam_comp[beam_nber],n_e1,self.mass_b[beam_nber],Ti1,file_nber)
-                    f2 = self.collisions.get_emission(
-                        self.beam_comp[beam_nber],n_e2,self.mass_b[beam_nber],Ti2,file_nber)
-                    f1 *= n_e1*n_b1[beam_nber]*np.exp(-pt1/(l*self.speed[beam_nber]))/self.speed[beam_nber]
-                    f2 *= n_e2*n_b2[beam_nber]*np.exp(-pt2/(l*self.speed[beam_nber]))/self.speed[beam_nber]
-                    
-                    emis[tstep,beam_nber,i] = sum((f1 + f2)*diff)/l
-
+                    f = np.array([f[j,:]*n_e[j,:]*n_b[j,beam_nber,:]*
+                                  np.exp(-pt[j,:]/(l*self.speed[beam_nber]))/self.speed[beam_nber]
+                                  for j in range(pt.shape[0])])
+                    f = np.einsum('ij,j->i',f,quad.w)
+                    # assume constant diff
+                    emis[tstep,beam_nber,i] = diff[0]*np.sum(f)/l
         return emis

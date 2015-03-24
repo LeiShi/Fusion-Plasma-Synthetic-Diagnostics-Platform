@@ -72,13 +72,16 @@ rad_foc = 0.01
 int = 2
 # number of intervals for the integration
 Nint = 20
+# number of section for the integral of the solid angle
+Nsol = 10
 
 [Data]
 # path to the simulation data
 data_path = /global/project/projectdirs/m499/jlang/particle_pinch/
 # precision for all the axis
 N = [32, 32, 8]
+#N = [128,128,32]
 # timestep wanted
-timestart = 180
+timestart = 175
 timeend = 180
-timestep = 20
+timestep = 4

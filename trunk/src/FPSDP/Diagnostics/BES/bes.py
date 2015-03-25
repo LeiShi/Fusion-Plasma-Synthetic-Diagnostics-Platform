@@ -67,28 +67,32 @@ class BES:
         config.read(self.cfg_file)
 
 
+        # the example input file is well commented, look there for more
+        # information
+        
         # Optics part
-        self.focal = json.loads(config.get('Optics','foc'))                  #!
-        self.op_direc = json.loads(config.get('Optics','dir'))               #!
-        # normalize the vector
-        self.op_direc = np.array(self.op_direc)
-        self.op_direc = self.op_direc/np.sqrt(np.sum(self.op_direc**2))
-        self.rad_foc = json.loads(config.get('Optics','rad_foc'))            #!
-        self.rad_pup = json.loads(config.get('Optics','rad_pup'))            #!
+        self.pos_lens = json.loads(config.get('Optics','pos_lens'))          #!
+
+        self.rad_ring = json.loads(config.get('Optics','rad_ring'))          #!
+        self.rad_lens = json.loads(config.get('Optics','rad_lens'))          #!
         self.inter = json.loads(config.get('Optics','int'))                  #!
         self.Nint = json.loads(config.get('Optics','Nint'))                  #!
         self.Nsol = json.loads(config.get('Optics','Nsol'))                  #!
     
+        X = json.loads(config.get('Optics','X'))
+        Y = json.loads(config.get('Optics','Y'))
+        Z = json.loads(config.get('Optics','Z'))
+        self.pos_foc = np.zeros((len(X),3))                                  #!
+        self.pos_foc[:,0] = X
+        self.pos_foc[:,1] = Y
+        self.pos_foc[:,2] = Z
+        self.op_direc = self.pos_foc-self.pos_lens                          #!
+        norm_ = np.sum(self.op_direc**2,axis=1)
+        # normalize the vector
+        self.op_direc[:,0] /= norm_
+        self.op_direc[:,1] /= norm_
+        self.op_direc[:,2] /= norm_
         
-        # Fiber part
-        X = json.loads(config.get('Fiber','X'))
-        Y = json.loads(config.get('Fiber','Y'))
-        Z = json.loads(config.get('Fiber','Z'))
-        self.fib_pos = np.zeros((len(X),3))                                  #!
-        self.fib_pos[:,0] = X
-        self.fib_pos[:,1] = Y
-        self.fib_pos[:,2] = Z
-
         # Data part
         self.data_path = config.get('Data','data_path')                      #!
         self.N = json.loads(config.get('Data','N'))                          #!
@@ -118,24 +122,38 @@ class BES:
         print 'need to take in account the lifetime effect'
         w = 0.5*(self.beam.stddev_h + self.beam.stddev_v)
         d = self.inter*w
-        center_max = np.zeros((self.fib_pos.shape[0],3))
-        center_max[:,0] = self.fib_pos[:,0] + \
-                          (self.focal + d)*self.op_direc[0]
-        center_max[:,1] = self.fib_pos[:,1] + \
-                          (self.focal + d)*self.op_direc[1]
-        center_max[:,2] = self.fib_pos[:,2] + \
-                          (self.focal + d)*self.op_direc[2]
+        center_max = np.zeros((self.pos_foc.shape[0],3))
+        center_max[:,0] = self.pos_foc[:,0] + \
+                          d*self.op_direc[:,0]
+        center_max[:,1] = self.pos_foc[:,1] + \
+                          d*self.op_direc[:,1]
+        center_max[:,2] = self.pos_foc[:,2] + \
+                          d*self.op_direc[:,2]
 
-        center_min = np.zeros((self.fib_pos.shape[0],3))
-        center_min[:,0] = self.fib_pos[:,0] + \
-                          (self.focal - d)*self.op_direc[0]
-        center_min[:,1] = self.fib_pos[:,1] + \
-                          (self.focal - d)*self.op_direc[1]
-        center_min[:,2] = self.fib_pos[:,2] + \
-                          (self.focal - d)*self.op_direc[2]
+        center_min = np.zeros((self.pos_foc.shape[0],3))
+        center_min[:,0] = self.pos_foc[:,0] - \
+                          d*self.op_direc[:,0]
+        center_min[:,1] = self.pos_foc[:,1] - \
+                          d*self.op_direc[:,1]
+        center_min[:,2] = self.pos_foc[:,2] - \
+                          d*self.op_direc[:,2]
 
-        w_min = self.get_width(np.array([0.0,0.0,self.focal - d]))
-        w_max = self.get_width(np.array([0.0,0.0,self.focal + d]))
+
+        # first in X
+        self.Xmax = 1.4
+
+        self.Xmin = 1.2
+        # second in Y
+        self.Ymax = -1.2
+        self.Ymin = -1.8
+        # third in Z
+        self.Zmax = 0.2
+
+        self.Zmin = -0.2
+
+        """
+        w_min = self.get_width()
+        w_max = self.get_width()
         # first in X
         self.Xmax = np.max([center_max[:,0] + w_max,
                             center_min[:,0] - w_min])
@@ -180,7 +198,8 @@ class BES:
         self.Ymin -= dY*eps
         self.Zmax += dZ*eps
         self.Zmin -= dZ*eps
-                
+        """
+
     def to_cart_coord(self,pos,fiber_nber):
         """ return the cartesian coordinate from the coordinate of the lens
             Attribut:

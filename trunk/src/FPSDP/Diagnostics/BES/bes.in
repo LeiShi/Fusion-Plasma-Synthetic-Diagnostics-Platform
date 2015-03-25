@@ -37,38 +37,63 @@ adas_emis = ["bme10#h_h1.dat"]
 # collisions considered (index start to 0)
 # first index is for a file (in adas_file) and second is
 # for the beam component
+# not checked in the code, but one file should correspond
+# to one beam component (usually only one file is used for
+# all beam components)
 coll_atte = [[0,0], [0,1], [0,2]]
 coll_emis = [[0,0], [0,1], [0,2]]
 
 # quantum number of the low energy state and the excited one
+# the code assume an hydrogen atom
 n_low = 2
 n_high = 3
 # number of points for the discretization of the lifetime effect
-# small distance, so do not need a big number
+# exponential decay => small distance, so do not need a big number
 Nlt = 4
 # t_max*lifetime = upper value of the integrale for the lifetime effect
+# cutoff value 
 t_max = 3
 
-[Fiber]
-# position of each fiber
-X = [1.608, 1.609, 1.605, 1.603]
-Y = [-0.388, -0.388, -0.388, -0.388]
-Z = [0.0, 0.0, 0.0, 0.0]
 
 [Optics]
-# direction of the optics (will be normalized)
-dir = [1.0,1.0,0.0]
-# focal of the last lens [meter]
-foc = 0.4
-# entrance pupil
-rad_pup = 0.2
-# radius of the focus point
-rad_foc = 0.01
+# position of the lens
+pos_lens = [1.6,-0.38,0]
+# position of the focus point for each fiber
+X = [1.33617, 1.33490, 1.33350, 1.33222, 1.33094,
+  1.32965, 1.32837, 1.32708, 1.32579, 1.32449,
+  1.32320, 1.32190, 1.32073, 1.31942, 1.31811,
+  1.31693, 1.31575, 1.31443, 1.31324, 1.31205,
+  1.31086, 1.30966, 1.30846, 1.30725, 1.30605,
+  1.30498, 1.30376, 1.30255, 1.30146, 1.30024,
+  1.29915, 1.29806]
+Y = [-1.68692, -1.67515, -1.66219, -1.65040, -1.63856,
+  -1.62669, -1.61482, -1.60293, -1.59100, -1.57904,
+  -1.56706, -1.55506, -1.54424, -1.53217, -1.52009,
+  -1.50919, -1.49828, -1.48610, -1.47511, -1.46411,
+  -1.45309, -1.44204, -1.43095, -1.41983, -1.40870,
+  -1.39879, -1.38758, -1.37635, -1.36635, -1.35507,
+  -1.34502, -1.33493]
+  
+Z = [0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0, 0.0]
+
+# radius of the lens
+rad_lens = 0.2
+# radius of the ring (size sampling plane at the
+# focus point)
+rad_ring = 0.01
 # integration of the intensity along
 # the sightline
 # in [foc-int*w, foc+int*w] where w is the
 # average of the horizontal and vertical
-# beam width
+# standard deviation of the beam
+# we are assuming that the focus point are
+# inside the beam
 int = 2
 # number of intervals for the integration
 Nint = 20

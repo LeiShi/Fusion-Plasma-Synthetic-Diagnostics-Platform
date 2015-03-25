@@ -98,11 +98,11 @@ def find_interp_positions_v2(my_xgc):
         dR_FWD = RdPhi_FWD * BR(Z_FWD,R_FWD) / BPhi_FWD
         dZ_FWD = RdPhi_FWD * BZ(Z_FWD,R_FWD) / BPhi_FWD
         
-        if(dR_FWD == np.inf):
+        ind = np.where(dR_FWD == np.inf)[0]
             #when the point gets outside of the XGC mesh, set BR,BZ to zero.
-            dR_FWD = 0
-        if(dZ_FWD == np.inf):
-            dZ_FWD = 0
+        dR_FWD[ind] = 0.0
+        ind = np.where(dZ_FWD == np.inf)[0]
+        dZ_FWD[ind] = 0.0
         
         s_FWD += np.sqrt(RdPhi_FWD**2 + dR_FWD**2 + dZ_FWD**2)
         R_FWD += dR_FWD
@@ -115,10 +115,10 @@ def find_interp_positions_v2(my_xgc):
         dR_BWD = RdPhi_BWD * BR(Z_BWD,R_BWD) / BPhi_BWD
         dZ_BWD = RdPhi_BWD * BZ(Z_BWD,R_BWD) / BPhi_BWD
         
-        if(dR_BWD == np.inf):
-            dR_BWD = 0
-        if(dZ_BWD == np.inf):
-            dZ_BWD == 0
+        ind = np.where(dR_BWD == np.inf)[0]
+        dR_BWD[ind] = 0.0
+        ind = np.where(dZ_BWD == np.inf)[0]
+        dZ_BWD[ind] = 0
         
         s_BWD += np.sqrt(RdPhi_BWD**2 + dR_BWD**2 + dZ_BWD**2)
         R_BWD += dR_BWD

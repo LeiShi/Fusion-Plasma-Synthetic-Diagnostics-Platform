@@ -118,7 +118,7 @@ def find_interp_positions_v2(my_xgc):
         ind = np.where(dR_BWD == np.inf)[0]
         dR_BWD[ind] = 0.0
         ind = np.where(dZ_BWD == np.inf)[0]
-        dZ_BWD[ind] = 0
+        dZ_BWD[ind] = 0.0
         
         s_BWD += np.sqrt(RdPhi_BWD**2 + dR_BWD**2 + dZ_BWD**2)
         R_BWD += dR_BWD

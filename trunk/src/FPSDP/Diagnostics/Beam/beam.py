@@ -150,7 +150,7 @@ class Beam1D:
         self.power = np.array(self.power)
         self.frac = json.loads(config.get('Beam energy','f'))                #!
         self.frac = np.array(self.frac)
-        if sum(self.frac) > 100: # allow the possibility to simulate only
+        if np.sum(self.frac) > 100: # allow the possibility to simulate only
             # a part of the beam
             raise NameError('Sum of f is greater than 100')
 
@@ -159,7 +159,7 @@ class Beam1D:
         self.pos = np.array(self.pos)
         self.direc = json.loads(config.get('Beam geometry','direction'))     #!
         self.direc = np.array(self.direc)
-        self.direc = self.direc/np.sqrt(sum(self.direc**2))
+        self.direc = self.direc/np.sqrt(np.sum(self.direc**2))
         self.beam_width_h = json.loads(
             config.get('Beam geometry','beam_width_h'))                      #!
         self.beam_width_v = json.loads(
@@ -172,11 +172,33 @@ class Beam1D:
         self.stddev2_h = self.stddev_h**2
         self.stddev2_v = self.stddev_v**2
 
+        # speed of each beam
+        self.speed = np.zeros(len(self.beam_comp))                           #!
+        self.speed = np.sqrt(2*self.beam_comp*9.6485383e7/self.mass_b)
+
+
 
     def set_data(self,data):
         """ Split the initialization in two part due to bes
         """
         self.data = data                                                     #!
+        grid_ = (self.data.grid.Z1D,self.data.grid.Y1D,
+                 self.data.grid.X1D)
+        self.ne_int = []
+        self.ni_int = []
+        for i in range(len(data.time_steps)):
+            self.ne_int.append(interpolate.RegularGridInterpolator(
+                grid_,self.data.ne_on_grid[0,i,:,:,:]))
+            
+            self.ni_int.append(interpolate.RegularGridInterpolator(
+                grid_,self.data.ni_on_grid[0,i,:,:,:]))
+            
+        self.Ti_int = interpolate.RegularGridInterpolator(
+            grid_,self.data.ti_on_grid)
+        
+        self.Te_int = interpolate.RegularGridInterpolator(
+            grid_,self.data.te_on_grid)
+            
         print 'Creating mesh'
         self.create_mesh()
         print 'Computing density of the beam'
@@ -197,7 +219,7 @@ class Beam1D:
         """
         # intersection between end of mesh and beam
         self.inters = self.find_wall()                                       #!
-        length = np.sqrt(sum((self.pos-self.inters)**2))
+        length = np.sqrt(np.sum((self.pos-self.inters)**2))
         # distance to the origin along the central line
         self.dl = np.linspace(0,length,self.Nz)
         self.mesh = np.zeros((self.Nz,3))                                    #!
@@ -212,20 +234,33 @@ class Beam1D:
             eps is used to avoid the end of the mesh
         """
         # X-direction
-        tx1 = abs((self.data.grid.Xmax-self.pos[0])/self.direc[0])
-        tx2 = abs((self.data.grid.Xmin-self.pos[0])/self.direc[0])
+        if self.direc[0] == 0.0:
+            tx1 = -np.inf
+            tx2 = -np.inf
+        else:
+            tx1 = abs((self.data.grid.Xmax-self.pos[0])/self.direc[0])
+            tx2 = abs((self.data.grid.Xmin-self.pos[0])/self.direc[0])
         
-        # Y-direction
-        ty1 = abs((self.data.grid.Zmax-self.pos[1])/self.direc[1])
-        ty2 = abs((self.data.grid.Zmin-self.pos[1])/self.direc[1])
+        # Y-directio
+        if self.direc[1] == 0.0:
+            ty1 = -np.inf
+            ty2 = -np.inf
+        else:
+            ty1 = abs((self.data.grid.Zmax-self.pos[1])/self.direc[1])
+            ty2 = abs((self.data.grid.Zmin-self.pos[1])/self.direc[1])
         
         # Z-direction
-        tz1 = abs((self.data.grid.Ymax-self.pos[2])/self.direc[2])
-        tz2 = abs((self.data.grid.Ymin-self.pos[2])/self.direc[2])
+        if self.direc[2] == 0.0:
+            tz1 = -np.inf
+            tz2 = -np.inf
+        else:
+            tz1 = abs((self.data.grid.Ymax-self.pos[2])/self.direc[2])
+            tz2 = abs((self.data.grid.Ymin-self.pos[2])/self.direc[2])
 
-        t = np.argmax([tx1,tx2,ty1,ty2,tz1,tz2])
+        t_ = [tx1,tx2,ty1,ty2,tz1,tz2]
+        t = np.argmax(t_)
         
-        return self.pos + self.direc*t*(1-eps)
+        return self.pos + self.direc*t_[t]*(1-eps)
         
     def get_electron_density(self,pos,t_,eq=False):
         """ get the electron density (from the data) at pos
@@ -241,13 +276,20 @@ class Beam1D:
             else:
                 R = np.sqrt(np.sum(pos[:,0:1]**2,axis=1))
                 psi = self.data.psi_interp(pos[:,2],R)
-            return self.data.ne0_sp(psi)
+            ret = self.data.ne0_sp(psi)
         else:
             a = to_other_index(pos).T
-            # the order of the grid is due to the XGC loading coordinate
-            return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
-                                         self.data.grid.X1D,
-                                         self.data.ne_on_grid[0,t_,:,:,:],a)
+            ret = self.ne_int[t_](a)
+        """if len(pos.shape) == 1:
+            if ret == 0.0:
+                print pos
+                raise NameError('Error point outside the mesh')
+        else:
+            if (ret == 0.0).any():
+                print pos
+                raise NameError('Error point outside the mesh')"""
+        return ret
+        
 
     def get_electron_density_fluc(self,pos,t_):
         """ get the fluctuation in the electron density (from the data) at pos
@@ -256,7 +298,7 @@ class Beam1D:
             pos  --  position (3D array) where to compute the density
         """
         a = to_other_index(pos).T
-        print 'Warning inefficient' # the copy of next line is done at each call
+        print 'Warning inefficient, should not be used' # the copy of next line is done at each call
         dne = self.data.ne_on_grid[0,t_,:,:,:] - self.data.ne0_on_grid
         # the order of the grid is due to the XGC loading coordinate
         return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
@@ -278,23 +320,28 @@ class Beam1D:
             else:
                 R = np.sqrt(np.sum(pos[:,0:1]**2,axis=1))
                 psi = self.data.psi_interp(pos[:,2],R)
-            return self.data.ni0_sp(psi)
+            ret = self.data.ni0_sp(psi)
         # the order of the grid is due to the XGC loading coordinate
         else:
             a = to_other_index(pos).T
-            return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
-                                         self.data.grid.X1D,
-                                         self.data.ni_on_grid[0,t_,:,:,:],a)
-                    
+            ret = self.ni_int[t_](a)
+        """if len(pos.shape) == 1:
+            if ret == 0.0:
+                print pos
+                raise NameError('Error point outside the mesh')
+        else:
+            if (ret == 0.0).any():
+                print pos
+                raise NameError('Error point outside the mesh')"""
+        return ret
+    
     def compute_beam_on_mesh(self,eq=True):
         """ compute the beam intensity at each position of the mesh 
             with the Gauss-Legendre quadrature (2 points)
         """
         self.density_beam = np.zeros((len(self.timesteps),
                                      len(self.beam_comp),self.Nz))           #!
-        # speed of each beam
-        self.speed = np.zeros(len(self.beam_comp))                           #!
-        self.speed = np.sqrt(2*self.beam_comp*9.6485383e7/self.mass_b)
+        print('If keep attenuation with eq, should remove time loop')
         # density of the beam at the origin
         n0 = np.zeros(len(self.beam_comp))
         n0 = np.sqrt(2*self.mass_b*1.660538921e-27)*self.power
@@ -302,10 +349,8 @@ class Beam1D:
         
         # define the quadrature formula for this method
         quad = integ.integration_points(1,'GL3') # Gauss-Legendre order 3
-        print 'test'
-
+        self.nb_tck = []
         for t_ in range(len(self.timesteps)):
-            print 'Timestep number: ', t_ + 1, '/ ', len(self.timesteps)
             for j in range(len(self.mesh[:,0])):
                 # density over the central line (usefull for some check)
                 if j is not 0:
@@ -326,24 +371,27 @@ class Beam1D:
                         ne = self.get_electron_density(pt,t_,eq)
                     
                         T = self.get_ion_temp(pt,eq)
-                        
+
                         # attenuation coefficient from adas
                         S = self.collisions.get_attenutation(
                             self.beam_comp[beam_nber],ne,self.mass_b[beam_nber],
                             T,file_nber)
+                        
                         # half distance between a & b
-                        norm_ = 0.5*np.sqrt(sum((b-a)**2))
-                        temp1 = sum(ne*S*quad.w)
+                        norm_ = 0.5*np.sqrt(np.sum((b-a)**2))
+                        temp1 = np.sum(ne*S*quad.w)
                         temp1 *= norm_/self.speed[beam_nber]
                         temp_beam[beam_nber] += temp1
 
                     self.density_beam[t_,:,j] = self.density_beam[t_,:,j-1] - \
                                                 temp_beam
 
-            # initial density of the beam
+            # interpolant for the beam
+            self.nb_tck.append([])
             for i in range(len(self.beam_comp)):
                 self.density_beam[t_,i,:] = n0[i]*np.exp(self.density_beam[t_,i,:])
-
+                self.nb_tck[t_].append(interpolate.splrep(self.dl,self.density_beam[t_,i,:]))
+                
     def get_electron_temp(self,pos, eq=False):
         """ Return the value of the electron temperature from the
             simulation
@@ -356,14 +404,22 @@ class Beam1D:
             else:
                 R = np.sqrt(np.sum(pos[:,0:1]**2,axis=1))
                 psi = self.data.psi_interp(pos[:,2],R)
-            return self.data.te0_sp(psi)
+            ret = self.data.te0_sp(psi)
         # the order of the grid is due to the XGC loading coordinate
         else:
             a = to_other_index(pos).T
-            return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
-                                         self.data.grid.X1D,
-                                         self.data.te_on_grid,a)
-    
+            ret = self.Ti_int(a)
+
+        """if len(pos.shape) == 1:
+            if ret == 0.0:
+                print pos
+                raise NameError('Error point outside the mesh')
+        else:
+            if (ret == 0.0).any():
+                print pos
+                raise NameError('Error point outside the mesh')"""
+        return ret
+
 
     def get_ion_temp(self,pos, eq=False):
         """ Return the value of the ion temperature from the
@@ -376,14 +432,23 @@ class Beam1D:
             else:
                 R = np.sqrt(np.sum(pos[:,0:1]**2,axis=1))
                 psi = self.data.psi_interp(pos[:,2],R)
-            return self.data.ti0_sp(psi)
+            ret = self.data.ti0_sp(psi)
         # the order of the grid is due to the XGC loading coordinate
         else:
             a = to_other_index(pos).T
-            return Fint.trilinear_interp(self.data.grid.Z1D,self.data.grid.Y1D,
-                                         self.data.grid.X1D,
-                                         self.data.ti_on_grid,a)
+            ret = self.Ti_int(a)
 
+        """len(pos.shape) == 1:
+            if ret == 0.0:
+                print pos
+                raise NameError('Error point outside the mesh')
+        else:
+            if (ret == 0.0).any():
+                print pos
+                raise NameError('Error point outside the mesh')"""
+        return ret
+
+            
     def get_mesh(self):
         """ Return the mesh (3D array)"""
         return self.mesh
@@ -410,8 +475,7 @@ class Beam1D:
                 raise NameError('Point before the origin of the beam')
             # cubic spline for finding the value along the axis
             for i in range(len(self.beam_comp)):
-                tck = interpolate.splrep(self.dl,self.density_beam[t_,i,:])
-                nb[i] = interpolate.splev(proj,tck)
+                nb[i] = interpolate.splev(proj,self.nb_tck[t_][i])
             # radius^2 on the plane perpendicular to the beam
             R2 = dist - proj*self.direc
             # radius in the horizontal plane
@@ -438,9 +502,8 @@ class Beam1D:
             stddev2 = stddev**2
             # cubic spline for finding the value along the axis
             for i in range(len(self.beam_comp)):
-                tck = interpolate.splrep(self.dl,self.density_beam[t_,i,:])
                 for j in range(len(pos[:,0])):
-                    nb[i,j] = interpolate.splev(proj[j],tck, ext=1)
+                    nb[i,j] = interpolate.splev(proj[j],self.nb_tck[t_][i], ext=1)
             # radius^2 on the plane perpendicular to the beam
             R2 = np.zeros(dist.shape)
             R2[:,0] = dist[:,0] - proj*self.direc[0]
@@ -463,7 +526,11 @@ class Beam1D:
             pos   -- 2D array, first index is for X,Y,Z
         """
         # first take all the value needed for the computation
-        emis = np.zeros((len(t_),len(self.beam_comp),len(pos[:,0])))
+        dim1 = len(pos.shape) == 1
+        if dim1:
+            emis = np.zeros((len(t_),len(self.beam_comp),1))
+        else:
+            emis = np.zeros((len(t_),len(self.beam_comp),pos.shape[0]))
         Ti = self.get_ion_temp(pos)
 
         # loop over all the type of collisions
@@ -478,7 +545,10 @@ class Beam1D:
                     self.beam_comp[beam_nber],n_e,self.mass_b[beam_nber],Ti,file_nber)
             # compute the emissivity
             for i in range(len(self.beam_comp)):
-                emis[tstep,i,:] *= n_e*n_b[i,:]
+                if dim1:
+                    emis[tstep,i] *= n_e*n_b[i]
+                else:
+                    emis[tstep,i,:] *= n_e*n_b[i,:]
         return emis
 
 
@@ -542,7 +612,6 @@ class Beam1D:
             Argument:
             pos   -- 2D array, first index is for X,Y,Z
         """
-        print 'use Gauss-Laguerre'
         print 'wavelength!!!'
         print 'need to improve speed'
         quad = integ.integration_points(1,'GL3') # Gauss-Legendre order 3

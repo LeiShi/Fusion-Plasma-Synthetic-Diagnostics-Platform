@@ -1,14 +1,14 @@
-import scipy.interpolate as ip
-import matplotlib.pyplot as mp
 import numpy as np
-import math
 
 
-import FPSDP.Diagnostics.Beam.beam as be
 import FPSDP.Diagnostics.BES.bes as bes
-import FPSDP.Plasma.XGC_Profile.load_XGC_profile as xgc
-import FPSDP.Geometry.Grid as Grid
-import scipy.io as sio
+
+profiler = False
+
+if profiler:
+    import cProfile, pstats, StringIO
+    pr = cProfile.Profile()
+
 
 """import FPSDP.Maths.Integration as integ
 
@@ -32,30 +32,32 @@ for i in range(len(av)):
     I += I_th
 print I
 """
+
+
 bes_ = bes.BES('FPSDP/Diagnostics/BES/bes.in')
-xgc_ = bes_.beam.data
 
-b1d1 = bes_.beam
-dl1 = np.sqrt(np.sum((b1d1.get_mesh()-b1d1.get_origin())**2,axis = 1))
-print bes_.intensity(range(2),0)
+#b1d1 = bes_.beam
+#dl1 = np.sqrt(np.sum((b1d1.get_mesh()-b1d1.get_origin())**2,axis = 1))
+if profiler:
+    pr.enable()
 
-mp.figure()
-ms = b1d1.get_mesh()
-foc = bes_.fib_pos[0,:] + bes_.focal*bes_.op_direc
-mp.plot(ms[:,0],ms[:,1])
-mp.plot(foc[0],foc[1],'o',markersize=4)
+netilde = bes_.get_bes()
 
-mp.figure()
-mp.plot(dl1,b1d1.density_beam[0,0,:])
-
-#np.save('beam_eq',b1d1.density_beam[0,0,:])
-be = np.load('beam_eq.npy')
-print 'change condition eq'
-mp.plot(dl1,be,'r', label='eq')
+if profiler:
+    pr.disable()
 
 
-mp.figure()
-mp.plot(dl1,(b1d1.density_beam[0,0,:]-be)/be)
+print netilde
+foc = bes_.pos_foc
 
-mp.show()
+if profiler:
+    s = StringIO.StringIO()
+    sortby = 'cumulative'
+    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    ps.print_stats()
+    print s.getvalue()
+
+
+np.savez('data/test',netilde,foc)
+
 

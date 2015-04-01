@@ -56,6 +56,50 @@ class Collisions:
         self.n_high = states[1]                                              #!
         self.E0 = -13.6
         self.read_adas()
+
+        # compute the interpolant
+        self.atte_tck_dens = []                                              #!
+        self.emis_tck_dens = []                                              #!
+        self.atte_tck_temp = []                                              #!
+        self.emis_tck_temp = []                                              #!
+        for i in range(len(self.beam_atte)):
+            # get data
+            ldensities = self.get_list_density('atte',i)
+            lbeams = self.get_list_beams('atte',i)
+            coef_dens = self.get_coef_density('atte',i)
+            lbeams, ldens = np.meshgrid(lbeams, ldensities)
+            
+            # interpolation over beam and density
+            self.atte_tck_dens.append(interpolate.bisplrep(lbeams,ldens,coef_dens))
+            
+            # get data for the interpolation in temperature
+            T = self.get_list_temperature('atte',i)
+            coef_T = self.get_coef_T('atte',i)
+            Tref = self.get_Tref('atte',i)
+            index = np.where(abs((Tref-T)/Tref) < 1e-4)[0][0]
+            
+            #interpolation over the temperature
+            self.atte_tck_temp.append(interpolate.splrep(T,coef_T/coef_T[index]))
+
+        for i in range(len(self.beam_emis)):
+            # get data
+            ldensities = self.get_list_density('emis',i)
+            lbeams = self.get_list_beams('emis',i)
+            coef_dens = self.get_coef_density('emis',i)
+            lbeams, ldens = np.meshgrid(lbeams, ldensities)
+            
+            # interpolation over beam and density
+            self.emis_tck_dens.append(interpolate.bisplrep(lbeams,ldens,coef_dens))
+
+            # Get data for the interpolation in temperature
+            T = self.get_list_temperature('emis',i)
+            coef_T = self.get_coef_T('emis',i)
+            Tref = self.get_Tref('emis',i)
+            index = np.where(abs((Tref-T)/Tref) < 1e-4)[0][0]
+            
+            #interpolation over the temperature
+            self.emis_tck_temp.append(interpolate.splrep(T,coef_T/coef_T[index]))
+
         
     def read_adas(self):
         """ Read the ADAS files and stores them as attributes
@@ -76,32 +120,15 @@ class Collisions:
             Ti          -- ion temperature 
             file_number -- file number wanted (should be simplify in Beam.py)
         """
-        # get data
-        ldensities = self.get_list_density('atte',file_number)
-        lbeams = self.get_list_beams(mass_b,'atte',file_number)
-        coef_dens = self.get_coef_density('atte',file_number)
-        lbeams, ldens = np.meshgrid(lbeams, ldensities)
-        
-        # interpolation over beam and density
-        tck = interpolate.bisplrep(lbeams,ldens,coef_dens)
+        beam /= mass_b
         if len(ne.shape) == 1:
             coef = np.zeros(ne.shape)
             for i,n in enumerate(ne):
-                coef[i] = interpolate.bisplev(beam,n,tck)
+                coef[i] = interpolate.bisplev(beam,n,self.atte_tck_dens[file_number])
         else:
-            coef = interpolate.bisplev(beam,ne,tck)
-        # get data for the interpolation in temperature
-        T = self.get_list_temperature('atte',file_number)
-        coef_T = self.get_coef_T('atte',file_number)
-        Tref = self.get_Tref('atte',file_number)
-        index = np.where(abs((Tref-T)/Tref) < 1e-4)[0][0]
+            coef = interpolate.bisplev(beam,ne,self.atte_tck_dens[file_number])
 
-        #interpolation over the temperature
-        tck = interpolate.splrep(T,coef_T/coef_T[index])
-        coef = coef * interpolate.splev(Ti,tck)
-        if (coef <= 0).any():
-            print coef
-            raise NameError('Attenuation coefficient smaller than 0')
+        coef = coef * interpolate.splev(Ti,self.atte_tck_temp[file_number])
         return coef
 
     def get_emission(self,beam,ne,mass_b,Ti,file_number):
@@ -115,36 +142,16 @@ class Collisions:
             Ti          -- ion temperature
             file_number -- file number wanted (should be simplify in Beam.py)
         """
-        # get data
-        ldensities = self.get_list_density('emis',file_number)
-        lbeams = self.get_list_beams(mass_b,'emis',file_number)
-        coef_dens = self.get_coef_density('emis',file_number)
-        lbeams, ldens = np.meshgrid(lbeams, ldensities)
-        
-        # interpolation over beam and density
-        tck = interpolate.bisplrep(lbeams,ldens,coef_dens)
+        beam /= mass_b
         if not isinstance(ne,float):
-            be = beam*np.ones(len(ne))
-            coef = np.zeros(len(be))
-            for i in range(len(be)):
-                coef[i] = interpolate.bisplev(be[i],ne[i],tck)
-                if coef[i] < 0:
-                    coef[i] = 0
+            coef = np.zeros(len(ne))
+            for i in range(len(ne)):
+                coef[i] = interpolate.bisplev(beam,ne[i],
+                                              self.emis_tck_dens[file_number])
         else:
-            be = beam
-            coef =  interpolate.bisplev(be,ne,tck)
-            if coef < 0:
-                coef = 0
+            coef =  interpolate.bisplev(beam,ne,self.emis_tck_dens[file_number])
 
-        # Get data for the interpolation in temperature
-        T = self.get_list_temperature('emis',file_number)
-        coef_T = self.get_coef_T('emis',file_number)
-        Tref = self.get_Tref('emis',file_number)
-        index = np.where(abs((Tref-T)/Tref) < 1e-4)[0][0]
-
-        #interpolation over the temperature
-        tck = interpolate.splrep(T,coef_T/coef_T[index])
-        coef = coef * interpolate.splev(Ti,tck)
+        coef = coef * interpolate.splev(Ti,self.emis_tck_temp[file_number])
         return coef
 
     def get_Tref(self,typ,file_number):
@@ -215,18 +222,20 @@ class Collisions:
         else:
             raise NameError('No list with this name: {0}'.format(typ))
 
-    def get_list_beams(self,mass_b,typ,file_number):
+    def get_list_beams(self,typ,file_number):
         """ return the list of beams given by ADAS
             multiply by the mass of the beam atoms due to ADAS
             Argument:
             typ         --  'emis' or 'atte' (specify in which list)
             file_number --  file number in the list
+
+            WARNING THE BEAM ENERGY IS BY ATOMIC MASS UNIT
         """
         if typ == 'emis':
             # multiply by the mass due to ADAS
-            return mass_b*self.beam_emis[file_number].adas_beam
+            return self.beam_emis[file_number].adas_beam
         elif typ == 'atte':
-            return mass_b*self.beam_atte[file_number].adas_beam
+            return self.beam_atte[file_number].adas_beam
         else:
             raise NameError('No list with this name: {0}'.format(typ))
 

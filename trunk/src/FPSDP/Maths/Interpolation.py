@@ -67,6 +67,7 @@ def trilinear_interp(X,Y,Z,F,x, fill_value=0.0):
     return value:
     interpolated z value on given (x,y)
     """
+    raise NameError('Does not work, should use RegularGridInterpolator')
     if len(x.shape) == 1:
         # if outside the box, put the value to fill_value
         if x[0] < X[0] or x[1] < Y[0] or x[2] < Z[0]\
@@ -104,35 +105,33 @@ def trilinear_interp(X,Y,Z,F,x, fill_value=0.0):
         """
         G = np.zeros(len(x[:,0]))
         # First find the x,y,z coordinate of the corner of the cube
-        for i in range(len(x[:,0])):
-            if x[i,0] < X[0] or x[i,1] < Y[0] or x[i,2] < Z[0]\
-               or x[i,0] > X[-1] or x[i,1] > Y[-1] or x[i,2] > Z[-1]:
-                G[i] = fill_value
+        ind = ~((x[:,0] < X[0]) | (x[:,1] < Y[0]) | (x[:,2] < Z[0]) |
+                (x[:,0] > X[-1]) | (x[:,1] > Y[-1]) | (x[:,2] > Z[-1]))
 
-            else:
-                indx = np.where(X <= x[i,0])[0].max()
-                indy = np.where(Y <= x[i,1])[0].max()
-                indz = np.where(Z <= x[i,2])[0].max()
+        G[~ind] = fill_value
+        indx = np.where(X <= x[ind,0])[0].max()
+        indy = np.where(Y <= x[ind,1])[0].max()
+        indz = np.where(Z <= x[ind,2])[0].max()
                 
-                # relative coordinates
-                rx = (x[i,0]-X[indx])/(X[indx+1]-X[indx])
-                ry = (x[i,1]-Y[indy])/(Y[indy+1]-Y[indy])
-                rz = (x[i,2]-Z[indz])/(Z[indz+1]-Z[indz])
-                
-                # compute the first linear interpolation
-                temp = 1-rx
-                c00 = F[indx,indy,indz]*temp + F[indx+1,indy,indz]*rx
-                c10 = F[indx,indy+1,indz]*temp + F[indx+1,indy+1,indz]*rx
-                c01 = F[indx,indy,indz+1]*temp + F[indx+1,indy,indz+1]*rx
-                c11 = F[indx,indy+1,indz+1]*temp + F[indx+1,indy+1,indz+1]*rx
-                
-                # compute the second linear interpolation
-                temp = 1-ry
-                c0 = c00*temp + c10*ry
-                c1 = c01*temp + c11*ry
-                
-                # compute the last linear interpolation
-                G[i] = c0*(1-rz) + c1*rz
+        # relative coordinates
+        rx = (x[ind,0]-X[indx])/(X[indx+1]-X[indx])
+        ry = (x[ind,1]-Y[indy])/(Y[indy+1]-Y[indy])
+        rz = (x[ind,2]-Z[indz])/(Z[indz+1]-Z[indz])
+        
+        # compute the first linear interpolation
+        temp = 1-rx
+        c00 = F[indx,indy,indz]*temp + F[indx+1,indy,indz]*rx
+        c10 = F[indx,indy+1,indz]*temp + F[indx+1,indy+1,indz]*rx
+        c01 = F[indx,indy,indz+1]*temp + F[indx+1,indy,indz+1]*rx
+        c11 = F[indx,indy+1,indz+1]*temp + F[indx+1,indy+1,indz+1]*rx
+        
+        # compute the second linear interpolation
+        temp = 1-ry
+        c0 = c00*temp + c10*ry
+        c1 = c01*temp + c11*ry
+        
+        # compute the last linear interpolation
+        G[ind] = c0*(1-rz) + c1*rz
         return G
     else:
         raise NameError('Error: wrong shape of the position to interpolate')

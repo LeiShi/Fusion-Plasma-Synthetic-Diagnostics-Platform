@@ -25,66 +25,74 @@ class Reflectometer_Output:
     
     """
 
-    def __init__(this,file_path,f_arr,t_arr,n_cross_section, FWR_dimension = 2,full_load = True,receiver_file_name='receiver_pattern.txt'):
+    def __init__(self,file_path,f_arr,t_arr,n_cross_section, FWR_dimension = 2,full_load = True,receiver_file_name='receiver_pattern.txt'):
         """initialize the output object, read the output files in file_path specified by frequencies and timesteps.
+        Arguments:
+            file_path: string, absolute or relative path to the the directory containing frequency level dirs. This should be the same as the 'full_output_path' in FWR2D_Driver script used to initiate the Runs.
+            f_arr: list of double, frequency array contained in this run
+            t_arr: list of int, time step array contained in this run
+            n_cross_section: int, total number of cross_sctions used in this run
+            FWR_dimension: optional int, either 2 or 3, default 2, give the dimension of FWR run, to use corresponding signal collecting function
+            full_load: optional bool, default True. if True, create reflected signal from FWR run output files, if False, skip the creating part, wait for loading a saved data file.
+            receiver_file_name:optional string, default to be the default value set in FWR_Driver script, this is the receiver field pattern link name in every single run dir created by FWR_Driver.
         """
-        this.file_path = file_path
-        this.frequencies = f_arr
-        this.NF = len(f_arr)
-        this.timesteps = t_arr
-        this.NT = len(t_arr)
-        this.n_cross_section = n_cross_section
-        this.receiver_file_name = receiver_file_name
-        this.dimension = FWR_dimension
+        self.file_path = file_path
+        self.frequencies = f_arr
+        self.NF = len(f_arr)
+        self.timesteps = t_arr
+        self.NT = len(t_arr)
+        self.n_cross_section = n_cross_section
+        self.receiver_file_name = receiver_file_name
+        self.dimension = FWR_dimension
         if (full_load):
-            this.create_received_signals()
+            self.create_received_signals()
         else:
             print 'Initializer didn\'t creat E_out. Need to read E_out from somewhere else.' 
     
-    def create_received_signals(this):
+    def create_received_signals(self):
         """This method actually recursively read all the needed output files and produce the recieved signal for each file.
         """
-        this.E_out = np.zeros((this.NF,this.NT,this.n_cross_section))
-        this.E_out = this.E_out + 1j * this.E_out
+        self.E_out = np.zeros((self.NF,self.NT,self.n_cross_section))
+        self.E_out = self.E_out + 1j * self.E_out
 
-        
-        for f_idx in range(this.NF):
-            for t_idx in range(this.NT):
-                for i in range(this.n_cross_section):
-                    fwr_file = this.make_file_name(this.frequencies[f_idx],this.timesteps[t_idx],i)
-                    receiver_file = this.make_receiver_file_name(this.frequencies[f_idx],this.timesteps[t_idx],i,this.receiver_file_name)
-                    this.E_out[f_idx,t_idx,i] = this.read_E_out(fwr_file,receiver_file)
-            print 'frequency '+str(this.frequencies[f_idx])+' read.'
+        for f_idx in range(self.NF):
+            for t_idx in range(self.NT):
+                for i in range(self.n_cross_section):
+                    fwr_file = self.make_file_name(self.frequencies[f_idx],self.timesteps[t_idx],i)
+                    receiver_file = self.make_receiver_file_name(self.frequencies[f_idx],self.timesteps[t_idx],i,self.receiver_file_name)
+                    self.E_out[f_idx,t_idx,i] = self.read_E_out(fwr_file,receiver_file)
+            print 'frequency '+str(self.frequencies[f_idx])+' read.'
+                
         return 0
     
 
-    def make_file_name(this,f,t,nc):
+    def make_file_name(self,f,t,nc):
         """create the corresponding output file name based on the given frequency and time
         """
-        full_path = this.file_path + str(f)+'/'+str(t)+'/'+str(nc)+'/'
+        full_path = self.file_path + str(f)+'/'+str(t)+'/'+str(nc)+'/'
         
-        if this.dimension ==2:
+        if self.dimension ==2:
             file_name = 'out_{0:0>6.2f}_equ.cdf'.format(f)
-        elif this.dimension == 3:
+        elif self.dimension == 3:
             file_name = 'schradi.cdf'
             
         return full_path + file_name
 
-    def make_receiver_file_name(this,f,t,nc,file_name):
+    def make_receiver_file_name(self,f,t,nc,file_name):
         """create the receiver antenna pattern file name. Rightnow, it works with the NSTX_FWR_Driver.py script default.
         """
-        full_path = '{0}{1}/{2}/{3}/'.format(this.file_path,str(f),str(t),str(nc))
+        full_path = '{0}{1}/{2}/{3}/'.format(self.file_path,str(f),str(t),str(nc))
         return full_path + file_name
     
 
-    def read_E_out(this,ref_file,rec_file):
+    def read_E_out(self,ref_file,rec_file):
         """read data from the output file, produce the received E signal, return the complex E
         """
         #print 'reading file:',file
         f = nc.netcdf_file(ref_file,'r')
         #print 'finish reading.'
 
-        if(this.dimension == 2):
+        if(self.dimension == 2):
             y = np.copy(f.variables['a_y'].data)
             z = np.copy(f.variables['a_z'].data)
             z_idx = f.dimensions['a_nz']/2 -1
@@ -97,7 +105,7 @@ class Reflectometer_Output:
             
             E_out = np.trapz(E_ref*np.conj(E_rec[z_idx,:]),x=y)
             return E_out
-        elif(this.dimension == 3):
+        elif(self.dimension == 3):
             y = f.variables['a_y'][:]
             z = f.variables['a_z'][:]
             
@@ -120,21 +128,21 @@ class Reflectometer_Output:
             E_out = np.average(E_ref*np.conj(E_rec))*(ymax-ymin)*(zmax-zmin)
             return E_out
 
-    def save_E_out(this,filename = 'E_out.sav'):
+    def save_E_out(self,filename = 'E_out.sav'):
         """Save the output signal array to a binary file
         Default filename is 'E_out.sav.npy'
         Note that a '.npy' extension will be added automatically
         """
-        np.save(this.file_path + filename,this.E_out)
+        np.save(self.file_path + filename,self.E_out)
 
-    def load_E_out(this,filename = 'E_out.sav'):
+    def load_E_out(self,filename = 'E_out.sav'):
         """load an existing E_out array from previously saved datafile.
         Default filename is E_out.sav.npy
         Note that a '.npy' extension will be automatically added if not given in filename.
         """
         if('.npy' not in filename):
             filename = filename+'.npy'
-        this.E_out =  np.load(this.file_path + filename)
+        self.E_out =  np.load(self.file_path + filename)
         
         
 

@@ -76,7 +76,7 @@ class Collisions:
             T = self.get_list_temperature('atte',i)
             coef_T = self.get_coef_T('atte',i)
             Tref = self.get_Tref('atte',i)
-            index = np.where(abs((Tref-T)/Tref) < 1e-4)[0][0]
+            index = abs((Tref-T)/Tref) < 1e-4
             
             #interpolation over the temperature
             self.atte_tck_temp.append(interpolate.splrep(T,coef_T/coef_T[index]))
@@ -95,7 +95,7 @@ class Collisions:
             T = self.get_list_temperature('emis',i)
             coef_T = self.get_coef_T('emis',i)
             Tref = self.get_Tref('emis',i)
-            index = np.where(abs((Tref-T)/Tref) < 1e-4)[0][0]
+            index = abs((Tref-T)/Tref) < 1e-4
             
             #interpolation over the temperature
             self.emis_tck_temp.append(interpolate.splrep(T,coef_T/coef_T[index]))
@@ -252,7 +252,8 @@ class Collisions:
             Ti          -- ion temperature
             file_number -- file number wanted (should be simplify in Beam.py)
         """
-        return 1.68e-9
+        l = np.ones(ne.shape)
+        return 1.68e-9*l
         #frac = (float(self.n_low)/float(self.n_high))**2
         #E = -self.E0*(1.0/self.n_low**2 - 1.0/self.n_high**2)
         #sigv = frac*np.exp(E/Te)*self.get_emission(beam,ne,mass_b,Ti,file_number)

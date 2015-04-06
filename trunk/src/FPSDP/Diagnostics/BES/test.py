@@ -52,12 +52,12 @@ foc = bes_.pos_foc
 
 if profiler:
     s = StringIO.StringIO()
-    sortby = 'cumulative'
+    sortby = 'time'
     ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
     ps.print_stats()
     print s.getvalue()
 
 
-np.savez('data/test',netilde,foc)
+np.savez('data/test2',netilde,foc)
 
 

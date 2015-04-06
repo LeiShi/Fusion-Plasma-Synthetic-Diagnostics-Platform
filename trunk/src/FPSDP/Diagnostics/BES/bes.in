@@ -120,7 +120,7 @@ type_int = 2D
 data_path = /global/project/projectdirs/m499/jlang/particle_pinch/
 # precision for all the axis
 N = [16, 4, 16]
-#N = [128, 32, 128]
+#N = [64, 16, 64]
 # max of the lifetime of the excited particles
 # (used for computing the limits of the mesh)
 tau_max = 1e-8

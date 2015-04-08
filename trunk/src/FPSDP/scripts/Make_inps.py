@@ -49,12 +49,12 @@ class FWR3D_input_maker:
         #****************
 
         # Y&Z mesh (assumed the same in all 3 regions) 
-        self.Ymin = -10
-        self.Ymax = 10
-        self.Zmin = -10
-        self.Zmax = 10
+        self.Ymin = -15
+        self.Ymax = 15
+        self.Zmin = -5
+        self.Zmax = 5
         self.NY = 128 # Y grid points, need to be 2**n number for FFT
-        self.NZ = 128 # Z grid number, 2**n for same reason 
+        self.NZ = 32 # Z grid number, 2**n for same reason 
 
         # 3 regions in X are:
         # vacuum region: from Antenna to the plasma boundary
@@ -70,20 +70,20 @@ class FWR3D_input_maker:
         # paraxial and fullwave boundary
         self.x_full_wave_paraxial_bnd = 90
         # left boundary of full wave region
-        self.x_min_full_wave = 75
+        self.x_min_full_wave = 70
 
         #MPI Processes number setup
         #Domain number in x,y,z dimension:
         #BE CAREFUL, the total number of domains (nproc_x*nproc_y*nproc_z) MUST be equal to the total number of the processes in MPI_COMM_WORLD, the latter is normally the total number of processors requested. 
-        self.nproc_x = 8
-        self.nproc_y = 2
-        self.nproc_z = 2
+        self.nproc_x = 16
+        self.nproc_y = 1
+        self.nproc_z = 1
 
         #Antenna wave frequency(Hz)
         self.ant_freq = 1.40e11
 
         # grid numbers for the inner 2 regions
-        self.nx_paraxial = 300
+        self.nx_paraxial = 32
 
         self.nx_full_wave = int((self.x_full_wave_paraxial_bnd-self.x_min_full_wave)*self.ant_freq/3e9) 
 
@@ -97,7 +97,7 @@ class FWR3D_input_maker:
         #code5 file flag, '.TRUE.' or '.FALSE.'
         self.read_code5_data = '.TRUE.'
         #code5 file
-        self.code5_datafile = 'antenna_pattern_1250.txt'
+        self.code5_datafile = 'antenna_pattern_launch_1400.txt'
 
         # center location in Y&Z
         # Note that if you read the antenna pattern from a code5 file, these coordinates will relocate your whole pattern, keep the center aligned. 
@@ -109,14 +109,14 @@ class FWR3D_input_maker:
         # center location in Y&Z already set
 
         # beam width (cm)
-        self.ant_height_y = 0 #total width of the injecting light beam in y
-        self.ant_height_z = 0
+        self.ant_height_y = 2.7 #total width of the injecting light beam in y
+        self.ant_height_z = 1.8
 
         # focal length of the beam (cm)
-        self.ant_focal = 100 
+        self.ant_focal = -100 
 
         # launch angle (radian)
-        self.ant_angle_y = -0.5*np.pi # np.pi is the constant PI stored in numpy module
+        self.ant_angle_y = -0.5017*np.pi # np.pi is the constant PI stored in numpy module
         self.ant_angle_z = -0.5*np.pi
 
 
@@ -135,7 +135,7 @@ class FWR3D_input_maker:
         #time step allowed by stability condition
         self.omega_dt = self.dx_fw*self.ant_freq*2*np.pi/6e10
         # total simulation time in terms of time for light go through full wave region
-        self.nr_crossings = 1
+        self.nr_crossings = 3
         #total time steps calculated from dt and total simulation time
         self.nt = self.nx_full_wave*self.nr_crossings*2
 
@@ -171,7 +171,7 @@ class FWR3D_input_maker:
         self.ix_refl = self.ixs[1]+1
 
         #total time step for output(Note that NX*NY*itime*3*16Byte should not exceed 4GB)
-        self.itime = 5
+        self.itime = 1
         self.iskip = int(self.nt/self.itime)
 
         #********************

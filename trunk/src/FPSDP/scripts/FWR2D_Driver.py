@@ -13,6 +13,8 @@ $ipcluster start -n 64
 
 This will start a cluster with 64 processes
 
+For use with multiple nodes communicating via MPI, check out the IPython documentation for details of initiating a cluster. ipcontroller and ipengine may need to be called manually.
+
 Google 'IPython start cluster' for more information
 
 ==========================================================
@@ -47,9 +49,23 @@ Make sure you modify 'run_No' in this script before submit a new run. Otherwise 
 #The tag of RUN. Each new run should be assigned a new number.
 run_No = '_140GHz_275t'
 
-
+import time
 from IPython.parallel import Client
-c = Client()
+c = Client(profile='pbs')
+
+#the engine needs time to start, so check when all the engines are connected before take a direct view of the cluster.
+
+desired_engine_num = 128 #Make sure this number is EXACTLY the same as the engine number you initiated with ipengine
+
+waiting=0
+while(len(c) < desired_engine_num and waiting<=60):#check if the engines are ready, if the engines are not ready after 1 min, something might be wrong. Exit and raise an exception.
+    time.sleep(10)
+    waiting += 10
+
+if(len(c) != desired_engine_num):
+    raise Exception('usable engine number is not the same as the desired engine number! usable:{0}, desired:{1}.\nCheck your cluster status and the desired number set in the Driver script.'.format(len(c),desired_engine_num))
+
+
 dv = c[:]
 print('Multiprocess FWR2D run started: using {} processes.'.format(len(c.ids)))
 
@@ -177,7 +193,13 @@ def start_run(params):
     f,t,nc = params
     os.chdir(full_output_path+'/'+str(f)+'/'+str(t)+'/'+str(nc))
     with open('./output.txt','w') as output:
-        subp.check_call([exe,FWR_driver_link_name,],stdout=output) 
+        try:
+	    subp.check_call([exe,FWR_driver_link_name,],stdout=output)
+	except Exception as e:
+	    print >>output, 'Exception catched:{0}. from Case f={1},t={2},nc={3}. This run is skipped, others will continue, assuming this error is because you are trying to continue running the Script to finish a prematurely stopped run. Be sure this is the case to go on to use the result.'.format(str(e),f,t,nc)
+	else:
+	    print >>output, 'Case f={0},t={1},nc={2} finished without exceptions.'.format(f,t,nc)
+         
 
 def launch(f_arr,t_arr,nc):
     """launch multiple tasks of FWR2D runs for given freqs, t_arr and total cross-section number
@@ -235,7 +257,7 @@ def main(argv):
                 
     ar = launch(f_arr = f_use,t_arr = t_use,nc = nc_use)
     print('FWR processes launched.')
-    ar.wait()
+    ar.wait_interactive()
     print('All FWR2D runs finished. Check detailed output at output.txt in every run directory.')
         
     

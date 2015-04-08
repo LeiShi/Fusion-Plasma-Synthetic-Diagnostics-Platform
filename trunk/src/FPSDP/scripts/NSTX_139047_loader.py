@@ -16,10 +16,10 @@ def load(dimension,tstart,tend,tstep,full_load,fluc_only,eq_only):
     return xgc_nstx_139047
 
 if (__name__=='__main__'):
-    for t in range(1,221,20):
+    for t in range(100,220,20):
         xgc_nstx_139047 = load(2,t,t+20,1,True,False,False)
-        xgc_nstx_139047.cdf_output('/p/gkp/lshi/XGC1_NSTX_Case/new_2D_fluctuations/Amp1_All/')
-    #xgc_nstx_139047.save('/p/gkp/lshi/XGC1_NSTX_Case/FullF_XGC_ti191_output/xgc_prof3D_all_fulltime.sav')
+        #xgc_nstx_139047.cdf_output('/p/gkp/lshi/XGC1_NSTX_Case/new_2D_fluctuations/Amp1_All/')
+        xgc_nstx_139047.save('xgc_prof2D_all_time{0}.sav'.format(t))
 
 freqs = [30,32.5,35,37.5,42.5,45,47.5,50,55,57.5,60,62.5,67.5,70,72.5,75]
 

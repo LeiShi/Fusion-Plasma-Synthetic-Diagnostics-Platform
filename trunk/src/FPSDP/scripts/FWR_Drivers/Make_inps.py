@@ -49,11 +49,11 @@ class FWR3D_input_maker:
         #****************
 
         # Y&Z mesh (assumed the same in all 3 regions) 
-        self.Ymin = -15
-        self.Ymax = 15
+        self.Ymin = -5
+        self.Ymax = 5
         self.Zmin = -5
         self.Zmax = 5
-        self.NY = 128 # Y grid points, need to be 2**n number for FFT
+        self.NY = 32 # Y grid points, need to be 2**n number for FFT
         self.NZ = 32 # Z grid number, 2**n for same reason 
 
         # 3 regions in X are:
@@ -75,7 +75,7 @@ class FWR3D_input_maker:
         #MPI Processes number setup
         #Domain number in x,y,z dimension:
         #BE CAREFUL, the total number of domains (nproc_x*nproc_y*nproc_z) MUST be equal to the total number of the processes in MPI_COMM_WORLD, the latter is normally the total number of processors requested. 
-        self.nproc_x = 16
+        self.nproc_x = 8
         self.nproc_y = 1
         self.nproc_z = 1
 
@@ -133,7 +133,7 @@ class FWR3D_input_maker:
         #*********************
 
         #time step allowed by stability condition
-        self.omega_dt = self.dx_fw*self.ant_freq*2*np.pi/6e10
+        self.omega_dt = self.dx_fw*self.ant_freq*2*np.pi/6e10/2
         # total simulation time in terms of time for light go through full wave region
         self.nr_crossings = 3
         #total time steps calculated from dt and total simulation time
@@ -199,7 +199,8 @@ class FWR3D_input_maker:
         # wave polarization (O or X) 
         self.polarization = 'O'
 
-
+	# The (y,z) coordinates of main light path. Incidental wave is assumed mainly along x direction. The central ray is then assumed mainly along x direction inspite of possible refraction and defraction effects of plasma. Epsilon is fully calculated along x at the specified (y,z) coordinates. Then on each y,z plane, delta_epsilon is calculated to the first order in dn/n. The total epsilon is then the sum of the delta_epsilon on the (x,y,z) location and the main ray epsilon at the x value. 
+	self.yz_cut = '0,0'  
 
         ##############################
         # End of the Parameter Setting Up
@@ -279,7 +280,7 @@ class FWR3D_input_maker:
 
         self.nx_full_wave = int((self.x_full_wave_paraxial_bnd-self.x_min_full_wave)*self.ant_freq/3e9)
         self.dx_fw = float(self.x_full_wave_paraxial_bnd-self.x_min_full_wave)/self.nx_full_wave
-        self.omega_dt = self.dx_fw*self.ant_freq*2*np.pi/6e10
+        self.omega_dt = self.dx_fw*self.ant_freq*2*np.pi/6e10/2
         self.nt = self.nx_full_wave*self.nr_crossings*2
         self.iskip = int(self.nt/self.itime)
         self.ixs = [self.nx_full_wave*9/10,self.nx_full_wave*9/10+1]
@@ -307,7 +308,7 @@ class FWR3D_input_maker:
                     'fluctuation_type':'"'+self.fluctuation_type+'"',
                     'fluctuation_file':'"'+self.fluctuation_file+'"',
                     'POLARIZATION':'"'+self.polarization+'"',            
-                    'yz_cut':'0,0',#self.x_full_wave_paraxial_bnd,
+                    'yz_cut':'"'+self.yz_cut+'"',
                     'OUTPUT':self.eps_out,
                     'OUTPUT_EPS_1D':self.eps_1d_out
                     }

@@ -6,10 +6,21 @@ import scipy.interpolate as ip
 
 
 class ADAS_file:
-    """ Global class for defining the different kind of database
-        DO NOT USE
+    """ Global class for defining the different kind of database readers
+
+    This class is for inheritence purpose only. It will be inherited
+    by all the ADAS readers.
+    It defines the init (:func:`__init__`) method and how to read a block 
+    of data (:func:`read_block`)
+
     """
     def __init__(self,name):
+        """ Save the name of the file
+        
+        :param name: Name of the file
+        :type name: str
+        """
+        
         self.name = name
 
     def read_block(self,data,i,array,n):

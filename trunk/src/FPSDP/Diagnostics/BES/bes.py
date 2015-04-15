@@ -136,27 +136,25 @@ class BES:
         self.type_int = config.get('Optics','type_int')                      #!
 
 
-        # Data part
-        self.lifetime = json.loads(config.get('Collisions','t_max'))         #!
-        self.lifetime = self.lifetime != 0
+
+        self.t_max = json.loads(config.get('Collisions','t_max'))            #!
+        self.lifetime = self.t_max != 0                                      #!
         
+        # Data part
         self.tau_max = json.loads(config.get('Data','tau_max'))              #!
+        self.N_field = json.loads(config.get('Data','N_field'))              #!
         self.data_path = config.get('Data','data_path')                      #!
-        self.N = json.loads(config.get('Data','N'))                          #!
         start = json.loads(config.get('Data','timestart'))
         end = json.loads(config.get('Data','timeend'))
         timestep = json.loads(config.get('Data','timestep'))
-        self.time = np.arange(start,end+1,timestep)                          #!
-        self.beam = be.Beam1D(input_file,range(len(self.time)))              #!
+        self.beam = be.Beam1D(input_file)                                    #!
         self.compute_limits()      # compute the limits of the mesh
         # position swap due to a difference in the axis        
         #grid3D = Grid.Cartesian3D(Xmin=self.Xmin, Xmax=self.Xmax, Ymin=self.Zmin, Ymax=self.Zmax,
         #                          Zmin=self.Ymin, Zmax=self.Ymax, NX=self.N[0], NY=self.N[2], NZ=self.N[1])
-        xgc_ = xgc.XGC_Loader_BES(self.data_path, start, end, timestep,self.limits)
-
-        # check if the timesteps of the loading class is the same
-        if (self.time != xgc_.time_steps).any():
-            raise NameError('Time steps wrong')
+        xgc_ = xgc.XGC_Loader_BES(self.data_path, start, end, timestep,
+                                  self.limits, self.N_field)
+        self.time = xgc_.time_steps                                          #!
 
         # set the data inside the beam (2nd part of the initialization)
         self.beam.set_data(xgc_)
@@ -182,7 +180,7 @@ class BES:
         for j in range(self.pos_foc.shape[0]):
             self.perp2[j,:] = np.cross(self.op_direc[j,:],self.perp1[j,:])
 
-    def compute_limits(self, eps=1e-3, dxmin = 0.1, dymin = 0.1, dzmin = 0.5):
+    def compute_limits(self, eps=0.05, dxmin = 0.1, dymin = 0.1, dzmin = 0.5):
         """ Compute the limits of the mesh that should be loaded
             The only limitation comes from the sampling volume
             eps is for adding a small amount to the limits (avoids problems)
@@ -290,44 +288,43 @@ class BES:
                                 [self.Ymin,self.Ymax],
                                 [self.Zmin,self.Zmax]])
 
-        
+        print self.limits
+
+
     def get_bes(self):
         """ Compute the image of the turbulence in density
             This function should be the only one used outside the class
             Argument:
             t_  -- list of timesteps
         """
-        t_ = range(len(self.time)) # compute all the timestep
         print self.time
         nber_fiber = self.pos_foc.shape[0]
-        # loop over all the fiber
         print 'do not take in account the wavelenght'
         print 'only the main component is used'
-        # parallel case
-        if self.para:
-            p = mp.Pool()
-            I = np.array(p.map(self.intensity_para, range(nber_fiber)))
-            I = I[:,:,0]
-        # serial case
-        else:
-            I = np.zeros((nber_fiber,len(t_)))
-            for i in range(nber_fiber):
-                print('Fiber number: ' + str(i+1) + '/' + str(nber_fiber))
-                # compute the light received by each fiber
-                I[i,:] = self.intensity(t_,i)[:,0]
-        # average intensity
-        I_av = np.sum(I,axis=1)/len(t_)
-        for j in range(len(t_)):
-            # compute the fluctuation
-            I[:,j] = (I[:,j]/I_av) - 1.0
+        I = np.zeros((len(self.time),nber_fiber))
+        for i,time in enumerate(self.time):
+            print('Time step number: ' + str(i+1) + '/' + str(len(self.time)))
+            # first time step already loaded
+            if i != 0:
+                self.beam.data.load_next_time_step()
+            if self.para:
+                p = mp.Pool()
+                a = np.array(p.map(self.intensity_para, range(nber_fiber)))
+                I[i,:] = a[:,0]
+                # serial case
+                p.close()
+            else:
+                for j in range(nber_fiber):
+                    # compute the light received by each fiber
+                    t_ = self.beam.data.current
+                    I[i,j] = self.intensity(i,j)[0]
         return I
         
     def intensity_para(self,i):
         """ Same as intensity, but have only one argument (all the timesteps
             are computed)
         """
-        print('Fiber number: ' + str(i+1) + '/' + str(self.pos_foc.shape[0]))
-        t_ = range(len(self.time))
+        t_ = self.beam.data.current
         return self.intensity(t_,i)
 
     def to_cart_coord(self,pos,fiber_nber):
@@ -398,7 +395,7 @@ class BES:
             fiber_nber --  number of the fiber
         """
         nber_comp = self.beam.beam_comp.shape[0]
-        I = np.zeros((z.shape[0],len(t_),nber_comp))
+        I = np.zeros((z.shape[0],nber_comp))
         if self.type_int == '2D':
             # compute the integral with a few points
             # outside the central line
@@ -416,12 +413,12 @@ class BES:
                 eps = self.get_emis_from(pos,t_,fiber_nber)
                 # sum the emission of all the points with the appropriate
                 # weight
-                I[i,:,:] = np.einsum('k,ijk->ij',quad.w,eps)
+                I[i,:] = np.einsum('k,jk->j',quad.w,eps)
         elif self.type_int == '1D':
             # just use the point on the central line
             for i,z_ in enumerate(z):
                 pos = np.array([0,0,z_])
-                I[i,:,:] = self.get_emis_from(pos[np.newaxis,:],t_,fiber_nber)[:,:,0]
+                I[i,:] = self.get_emis_from(pos[np.newaxis,:],t_,fiber_nber)[0]
         else:
             raise NameError('This type of integration does not exist')
         return I
@@ -432,7 +429,7 @@ class BES:
         # first define the quadrature formula
         quad = integ.integration_points(1,'GL3') # Gauss-Legendre order 3
         nber_comp = self.beam.beam_comp.shape[0]
-        I = np.zeros((len(t_),nber_comp))
+        I = np.zeros(nber_comp)
         # compute the distance from the origin of the beam
         dist = np.dot(self.pos_foc[fiber_nber,:] - self.beam.pos,self.beam.direc)
         width = self.beam.get_width(dist)
@@ -449,12 +446,8 @@ class BES:
             # distance of the plane from the lense
             pt = z + ba2*quad.pts + self.dist[fiber_nber]
             light = self.light_from_plane(pt,t_,fiber_nber)
-            # check nan and put it to 0
-            ind = np.isnan(light)
-            # NaN comes from value outside the tokamak => 0 photon
-            light[ind] = 0.0
             # sum the weight with the appropriate pts
-            I += np.einsum('k,kij->ij',quad.w,light)
+            I += np.einsum('k,kj->j',quad.w,light)
         # multiply by the weigth of each interval
         I *= ba2
         return I
@@ -660,26 +653,23 @@ class BES_ideal:
         self.pos_foc[:,2] = Z
 
         # Data part
+        self.N_field = json.loads(config.get('Data','N_field'))              #!
         self.data_path = config.get('Data','data_path')                      #!
-        self.N = json.loads(config.get('Data','N'))                          #!
         start = json.loads(config.get('Data','timestart'))
         end = json.loads(config.get('Data','timeend'))
         timestep = json.loads(config.get('Data','timestep'))
-        self.time = np.arange(start,end+1,timestep)                          #!
         self.compute_limits()      # compute the limits of the mesh
-        # position swap due to a difference in the axis        
-        grid3D = Grid.Cartesian3D(Xmin=self.Xmin, Xmax=self.Xmax, Ymin=self.Zmin, Ymax=self.Zmax,
-                                  Zmin=self.Ymin, Zmax=self.Ymax, NX=self.N[0], NY=self.N[2], NZ=self.N[1])
-        xgc_ = xgc.XGC_Loader(self.data_path, grid3D, start, end, timestep,
-                              Fluc_Only = False, load_ions=True, equilibrium_mesh = '3D')
 
+        xgc_ = xgc.XGC_Loader_BES(self.data_path, start, end, timestep,
+                                  self.limits, self.N_field)
+        self.time = xgc_.time_steps                                          #!
 
         self.data = xgc_
         if (self.time != xgc_.time_steps).any():
             raise NameError('Time steps wrong')
         
 
-    def compute_limits(self, eps=1e-3, dxmin = 0.1, dymin = 0.1, dzmin = 0.5):
+    def compute_limits(self, eps=1, dxmin = 0.1, dymin = 0.1, dzmin = 0.5):
         """ find max of the focus points """
         # first in X
         self.Xmax = np.max(self.pos_foc[:,0])
@@ -719,6 +709,9 @@ class BES_ideal:
         self.Ymin -= dY*eps
         self.Zmax += dZ*eps
         self.Zmin -= dZ*eps
+        self.limits = np.array([[self.Xmin,self.Xmax],
+                                [self.Ymin,self.Ymax],
+                                [self.Zmin,self.Zmax]])
 
 
     def get_bes(self):
@@ -736,24 +729,23 @@ class BES_ideal:
             self.pos_foc[:,0] = a
             self.pos_foc[:,2] = b
             
-
-        t_ = range(len(self.time)) # compute all the timestep
+        print self.time
         nber_fiber = self.pos_foc.shape[0]
-        I = np.zeros((nber_fiber,len(t_)))
-        # loop over all the fiber
-        ne_int = []
-        grid_ = (self.data.grid.Z1D,self.data.grid.Y1D,
-                 self.data.grid.X1D)
-        for i in range(len(t_)):
-            ne_int.append(interpolate.RegularGridInterpolator(
-                grid_,self.data.ne_on_grid[0,i,:,:,:]))
-            
-        a = be.to_other_index(self.pos_foc).T
-        for i in range(nber_fiber):
-            for j in range(len(t_)):
+        I = np.zeros((len(self.time),nber_fiber))
+        for i,time in enumerate(self.time):
+            print('Time step number: ' + str(i+1) + '/' + str(len(self.time)))
+            if i != 0:
+                self.data.load_next_time_step()
+            for j in range(nber_fiber):
                 # compute the light received by each fiber
-                I[i,j] = ne_int[j](a[i,:])
-        I_av = np.sum(I,axis=1)/len(t_)
-        for j in range(len(t_)):
-            I[:,j] = (I[:,j]/I_av) - 1.0
+                t_ = self.data.current
+                I[i,j] = self.intensity(i,j)
         return I
+
+
+    def intensity(self,t_,fiber_nber):
+        """ Compute the light received by the fiber #fiber_nber
+        """
+        I = self.data.interpolate_data(self.pos_foc[fiber_nber,:],t_,['ne'],False)[0]
+        return I
+ 

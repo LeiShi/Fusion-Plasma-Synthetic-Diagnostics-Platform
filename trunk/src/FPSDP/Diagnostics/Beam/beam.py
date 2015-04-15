@@ -118,10 +118,9 @@ class Beam1D:
 
     """
     
-    def __init__(self,config_file,timesteps):
+    def __init__(self,config_file):
         """ Load everything from the config file"""
         self.cfg_file = config_file                                          #!
-        self.timesteps = timesteps                                           #!
         print 'Reading config file (beam)'
         config = psr.ConfigParser()
         config.read(self.cfg_file)
@@ -268,11 +267,13 @@ class Beam1D:
             Arguments:
             pos   --  1D array with (X,Y,Z) or 2D array with (X,Y,Z)
                       as the second index
-            t_    --  list of timesteps
+            t_    --  time step
             quant --  list containing the wanted quantities (see data class
                       for more information)
             eq    --  choice between equilibrium or exact quantities
         """
+        if isinstance(t_,list):
+            raise NameError('Only one time should be given')
         return self.data.interpolate_data(pos,t_,quant,eq)
         
         
@@ -356,8 +357,7 @@ class Beam1D:
             with the Gauss-Legendre quadrature (2 points)
         """
         
-        self.density_beam = np.zeros((len(self.timesteps),
-                                     len(self.beam_comp),self.Nz))           #!
+        self.density_beam = np.zeros((len(self.beam_comp),self.Nz))  #!
         print('If keep attenuation with eq, should remove time loop')
         # density of the beam at the origin
         n0 = np.zeros(len(self.beam_comp))
@@ -366,46 +366,44 @@ class Beam1D:
         
         # define the quadrature formula for this method
         quad = integ.integration_points(1,'GL3') # Gauss-Legendre order 3
-        self.nb_tck = []
-        for t_ in range(len(self.timesteps)):
-            for j in range(len(self.mesh[:,0])):
-                # density over the central line (usefull for some check)
-                if j is not 0:
-                    temp_beam = np.zeros(len(self.beam_comp))
-                    for k in self.coll_atte:
-                        file_nber = k[0]
-                        beam_nber = k[1]
-                        # limit of the integral
-                        a = self.mesh[j-1,:]
-                        b = self.mesh[j,:]
-                        # average
-                        av = (a+b)/2.0
-                        # difference
-                        diff = (b-a)/2.0
-                        # integration point
-                        pt = quad.pts[:,np.newaxis]*diff + av
-                        # compute all the values needed for the integral
-                        ne, T = self.get_quantities(pt,t_,['ne','Ti'],eq)
-
-                        # attenuation coefficient from adas
-                        S = self.collisions.get_attenutation(
-                            self.beam_comp[beam_nber],ne,self.mass_b[beam_nber],
-                            T,file_nber)
-                        
-                        # half distance between a & b
-                        norm_ = 0.5*np.sqrt(np.sum((b-a)**2))
-                        temp1 = np.sum(ne*S*quad.w)
-                        temp1 *= norm_/self.speed[beam_nber]
-                        temp_beam[beam_nber] += temp1
-
-                    self.density_beam[t_,:,j] = self.density_beam[t_,:,j-1] - \
+        for j in range(len(self.mesh[:,0])):
+            # density over the central line (usefull for some check)
+            if j is not 0:
+                temp_beam = np.zeros(len(self.beam_comp))
+                for k in self.coll_atte:
+                    file_nber = k[0]
+                    beam_nber = k[1]
+                    # limit of the integral
+                    a = self.mesh[j-1,:]
+                    b = self.mesh[j,:]
+                    # average
+                    av = (a+b)/2.0
+                    # difference
+                    diff = (b-a)/2.0
+                    # integration point
+                    pt = quad.pts[:,np.newaxis]*diff + av
+                    # compute all the values needed for the integral
+                    ne, T = self.get_quantities(pt,None,['ne','Ti'],eq)
+                    
+                    # attenuation coefficient from adas
+                    S = self.collisions.get_attenutation(
+                        self.beam_comp[beam_nber],ne,self.mass_b[beam_nber],
+                        T,file_nber)
+                    
+                    # half distance between a & b
+                    norm_ = 0.5*np.sqrt(np.sum((b-a)**2))
+                    temp1 = np.sum(ne*S*quad.w)
+                    temp1 *= norm_/self.speed[beam_nber]
+                    temp_beam[beam_nber] += temp1
+                    
+                self.density_beam[:,j] = self.density_beam[:,j-1] - \
                                                 temp_beam
 
-            # interpolant for the beam
-            self.nb_tck.append([])
-            for i in range(len(self.beam_comp)):
-                self.density_beam[t_,i,:] = n0[i]*np.exp(self.density_beam[t_,i,:])
-                self.nb_tck[t_].append(interpolate.splrep(self.dl,self.density_beam[t_,i,:]))
+        self.nb_tck = []
+        # interpolant for the beam
+        for i in range(len(self.beam_comp)):
+            self.density_beam[i,:] = n0[i]*np.exp(self.density_beam[i,:])
+            self.nb_tck.append(interpolate.splrep(self.dl,self.density_beam[i,:]))
                 
     def get_electron_temp(self,pos, eq=False):
         """ Return the value of the electron temperature from the
@@ -474,7 +472,7 @@ class Beam1D:
         """ Return the origin of the beam"""
         return self.pos
 
-    def get_beam_density(self,pos,t_):
+    def get_beam_density(self,pos):
         """ Return the beam density at the position and time step wanted
             assuming a gaussian profile
         """
@@ -492,7 +490,7 @@ class Beam1D:
                 raise NameError('Point before the origin of the beam')
             # cubic spline for finding the value along the axis
             for i in range(len(self.beam_comp)):
-                nb[i] = interpolate.splev(proj,self.nb_tck[t_][i])
+                nb[i] = interpolate.splev(proj,self.nb_tck[i])
             # radius^2 on the plane perpendicular to the beam
             R2 = dist - proj*self.direc
             # radius in the horizontal plane
@@ -504,7 +502,8 @@ class Beam1D:
             nb = nb*np.exp(-xy/(2*stddev2[0]) - z/(2*stddev2[1]))/(
                 2*np.pi*stddev[0]*stddev[1])
             return nb
-        elif isinstance(t_,float):
+        
+        else:
             pos = np.reshape(pos,(-1,3))
             nb = np.zeros((self.beam_comp.shape[0],pos.shape[0]))
             # vector from beam origin to the wanted position
@@ -512,38 +511,13 @@ class Beam1D:
             # result is a 1D array containing the projection of the distance
             # from the origin over the direction of the beam
             proj = np.einsum('ij,j->i',dist,self.direc)
-
             stddev = self.get_width(proj)
             stddev2 = stddev**2
+
             # cubic spline for finding the value along the axis
             for i in range(len(self.beam_comp)):
                 for j in range(pos.shape[0]):
-                    nb[i,j] = interpolate.splev(proj[j],self.nb_tck[t_][i], ext=1)
-            # radius^2 on the plane perpendicular to the beam
-            R2 = dist - proj[:,np.newaxis]*self.direc
-            # compute the norm of each position
-            xy = np.sum(R2[:,0:2]**2, axis=1)
-            z = R2[:,2]**2
-            nb = nb*np.exp(-xy/(2*stddev2[0]) - z/(2*stddev2[1]))/(
-                2*np.pi*stddev[0]*stddev[1])
-            return nb
-
-        else:
-            pos = np.reshape(pos,(len(t_),-1,3))
-            nb = np.zeros((self.beam_comp.shape[0],len(t_),pos.shape[1]))
-            # vector from beam origin to the wanted position
-            dist = pos - self.get_origin()
-            # result is a 1D array containing the projection of the distance
-            # from the origin over the direction of the beam
-            proj = np.einsum('kij,j->ki',dist,self.direc)
-            stddev = self.get_width(proj)
-            stddev2 = stddev**2
-            
-            # cubic spline for finding the value along the axis
-            for i in range(len(self.beam_comp)):
-                for k in range(len(t_)):
-                    for j in range(pos.shape[0]):
-                        nb[i,k,j] = interpolate.splev(proj[k,j],self.nb_tck[t_[k]][i], ext=1)
+                    nb[i,j] = interpolate.splev(proj[j],self.nb_tck[i], ext=1)
             # radius^2 on the plane perpendicular to the beam
             R2 = dist - proj[...,np.newaxis]*self.direc
             # compute the norm of each position
@@ -562,29 +536,20 @@ class Beam1D:
             pos   -- 2D array, first index is for X,Y,Z
         """
         # first take all the value needed for the computation
-        dim1 = len(pos.shape) == 1
-        if dim1:
-            emis = np.zeros((len(t_),len(self.beam_comp),1))
-        else:
-            emis = np.zeros((len(t_),len(self.beam_comp),pos.shape[0]))
-        Ti = self.get_ion_temp(pos)
-        print 'rewrite'
+        if len(pos.shape) == 1:
+            pos = pos[np.newaxis,:]
+        emis = np.zeros((len(self.beam_comp),pos.shape[0]))
+        n_e,Ti = self.get_quantities(pos,t_,['ne','Ti'])
         # loop over all the type of collisions
-        for tstep in range(len(t_)):
-            n_b = self.get_beam_density(pos,t_[tstep])
-            n_e = self.get_electron_density(pos,t_[tstep])
-            for k in self.coll_emis:
-                file_nber = k[0]
-                beam_nber = k[1]
-                # compute the emission coefficient
-                emis[tstep,beam_nber,:] += self.collisions.get_emission(
-                    self.beam_comp[beam_nber],n_e,self.mass_b[beam_nber],Ti,file_nber)
-            # compute the emissivity
-            for i in range(len(self.beam_comp)):
-                if dim1:
-                    emis[tstep,i] *= n_e*n_b[i]
-                else:
-                    emis[tstep,i,:] *= n_e*n_b[i,:]
+        n_b = self.get_beam_density(pos)
+        for k in self.coll_emis:
+            file_nber = k[0]
+            beam_nber = k[1]
+            # compute the emission coefficient
+            emis[beam_nber,:] += self.collisions.get_emission(
+                self.beam_comp[beam_nber],n_e,self.mass_b[beam_nber],Ti,file_nber)
+        # compute the emissivity
+        emis = emis*n_e*n_b
         return emis
 
 
@@ -598,7 +563,7 @@ class Beam1D:
         print 'wavelength!!!'
 
         quad = integ.integration_points(1,'GL19') # Gauss-Legendre order 3
-        emis = np.zeros((len(self.timesteps),len(self.beam_comp),len(pos[:,0])))
+        emis = np.zeros((len(self.beam_comp),pos.shape[0]))
         # avoid the computation at each time
         ne_in, Ti_in,Te_in = self.get_quantities(pos,t_,['ne','Ti','Te'])
         for k in self.coll_emis:
@@ -630,16 +595,14 @@ class Beam1D:
             x = pos[np.newaxis,:,np.newaxis,np.newaxis,:] \
                 - pt[...,np.newaxis]*self.direc
 
-            n_e = np.reshape(np.zeros(pt.shape),(len(t_),-1))
-            Ti = np.reshape(np.zeros(pt.shape),(len(t_),-1))
-            for i in range(len(t_)):
-                n_e[i,:], Ti[i,:] = self.get_quantities(x[i,...],t_[i],['ne','Ti'])
+            n_e, Ti = self.get_quantities(x,t_,['ne','Ti'])
 
             n_e = np.reshape(n_e,pt.shape)
             Ti = np.reshape(Ti,pt.shape)
 
-            n_b = self.get_beam_density(x,t_)[beam_nber,...]
+            n_b = self.get_beam_density(x)[beam_nber,...]
             n_b = np.reshape(n_b,pt.shape)
+        
             
             f = self.collisions.get_emission(self.beam_comp[beam_nber],n_e.flatten()
                                              ,self.mass_b[beam_nber],Ti.flatten(),file_nber)
@@ -647,7 +610,12 @@ class Beam1D:
             
             f = n_b*f*n_e*np.exp(-pt/(l[...,np.newaxis,np.newaxis]*
                                       self.speed[beam_nber]))/self.speed[beam_nber]
+
+            if np.isnan(f).any():
+                print np.isnan(f)
+                raise NameError('Mesh not well computed')
             
-            f = np.einsum('jkmn,n->jkm',f,quad.w)
-            emis[:,beam_nber,:] = np.sum(diff*f,axis=-1)/l
+            f = np.einsum('kmn,n->km',f,quad.w)
+
+            emis[beam_nber,:] = np.sum(diff*f,axis=-1)/l
         return emis

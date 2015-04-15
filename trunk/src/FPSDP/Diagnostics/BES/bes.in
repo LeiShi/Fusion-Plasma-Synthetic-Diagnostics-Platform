@@ -53,8 +53,7 @@ Nlt = 4
 # t_max*lifetime = upper value of the integrale for the lifetime effect
 # cutoff value
 # if t_max = 0, the lifetime will not be used
-t_max = 2.0
-
+t_max = 0
 
 [Optics]
 # position of the lens
@@ -118,13 +117,12 @@ type_int = 2D
 [Data]
 # path to the simulation data
 data_path = /global/project/projectdirs/m499/jlang/particle_pinch/
-# precision for all the axis
-N = [16, 4, 16]
-#N = [64, 16, 64]
+# number of step for the following line interpolation
+N_field = 20
 # max of the lifetime of the excited particles
 # (used for computing the limits of the mesh)
 tau_max = 1e-8
 # timestep wanted
-timestart = 179
-timeend = 180
+timestart = 1
+timeend = 182
 timestep = 1

@@ -10,17 +10,37 @@ useful when have multiple frequencies and time steps to analyse
 """
 
 #using IPython multiprocessing modules, need ipcluster to be started.
-
+import time
 from IPython.parallel import Client
-c = Client()
-dv = c[:]
+import FPSDP.Diagnostics.Reflectometry.FWR2D.Postprocess as pp
+import numpy as np
 
-with dv.sync_imports():
-    import FPSDP.Diagnostics.Reflectometry.FWR2D.Postprocess as pp
-    import numpy as np
-
-dv.execute('pp=FPSDP.Diagnostics.Reflectometry.FWR2D.Postprocess')
-dv.execute('np=numpy')
+def dv_initialize(n_engine):
+    c = Client(profile='pbs')
+    
+    #the engine needs time to start, so check when all the engines are connected before take a direct view of the cluster.
+    
+    desired_engine_num = n_engine #Make sure this number is EXACTLY the same as the engine number you initiated with ipengine
+    
+    waiting=0
+    while(len(c) < desired_engine_num and waiting<=60):#check if the engines are ready, if the engines are not ready after 1 min, something might be wrong. Exit and raise an exception.
+        time.sleep(10)
+        waiting += 10
+    
+    if(len(c) != desired_engine_num):
+        raise Exception('usable engine number is not the same as the desired engine number! usable:{0}, desired:{1}.\nCheck your cluster status and the desired number set in the Driver script.'.format(len(c),desired_engine_num))
+    
+    
+    dv = c[:]
+    
+    with dv.sync_imports():
+        import FPSDP.Diagnostics.Reflectometry.FWR2D.Postprocess as pp
+        import numpy as np
+    
+    dv.execute('pp=FPSDP.Diagnostics.Reflectometry.FWR2D.Postprocess')
+    dv.execute('np=numpy')
+    
+    return dv
 
 class Reflectometer_Output_Params:
     """container for non-essential parameters used in Reflectometer_Output class
@@ -52,12 +72,13 @@ def single_freq_time(params):
     Ref = pp.Reflectometer_Output(Ref_param.file_path,[f],[t],Ref_param.n_cross_section,Ref_param.FWR_dimension,True,Ref_param.receiver_file_name)
     return Ref.E_out
     
-def full_freq_time(freqs,time_arr,Ref_param):
+def full_freq_time(freqs,time_arr,Ref_param,dv):
     """Master function to collect all frequencies and time steps reflectometer signals.
     Arguments:
         freqs: array of floats, all the frequencies in GHz
         time_arr: array of ints, all the time steps
         Ref_param: Reflectometer_Output_Params object, containing other preset parameters
+        dv: direct-view of an IPython parallel cluster, obtained by function dv_initialize()
     Returns:
         Reflectometer_Output object with parameters given by freqs, time_arr, and Ref_param. It's E_out attribute contains the corresponding complex signals
     """

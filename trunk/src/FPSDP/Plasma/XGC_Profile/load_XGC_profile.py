@@ -73,6 +73,7 @@ def find_interp_positions_v2(my_xgc):
     
     phi_planes = np.arange(my_xgc.n_plane)*dPhi
 
+    #Caluclate the toroidal angle difference from nextplane and prevplane. Caution needs to be taken for the points near plane[0], because it's phi value is by default 0, but sometimes, when the wanted phi is close to 2pi, to calculate the difference between them, it's phi value needs to be considered as 2pi.
     if(my_xgc.CO_DIR):
         phiFWD = np.where(nextplane == 0,np.pi*2 - Phiwant, phi_planes[nextplane]-Phiwant)
         phiBWD = phi_planes[prevplane]-Phiwant

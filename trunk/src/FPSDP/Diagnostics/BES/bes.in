@@ -53,7 +53,7 @@ Nlt = 4
 # t_max*lifetime = upper value of the integrale for the lifetime effect
 # cutoff value
 # if t_max = 0, the lifetime will not be used
-t_max = 0
+t_max = 2.0
 
 [Optics]
 # position of the lens
@@ -112,7 +112,7 @@ Nsol = 10
 # 1D for taking into account only the emission
 # of the central line or 2D for doing an integration
 # over a plane
-type_int = 2D
+type_int = 1D
 
 [Data]
 # path to the simulation data

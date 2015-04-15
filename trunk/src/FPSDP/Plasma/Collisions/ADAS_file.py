@@ -17,22 +17,28 @@ class ADAS_file:
     def __init__(self,name):
         """ Save the name of the file
         
-        :param name: Name of the file
+        :param name: Name of the ADAS file
         :type name: str
         """
         
         self.name = name
 
     def read_block(self,data,i,array,n):
-        """ Read a block of the ADAS file (Beam stopping rate) and return the 
+        """ Read one bloc in an ADAS file
+
+        The coefficient depending on two coefficients are written in a bloc form,
+        thus this function read the block at the line i and return the 
         number of the final line
         
-        Arguments:
-        data -- list of string containing the file (see read_adas for an 
-                example)
-        i    -- first line to look at
-        list -- list where to add the data
-        n    -- number of item contains in data
+        :param data: file currently readed (each index is for a line)
+        :type data: list[str]
+        :param i: first line to look at (index of :param:`data`)
+        :type i: int
+        :param array: array where to add the data from the file (should be of the 
+        good size)
+        :type array: np.array
+        :param n: Number of item contained inside the data
+        :type n: int
         """
         # loop over all the data block
         index = 0

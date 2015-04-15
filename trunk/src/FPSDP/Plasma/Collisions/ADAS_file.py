@@ -6,17 +6,19 @@ import scipy.interpolate as ip
 
 
 class ADAS_file:
-    """ Global class for defining the different kind of database readers
+    """ Global class for defining the different kind of database readers.
 
     This class is for inheritence purpose only. It will be inherited
     by all the ADAS readers.
     It defines the init (:func:`__init__`) method and how to read a block 
-    of data (:func:`read_block`)
+    of data (:func:`read_block`).
 
+    
     """
     def __init__(self,name):
         """ Save the name of the file
         
+        Args:
         :param name: Name of the ADAS file
         :type name: str
         """
@@ -26,10 +28,11 @@ class ADAS_file:
     def read_block(self,data,i,array,n):
         """ Read one bloc in an ADAS file
 
-        The coefficient depending on two coefficients are written in a bloc form,
+        The coefficient depending on two coefficients are written in a block form,
         thus this function read the block at the line i and return the 
         number of the final line
         
+        Args:
         :param data: file currently readed (each index is for a line)
         :type data: list[str]
         :param i: first line to look at (index of :param:`data`)
@@ -39,6 +42,10 @@ class ADAS_file:
         :type array: np.array
         :param n: Number of item contained inside the data
         :type n: int
+
+        Returns:
+        :returns: index of the index of the final line
+        :rtype: int
         """
         # loop over all the data block
         index = 0
@@ -56,8 +63,8 @@ class ADAS_file:
 
 class ADAS21(ADAS_file):
     """ Class containing all the data from one ADAS file (adf21)
-        Use a cubic spline for the interpolation
-        Is used for the collisions
+
+    The data contained in this kind of file is the beam attenuation coefficient
 
        Attributs:
     

@@ -6,21 +6,27 @@ import scipy.interpolate as ip
 
 
 class ADAS_file:
-    """ Global class for defining the different kind of database readers.
+    """ Parent class for defining the different kind of database readers.
 
     This class is for inheritence purpose only. It will be inherited
     by all the ADAS readers.
-    It defines the init (:func:`__init__`) method and how to read a block 
-    of data (:func:`read_block`).
+    It defines how to read a block 
+    of data (:func:`read_block`) [often used in 2D data of the ADAS database].
+    The beam energy is divided by the atomic mass of the beam particles (eV/amu).
 
+    
+    :param str name: Name of the ADAS file
+
+    :ivar str name: Name of the ADAS file
     
     """
     def __init__(self,name):
         """ Save the name of the file
         
-        Args:
         :param name: Name of the ADAS file
         :type name: str
+
+        :ivar str name: Name of the ADAS file
         """
         
         self.name = name
@@ -35,7 +41,7 @@ class ADAS_file:
 
         :param data: file currently readed (each index is for a line)
         :type data: list[str]
-        :param i: first line to look at (index of :param:`data`)
+        :param i: first line to look at (index of data)
         :type i: int
         :param array: array where to add the data from the file (should be of the 
         good size)
@@ -63,27 +69,32 @@ class ADAS_file:
 class ADAS21(ADAS_file):
     """ Class containing all the data from one ADAS file (adf21)
 
-    The data contained in this kind of file is the beam attenuation coefficient.
+    The data contained in this kind of file is the beam stopping coefficient.
+    The beam energy is divided by the atomic mass of the beam particles (eV/amu).
 
-       Attributs:
+    :param name: Name of the ADAS file
+    :type name: str
     
-       n_b         -- number of beam energies in the first table
-       n_density   -- number of densities in the first table
-       T_ref       -- reference temperature of the first table
-       adas_beam   -- beam energies of the first table (1D array)
-       densities   -- densities of the first table (1D array)
-       coef_dens   -- first table (2D array)
-       n_T         -- number of temperature for the second table
-       E_ref       -- reference beam energy for the second table
-       dens_ref    -- reference density for the second table
-       temperature -- temperatures for the second table (1D array)
-       coef_T      -- second table (1D array)
+
+    :ivar int n_b: Size of the beam energy dimension
+    :ivar int n_density: Size of the density dimension
+    :ivar float T_ref: Reference temperature (eV)
+    :ivar np.array[n_b] adas_beam: Beam energies considered (eV/amu)
+    :ivar np.array[n_density] densities: Densities considered (m :sup:`-3`)
+    :ivar np.array[n_density,n_b] coef_dens: Beam stopping coefficient as a function\
+ of the density and the beam energy (m :sup:`3`/s)
+    :ivar int n_T: Size of the temperature dimension
+    :ivar float E_ref: Reference beam energy (eV/amu)
+    :ivar float dens_ref: Reference density (m :sup:`-3`)
+    :ivar np.array[n_T] temperature: Temperatures considered (eV)
+    :ivar np.array[n_T] coef_T: Beam stopping coefficient as a function of the temperature (m :sup:`3`/s)
     """
     def __init__(self,name):
-        """ Read the file and store everything as attributes
+        """ Read the file and store all the values.
         
-            Arguments:
-            name  -- name of the file
+        :param name: Name of the ADAS file
+        :type name: str
+
         """
         ADAS_file.__init__(self,name)
         # open the file and store all the text in data
@@ -152,26 +163,27 @@ class ADAS21(ADAS_file):
 
 
 class ADAS22(ADAS_file):
-    """ Class containing all the data from one ADAS file (adf22))
-        Use a cubic spline for the interpolation
-        Is used for the collisions
+    """ Class containing all the data from one ADAS file (adf22)
 
-       Attributs:
+    The data contained in this kind of file is the emission coefficient.
+    The beam energy is divided by the atomic mass of the beam particles (eV/amu).
+
+    :param name: Name of the ADAS file
+    :type name: str
     
-       n_b         -- number of beam energies in the first table
-       n_density   -- number of densities in the first table
-       T_ref       -- reference temperature of the first table
-       adas_beam   -- beam energies of the first table (1D array)
-       densities   -- densities of the first table (1D array)
-       coef_dens   -- first table (2D array) [the choice of the name
-                      coef is for having the same naming convention
-                      in all the ADAS file, the user should know the
-                      class of the object]]
-       n_T         -- number of temperature for the second table
-       E_ref       -- reference beam energy for the second table
-       dens_ref    -- reference density for the second table
-       temperature -- temperatures for the second table (1D array)
-       coef_T      -- second table (1D array)
+
+    :ivar int n_b: Size of the beam energy dimension
+    :ivar int n_density: Size of the density dimension
+    :ivar float T_ref: Reference temperature (eV)
+    :ivar np.array[n_b] adas_beam: Beam energies considered (eV/amu)
+    :ivar np.array[n_density] densities: Densities considered (m :sup:`-3`)
+    :ivar np.array[n_density,n_b] coef_dens: Emission coefficient as a function\
+ of the density and the beam energy (m :sup:`3`/s)
+    :ivar int n_T: Size of the temperature dimension
+    :ivar float E_ref: Reference beam energy (eV/amu)
+    :ivar float dens_ref: Reference density (m :sup:`-3`)
+    :ivar np.array[n_T] temperature: Temperatures considered (eV)
+    :ivar np.array[n_T] coef_T: Emission coefficient as a function of the temperature (m :sup:`3`/s)
     """
     def __init__(self,name):
         """ Read the file and store everything as attributes

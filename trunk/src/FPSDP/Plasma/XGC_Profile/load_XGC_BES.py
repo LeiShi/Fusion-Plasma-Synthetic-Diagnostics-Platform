@@ -679,69 +679,10 @@ class XGC_Loader_BES():
         """
         raise NameError('Has not been updated for the BES loader')
 
-        if ( isinstance(self.grid,Cartesian2D) ):
-            self.cdf_output_2D(output_path,filehead)
-        elif (isinstance(self.grid, Cartesian3D)):
-            self.cdf_output_3D(output_path,eq_file,filehead,WithBp)
-        else:
-            raise XGC_Loader_Error('Wrong grid type! Grid should either be Cartesian2D or Cartesian3D.') 
+    
+        self.cdf_output_3D(output_path,eq_file,filehead,WithBp)
         
 
-    def cdf_output_2D(self,output_path,filehead='fluctuation'):
-        """write out cdf files for old FWR2D code use
-
-        Arguments:
-        output_path: string, the full path to put the output files
-        filehead: string, the starting string of all filenames
-
-        CDF file format:
-        Dimensions:
-        r_dim: int, number of grid points in R direction.
-        z_dim: int, number of grid points in Z direction
-        
-        Variables:
-        rr: 1D array, coordinates in R direction, in Meter
-        zz: 1D array, coordinates in Z direction, in Meter
-        bb: 2D array, total magnetic field on grids, in Tesla, shape in (z_dim,r_dim)
-        ne: 2D array, total electron density on grids, in m^-3
-        ti: 2D array, total ion temperature, in keV
-        te: 2D array, total electron temperature, in keV
-        
-        """
-        raise NameError('Has not been updated for the BES loader')
-
-        file_start = output_path + filehead
-        for i in range(self.n_cross_section):
-            for j in range(len(self.time_steps)):
-            
-                fname = file_start + str(self.time_steps[j])+'_'+str(i) + '.cdf'
-                f = nc.netcdf_file(fname,'w')
-                f.createDimension('z_dim',self.grid.NZ)
-                f.createDimension('r_dim',self.grid.NR)
-
-                rr = f.createVariable('rr','d',('r_dim',))
-                rr[:] = self.grid.R1D[:]
-                zz = f.createVariable('zz','d',('z_dim',))
-                zz[:] = self.grid.Z1D[:]
-                rr.units = zz.units = 'Meter'
-
-                bb = f.createVariable('bb','d',('z_dim','r_dim'))
-                bb[:,:] = self.B_on_grid[:,:]
-                bb.units = 'Tesla'
-                
-                ne = f.createVariable('ne','d',('z_dim','r_dim'))
-                ne[:,:] = self.ne_on_grid[i,j,:,:]
-                ne.units = 'per cubic meter'
-
-                te = f.createVariable('te','d',('z_dim','r_dim'))
-                te[:,:] = self.te_on_grid[:,:]/1000
-                te.units = 'keV'
-                
-                ti = f.createVariable('ti','d',('z_dim','r_dim'))
-                ti[:,:] = self.ti_on_grid[:,:]/1000
-                ti.units = 'keV'
-
-                f.close()
 
     def cdf_output_3D(self,output_path = './',eq_filename = 'equilibrium3D.cdf',flucfilehead='fluctuation',WithBp=True):
         """write out cdf files for FWR3D code to use

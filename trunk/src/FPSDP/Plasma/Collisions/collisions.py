@@ -5,34 +5,32 @@ from scipy import interpolate
 
 class Collisions:
     """ Class containing all the physics about the collisions
-        Read the files from ADAS database, compute the lifetiime, and compute
-        the cross-sections (cubic spline interpolation is used)
-
-        Methods:
-
-          read_adas()     --  load the data from the ADAS file
-          get_attenutation(beam,ne,Ti,file_number)
-                          --  gives the attenuation coefficient
-          get_emission(beam,ne,mass_b,Ti,file_number):
-                          --  gives <sigma*v> for the exitation
-          get_lifetime(ne,Te,Ti,beam,mass_b,file_number):
-                          --  gives the lifetime of the excited state
+        
+    Read the files from ADAS database, compute the lifetime, and compute
+    the cross-sections (cubic spline interpolation is used).
     
-          Access data in ADAS file:
-            get_Tref(file_number)             --  reference temperature
-            get_coef_density(file_number)     --  first table
-            get_coef_T(file_number)           --  second table  
-            get_list_temperature(file_number) --  list temperatures
-            get_list_density(file_number)     --  list densities
-            get_list_beams(file_number)       --  list beams
 
-        Attributes:
+    :param [str] files_atte: List of names for ADAS21 files (beam stopping coefficient)
+    :param [str] files_emis: List of names for ADAS22 files (emission coefficient)
+    :param [int] states: Quantum number of the lower (states[0]) and the higher(states[1]) states of the hydrogen atom
     
-        files_atte -- list of ADAS files for the attenuation
-        files_emis -- list of ADAS files for the emission
-        beam_data  -- list of the beams
-        n_low      -- quantum number of the lower state
-        n_high     -- quantum number of the higher state
+    :ivar [str] files_atte: List of names for ADAS21 files (beam stopping coefficient)
+    :ivar [str] files_emis: List of names for ADAS22 files (emission coefficient)
+    :ivar [:class:`FPSDP.Plasma.Collisions.ADAS21`] beam_atte: List of ADAS file for the beam stopping coefficient
+    :ivar [:class:`FPSDP.Plasma.Collisions.ADAS22`] beam_emis: List of ADAS file for the emission coefficient
+
+    :ivar [tck_interp] atte_tck_dens: List of interpolant computed with bisplrep for\
+the beam stopping coefficient as a function of the density and the beam energy
+    :ivar [tck_interp] emis_tck_dens: List of interpolant computed with bisplrep for\
+the emission coefficient as a function of the density and the beam energy
+    :ivar [tck_interp] atte_tck_temp: List of interpolant computed with bisplrep for\
+the beam stopping coefficient as a function of the temperature
+    :ivar [tck_interp] emis_tck_temp: List of interpolant computed with bisplrep for\
+the emission coefficient as a function of the temperature
+
+    :ivar float n_low: Quantum number of the lower state for the hydrogen atom
+    :ivar float n_high: Quantum number of the higher state for the hydrogen atom
+    :ivar float E0: Energy of the ground state (in eV)    
         
     """
 
@@ -102,7 +100,7 @@ class Collisions:
 
         
     def read_adas(self):
-        """ Read the ADAS files and stores them as attributes
+        """ Read the ADAS files and stores them as attributes (used during the initialization)
         """
         for name in self.files_atte:
             self.beam_atte.append(adas.ADAS21(name))
@@ -110,15 +108,17 @@ class Collisions:
             self.beam_emis.append(adas.ADAS22(name))
 
     def get_attenutation(self,beam,ne,mass_b,Ti,file_number):
-        """ get the attenuation value for a given density, beam energy, and
-            temperature
+        """ Get the beam stopping coefficient for a given density, beam energy, and temperature.
 
-            Arguments:
-            beam        -- beam energy wanted
-            ne          -- electron density (in plasma) density wanted
-            mass_b      -- mass of an atom (of the beam in amu)
-            Ti          -- ion temperature 
-            file_number -- file number wanted (should be simplify in Beam.py)
+        The ADAS database store the data as two array, for putting them together, we do a first
+        interpolation for the 2D array (as a function of density and beam energy) and after 
+        we do a scaling with the temperature.
+
+        :param float beam: Beam energy (eV)
+        :param float or np.array[N] ne: Electron density density
+        :param float mass_b: mass of a neutral particle in the beam (amu)
+        :param float or np.array[N] Ti: Ion temperature (should be of the same lenght than ne) 
+        :param int file_number: File number wanted (choosen by beam.py)
         """
         beam /= mass_b
         if len(ne.shape) == 1:
@@ -132,16 +132,19 @@ class Collisions:
         return coef
 
     def get_emission(self,beam,ne,mass_b,Ti,file_number):
-        """ get the emission value for a given density, beam energy, and
-            temperature
+        """ Get the emission coefficient for a given density, beam energy, and temperature.
 
-            Arguments:
-            beam        -- beam energy wanted
-            ne          -- electron (in plasma) density wanted
-            mass_b      -- mass of an atom (of the beam in amu)
-            Ti          -- ion temperature
-            file_number -- file number wanted (should be simplify in Beam.py)
+        The ADAS database store the data as two array, for putting them together, we do a first
+        interpolation for the 2D array (as a function of density and beam energy) and after 
+        we do a scaling with the temperature.
+
+        :param float beam: Beam energy (eV)
+        :param float or np.array[N] ne: Electron density density
+        :param float mass_b: mass of a neutral particle in the beam (amu)
+        :param float or np.array[N] Ti: Ion temperature (should be of the same lenght than ne) 
+        :param int file_number: File number wanted (choosen by beam.py)
         """
+
         beam /= mass_b
         if not isinstance(ne,float):
             coef = np.zeros(len(ne))
@@ -155,10 +158,11 @@ class Collisions:
         return coef
 
     def get_Tref(self,typ,file_number):
-        """ Return the reference temperature for coef_density
-            Argument:
-            typ         --  'emis' or 'atte' (specify in which list)
-            file_number --  file number in the list
+        """ Return the reference temperature of the attenuation[beam stopping\
+        coefficient]/emission file
+
+        :param str typ: Choice of the type of file ('emis' or 'atte')
+        :param int file_number: File number (choosen in beam.py)
         """
         if typ == 'emis':
             return self.beam_emis[file_number].T_ref
@@ -168,11 +172,11 @@ class Collisions:
             raise NameError('No list with this name: {0}'.format(typ))
     
     def get_coef_density(self,typ,file_number):
-        """ return the list of attenuation coefficient given by ADAS
-            as a function of the energy beam and the density
-            Argument:
-            typ         --  'emis' or 'atte' (specify in which list)
-            file_number --  file number in the list
+        """ Return the coefficient as a function of the density and the beam energy\
+        of the attenuation[beam stopping coefficient]/emission file
+
+        :param str typ: Choice of the type of file ('emis' or 'atte')
+        :param int file_number: File number (choosen in beam.py)
         """
         if typ == 'emis':
             return self.beam_emis[file_number].coef_dens
@@ -182,11 +186,11 @@ class Collisions:
             raise NameError('No list with this name: {0}'.format(typ))
 
     def get_coef_T(self,typ,file_number):
-        """ return the list of attenuation coefficient given by ADAS
-            as a function of the temperature
-            Argument:
-            typ         --  'emis' or 'atte' (specify in which list)
-            file_number --  file number in the list
+        """ Return the coefficient as a function of the temperature\
+        of the attenuation[beam stopping coefficient]/emission file
+
+        :param str typ: Choice of the type of file ('emis' or 'atte')
+        :param int file_number: File number (choosen in beam.py)
         """
         if typ == 'emis':
             return self.beam_emis[file_number].coef_T
@@ -197,10 +201,11 @@ class Collisions:
 
     
     def get_list_temperature(self,typ,file_number):
-        """ return the list of temperature given by ADAS
-            Argument:
-            typ         --  'emis' or 'atte' (specify in which list)
-            file_number --  file number in the list
+        """ Return the temperatures used in the ADAS file for\
+        the attenuation[beam stopping coefficient]/emission file
+
+        :param str typ: Choice of the type of file ('emis' or 'atte')
+        :param int file_number: File number (choosen in beam.py)
         """
         if typ == 'emis':
             return self.beam_emis[file_number].temperature
@@ -210,10 +215,11 @@ class Collisions:
             raise NameError('No list with this name: {0}'.format(typ))
     
     def get_list_density(self,typ,file_number):
-        """ return the list of densities given by ADAS
-            Argument:
-            typ         --  'emis' or 'atte' (specify in which list)
-            file_number --  file number in the list
+        """ Return the densities used in the ADAS file for\
+        the attenuation[beam stopping coefficient]/emission file
+
+        :param str typ: Choice of the type of file ('emis' or 'atte')
+        :param int file_number: File number (choosen in beam.py)
         """
         if typ == 'emis':
             return self.beam_emis[file_number].densities
@@ -223,13 +229,11 @@ class Collisions:
             raise NameError('No list with this name: {0}'.format(typ))
 
     def get_list_beams(self,typ,file_number):
-        """ return the list of beams given by ADAS
-            multiply by the mass of the beam atoms due to ADAS
-            Argument:
-            typ         --  'emis' or 'atte' (specify in which list)
-            file_number --  file number in the list
+        """ Return the beam energies used in the ADAS file for\
+        the attenuation[beam stopping coefficient]/emission file
 
-            WARNING THE BEAM ENERGY IS BY ATOMIC MASS UNIT
+        :param str typ: Choice of the type of file ('emis' or 'atte')
+        :param int file_number: File number (choosen in beam.py)
         """
         if typ == 'emis':
             # multiply by the mass due to ADAS
@@ -252,6 +256,7 @@ class Collisions:
             Ti          -- ion temperature
             file_number -- file number wanted (should be simplify in Beam.py)
         """
+        #:todo:
         l = np.ones(ne.shape)
         return 1.68e-9*l
         #frac = (float(self.n_low)/float(self.n_high))**2

@@ -32,7 +32,8 @@ class ADAS_file:
         thus this function read the block at the line i and return the 
         number of the final line
         
-        Args:
+        Arguments
+        +++++++++
         :param data: file currently readed (each index is for a line)
         :type data: list[str]
         :param i: first line to look at (index of :param:`data`)
@@ -64,7 +65,7 @@ class ADAS_file:
 class ADAS21(ADAS_file):
     """ Class containing all the data from one ADAS file (adf21)
 
-    The data contained in this kind of file is the beam attenuation coefficient
+    The data contained in this kind of file is the beam attenuation coefficient.
 
        Attributs:
     

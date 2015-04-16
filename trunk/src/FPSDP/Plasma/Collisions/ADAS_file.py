@@ -32,8 +32,7 @@ class ADAS_file:
         thus this function read the block at the line i and return the 
         number of the final line
         
-        Arguments
-        +++++++++
+
         :param data: file currently readed (each index is for a line)
         :type data: list[str]
         :param i: first line to look at (index of :param:`data`)
@@ -44,7 +43,6 @@ class ADAS_file:
         :param n: Number of item contained inside the data
         :type n: int
 
-        Returns:
         :returns: index of the index of the final line
         :rtype: int
         """

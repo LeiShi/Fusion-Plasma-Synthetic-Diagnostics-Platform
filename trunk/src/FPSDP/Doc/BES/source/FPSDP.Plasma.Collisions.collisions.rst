@@ -1,5 +1,5 @@
-FPSDP.Plasma.Collisions.collisions module
-=========================================
+Collisions Manager
+==================
 
 .. automodule:: FPSDP.Plasma.Collisions.collisions
     :members:

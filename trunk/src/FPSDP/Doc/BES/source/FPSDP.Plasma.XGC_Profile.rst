@@ -1,8 +1,5 @@
-FPSDP.Plasma.XGC_Profile package
-================================
-
-FPSDP.Plasma.XGC_Profile.load_XGC_BES module
---------------------------------------------
+XGC1 Loader
+===========
 
 .. automodule:: FPSDP.Plasma.XGC_Profile.load_XGC_BES
     :members:

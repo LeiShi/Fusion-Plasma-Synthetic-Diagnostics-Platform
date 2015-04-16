@@ -1,11 +1,5 @@
-FPSDP.Diagnostics.Beam package
-==============================
-
-Submodules
-----------
-
-FPSDP.Diagnostics.Beam.beam module
-----------------------------------
+Beam Simulation
+===============
 
 .. automodule:: FPSDP.Diagnostics.Beam.beam
     :members:
@@ -13,10 +7,3 @@ FPSDP.Diagnostics.Beam.beam module
     :show-inheritance:
 
 
-Module contents
----------------
-
-.. automodule:: FPSDP.Diagnostics.Beam
-    :members:
-    :undoc-members:
-    :show-inheritance:

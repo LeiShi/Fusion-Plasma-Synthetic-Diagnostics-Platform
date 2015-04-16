@@ -245,16 +245,15 @@ the emission coefficient as a function of the temperature
 
     def get_lifetime(self,ne,Te,Ti,beam,mass_b,file_number):
         """ Compute the lifetime of the excited state following the formula
-            given by I. H. Hutchinson, Plasma Phys. Controlled Fusion 44,71 (2002)
-            assuming an hydrogen atom
+        given by I. H. Hutchinson, Plasma Phys. Controlled Fusion 44,71 (2002)
+        assuming an hydrogen atom.
 
-            Arguments:
-            beam        -- beam energy wanted
-            ne          -- electron (in plasma) density wanted
-            mass_b      -- mass of an atom (of the beam in amu)
-            Te          -- electron temperature
-            Ti          -- ion temperature
-            file_number -- file number wanted (should be simplify in Beam.py)
+        :param float beam: Beam energy
+        :param np.array[N] ne: Electron density
+        :param float mass_b: Mass of a neutral particle in the beam (amu)
+        :param np.array[N] Te: Electron temperature
+        :param np.array[N] Ti: Ion temperature
+        :param int file_number: File number (choosen in Beam.py)
         """
         #:todo:
         l = np.ones(ne.shape)

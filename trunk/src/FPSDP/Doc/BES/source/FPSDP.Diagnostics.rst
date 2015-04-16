@@ -1,8 +1,5 @@
-FPSDP.Diagnostics package
-=========================
-
-Subpackages
------------
+Diagnostic Directoy
+===================
 
 .. toctree::
 

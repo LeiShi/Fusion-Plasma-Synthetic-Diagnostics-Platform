@@ -1,8 +1,5 @@
-FPSDP.IO package
+Input and Output
 ================
-
-FPSDP.IO.IO_funcs module
-------------------------
 
 .. automodule:: FPSDP.IO.IO_funcs
     :members:

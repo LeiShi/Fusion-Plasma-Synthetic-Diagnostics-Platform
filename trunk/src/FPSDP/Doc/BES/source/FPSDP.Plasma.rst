@@ -1,8 +1,5 @@
-FPSDP.Plasma package
-====================
-
-Subpackages
------------
+Collisions and Plasma Simulations Directory
+===========================================
 
 .. toctree::
 

@@ -1,8 +1,8 @@
-FPSDP.Maths package
-===================
+Numerical Methods
+=================
 
-FPSDP.Maths.Integration module
-------------------------------
+Quadrature Formula for the Integration
+--------------------------------------
 
 .. automodule:: FPSDP.Maths.Integration
     :members:

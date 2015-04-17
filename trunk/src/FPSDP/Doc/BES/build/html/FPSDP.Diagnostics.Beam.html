@@ -91,7 +91,7 @@ The simulation data are saved in this class.</p>
 <li><strong>self.beam_comp</strong> (<em>np.array[Ncomp]</em>) &#8211; Beam energy of each component (in eV)</li>
 <li><strong>self.power</strong> (<em>float</em>) &#8211; Total power of the laser (in W)</li>
 <li><strong>self.frac</strong> (<em>np.array[Ncomp]</em>) &#8211; Fraction of energy of each beam component (in percent)</li>
-<li><strong>self.pos</strong> (<em>np.array[3]</em>) &#8211; Position of the beam source (in cartesian grid) in m</li>
+<li><strong>self.pos</strong> (<em>np.array[3]</em>) &#8211; Position of the beam source (in cartesian system) in m</li>
 <li><strong>self.direc</strong> (<em>np.array[3]</em>) &#8211; Direction of the beam (unit vector)</li>
 <li><strong>self.beam_width_h</strong> (<em>float</em>) &#8211; Horizontal beam width (FWHM) in m</li>
 <li><strong>self.beam_width_v</strong> (<em>float</em>) &#8211; Vertical beam width (FWHM) in m</li>
@@ -104,7 +104,7 @@ The simulation data are saved in this class.</p>
 <li><strong>self.inters</strong> (<em>np.array[3]</em>) &#8211; Ending 3D point of the mesh (intersection with    the limit of the optical system)</li>
 <li><strong>self.Nz</strong> (<em>int</em>) &#8211; Number of point for the discretization of the beam</li>
 <li><strong>self.dl</strong> (<em>np.array[Nz]</em>) &#8211; Distance between the origin and each point of the mesh</li>
-<li><strong>self.mesh</strong> (<em>np.array[Nz,3]</em>) &#8211; Position of the mesh points</li>
+<li><strong>self.mesh</strong> (<em>np.array[Nz,3]</em>) &#8211; Position of the mesh points (in cartesian system)</li>
 <li><strong>self.density_beam</strong> (<em>np.array[Ncomp,Nz]</em>) &#8211; Particle density of each component    on the mesh</li>
 <li><strong>self.nb_tck</strong> (<em>list[tck_interp]</em>) &#8211; Interpolant for each component (use cubic spline)</li>
 </ul>
@@ -115,8 +115,18 @@ The simulation data are saved in this class.</p>
 <dl class="method">
 <dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.compute_beam_on_mesh">
 <tt class="descname">compute_beam_on_mesh</tt><big>(</big><em>eq=True</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.compute_beam_on_mesh"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.compute_beam_on_mesh" title="Permalink to this definition">¶</a></dt>
-<dd><p>compute the beam intensity at each position of the mesh 
-with the Gauss-Legendre quadrature (2 points)</p>
+<dd><p>Compute the beam density on the mesh and the interpolant.</p>
+<p>Use the Gauss-Legendre quadrature of order 3 for computing the integral:
+<span class="math">\(n_b(P) = n_{b,0} \exp\left(-\int_0^P n_e(z)S_\text{cr}(E,n_e(z),T_i(z))\sqrt{\frac{m}{2E}}\mathrm{d}z\right)\)</span>
+where <span class="math">\(n_b(P)\)</span> is the density at the point P (along the beam central line),
+<span class="math">\(n_{b,0}\)</span> is the density at the origin, <span class="math">\(n_e\)</span> is the electron density,
+<span class="math">\(S_\text{cr}\)</span> is the beam stopping coefficient (depending on the beam energy [<span class="math">\(E_b\)</span>],
+the ion temperature [<span class="math">\(T_i\)</span>] and the electron density), <span class="math">\(m\)</span> is the mass of a particle in the beam,
+<span class="math">\(\mathrm{d}z\)</span> is along the central line.</p>
+<p>The initial density is computed with the help of the total power (<span class="math">\(P\)</span>):
+<span class="math">\(P = \int_\Omega E v n_{b,0} \mathrm{d}\sigma\)</span> 
+where <span class="math">\(\Omega\)</span> is the 2D space perpendicular to the beam direction and
+<span class="math">\(v = \sqrt{\frac{m}{2E}}\)</span> is the velocity of the particles.</p>
 </dd></dl>
 
 <dl class="method">
@@ -142,64 +152,146 @@ the coordinate of the intersection with the beam.</p>
 </tr>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Position of the intersection between the end of the mesh and the beam</td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">np.array[3]</td>
+</tbody>
+</table>
+<p>(in cartesian system)
+:rtype: np.array[3]</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.get_beam_density">
+<tt class="descname">get_beam_density</tt><big>(</big><em>pos</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.get_beam_density"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_beam_density" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the beam density with the help of the interpolant.</p>
+<p>Change the coordinate of the position from the cartesian system to
+the beam system and, after, interpolate the data.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>pos</strong> (<em>np.array[...,3]</em>) &#8211; List of position where to take the        beam density (in cartesian system)</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Beam density</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">np.array[:]</td>
 </tr>
 </tbody>
 </table>
 </dd></dl>
 
 <dl class="method">
-<dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.get_beam_density">
-<tt class="descname">get_beam_density</tt><big>(</big><em>pos</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.get_beam_density"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_beam_density" title="Permalink to this definition">¶</a></dt>
-<dd><p>Return the beam density at the position and time step wanted
-assuming a gaussian profile</p>
-</dd></dl>
-
-<dl class="method">
 <dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.get_emis">
 <tt class="descname">get_emis</tt><big>(</big><em>pos</em>, <em>t_</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.get_emis"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_emis" title="Permalink to this definition">¶</a></dt>
-<dd><p>Return the emissivity at pos and time <a href="#id1"><span class="problematic" id="id2">t_</span></a> 
-epsilon = &lt;sigma*v&gt; n_b n_e
-Argument:
-pos   &#8211; 2D array, first index is for X,Y,Z</p>
+<dd><p>Compute the emission at a given position and time step</p>
+<p><span class="math">\(\varepsilon = \langle\sigma v\rangle n_b n_e\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>pos</strong> (<em>np.array[N,3]</em>) &#8211; Position in the cartesian system</li>
+<li><strong>t</strong> (<em>float</em>) &#8211; Time step</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><span class="math">\(\varepsilon\)</span></p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.get_emis_lifetime">
 <tt class="descname">get_emis_lifetime</tt><big>(</big><em>pos</em>, <em>t_</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.get_emis_lifetime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_emis_lifetime" title="Permalink to this definition">¶</a></dt>
-<dd><p>Return the emissivity at pos and time <a href="#id3"><span class="problematic" id="id4">t_</span></a> 
-epsilon = &lt;sigma*v&gt; n_b n_e with the effect
-of the lifetime (depends on the position))
-Argument:
-pos   &#8211; 2D array, first index is for X,Y,Z</p>
+<dd><p>Compute the emission at a given position and time step</p>
+<p>For the density of excited particles, the following formula is used:
+<span class="math">\(n_\text{ex} = \frac{1}{\|v\|}\int_0^{\tau vd} \varepsilon(P-\delta \hat{v})\exp\left(-\frac{\delta}{v\tau}\right)\mathrm{d}\delta\)</span>
+where <span class="math">\(v\)</span> is the velocity of the beam particles (<span class="math">\(\hat{v} = \frac{\vec{v}}{\|\vec{v}\|}\)</span>),
+<span class="math">\(\varepsilon\)</span> is the emissivity computed in <a class="reference internal" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_emis" title="FPSDP.Diagnostics.Beam.beam.Beam1D.get_emis"><tt class="xref py py-func docutils literal"><span class="pre">get_emis</span></tt></a>, and
+<span class="math">\(\tau\)</span> is the lifetime.</p>
+<p>Therefore the emissivity is given by:
+<span class="math">\(\varepsilon_l(P) = \frac{n_\text{ex}(P)}{\tau}\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>pos</strong> (<em>np.array[N,3]</em>) &#8211; Position in the cartesian system</li>
+<li><strong>t</strong> (<em>float</em>) &#8211; Time step</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><span class="math">\(\varepsilon_l\)</span></p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.get_mesh">
 <tt class="descname">get_mesh</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.get_mesh"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_mesh" title="Permalink to this definition">¶</a></dt>
-<dd><p>Return the mesh (3D array)</p>
+<dd><p>Acces method to the mesh</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">self.mesh</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">np.array[Nz,3]</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.get_origin">
 <tt class="descname">get_origin</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.get_origin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_origin" title="Permalink to this definition">¶</a></dt>
-<dd><p>Return the origin of the beam</p>
+<dd><p>Acces method to the origin of the beam</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">self.pos (in cartesian system)</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">np.array[3]</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.get_quantities">
 <tt class="descname">get_quantities</tt><big>(</big><em>pos</em>, <em>t_</em>, <em>quant</em>, <em>eq=False</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.get_quantities"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_quantities" title="Permalink to this definition">¶</a></dt>
-<dd><p>get the wanted quantities inside the simulation data
-at pos and the timestep(s) number <a href="#id5"><span class="problematic" id="id6">t_</span></a></p>
-<p>Arguments:
-pos   &#8211;  1D array with (X,Y,Z) or 2D array with (X,Y,Z)</p>
-<blockquote>
-<div>as the second index</div></blockquote>
-<p><a href="#id7"><span class="problematic" id="id8">t_</span></a>    &#8211;  time step
-quant &#8211;  list containing the wanted quantities (see data class</p>
-<blockquote>
-<div>for more information)</div></blockquote>
-<p>eq    &#8211;  choice between equilibrium or exact quantities</p>
+<dd><p>Compute the quantities from the datas</p>
+<p>Use the list of string quant for taking the good values inside the simulation datas.
+See <a class="reference internal" href="FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data" title="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data"><tt class="xref py py-func docutils literal"><span class="pre">interpolate_data</span></tt></a></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>pos</strong> (<em>np.array[N,3]</em>) &#8211; List of position where to take the quantities (in cartesian system)</li>
+<li><strong>t</strong> (<em>int</em>) &#8211; Time step considered</li>
+<li><strong>quant</strong> (<em>list[str]</em>) &#8211; List containing the wanted quantities         (See <a class="reference internal" href="FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data" title="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data"><tt class="xref py py-func docutils literal"><span class="pre">interpolate_data</span></tt></a>        for more information)</li>
+<li><strong>eq</strong> (<em>bool</em>) &#8211; Equilibrium data or not</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">The interpolated value from the simulation in the same order than quant</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">tuple[quant]</p>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">

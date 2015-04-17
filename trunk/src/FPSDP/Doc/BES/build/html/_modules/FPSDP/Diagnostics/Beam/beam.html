@@ -95,7 +95,7 @@
 
 <span class="sd">    :var float self.power: Total power of the laser (in W)</span>
 <span class="sd">    :var np.array[Ncomp] self.frac: Fraction of energy of each beam component (in percent)</span>
-<span class="sd">    :var np.array[3] self.pos: Position of the beam source (in cartesian grid) in m</span>
+<span class="sd">    :var np.array[3] self.pos: Position of the beam source (in cartesian system) in m</span>
 <span class="sd">    :var np.array[3] self.direc: Direction of the beam (unit vector)</span>
 <span class="sd">    :var float self.beam_width_h: Horizontal beam width (FWHM) in m</span>
 <span class="sd">    :var float self.beam_width_v: Vertical beam width (FWHM) in m</span>
@@ -111,7 +111,7 @@
 <span class="sd">    the limit of the optical system)</span>
 <span class="sd">    :var int self.Nz: Number of point for the discretization of the beam</span>
 <span class="sd">    :var np.array[Nz] self.dl: Distance between the origin and each point of the mesh</span>
-<span class="sd">    :var np.array[Nz,3] self.mesh: Position of the mesh points</span>
+<span class="sd">    :var np.array[Nz,3] self.mesh: Position of the mesh points (in cartesian system)</span>
 <span class="sd">    :var np.array[Ncomp,Nz] self.density_beam: Particle density of each component\</span>
 <span class="sd">    on the mesh</span>
 <span class="sd">    :var list[tck_interp] self.nb_tck: Interpolant for each component (use cubic spline)</span>
@@ -228,6 +228,7 @@
 <span class="sd">        </span>
 <span class="sd">        :param float eps: Ratio of increase size on each side of the box</span>
 <span class="sd">        :returns: Position of the intersection between the end of the mesh and the beam</span>
+<span class="sd">        (in cartesian system)</span>
 <span class="sd">        :rtype: np.array[3]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># X-direction</span>
@@ -260,16 +261,21 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="o">*</span><span class="n">t_</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">eps</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="Beam1D.get_quantities"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.get_quantities">[docs]</a>    <span class="k">def</span> <span class="nf">get_quantities</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">,</span><span class="n">quant</span><span class="p">,</span><span class="n">eq</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; get the wanted quantities inside the simulation data</span>
-<span class="sd">            at pos and the timestep(s) number t_</span>
+        <span class="sd">&quot;&quot;&quot; Compute the quantities from the datas</span>
+<span class="sd">        </span>
+<span class="sd">        Use the list of string quant for taking the good values inside the simulation datas.</span>
+<span class="sd">        See :func:`interpolate_data &lt;FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data&gt;`</span>
 
-<span class="sd">            Arguments:</span>
-<span class="sd">            pos   --  1D array with (X,Y,Z) or 2D array with (X,Y,Z)</span>
-<span class="sd">                      as the second index</span>
-<span class="sd">            t_    --  time step</span>
-<span class="sd">            quant --  list containing the wanted quantities (see data class</span>
-<span class="sd">                      for more information)</span>
-<span class="sd">            eq    --  choice between equilibrium or exact quantities</span>
+<span class="sd">        </span>
+<span class="sd">        :param np.array[N,3] pos: List of position where to take the quantities (in cartesian system)</span>
+<span class="sd">        :param int t_: Time step considered</span>
+<span class="sd">        :param list[str] quant: List containing the wanted quantities \</span>
+<span class="sd">        (See :func:`interpolate_data &lt;FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data&gt;`\</span>
+<span class="sd">        for more information)</span>
+<span class="sd">        :param bool eq: Equilibrium data or not</span>
+
+<span class="sd">        :returns: The interpolated value from the simulation in the same order than quant</span>
+<span class="sd">        :rtype: tuple[quant]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t_</span><span class="p">,</span><span class="nb">list</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Only one time should be given&#39;</span><span class="p">)</span>
@@ -277,8 +283,20 @@
         
         </div>
 <div class="viewcode-block" id="Beam1D.compute_beam_on_mesh"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.compute_beam_on_mesh">[docs]</a>    <span class="k">def</span> <span class="nf">compute_beam_on_mesh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">eq</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; compute the beam intensity at each position of the mesh </span>
-<span class="sd">            with the Gauss-Legendre quadrature (2 points)</span>
+        <span class="sd">r&quot;&quot;&quot; Compute the beam density on the mesh and the interpolant.</span>
+
+<span class="sd">        Use the Gauss-Legendre quadrature of order 3 for computing the integral:</span>
+<span class="sd">        :math:`n_b(P) = n_{b,0} \exp\left(-\int_0^P n_e(z)S_\text{cr}(E,n_e(z),T_i(z))\sqrt{\frac{m}{2E}}\mathrm{d}z\right)`</span>
+<span class="sd">        where :math:`n_b(P)` is the density at the point P (along the beam central line),</span>
+<span class="sd">        :math:`n_{b,0}` is the density at the origin, :math:`n_e` is the electron density,</span>
+<span class="sd">        :math:`S_\text{cr}` is the beam stopping coefficient (depending on the beam energy [:math:`E_b`],</span>
+<span class="sd">        the ion temperature [:math:`T_i`] and the electron density), :math:`m` is the mass of a particle in the beam,</span>
+<span class="sd">        :math:`\mathrm{d}z` is along the central line.</span>
+
+<span class="sd">        The initial density is computed with the help of the total power (:math:`P`):</span>
+<span class="sd">        :math:`P = \int_\Omega E v n_{b,0} \mathrm{d}\sigma` </span>
+<span class="sd">        where :math:`\Omega` is the 2D space perpendicular to the beam direction and</span>
+<span class="sd">        :math:`v = \sqrt{\frac{m}{2E}}` is the velocity of the particles.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         
         <span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">),</span><span class="bp">self</span><span class="o">.</span><span class="n">Nz</span><span class="p">))</span>  <span class="c">#!</span>
@@ -331,75 +349,68 @@
                 
             </div>
 <div class="viewcode-block" id="Beam1D.get_mesh"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.get_mesh">[docs]</a>    <span class="k">def</span> <span class="nf">get_mesh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Return the mesh (3D array)&quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot; Acces method to the mesh</span>
+
+<span class="sd">        :returns: self.mesh</span>
+<span class="sd">        :rtype: np.array[Nz,3]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mesh</span>
 </div>
 <div class="viewcode-block" id="Beam1D.get_origin"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.get_origin">[docs]</a>    <span class="k">def</span> <span class="nf">get_origin</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Return the origin of the beam&quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot; Acces method to the origin of the beam</span>
+
+<span class="sd">        :returns: self.pos (in cartesian system)</span>
+<span class="sd">        :rtype: np.array[3]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos</span>
 </div>
 <div class="viewcode-block" id="Beam1D.get_beam_density"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.get_beam_density">[docs]</a>    <span class="k">def</span> <span class="nf">get_beam_density</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Return the beam density at the position and time step wanted</span>
-<span class="sd">            assuming a gaussian profile</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="c"># array to return</span>
-            <span class="n">nb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">))</span>
-            <span class="c"># vector from beam origin to the wanted position</span>
-            <span class="n">dist</span> <span class="o">=</span> <span class="n">pos</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_origin</span><span class="p">()</span>
-            <span class="c"># projection along the axis</span>
-            <span class="n">proj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">dist</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="p">)</span>
-            <span class="c"># width of the beam</span>
-            <span class="n">stddev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_width</span><span class="p">(</span><span class="n">proj</span><span class="p">)</span>
-            <span class="n">stddev2</span> <span class="o">=</span> <span class="n">stddev</span><span class="o">**</span><span class="mi">2</span>
-            <span class="k">if</span> <span class="n">proj</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Point before the origin of the beam&#39;</span><span class="p">)</span>
-            <span class="c"># cubic spline for finding the value along the axis</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">)):</span>
-                <span class="n">nb</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span><span class="n">proj</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">nb_tck</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
-            <span class="c"># radius^2 on the plane perpendicular to the beam</span>
-            <span class="n">R2</span> <span class="o">=</span> <span class="n">dist</span> <span class="o">-</span> <span class="n">proj</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span>
-            <span class="c"># radius in the horizontal plane</span>
-            <span class="n">xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">R2</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-            <span class="c"># radius in the vertical plane</span>
-            <span class="n">z</span> <span class="o">=</span> <span class="n">R2</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
-            <span class="k">print</span> <span class="s">&#39;need to check&#39;</span>
-            <span class="c"># gaussian beam</span>
-            <span class="n">nb</span> <span class="o">=</span> <span class="n">nb</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">xy</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">stddev2</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="n">z</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">stddev2</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span><span class="o">/</span><span class="p">(</span>
-                <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">stddev</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">stddev</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-            <span class="k">return</span> <span class="n">nb</span>
-        
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">pos</span><span class="p">,(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span>
-            <span class="n">nb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
-            <span class="c"># vector from beam origin to the wanted position</span>
-            <span class="n">dist</span> <span class="o">=</span> <span class="n">pos</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_origin</span><span class="p">()</span>
-            <span class="c"># result is a 1D array containing the projection of the distance</span>
-            <span class="c"># from the origin over the direction of the beam</span>
-            <span class="n">proj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s">&#39;ij,j-&gt;i&#39;</span><span class="p">,</span><span class="n">dist</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="p">)</span>
-            <span class="n">stddev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_width</span><span class="p">(</span><span class="n">proj</span><span class="p">)</span>
-            <span class="n">stddev2</span> <span class="o">=</span> <span class="n">stddev</span><span class="o">**</span><span class="mi">2</span>
+        <span class="sd">&quot;&quot;&quot; Compute the beam density with the help of the interpolant.</span>
+<span class="sd">        </span>
+<span class="sd">        Change the coordinate of the position from the cartesian system to</span>
+<span class="sd">        the beam system and, after, interpolate the data.</span>
 
-            <span class="c"># cubic spline for finding the value along the axis</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">)):</span>
-                <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
-                    <span class="n">nb</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span><span class="n">proj</span><span class="p">[</span><span class="n">j</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">nb_tck</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">ext</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-            <span class="c"># radius^2 on the plane perpendicular to the beam</span>
-            <span class="n">R2</span> <span class="o">=</span> <span class="n">dist</span> <span class="o">-</span> <span class="n">proj</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span>
-            <span class="c"># compute the norm of each position</span>
-            <span class="n">xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">R2</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
-            <span class="n">z</span> <span class="o">=</span> <span class="n">R2</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
-            <span class="n">nb</span> <span class="o">=</span> <span class="n">nb</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">xy</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">stddev2</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="n">z</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">stddev2</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span><span class="o">/</span><span class="p">(</span>
-                <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">stddev</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">stddev</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-            <span class="k">return</span> <span class="n">nb</span>
+<span class="sd">        :param np.array[...,3] pos: List of position where to take the\</span>
+<span class="sd">        beam density (in cartesian system)</span>
+
+<span class="sd">        :returns: Beam density</span>
+<span class="sd">        :rtype: np.array[:]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">pos</span><span class="p">,(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span>
+        <span class="n">nb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="c"># vector from beam origin to the wanted position</span>
+        <span class="n">dist</span> <span class="o">=</span> <span class="n">pos</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_origin</span><span class="p">()</span>
+        <span class="c"># result is a 1D array containing the projection of the distance</span>
+        <span class="c"># from the origin over the direction of the beam</span>
+        <span class="n">proj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s">&#39;ij,j-&gt;i&#39;</span><span class="p">,</span><span class="n">dist</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="p">)</span>
+        <span class="n">stddev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_width</span><span class="p">(</span><span class="n">proj</span><span class="p">)</span>
+        <span class="n">stddev2</span> <span class="o">=</span> <span class="n">stddev</span><span class="o">**</span><span class="mi">2</span>
+        
+        <span class="c"># cubic spline for finding the value along the axis</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">)):</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+                <span class="n">nb</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span><span class="n">proj</span><span class="p">[</span><span class="n">j</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">nb_tck</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">ext</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c"># radius^2 on the plane perpendicular to the beam</span>
+        <span class="n">R2</span> <span class="o">=</span> <span class="n">dist</span> <span class="o">-</span> <span class="n">proj</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span>
+        <span class="c"># compute the norm of each position</span>
+        <span class="n">xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">R2</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">R2</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">nb</span> <span class="o">=</span> <span class="n">nb</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">xy</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">stddev2</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="n">z</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">stddev2</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span><span class="o">/</span><span class="p">(</span>
+            <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">stddev</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">stddev</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">nb</span>
 
                     
         </div>
 <div class="viewcode-block" id="Beam1D.get_emis"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.get_emis">[docs]</a>    <span class="k">def</span> <span class="nf">get_emis</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Return the emissivity at pos and time t_ </span>
-<span class="sd">            epsilon = &lt;sigma*v&gt; n_b n_e</span>
-<span class="sd">            Argument:</span>
-<span class="sd">            pos   -- 2D array, first index is for X,Y,Z</span>
+        <span class="sd">r&quot;&quot;&quot; Compute the emission at a given position and time step</span>
+
+<span class="sd">        :math:`\varepsilon = \langle\sigma v\rangle n_b n_e`</span>
+<span class="sd">       </span>
+<span class="sd">        :param np.array[N,3] pos: Position in the cartesian system</span>
+<span class="sd">        :param float t_: Time step</span>
+
+<span class="sd">        :returns: :math:`\varepsilon`</span>
+<span class="sd">        :rtype: np.array[N]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># first take all the value needed for the computation</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
@@ -420,11 +431,22 @@
 
 </div>
 <div class="viewcode-block" id="Beam1D.get_emis_lifetime"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.get_emis_lifetime">[docs]</a>    <span class="k">def</span> <span class="nf">get_emis_lifetime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Return the emissivity at pos and time t_ </span>
-<span class="sd">            epsilon = &lt;sigma*v&gt; n_b n_e with the effect</span>
-<span class="sd">            of the lifetime (depends on the position))</span>
-<span class="sd">            Argument:</span>
-<span class="sd">            pos   -- 2D array, first index is for X,Y,Z</span>
+        <span class="sd">r&quot;&quot;&quot; Compute the emission at a given position and time step</span>
+
+<span class="sd">        For the density of excited particles, the following formula is used:</span>
+<span class="sd">        :math:`n_\text{ex} = \frac{1}{\|v\|}\int_0^{\tau vd} \varepsilon(P-\delta \hat{v})\exp\left(-\frac{\delta}{v\tau}\right)\mathrm{d}\delta`</span>
+<span class="sd">        where :math:`v` is the velocity of the beam particles (:math:`\hat{v} = \frac{\vec{v}}{\|\vec{v}\|}`),</span>
+<span class="sd">        :math:`\varepsilon` is the emissivity computed in :func:`get_emis &lt;FPSDP.Diagnostics.Beam.beam.Beam1D.get_emis&gt;`, and</span>
+<span class="sd">        :math:`\tau` is the lifetime.</span>
+
+<span class="sd">        Therefore the emissivity is given by:</span>
+<span class="sd">        :math:`\varepsilon_l(P) = \frac{n_\text{ex}(P)}{\tau}`</span>
+<span class="sd">       </span>
+<span class="sd">        :param np.array[N,3] pos: Position in the cartesian system</span>
+<span class="sd">        :param float t_: Time step</span>
+
+<span class="sd">        :returns: :math:`\varepsilon_l`</span>
+<span class="sd">        :rtype: np.array[N]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">print</span> <span class="s">&#39;wavelength!!!&#39;</span>
 

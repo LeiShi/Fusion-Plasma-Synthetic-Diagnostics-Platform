@@ -45,7 +45,7 @@ class Beam1D:
 
     :var float self.power: Total power of the laser (in W)
     :var np.array[Ncomp] self.frac: Fraction of energy of each beam component (in percent)
-    :var np.array[3] self.pos: Position of the beam source (in cartesian grid) in m
+    :var np.array[3] self.pos: Position of the beam source (in cartesian system) in m
     :var np.array[3] self.direc: Direction of the beam (unit vector)
     :var float self.beam_width_h: Horizontal beam width (FWHM) in m
     :var float self.beam_width_v: Vertical beam width (FWHM) in m
@@ -61,7 +61,7 @@ class Beam1D:
     the limit of the optical system)
     :var int self.Nz: Number of point for the discretization of the beam
     :var np.array[Nz] self.dl: Distance between the origin and each point of the mesh
-    :var np.array[Nz,3] self.mesh: Position of the mesh points
+    :var np.array[Nz,3] self.mesh: Position of the mesh points (in cartesian system)
     :var np.array[Ncomp,Nz] self.density_beam: Particle density of each component\
     on the mesh
     :var list[tck_interp] self.nb_tck: Interpolant for each component (use cubic spline)
@@ -178,6 +178,7 @@ class Beam1D:
         
         :param float eps: Ratio of increase size on each side of the box
         :returns: Position of the intersection between the end of the mesh and the beam
+        (in cartesian system)
         :rtype: np.array[3]
         """
         # X-direction
@@ -210,16 +211,21 @@ class Beam1D:
         return self.pos + self.direc*t_[t]*(1-eps)
 
     def get_quantities(self,pos,t_,quant,eq=False):
-        """ get the wanted quantities inside the simulation data
-            at pos and the timestep(s) number t_
+        """ Compute the quantities from the datas
+        
+        Use the list of string quant for taking the good values inside the simulation datas.
+        See :func:`interpolate_data <FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data>`
 
-            Arguments:
-            pos   --  1D array with (X,Y,Z) or 2D array with (X,Y,Z)
-                      as the second index
-            t_    --  time step
-            quant --  list containing the wanted quantities (see data class
-                      for more information)
-            eq    --  choice between equilibrium or exact quantities
+        
+        :param np.array[N,3] pos: List of position where to take the quantities (in cartesian system)
+        :param int t_: Time step considered
+        :param list[str] quant: List containing the wanted quantities \
+        (See :func:`interpolate_data <FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data>`\
+        for more information)
+        :param bool eq: Equilibrium data or not
+
+        :returns: The interpolated value from the simulation in the same order than quant
+        :rtype: tuple[quant]
         """
         if isinstance(t_,list):
             raise NameError('Only one time should be given')
@@ -227,8 +233,20 @@ class Beam1D:
         
         
     def compute_beam_on_mesh(self,eq=True):
-        """ compute the beam intensity at each position of the mesh 
-            with the Gauss-Legendre quadrature (2 points)
+        r""" Compute the beam density on the mesh and the interpolant.
+
+        Use the Gauss-Legendre quadrature of order 3 for computing the integral:
+        :math:`n_b(P) = n_{b,0} \exp\left(-\int_0^P n_e(z)S_\text{cr}(E,n_e(z),T_i(z))\sqrt{\frac{m}{2E}}\mathrm{d}z\right)`
+        where :math:`n_b(P)` is the density at the point P (along the beam central line),
+        :math:`n_{b,0}` is the density at the origin, :math:`n_e` is the electron density,
+        :math:`S_\text{cr}` is the beam stopping coefficient (depending on the beam energy [:math:`E_b`],
+        the ion temperature [:math:`T_i`] and the electron density), :math:`m` is the mass of a particle in the beam,
+        :math:`\mathrm{d}z` is along the central line.
+
+        The initial density is computed with the help of the total power (:math:`P`):
+        :math:`P = \int_\Omega E v n_{b,0} \mathrm{d}\sigma` 
+        where :math:`\Omega` is the 2D space perpendicular to the beam direction and
+        :math:`v = \sqrt{\frac{m}{2E}}` is the velocity of the particles.
         """
         
         self.density_beam = np.zeros((len(self.beam_comp),self.Nz))  #!
@@ -281,75 +299,68 @@ class Beam1D:
                 
             
     def get_mesh(self):
-        """ Return the mesh (3D array)"""
+        """ Acces method to the mesh
+
+        :returns: self.mesh
+        :rtype: np.array[Nz,3]
+        """
         return self.mesh
 
     def get_origin(self):
-        """ Return the origin of the beam"""
+        """ Acces method to the origin of the beam
+
+        :returns: self.pos (in cartesian system)
+        :rtype: np.array[3]
+        """
         return self.pos
 
     def get_beam_density(self,pos):
-        """ Return the beam density at the position and time step wanted
-            assuming a gaussian profile
-        """
-        if len(pos.shape) == 1:
-            # array to return
-            nb = np.zeros(len(self.beam_comp))
-            # vector from beam origin to the wanted position
-            dist = pos - self.get_origin()
-            # projection along the axis
-            proj = np.dot(dist,self.direc)
-            # width of the beam
-            stddev = self.get_width(proj)
-            stddev2 = stddev**2
-            if proj < 0:
-                raise NameError('Point before the origin of the beam')
-            # cubic spline for finding the value along the axis
-            for i in range(len(self.beam_comp)):
-                nb[i] = interpolate.splev(proj,self.nb_tck[i])
-            # radius^2 on the plane perpendicular to the beam
-            R2 = dist - proj*self.direc
-            # radius in the horizontal plane
-            xy = np.sum(R2[0:2]**2)
-            # radius in the vertical plane
-            z = R2[2]**2
-            print 'need to check'
-            # gaussian beam
-            nb = nb*np.exp(-xy/(2*stddev2[0]) - z/(2*stddev2[1]))/(
-                2*np.pi*stddev[0]*stddev[1])
-            return nb
+        """ Compute the beam density with the help of the interpolant.
         
-        else:
-            pos = np.reshape(pos,(-1,3))
-            nb = np.zeros((self.beam_comp.shape[0],pos.shape[0]))
-            # vector from beam origin to the wanted position
-            dist = pos - self.get_origin()
-            # result is a 1D array containing the projection of the distance
-            # from the origin over the direction of the beam
-            proj = np.einsum('ij,j->i',dist,self.direc)
-            stddev = self.get_width(proj)
-            stddev2 = stddev**2
+        Change the coordinate of the position from the cartesian system to
+        the beam system and, after, interpolate the data.
 
-            # cubic spline for finding the value along the axis
-            for i in range(len(self.beam_comp)):
-                for j in range(pos.shape[0]):
-                    nb[i,j] = interpolate.splev(proj[j],self.nb_tck[i], ext=1)
-            # radius^2 on the plane perpendicular to the beam
-            R2 = dist - proj[...,np.newaxis]*self.direc
-            # compute the norm of each position
-            xy = np.sum(R2[...,0:2]**2, axis=-1)
-            z = R2[...,2]**2
-            nb = nb*np.exp(-xy/(2*stddev2[0]) - z/(2*stddev2[1]))/(
-                2*np.pi*stddev[0]*stddev[1])
-            return nb
+        :param np.array[...,3] pos: List of position where to take the\
+        beam density (in cartesian system)
+
+        :returns: Beam density
+        :rtype: np.array[:]
+        """
+        pos = np.reshape(pos,(-1,3))
+        nb = np.zeros((self.beam_comp.shape[0],pos.shape[0]))
+        # vector from beam origin to the wanted position
+        dist = pos - self.get_origin()
+        # result is a 1D array containing the projection of the distance
+        # from the origin over the direction of the beam
+        proj = np.einsum('ij,j->i',dist,self.direc)
+        stddev = self.get_width(proj)
+        stddev2 = stddev**2
+        
+        # cubic spline for finding the value along the axis
+        for i in range(len(self.beam_comp)):
+            for j in range(pos.shape[0]):
+                nb[i,j] = interpolate.splev(proj[j],self.nb_tck[i], ext=1)
+        # radius^2 on the plane perpendicular to the beam
+        R2 = dist - proj[...,np.newaxis]*self.direc
+        # compute the norm of each position
+        xy = np.sum(R2[...,0:2]**2, axis=-1)
+        z = R2[...,2]**2
+        nb = nb*np.exp(-xy/(2*stddev2[0]) - z/(2*stddev2[1]))/(
+            2*np.pi*stddev[0]*stddev[1])
+        return nb
 
                     
         
     def get_emis(self,pos,t_):
-        """ Return the emissivity at pos and time t_ 
-            epsilon = <sigma*v> n_b n_e
-            Argument:
-            pos   -- 2D array, first index is for X,Y,Z
+        r""" Compute the emission at a given position and time step
+
+        :math:`\varepsilon = \langle\sigma v\rangle n_b n_e`
+       
+        :param np.array[N,3] pos: Position in the cartesian system
+        :param float t_: Time step
+
+        :returns: :math:`\varepsilon`
+        :rtype: np.array[N]
         """
         # first take all the value needed for the computation
         if len(pos.shape) == 1:
@@ -370,11 +381,22 @@ class Beam1D:
 
 
     def get_emis_lifetime(self,pos,t_):
-        """ Return the emissivity at pos and time t_ 
-            epsilon = <sigma*v> n_b n_e with the effect
-            of the lifetime (depends on the position))
-            Argument:
-            pos   -- 2D array, first index is for X,Y,Z
+        r""" Compute the emission at a given position and time step
+
+        For the density of excited particles, the following formula is used:
+        :math:`n_\text{ex} = \frac{1}{\|v\|}\int_0^{\tau vd} \varepsilon(P-\delta \hat{v})\exp\left(-\frac{\delta}{v\tau}\right)\mathrm{d}\delta`
+        where :math:`v` is the velocity of the beam particles (:math:`\hat{v} = \frac{\vec{v}}{\|\vec{v}\|}`),
+        :math:`\varepsilon` is the emissivity computed in :func:`get_emis <FPSDP.Diagnostics.Beam.beam.Beam1D.get_emis>`, and
+        :math:`\tau` is the lifetime.
+
+        Therefore the emissivity is given by:
+        :math:`\varepsilon_l(P) = \frac{n_\text{ex}(P)}{\tau}`
+       
+        :param np.array[N,3] pos: Position in the cartesian system
+        :param float t_: Time step
+
+        :returns: :math:`\varepsilon_l`
+        :rtype: np.array[N]
         """
         print 'wavelength!!!'
 

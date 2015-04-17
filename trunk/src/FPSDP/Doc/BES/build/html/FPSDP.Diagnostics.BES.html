@@ -1,0 +1,280 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Beam Emission Spectroscopy (BES) Directory &mdash; BES 0.8 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="BES 0.8 documentation" href="index.html" />
+    <link rel="up" title="Diagnostics Directoy" href="FPSDP.Diagnostics.html" />
+    <link rel="next" title="Beam Simulation" href="FPSDP.Diagnostics.Beam.html" />
+    <link rel="prev" title="Diagnostics Directoy" href="FPSDP.Diagnostics.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="FPSDP.Diagnostics.Beam.html" title="Beam Simulation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="FPSDP.Diagnostics.html" title="Diagnostics Directoy"
+             accesskey="P">previous</a> |</li>
+        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+          <li><a href="FPSDP.Diagnostics.html" accesskey="U">Diagnostics Directoy</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="beam-emission-spectroscopy-bes-directory">
+<h1>Beam Emission Spectroscopy (BES) Directory<a class="headerlink" href="#beam-emission-spectroscopy-bes-directory" title="Permalink to this headline">¶</a></h1>
+<p>In order to compare the exact density fluctuation and the BES diagnostic, two classes have been created.
+A first one the implement the diagnostic (<a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES" title="FPSDP.Diagnostics.BES.bes.BES"><tt class="xref py py-class docutils literal"><span class="pre">FPSDP.Diagnostics.BES.bes.BES</span></tt></a>) and a second one that copy the
+structure of the diagnostic and just take density value at the focus points.</p>
+<div class="section" id="beam-emission-spectroscopy">
+<h2>Beam Emission Spectroscopy<a class="headerlink" href="#beam-emission-spectroscopy" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="FPSDP.Diagnostics.BES.bes.BES">
+<em class="property">class </em><tt class="descclassname">FPSDP.Diagnostics.BES.bes.</tt><tt class="descname">BES</tt><big>(</big><em>input_file</em>, <em>parallel=False</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class computing the image of all the fiber</p>
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES.check_in">
+<tt class="descname">check_in</tt><big>(</big><em>pos</em>, <em>fib</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.check_in"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.check_in" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if the position (optical coordinate) is inside the first cone
+(if the focus ring matter or not)
+fib is the fiber number</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES.compute_limits">
+<tt class="descname">compute_limits</tt><big>(</big><em>eps=0.05</em>, <em>dxmin=0.1</em>, <em>dymin=0.1</em>, <em>dzmin=0.5</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.compute_limits"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.compute_limits" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the limits of the mesh that should be loaded
+The only limitation comes from the sampling volume
+eps is for adding a small amount to the limits (avoids problems)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES.get_bes">
+<tt class="descname">get_bes</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_bes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_bes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the image of the turbulence in density
+This function should be the only one used outside the class
+Argument:
+<a href="#id1"><span class="problematic" id="id2">t_</span></a>  &#8211; list of timesteps</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES.get_emis_from">
+<tt class="descname">get_emis_from</tt><big>(</big><em>pos</em>, <em>t_</em>, <em>fiber_nber</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_emis_from"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_emis_from" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the total emission received from pos (takes in account the
+solid angle). [Paxton 1959]
+Argument:
+pos  &#8211;  position of the emission in the optical coordinate (X,Y,Z)</p>
+<p>Improvement possible: keep in memory the solid angle for different time</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES.get_solid_angle">
+<tt class="descname">get_solid_angle</tt><big>(</big><em>pos</em>, <em>fib</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_solid_angle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_solid_angle" title="Permalink to this definition">¶</a></dt>
+<dd><p>compute the solid angle from the position 
+and for the fiber number (fib)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES.get_width">
+<tt class="descname">get_width</tt><big>(</big><em>pos</em>, <em>fiber_nber</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_width"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_width" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the radius of the light cone at pos (optical coordinate)
+Assume two cones that meet at the focus disk</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES.intensity">
+<tt class="descname">intensity</tt><big>(</big><em>t_</em>, <em>fiber_nber</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.intensity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.intensity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the light received by the fiber #fiber_nber</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES.intensity_para">
+<tt class="descname">intensity_para</tt><big>(</big><em>i</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.intensity_para"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.intensity_para" title="Permalink to this definition">¶</a></dt>
+<dd><p>Same as intensity, but have only one argument (all the timesteps
+are computed)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES.light_from_plane">
+<tt class="descname">light_from_plane</tt><big>(</big><em>z</em>, <em>t_</em>, <em>fiber_nber</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.light_from_plane"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.light_from_plane" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the light from one plane using a order 10 method (see report or
+Abramowitz and Stegun)
+Arguments:
+z          &#8211;  distance from the fiber along the sightline
+<a href="#id3"><span class="problematic" id="id4">t_</span></a>         &#8211;  timestep wanted (index inside the code,</p>
+<blockquote>
+<div>not the one in the simulation)</div></blockquote>
+<p>fiber_nber &#8211;  number of the fiber</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES.solid_angle_mix_case">
+<tt class="descname">solid_angle_mix_case</tt><big>(</big><em>pos</em>, <em>x</em>, <em>y</em>, <em>fib</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.solid_angle_mix_case"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.solid_angle_mix_case" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute numerically the solid angle for the mixted case
+(where the lens AND the ring limit the size of the solid angle)
+Arguments:
+pos &#8211; position of the emission
+x   &#8211; position of the intersection on the ring
+y   &#8211; position of the intersection on the lens
+fib &#8211; fiber number</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES.solid_angle_seg">
+<tt class="descname">solid_angle_seg</tt><big>(</big><em>pos</em>, <em>x</em>, <em>r</em>, <em>islens</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.solid_angle_seg"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.solid_angle_seg" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the solid angle of a disk without a segment
+Argument:
+pos    &#8211; position of the emission
+x      &#8211; position of the intersection
+r      &#8211; radius of the disk
+islens &#8211; In the case of the lens, we have to use ~ind</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES.to_cart_coord">
+<tt class="descname">to_cart_coord</tt><big>(</big><em>pos</em>, <em>fiber_nber</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.to_cart_coord"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.to_cart_coord" title="Permalink to this definition">¶</a></dt>
+<dd><p>return the cartesian coordinate from the coordinate of the lens
+Attribut:
+pos   &#8211;  (X,Y,Z) where Z is along the sightline, X coorespond</p>
+<blockquote>
+<div>to perp1, and Y to perp2</div></blockquote>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="raw-electron-density-fluctuations">
+<h2>Raw Electron Density Fluctuations<a class="headerlink" href="#raw-electron-density-fluctuations" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="FPSDP.Diagnostics.BES.bes.BES_ideal">
+<em class="property">class </em><tt class="descclassname">FPSDP.Diagnostics.BES.bes.</tt><tt class="descname">BES_ideal</tt><big>(</big><em>input_file</em>, <em>mesh=False</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES_ideal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES_ideal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Take the output of the simulation and just 
+compute the fluctuation
+A lot of copy and paste from the BES class, therefore look there for
+the comments</p>
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES_ideal.compute_limits">
+<tt class="descname">compute_limits</tt><big>(</big><em>eps=1</em>, <em>dxmin=0.1</em>, <em>dymin=0.1</em>, <em>dzmin=0.5</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES_ideal.compute_limits"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES_ideal.compute_limits" title="Permalink to this definition">¶</a></dt>
+<dd><p>find max of the focus points</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES_ideal.get_bes">
+<tt class="descname">get_bes</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES_ideal.get_bes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES_ideal.get_bes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the image of the turbulence in density
+This function should be the only one used outside the class</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES_ideal.intensity">
+<tt class="descname">intensity</tt><big>(</big><em>t_</em>, <em>fiber_nber</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES_ideal.intensity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES_ideal.intensity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the light received by the fiber #fiber_nber</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="FPSDP.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Beam Emission Spectroscopy (BES) Directory</a><ul>
+<li><a class="reference internal" href="#beam-emission-spectroscopy">Beam Emission Spectroscopy</a></li>
+<li><a class="reference internal" href="#raw-electron-density-fluctuations">Raw Electron Density Fluctuations</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="FPSDP.Diagnostics.html"
+                        title="previous chapter">Diagnostics Directoy</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="FPSDP.Diagnostics.Beam.html"
+                        title="next chapter">Beam Simulation</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/FPSDP.Diagnostics.BES.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="FPSDP.Diagnostics.Beam.html" title="Beam Simulation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="FPSDP.Diagnostics.html" title="Diagnostics Directoy"
+             >previous</a> |</li>
+        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+          <li><a href="FPSDP.Diagnostics.html" >Diagnostics Directoy</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Loic Hausammann.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

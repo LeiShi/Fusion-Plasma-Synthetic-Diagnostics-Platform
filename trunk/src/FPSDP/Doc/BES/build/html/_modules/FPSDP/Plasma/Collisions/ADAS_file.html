@@ -1,0 +1,351 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>FPSDP.Plasma.Collisions.ADAS_file &mdash; BES 0.8 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '0.8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="BES 0.8 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for FPSDP.Plasma.Collisions.ADAS_file</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot; class and subclass reading different kind of adas file</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy.interpolate</span> <span class="kn">as</span> <span class="nn">ip</span>
+
+
+<div class="viewcode-block" id="ADAS_file"><a class="viewcode-back" href="../../../../FPSDP.Plasma.Collisions.ADAS_file.html#FPSDP.Plasma.Collisions.ADAS_file.ADAS_file">[docs]</a><span class="k">class</span> <span class="nc">ADAS_file</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot; Parent class for defining the different kind of database readers.</span>
+
+<span class="sd">    This class is for inheritence purpose only. It will be inherited</span>
+<span class="sd">    by all the ADAS readers.</span>
+<span class="sd">    It defines how to read a block </span>
+<span class="sd">    of data (:func:`read_block`) [often used in 2D data of the ADAS database].</span>
+<span class="sd">    The beam energy is divided by the atomic mass of the beam particles (eV/amu).</span>
+
+<span class="sd">    </span>
+<span class="sd">    :param str name: Name of the ADAS file</span>
+
+<span class="sd">    :ivar str name: Name of the ADAS file</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Save the name of the file</span>
+<span class="sd">        </span>
+<span class="sd">        :param name: Name of the ADAS file</span>
+<span class="sd">        :type name: str</span>
+
+<span class="sd">        :ivar str name: Name of the ADAS file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+
+<div class="viewcode-block" id="ADAS_file.read_block"><a class="viewcode-back" href="../../../../FPSDP.Plasma.Collisions.ADAS_file.html#FPSDP.Plasma.Collisions.ADAS_file.ADAS_file.read_block">[docs]</a>    <span class="k">def</span> <span class="nf">read_block</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">data</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="n">array</span><span class="p">,</span><span class="n">n</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Read one bloc in an ADAS file</span>
+
+<span class="sd">        The coefficient depending on two coefficients are written in a block form,</span>
+<span class="sd">        thus this function read the block at the line i and return the </span>
+<span class="sd">        number of the final line</span>
+<span class="sd">        </span>
+
+<span class="sd">        :param data: file currently readed (each index is for a line)</span>
+<span class="sd">        :type data: list[str]</span>
+<span class="sd">        :param i: first line to look at (index of data)</span>
+<span class="sd">        :type i: int</span>
+<span class="sd">        :param array: array where to add the data from the file (should be of the </span>
+<span class="sd">        good size)</span>
+<span class="sd">        :type array: np.array</span>
+<span class="sd">        :param n: Number of item contained inside the data</span>
+<span class="sd">        :type n: int</span>
+
+<span class="sd">        :returns: index of the index of the final line</span>
+<span class="sd">        :rtype: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># loop over all the data block</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">n</span><span class="p">:</span>
+            <span class="n">temp</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+            <span class="c"># loop over one line for taking all the datas</span>
+            <span class="c"># inside this line</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">temp</span><span class="p">)):</span>
+                <span class="n">array</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">temp</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+                <span class="n">index</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">i</span>
+
+
+</div></div>
+<div class="viewcode-block" id="ADAS21"><a class="viewcode-back" href="../../../../FPSDP.Plasma.Collisions.ADAS_file.html#FPSDP.Plasma.Collisions.ADAS_file.ADAS21">[docs]</a><span class="k">class</span> <span class="nc">ADAS21</span><span class="p">(</span><span class="n">ADAS_file</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Class containing all the data from one ADAS file (adf21)</span>
+
+<span class="sd">    The data contained in this kind of file is the beam stopping coefficient.</span>
+<span class="sd">    The beam energy is divided by the atomic mass of the beam particles (eV/amu).</span>
+
+<span class="sd">    :param name: Name of the ADAS file</span>
+<span class="sd">    :type name: str</span>
+<span class="sd">    </span>
+
+<span class="sd">    :ivar int n_b: Size of the beam energy dimension</span>
+<span class="sd">    :ivar int n_density: Size of the density dimension</span>
+<span class="sd">    :ivar float T_ref: Reference temperature (eV)</span>
+<span class="sd">    :ivar np.array[n_b] adas_beam: Beam energies considered (eV/amu)</span>
+<span class="sd">    :ivar np.array[n_density] densities: Densities considered (m :sup:`-3`)</span>
+<span class="sd">    :ivar np.array[n_density,n_b] coef_dens: Beam stopping coefficient as a function\</span>
+<span class="sd"> of the density and the beam energy (m :sup:`3`/s)</span>
+<span class="sd">    :ivar int n_T: Size of the temperature dimension</span>
+<span class="sd">    :ivar float E_ref: Reference beam energy (eV/amu)</span>
+<span class="sd">    :ivar float dens_ref: Reference density (m :sup:`-3`)</span>
+<span class="sd">    :ivar np.array[n_T] temperature: Temperatures considered (eV)</span>
+<span class="sd">    :ivar np.array[n_T] coef_T: Beam stopping coefficient as a function of the temperature (m :sup:`3`/s)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Read the file and store all the values.</span>
+<span class="sd">        </span>
+<span class="sd">        :param name: Name of the ADAS file</span>
+<span class="sd">        :type name: str</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ADAS_file</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">name</span><span class="p">)</span>
+        <span class="c"># open the file and store all the text in data</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span><span class="s">&#39;r&#39;</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+        
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="c"># number of different beams in the ADAS file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_b</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>           <span class="c">#! (this sign indicates an attribute)</span>
+        <span class="c"># change of unit</span>
+        <span class="c"># number of different densities for the target</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_density</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>                                   <span class="c">#!</span>
+        <span class="c"># reference temperature</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">T_ref</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;=&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>                       <span class="c">#!</span>
+        
+        <span class="c"># list of all beams computed by ADAS</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">adas_beam</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_b</span><span class="p">)</span>                             <span class="c">#!</span>
+        <span class="c"># line number in the ADAS file</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">4</span>
+        <span class="c"># read all the beam energies taken in account in the</span>
+        <span class="c"># ADAS file</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_block</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">adas_beam</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">n_b</span><span class="p">)</span>
+
+        <span class="c"># same as before but with the densities</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">densities</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_density</span><span class="p">)</span>                       <span class="c">#!</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_block</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">densities</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">n_density</span><span class="p">)</span>
+        <span class="c"># change of unit cm-3 -&gt; m-3</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">densities</span> <span class="o">*=</span> <span class="mf">100.0</span><span class="o">**</span><span class="mi">3</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span> <span class="c"># remove line with ----</span>
+        
+        <span class="c"># contains the coefficients as a function of densities and the beam</span>
+        <span class="c"># energies</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coef_dens</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_density</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">n_b</span><span class="p">))</span>
+        <span class="c"># coef_dens[i,j] -- i for beam, j for densities                #!</span>
+
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_density</span><span class="p">):</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_block</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">coef_dens</span><span class="p">[</span><span class="n">j</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">n_b</span><span class="p">)</span>
+            
+            
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span> <span class="c"># remove line with ----</span>
+        <span class="c"># change of unit cm -&gt; m</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coef_dens</span> <span class="o">/=</span> <span class="mf">100.0</span><span class="o">**</span><span class="mi">3</span>
+        
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_T</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="c"># number of different temperature       #!</span>
+        <span class="c"># reference energy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">E_ref</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;=&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>                       <span class="c">#!</span>
+        <span class="c"># reference density</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dens_ref</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;=&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span><span class="o">*</span><span class="mi">100</span><span class="o">**</span><span class="mi">3</span>             <span class="c">#!</span>
+        
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">2</span> <span class="c"># goes to next line, and remove line with ----</span>
+        
+        <span class="c"># list of temperature</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_T</span><span class="p">)</span>                           <span class="c">#!</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_block</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">n_T</span><span class="p">)</span>
+
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span> <span class="c"># remove line with ----</span>
+        
+        <span class="c"># read the coefficients as a function of the temperature</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coef_T</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_T</span><span class="p">)</span>                                <span class="c">#!</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_block</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">coef_T</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">n_T</span><span class="p">)</span>
+
+        <span class="c"># change of unit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coef_T</span> <span class="o">/=</span> <span class="mf">100.0</span><span class="o">**</span><span class="mi">3</span>
+        <span class="c"># END OF READING</span>
+
+</div>
+<div class="viewcode-block" id="ADAS22"><a class="viewcode-back" href="../../../../FPSDP.Plasma.Collisions.ADAS_file.html#FPSDP.Plasma.Collisions.ADAS_file.ADAS22">[docs]</a><span class="k">class</span> <span class="nc">ADAS22</span><span class="p">(</span><span class="n">ADAS_file</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Class containing all the data from one ADAS file (adf22)</span>
+
+<span class="sd">    The data contained in this kind of file is the emission coefficient.</span>
+<span class="sd">    The beam energy is divided by the atomic mass of the beam particles (eV/amu).</span>
+
+<span class="sd">    :param name: Name of the ADAS file</span>
+<span class="sd">    :type name: str</span>
+<span class="sd">    </span>
+
+<span class="sd">    :ivar int n_b: Size of the beam energy dimension</span>
+<span class="sd">    :ivar int n_density: Size of the density dimension</span>
+<span class="sd">    :ivar float T_ref: Reference temperature (eV)</span>
+<span class="sd">    :ivar np.array[n_b] adas_beam: Beam energies considered (eV/amu)</span>
+<span class="sd">    :ivar np.array[n_density] densities: Densities considered (m :sup:`-3`)</span>
+<span class="sd">    :ivar np.array[n_density,n_b] coef_dens: Emission coefficient as a function\</span>
+<span class="sd"> of the density and the beam energy (m :sup:`3`/s)</span>
+<span class="sd">    :ivar int n_T: Size of the temperature dimension</span>
+<span class="sd">    :ivar float E_ref: Reference beam energy (eV/amu)</span>
+<span class="sd">    :ivar float dens_ref: Reference density (m :sup:`-3`)</span>
+<span class="sd">    :ivar np.array[n_T] temperature: Temperatures considered (eV)</span>
+<span class="sd">    :ivar np.array[n_T] coef_T: Emission coefficient as a function of the temperature (m :sup:`3`/s)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Read the file and store everything as attributes</span>
+<span class="sd">        </span>
+<span class="sd">            Arguments:</span>
+<span class="sd">            name  -- name of the file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ADAS_file</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">name</span><span class="p">)</span>
+        <span class="c"># open the file and store all the text in data</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span><span class="s">&#39;r&#39;</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+        
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="c"># number of different beams in the ADAS file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_b</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>           <span class="c">#! (this sign indicates an attribute)</span>
+        <span class="c"># change of unit</span>
+        <span class="c"># number of different densities for the target</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_density</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>                                   <span class="c">#!</span>
+        <span class="c"># reference temperature</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">T_ref</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;=&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>                       <span class="c">#!</span>
+        
+        <span class="c"># list of all beams computed by ADAS</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">adas_beam</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_b</span><span class="p">)</span>                             <span class="c">#!</span>
+        <span class="c"># line number in the ADAS file</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">4</span>
+        <span class="c"># read all the beam energies taken in account in the</span>
+        <span class="c"># ADAS file</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_block</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">adas_beam</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">n_b</span><span class="p">)</span>
+
+        <span class="c"># same as before but with the densities</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">densities</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_density</span><span class="p">)</span>                       <span class="c">#!</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_block</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">densities</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">n_density</span><span class="p">)</span>
+        <span class="c"># change of unit cm-3 -&gt; m-3</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">densities</span> <span class="o">*=</span> <span class="mf">100.0</span><span class="o">**</span><span class="mi">3</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span> <span class="c"># remove line with ----</span>
+        
+        <span class="c"># contains the coefficients as a function of densities and the beam</span>
+        <span class="c"># energies</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coef_dens</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_density</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">n_b</span><span class="p">))</span>
+        <span class="c"># coef_dens[i,j] -- i for beam, j for densities                #!</span>
+
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_density</span><span class="p">):</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_block</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">coef_dens</span><span class="p">[</span><span class="n">j</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">n_b</span><span class="p">)</span>
+            
+            
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span> <span class="c"># remove line with ----</span>
+        <span class="c"># change of unit cm -&gt; m</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coef_dens</span> <span class="o">/=</span> <span class="mf">100.0</span><span class="o">**</span><span class="mi">3</span>
+        
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_T</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="c"># number of different temperature       #!</span>
+        <span class="c"># reference energy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">E_ref</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;=&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>                       <span class="c">#!</span>
+        <span class="c"># reference density</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dens_ref</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;=&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span><span class="o">*</span><span class="mi">100</span><span class="o">**</span><span class="mi">3</span>             <span class="c">#!</span>
+        
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">2</span> <span class="c"># goes to next line, and remove line with ----</span>
+        
+        <span class="c"># list of temperature</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_T</span><span class="p">)</span>                           <span class="c">#!</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_block</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">n_T</span><span class="p">)</span>
+
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span> <span class="c"># remove line with ----</span>
+        
+        <span class="c"># read the coefficients as a function of the temperature</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coef_T</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_T</span><span class="p">)</span>                                <span class="c">#!</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_block</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">coef_T</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">n_T</span><span class="p">)</span>
+
+        <span class="c"># change of unit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coef_T</span> <span class="o">/=</span> <span class="mf">100.0</span><span class="o">**</span><span class="mi">3</span>
+        <span class="c"># END OF READING</span>
+    </div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Loic Hausammann.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

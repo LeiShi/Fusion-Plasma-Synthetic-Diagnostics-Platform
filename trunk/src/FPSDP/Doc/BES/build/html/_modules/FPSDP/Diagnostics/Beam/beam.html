@@ -1,0 +1,581 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>FPSDP.Diagnostics.Beam.beam &mdash; BES 0.8 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '0.8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="BES 0.8 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for FPSDP.Diagnostics.Beam.beam</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">FPSDP.Plasma.Collisions.collisions</span> <span class="kn">as</span> <span class="nn">col</span>
+<span class="kn">import</span> <span class="nn">FPSDP.Maths.Integration</span> <span class="kn">as</span> <span class="nn">integ</span>
+<span class="kn">import</span> <span class="nn">ConfigParser</span> <span class="kn">as</span> <span class="nn">psr</span>
+<span class="kn">import</span> <span class="nn">FPSDP.Maths.Interpolation</span> <span class="kn">as</span> <span class="nn">Fint</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">interpolate</span>
+<span class="sd">&quot;&quot;&quot;  BE CAREFULL WITH THE LOAD XGC, THE CARTESIAN GRID IS NOT IN</span>
+<span class="sd">     A CLASSICAL POSITION (Y for the heigth)</span>
+<span class="sd">     In the code of the BES, the Z axis is for the height (so switch between Y and Z)</span>
+<span class="sd">     data_on_grid[Z,Y,X]</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="to_other_index"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.to_other_index">[docs]</a><span class="k">def</span> <span class="nf">to_other_index</span><span class="p">(</span><span class="n">pos</span><span class="p">):</span>
+    <span class="s">&quot; Change the order of the index &quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">pos</span><span class="p">[:,</span><span class="mi">1</span><span class="p">],</span><span class="n">pos</span><span class="p">[:,</span><span class="mi">2</span><span class="p">],</span><span class="n">pos</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]])</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">pos</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Wrong shape of pos&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">a</span> 
+</div>
+<div class="viewcode-block" id="Beam1D"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D">[docs]</a><span class="k">class</span> <span class="nc">Beam1D</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot; Simulate a 1D beam with the help of datas from simulation</span>
+
+<span class="sd">        Methods:</span>
+<span class="sd">        __init__(config_file,timesteps,data)</span>
+<span class="sd">                            -- config_file is the name of the config file,</span>
+<span class="sd">                               timesteps is the list of the timesteps wanted</span>
+<span class="sd">                               and data are the data from XGC1 (for example)</span>
+<span class="sd">       </span>
+<span class="sd">        get_width(dist)     -- return the standard deviation at the distance given</span>
+
+<span class="sd">        create_mesh()       -- create the points of the mesh</span>
+
+<span class="sd">        find_wall(eps=1e-6) -- find the end (for the beam) of the mesh from the data</span>
+<span class="sd">                               eps is for avoiding the end of the mesh (relative length)</span>
+
+<span class="sd">        get_electron_density(pos,t_) </span>
+<span class="sd">                            -- function simplificating the acces to the data</span>
+<span class="sd">                               (avoid the problem of the two representations)</span>
+<span class="sd">                               pos is a 1D or 2D array (first index is the dimension)</span>
+<span class="sd">                               the coordinate are the same than in the beam config file</span>
+
+<span class="sd">        get_ion_density(pos,t_)</span>
+<span class="sd">                            -- same as before</span>
+<span class="sd">                    </span>
+<span class="sd">        get_electron_temp(pos)</span>
+<span class="sd">                            -- same as before (the perturbation of the temperature)</span>
+<span class="sd">                               are not taken in account (small effect)</span>
+
+<span class="sd">        get_ion_temp(self,pos)</span>
+<span class="sd">                            -- same as before</span>
+
+<span class="sd">        get_electron_density_fluc(pos,t_)</span>
+<span class="sd">                            -- same as before</span>
+
+
+<span class="sd">        compute_beam_on_mesh()</span>
+<span class="sd">                            -- compute the density of the beam on the mesh with a</span>
+<span class="sd">                               Gauss-Legendre formula (two points)</span>
+<span class="sd"> </span>
+<span class="sd">        get_mesh()          -- return the mesh, same coordinate than the beam config file</span>
+<span class="sd">                               first index is for the dimension</span>
+<span class="sd"> </span>
+<span class="sd">        get_origin()        -- return the origin of the beam</span>
+<span class="sd">        </span>
+<span class="sd">        get_beam_density(pos,t_)</span>
+<span class="sd">                            -- use a gaussian profile and an interpolation in order to</span>
+<span class="sd">                               compute the beam density at the position. t_ is the index</span>
+<span class="sd">                               for the time</span>
+
+
+<span class="sd">        get_emis(pos,t_)    -- compute the emissivity \epsilon </span>
+
+<span class="sd">        get_emis_fluc(pos,t_)</span>
+<span class="sd">                            -- compute the fluctuation of the emissivity with only</span>
+<span class="sd">                               the fluctuation part of the density</span>
+<span class="sd">        get_emis_ave(pos)   -- compute the fluctuation using the average over time</span>
+
+<span class="sd">        get_emis_lifetime(pos,t_)</span>
+<span class="sd">                            -- same as get_emis but compute the lifetime effect</span>
+
+<span class="sd">        Attribut:</span>
+<span class="sd">    </span>
+<span class="sd">        cfg_file     --  name of the config file</span>
+<span class="sd">        data         --  data from the simulation</span>
+<span class="sd">        timesteps    --  list of the timesteps considered</span>
+<span class="sd">        adas_atte    --  list of file for the attenuation</span>
+<span class="sd">        adas_emis    --  list of file for the emission</span>
+<span class="sd">        collisions   --  class containing all the informations for the collisions</span>
+<span class="sd">        coll_atte    --  tuple relating the adas file with the beams (choice of collision)</span>
+<span class="sd">                         for the attenuation</span>
+<span class="sd">        coll_emis    --  same as before but with the emission</span>
+<span class="sd">        mass_b       --  mass of the particles in the beam (in amu)</span>
+<span class="sd">        beam_comp    --  energy of each beam components</span>
+<span class="sd">        power        --  total power of the beam</span>
+<span class="sd">        frac         --  fraction of power for each components</span>
+<span class="sd">        pos          --  origin of the beam</span>
+<span class="sd">        direc        --  direction of the beam</span>
+<span class="sd">        beam_width   --  FWHM of the beam at the origin</span>
+<span class="sd">        Nz           --  number of point on the beam mesh</span>
+<span class="sd">        Nlt          --  number of point for the lifetime effect</span>
+<span class="sd">        t_max        --  upper boundary of the integral for the lifetime effect</span>
+<span class="sd">                         (in unit of the lifetime)</span>
+
+<span class="sd">        inters       --  ending point of the mesh</span>
+<span class="sd">        mesh         --  mesh (first index for the dimension)</span>
+
+<span class="sd">        density_beam --  beam density at the grid points</span>
+<span class="sd">        speed        --  speed of each particles in a beam component</span>
+<span class="sd">        std_dev      --  standard deviation of the beam at the origin</span>
+<span class="sd">        std_dev2     --  square of std_dev</span>
+<span class="sd">        dens         --  electron density at the grid points</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">config_file</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Load everything from the config file&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cfg_file</span> <span class="o">=</span> <span class="n">config_file</span>                                          <span class="c">#!</span>
+        <span class="k">print</span> <span class="s">&#39;Reading config file (beam)&#39;</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">psr</span><span class="o">.</span><span class="n">ConfigParser</span><span class="p">()</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg_file</span><span class="p">)</span>
+
+        <span class="c"># The example input is well commented</span>
+        
+        <span class="c"># load data for collisions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">adas_atte</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Collisions&#39;</span><span class="p">,</span><span class="s">&#39;adas_atte&#39;</span><span class="p">))</span>    <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">adas_emis</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Collisions&#39;</span><span class="p">,</span><span class="s">&#39;adas_emis&#39;</span><span class="p">))</span>    <span class="c">#!</span>
+        <span class="n">n_low</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Collisions&#39;</span><span class="p">,</span><span class="s">&#39;n_low&#39;</span><span class="p">))</span>
+        <span class="n">n_high</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Collisions&#39;</span><span class="p">,</span><span class="s">&#39;n_high&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">collisions</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">Collisions</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">adas_atte</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">adas_emis</span><span class="p">,</span>
+                                         <span class="p">(</span><span class="n">n_low</span><span class="p">,</span><span class="n">n_high</span><span class="p">))</span>                     <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coll_atte</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Collisions&#39;</span><span class="p">,</span><span class="s">&#39;coll_atte&#39;</span><span class="p">))</span>    <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coll_emis</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Collisions&#39;</span><span class="p">,</span><span class="s">&#39;coll_emis&#39;</span><span class="p">))</span>    <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Nlt</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Collisions&#39;</span><span class="p">,</span><span class="s">&#39;Nlt&#39;</span><span class="p">)))</span>           <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t_max</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Collisions&#39;</span><span class="p">,</span><span class="s">&#39;t_max&#39;</span><span class="p">))</span>            <span class="c">#!</span>
+        
+
+        <span class="c"># load data about the beam energy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mass_b</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Beam energy&#39;</span><span class="p">,</span><span class="s">&#39;mass_b&#39;</span><span class="p">))</span>         <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mass_b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mass_b</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Beam energy&#39;</span><span class="p">,</span><span class="s">&#39;E&#39;</span><span class="p">))</span>           <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span> <span class="o">=</span> <span class="mi">1000</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">power</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Beam energy&#39;</span><span class="p">,</span><span class="s">&#39;power&#39;</span><span class="p">))</span>                <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">power</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">power</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frac</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Beam energy&#39;</span><span class="p">,</span><span class="s">&#39;f&#39;</span><span class="p">))</span>                <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frac</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frac</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frac</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">:</span> <span class="c"># allow the possibility to simulate only</span>
+            <span class="c"># a part of the beam</span>
+            <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Sum of f is greater than 100&#39;</span><span class="p">)</span>
+
+        <span class="c"># load data about the geometry of the beam</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pos</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Beam geometry&#39;</span><span class="p">,</span><span class="s">&#39;position&#39;</span><span class="p">))</span>        <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pos</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">direc</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Beam geometry&#39;</span><span class="p">,</span><span class="s">&#39;direction&#39;</span><span class="p">))</span>     <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">direc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">direc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beam_width_h</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span>
+            <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Beam geometry&#39;</span><span class="p">,</span><span class="s">&#39;beam_width_h&#39;</span><span class="p">))</span>                      <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beam_width_v</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span>
+            <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Beam geometry&#39;</span><span class="p">,</span><span class="s">&#39;beam_width_v&#39;</span><span class="p">))</span>                      <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Nz</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Beam geometry&#39;</span><span class="p">,</span><span class="s">&#39;Nz&#39;</span><span class="p">))</span>                      <span class="c">#!</span>
+
+        <span class="c"># get the standard deviation at the origin</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stddev_h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam_width_h</span><span class="o">/</span><span class="p">(</span><span class="mf">2.0</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.0</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)))</span>     <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stddev_v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam_width_v</span><span class="o">/</span><span class="p">(</span><span class="mf">2.0</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.0</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)))</span>     <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stddev2_h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stddev_h</span><span class="o">**</span><span class="mi">2</span>                                    <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stddev2_v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stddev_v</span><span class="o">**</span><span class="mi">2</span>                                    <span class="c">#!</span>
+
+        <span class="c"># speed of each beam</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">speed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">))</span>                           <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">speed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="o">*</span><span class="mf">9.6485383e7</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">mass_b</span><span class="p">)</span>
+
+
+
+<div class="viewcode-block" id="Beam1D.set_data"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.set_data">[docs]</a>    <span class="k">def</span> <span class="nf">set_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Split the initialization in two part due to bes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>                                                     <span class="c">#!</span>
+        <span class="sd">&quot;&quot;&quot;grid_ = (self.data.grid.Z1D,self.data.grid.Y1D,</span>
+<span class="sd">                 self.data.grid.X1D)</span>
+<span class="sd">        self.ne_int = []</span>
+<span class="sd">        self.ni_int = []</span>
+<span class="sd">        for i in range(len(data.time_steps)):</span>
+<span class="sd">            self.ne_int.append(interpolate.RegularGridInterpolator(</span>
+<span class="sd">                grid_,self.data.ne_on_grid[0,i,:,:,:]))</span>
+<span class="sd">            </span>
+<span class="sd">            self.ni_int.append(interpolate.RegularGridInterpolator(</span>
+<span class="sd">                grid_,self.data.ni_on_grid[0,i,:,:,:]))</span>
+<span class="sd">            </span>
+<span class="sd">        self.Ti_int = interpolate.RegularGridInterpolator(</span>
+<span class="sd">            grid_,self.data.ti_on_grid)</span>
+<span class="sd">        </span>
+<span class="sd">        self.Te_int = interpolate.RegularGridInterpolator(</span>
+<span class="sd">            grid_,self.data.te_on_grid)</span>
+<span class="sd">        &quot;&quot;&quot;</span> 
+        <span class="k">print</span> <span class="s">&#39;Creating mesh&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">create_mesh</span><span class="p">()</span>
+        <span class="k">print</span> <span class="s">&#39;Computing density of the beam&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">compute_beam_on_mesh</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Beam1D.get_width"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.get_width">[docs]</a>    <span class="k">def</span> <span class="nf">get_width</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">dist</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Return the width of the beam at the distance &quot;dist&quot; (projected </span>
+<span class="sd">            against the direction of the beam)</span>
+<span class="sd">            Used for simplification in the case that someone want to add the</span>
+<span class="sd">            beam divergence</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">stddev_h</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">dist</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">stddev_v</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">dist</span><span class="o">.</span><span class="n">shape</span><span class="p">)])</span>
+</div>
+<div class="viewcode-block" id="Beam1D.create_mesh"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.create_mesh">[docs]</a>    <span class="k">def</span> <span class="nf">create_mesh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; create the 1D mesh between the source of the beam and the end </span>
+<span class="sd">            of the mesh</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># intersection between end of mesh and beam</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">inters</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_wall</span><span class="p">()</span>                                       <span class="c">#!</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">pos</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">inters</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+        <span class="c"># distance to the origin along the central line</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">length</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">Nz</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mesh</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">Nz</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span>                                    <span class="c">#!</span>
+        <span class="c"># the second index corresponds to the dimension (X,Y,Z)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mesh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dl</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos</span>              <span class="c">#!</span>
+        
+                    </div>
+<div class="viewcode-block" id="Beam1D.find_wall"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.find_wall">[docs]</a>    <span class="k">def</span> <span class="nf">find_wall</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; find the wall (of the mesh) that will stop the beam and return</span>
+<span class="sd">            the coordinate of the intersection with the beam</span>
+<span class="sd">            eps is used to avoid the end of the mesh</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># X-direction</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="n">tx1</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+            <span class="n">tx2</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tx1</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Xmax</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">tx2</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Xmin</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        
+        <span class="c"># Y-directio</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="n">ty1</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+            <span class="n">ty2</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ty1</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Zmax</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">ty2</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Zmin</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        
+        <span class="c"># Z-direction</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="n">tz1</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+            <span class="n">tz2</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tz1</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Ymax</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">pos</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+            <span class="n">tz2</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Ymin</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">pos</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+        <span class="n">t_</span> <span class="o">=</span> <span class="p">[</span><span class="n">tx1</span><span class="p">,</span><span class="n">tx2</span><span class="p">,</span><span class="n">ty1</span><span class="p">,</span><span class="n">ty2</span><span class="p">,</span><span class="n">tz1</span><span class="p">,</span><span class="n">tz2</span><span class="p">]</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">t_</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="o">*</span><span class="n">t_</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">eps</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Beam1D.get_quantities"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.get_quantities">[docs]</a>    <span class="k">def</span> <span class="nf">get_quantities</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">,</span><span class="n">quant</span><span class="p">,</span><span class="n">eq</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; get the wanted quantities inside the simulation data</span>
+<span class="sd">            at pos and the timestep(s) number t_</span>
+
+<span class="sd">            Arguments:</span>
+<span class="sd">            pos   --  1D array with (X,Y,Z) or 2D array with (X,Y,Z)</span>
+<span class="sd">                      as the second index</span>
+<span class="sd">            t_    --  time step</span>
+<span class="sd">            quant --  list containing the wanted quantities (see data class</span>
+<span class="sd">                      for more information)</span>
+<span class="sd">            eq    --  choice between equilibrium or exact quantities</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t_</span><span class="p">,</span><span class="nb">list</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Only one time should be given&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">interpolate_data</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">,</span><span class="n">quant</span><span class="p">,</span><span class="n">eq</span><span class="p">)</span>
+        
+        </div>
+<div class="viewcode-block" id="Beam1D.compute_beam_on_mesh"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.compute_beam_on_mesh">[docs]</a>    <span class="k">def</span> <span class="nf">compute_beam_on_mesh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">eq</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; compute the beam intensity at each position of the mesh </span>
+<span class="sd">            with the Gauss-Legendre quadrature (2 points)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">),</span><span class="bp">self</span><span class="o">.</span><span class="n">Nz</span><span class="p">))</span>  <span class="c">#!</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;If keep attenuation with eq, should remove time loop&#39;</span><span class="p">)</span>
+        <span class="c"># density of the beam at the origin</span>
+        <span class="n">n0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">))</span>
+        <span class="n">n0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">mass_b</span><span class="o">*</span><span class="mf">1.660538921e-27</span><span class="p">)</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">power</span>
+        <span class="n">n0</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frac</span><span class="o">/</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="o">*</span><span class="mf">1.60217733e-19</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="mf">1.5</span><span class="p">)</span>
+        
+        <span class="c"># define the quadrature formula for this method</span>
+        <span class="n">quad</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL3&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 3</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span><span class="mi">0</span><span class="p">])):</span>
+            <span class="c"># density over the central line (usefull for some check)</span>
+            <span class="k">if</span> <span class="n">j</span> <span class="ow">is</span> <span class="ow">not</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">temp_beam</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">))</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">coll_atte</span><span class="p">:</span>
+                    <span class="n">file_nber</span> <span class="o">=</span> <span class="n">k</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">beam_nber</span> <span class="o">=</span> <span class="n">k</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="c"># limit of the integral</span>
+                    <span class="n">a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mesh</span><span class="p">[</span><span class="n">j</span><span class="o">-</span><span class="mi">1</span><span class="p">,:]</span>
+                    <span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mesh</span><span class="p">[</span><span class="n">j</span><span class="p">,:]</span>
+                    <span class="c"># average</span>
+                    <span class="n">av</span> <span class="o">=</span> <span class="p">(</span><span class="n">a</span><span class="o">+</span><span class="n">b</span><span class="p">)</span><span class="o">/</span><span class="mf">2.0</span>
+                    <span class="c"># difference</span>
+                    <span class="n">diff</span> <span class="o">=</span> <span class="p">(</span><span class="n">b</span><span class="o">-</span><span class="n">a</span><span class="p">)</span><span class="o">/</span><span class="mf">2.0</span>
+                    <span class="c"># integration point</span>
+                    <span class="n">pt</span> <span class="o">=</span> <span class="n">quad</span><span class="o">.</span><span class="n">pts</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="n">diff</span> <span class="o">+</span> <span class="n">av</span>
+                    <span class="c"># compute all the values needed for the integral</span>
+                    <span class="n">ne</span><span class="p">,</span> <span class="n">T</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_quantities</span><span class="p">(</span><span class="n">pt</span><span class="p">,</span><span class="bp">None</span><span class="p">,[</span><span class="s">&#39;ne&#39;</span><span class="p">,</span><span class="s">&#39;Ti&#39;</span><span class="p">],</span><span class="n">eq</span><span class="p">)</span>
+                    
+                    <span class="c"># attenuation coefficient from adas</span>
+                    <span class="n">S</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collisions</span><span class="o">.</span><span class="n">get_attenutation</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">],</span><span class="n">ne</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">mass_b</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">],</span>
+                        <span class="n">T</span><span class="p">,</span><span class="n">file_nber</span><span class="p">)</span>
+                    
+                    <span class="c"># half distance between a &amp; b</span>
+                    <span class="n">norm_</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">b</span><span class="o">-</span><span class="n">a</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+                    <span class="n">temp1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">ne</span><span class="o">*</span><span class="n">S</span><span class="o">*</span><span class="n">quad</span><span class="o">.</span><span class="n">w</span><span class="p">)</span>
+                    <span class="n">temp1</span> <span class="o">*=</span> <span class="n">norm_</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">speed</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">]</span>
+                    <span class="n">temp_beam</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">]</span> <span class="o">+=</span> <span class="n">temp1</span>
+                    
+                <span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span><span class="p">[:,</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span><span class="p">[:,</span><span class="n">j</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> \
+                                                <span class="n">temp_beam</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">nb_tck</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c"># interpolant for the beam</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span><span class="p">[</span><span class="n">i</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">n0</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span><span class="p">[</span><span class="n">i</span><span class="p">,:])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nb_tck</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">splrep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dl</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span><span class="p">[</span><span class="n">i</span><span class="p">,:]))</span>
+                
+            </div>
+<div class="viewcode-block" id="Beam1D.get_mesh"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.get_mesh">[docs]</a>    <span class="k">def</span> <span class="nf">get_mesh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Return the mesh (3D array)&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mesh</span>
+</div>
+<div class="viewcode-block" id="Beam1D.get_origin"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.get_origin">[docs]</a>    <span class="k">def</span> <span class="nf">get_origin</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Return the origin of the beam&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos</span>
+</div>
+<div class="viewcode-block" id="Beam1D.get_beam_density"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.get_beam_density">[docs]</a>    <span class="k">def</span> <span class="nf">get_beam_density</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Return the beam density at the position and time step wanted</span>
+<span class="sd">            assuming a gaussian profile</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c"># array to return</span>
+            <span class="n">nb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">))</span>
+            <span class="c"># vector from beam origin to the wanted position</span>
+            <span class="n">dist</span> <span class="o">=</span> <span class="n">pos</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_origin</span><span class="p">()</span>
+            <span class="c"># projection along the axis</span>
+            <span class="n">proj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">dist</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="p">)</span>
+            <span class="c"># width of the beam</span>
+            <span class="n">stddev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_width</span><span class="p">(</span><span class="n">proj</span><span class="p">)</span>
+            <span class="n">stddev2</span> <span class="o">=</span> <span class="n">stddev</span><span class="o">**</span><span class="mi">2</span>
+            <span class="k">if</span> <span class="n">proj</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Point before the origin of the beam&#39;</span><span class="p">)</span>
+            <span class="c"># cubic spline for finding the value along the axis</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">)):</span>
+                <span class="n">nb</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span><span class="n">proj</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">nb_tck</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="c"># radius^2 on the plane perpendicular to the beam</span>
+            <span class="n">R2</span> <span class="o">=</span> <span class="n">dist</span> <span class="o">-</span> <span class="n">proj</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span>
+            <span class="c"># radius in the horizontal plane</span>
+            <span class="n">xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">R2</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="c"># radius in the vertical plane</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="n">R2</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
+            <span class="k">print</span> <span class="s">&#39;need to check&#39;</span>
+            <span class="c"># gaussian beam</span>
+            <span class="n">nb</span> <span class="o">=</span> <span class="n">nb</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">xy</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">stddev2</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="n">z</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">stddev2</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span><span class="o">/</span><span class="p">(</span>
+                <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">stddev</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">stddev</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">nb</span>
+        
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">pos</span><span class="p">,(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span>
+            <span class="n">nb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="c"># vector from beam origin to the wanted position</span>
+            <span class="n">dist</span> <span class="o">=</span> <span class="n">pos</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_origin</span><span class="p">()</span>
+            <span class="c"># result is a 1D array containing the projection of the distance</span>
+            <span class="c"># from the origin over the direction of the beam</span>
+            <span class="n">proj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s">&#39;ij,j-&gt;i&#39;</span><span class="p">,</span><span class="n">dist</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="p">)</span>
+            <span class="n">stddev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_width</span><span class="p">(</span><span class="n">proj</span><span class="p">)</span>
+            <span class="n">stddev2</span> <span class="o">=</span> <span class="n">stddev</span><span class="o">**</span><span class="mi">2</span>
+
+            <span class="c"># cubic spline for finding the value along the axis</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">)):</span>
+                <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+                    <span class="n">nb</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span><span class="n">proj</span><span class="p">[</span><span class="n">j</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">nb_tck</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">ext</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="c"># radius^2 on the plane perpendicular to the beam</span>
+            <span class="n">R2</span> <span class="o">=</span> <span class="n">dist</span> <span class="o">-</span> <span class="n">proj</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span>
+            <span class="c"># compute the norm of each position</span>
+            <span class="n">xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">R2</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="n">R2</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
+            <span class="n">nb</span> <span class="o">=</span> <span class="n">nb</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">xy</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">stddev2</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="n">z</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">stddev2</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span><span class="o">/</span><span class="p">(</span>
+                <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">stddev</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">stddev</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">nb</span>
+
+                    
+        </div>
+<div class="viewcode-block" id="Beam1D.get_emis"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.get_emis">[docs]</a>    <span class="k">def</span> <span class="nf">get_emis</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Return the emissivity at pos and time t_ </span>
+<span class="sd">            epsilon = &lt;sigma*v&gt; n_b n_e</span>
+<span class="sd">            Argument:</span>
+<span class="sd">            pos   -- 2D array, first index is for X,Y,Z</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># first take all the value needed for the computation</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">pos</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span>
+        <span class="n">emis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">),</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="n">n_e</span><span class="p">,</span><span class="n">Ti</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_quantities</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">,[</span><span class="s">&#39;ne&#39;</span><span class="p">,</span><span class="s">&#39;Ti&#39;</span><span class="p">])</span>
+        <span class="c"># loop over all the type of collisions</span>
+        <span class="n">n_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_beam_density</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">coll_emis</span><span class="p">:</span>
+            <span class="n">file_nber</span> <span class="o">=</span> <span class="n">k</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">beam_nber</span> <span class="o">=</span> <span class="n">k</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="c"># compute the emission coefficient</span>
+            <span class="n">emis</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">,:]</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collisions</span><span class="o">.</span><span class="n">get_emission</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">],</span><span class="n">n_e</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">mass_b</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">],</span><span class="n">Ti</span><span class="p">,</span><span class="n">file_nber</span><span class="p">)</span>
+        <span class="c"># compute the emissivity</span>
+        <span class="n">emis</span> <span class="o">=</span> <span class="n">emis</span><span class="o">*</span><span class="n">n_e</span><span class="o">*</span><span class="n">n_b</span>
+        <span class="k">return</span> <span class="n">emis</span>
+
+</div>
+<div class="viewcode-block" id="Beam1D.get_emis_lifetime"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.get_emis_lifetime">[docs]</a>    <span class="k">def</span> <span class="nf">get_emis_lifetime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Return the emissivity at pos and time t_ </span>
+<span class="sd">            epsilon = &lt;sigma*v&gt; n_b n_e with the effect</span>
+<span class="sd">            of the lifetime (depends on the position))</span>
+<span class="sd">            Argument:</span>
+<span class="sd">            pos   -- 2D array, first index is for X,Y,Z</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">print</span> <span class="s">&#39;wavelength!!!&#39;</span>
+
+        <span class="n">quad</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL19&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 3</span>
+        <span class="n">emis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">),</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="c"># avoid the computation at each time</span>
+        <span class="n">ne_in</span><span class="p">,</span> <span class="n">Ti_in</span><span class="p">,</span><span class="n">Te_in</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_quantities</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">,[</span><span class="s">&#39;ne&#39;</span><span class="p">,</span><span class="s">&#39;Ti&#39;</span><span class="p">,</span><span class="s">&#39;Te&#39;</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">coll_emis</span><span class="p">:</span>
+            <span class="n">file_nber</span> <span class="o">=</span> <span class="n">k</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">beam_nber</span> <span class="o">=</span> <span class="n">k</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="c"># loop over all the position</span>
+            <span class="n">l</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collisions</span><span class="o">.</span><span class="n">get_lifetime</span><span class="p">(</span><span class="n">ne_in</span><span class="p">,</span><span class="n">Te_in</span><span class="p">,</span><span class="n">Ti_in</span><span class="p">,</span>
+                                             <span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">],</span>
+                                             <span class="bp">self</span><span class="o">.</span><span class="n">mass_b</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">],</span><span class="n">file_nber</span><span class="p">)</span>
+            <span class="n">dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">pos</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">pos</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span>
+            <span class="c"># used for avoiding the discontinuity before the origin</span>
+            <span class="c"># of the beam</span>
+            <span class="n">up_lim</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">l</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">t_max</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">speed</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">],</span><span class="n">dist</span><span class="p">)</span>
+
+            <span class="c"># split the distance in interval</span>
+            <span class="c"># copy and modify the source code of linspace</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="n">up_lim</span><span class="o">/</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nlt</span><span class="p">)</span>
+            <span class="n">delta</span> <span class="o">=</span> <span class="n">step</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nlt</span><span class="p">)</span>\
+                    <span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">shape</span><span class="p">)[</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+            
+            <span class="c"># average position (a+b)/2</span>
+            <span class="n">av</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">delta</span><span class="p">[</span><span class="o">...</span><span class="p">,:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">delta</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">1</span><span class="p">:])</span>
+            <span class="c"># half distance (b-a)/2</span>
+            <span class="n">diff</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="o">-</span><span class="n">delta</span><span class="p">[</span><span class="o">...</span><span class="p">,:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">delta</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">1</span><span class="p">:])</span>
+            <span class="c"># integration points at each interval</span>
+            <span class="n">pt</span> <span class="o">=</span> <span class="n">av</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">+</span> <span class="n">diff</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="n">quad</span><span class="o">.</span><span class="n">pts</span>
+
+            <span class="c"># points in 3D space</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span> \
+                <span class="o">-</span> <span class="n">pt</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">direc</span>
+
+            <span class="n">n_e</span><span class="p">,</span> <span class="n">Ti</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_quantities</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">t_</span><span class="p">,[</span><span class="s">&#39;ne&#39;</span><span class="p">,</span><span class="s">&#39;Ti&#39;</span><span class="p">])</span>
+
+            <span class="n">n_e</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n_e</span><span class="p">,</span><span class="n">pt</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">Ti</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">Ti</span><span class="p">,</span><span class="n">pt</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+            <span class="n">n_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_beam_density</span><span class="p">(</span><span class="n">x</span><span class="p">)[</span><span class="n">beam_nber</span><span class="p">,</span><span class="o">...</span><span class="p">]</span>
+            <span class="n">n_b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n_b</span><span class="p">,</span><span class="n">pt</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        
+            
+            <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collisions</span><span class="o">.</span><span class="n">get_emission</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">],</span><span class="n">n_e</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+                                             <span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">mass_b</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">],</span><span class="n">Ti</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span><span class="n">file_nber</span><span class="p">)</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="n">pt</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            
+            <span class="n">f</span> <span class="o">=</span> <span class="n">n_b</span><span class="o">*</span><span class="n">f</span><span class="o">*</span><span class="n">n_e</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">pt</span><span class="o">/</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span>
+                                      <span class="bp">self</span><span class="o">.</span><span class="n">speed</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">]))</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">speed</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="k">print</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Mesh not well computed&#39;</span><span class="p">)</span>
+            
+            <span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s">&#39;kmn,n-&gt;km&#39;</span><span class="p">,</span><span class="n">f</span><span class="p">,</span><span class="n">quad</span><span class="o">.</span><span class="n">w</span><span class="p">)</span>
+
+            <span class="n">emis</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">diff</span><span class="o">*</span><span class="n">f</span><span class="p">,</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">/</span><span class="n">l</span>
+        <span class="k">return</span> <span class="n">emis</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Loic Hausammann.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

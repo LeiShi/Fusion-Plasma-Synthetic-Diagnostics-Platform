@@ -1,0 +1,297 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Beam Simulation &mdash; BES 0.8 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="BES 0.8 documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-FPSDP.Diagnostics.Beam.beam">
+<span id="beam-simulation"></span><h1>Beam Simulation<a class="headerlink" href="#module-FPSDP.Diagnostics.Beam.beam" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="FPSDP.Diagnostics.Beam.beam.Beam1D">
+<em class="property">class </em><tt class="descclassname">FPSDP.Diagnostics.Beam.beam.</tt><tt class="descname">Beam1D</tt><big>(</big><em>config_file</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D" title="Permalink to this definition">¶</a></dt>
+<dd><p>Simulate a 1D beam with the help of datas from simulation</p>
+<p>Methods:
+__init__(config_file,timesteps,data)</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>&#8211; config_file is the name of the config file,</dt>
+<dd>timesteps is the list of the timesteps wanted
+and data are the data from XGC1 (for example)</dd>
+</dl>
+</div></blockquote>
+<p>get_width(dist)     &#8211; return the standard deviation at the distance given</p>
+<p>create_mesh()       &#8211; create the points of the mesh</p>
+<dl class="docutils">
+<dt>find_wall(eps=1e-6) &#8211; find the end (for the beam) of the mesh from the data</dt>
+<dd>eps is for avoiding the end of the mesh (relative length)</dd>
+<dt>get_electron_density(pos,t_) </dt>
+<dd><dl class="first last docutils">
+<dt>&#8211; function simplificating the acces to the data</dt>
+<dd>(avoid the problem of the two representations)
+pos is a 1D or 2D array (first index is the dimension)
+the coordinate are the same than in the beam config file</dd>
+</dl>
+</dd>
+<dt>get_ion_density(pos,t_)</dt>
+<dd>&#8211; same as before</dd>
+<dt>get_electron_temp(pos)</dt>
+<dd><dl class="first last docutils">
+<dt>&#8211; same as before (the perturbation of the temperature)</dt>
+<dd>are not taken in account (small effect)</dd>
+</dl>
+</dd>
+<dt>get_ion_temp(self,pos)</dt>
+<dd>&#8211; same as before</dd>
+<dt>get_electron_density_fluc(pos,t_)</dt>
+<dd>&#8211; same as before</dd>
+<dt>compute_beam_on_mesh()</dt>
+<dd><dl class="first last docutils">
+<dt>&#8211; compute the density of the beam on the mesh with a</dt>
+<dd>Gauss-Legendre formula (two points)</dd>
+</dl>
+</dd>
+<dt>get_mesh()          &#8211; return the mesh, same coordinate than the beam config file</dt>
+<dd>first index is for the dimension</dd>
+</dl>
+<p>get_origin()        &#8211; return the origin of the beam</p>
+<dl class="docutils">
+<dt>get_beam_density(pos,t_)</dt>
+<dd><dl class="first last docutils">
+<dt>&#8211; use a gaussian profile and an interpolation in order to</dt>
+<dd>compute the beam density at the position. <a href="#id1"><span class="problematic" id="id2">t_</span></a> is the index
+for the time</dd>
+</dl>
+</dd>
+</dl>
+<p>get_emis(pos,t_)    &#8211; compute the emissivity epsilon</p>
+<dl class="docutils">
+<dt>get_emis_fluc(pos,t_)</dt>
+<dd><dl class="first last docutils">
+<dt>&#8211; compute the fluctuation of the emissivity with only</dt>
+<dd>the fluctuation part of the density</dd>
+</dl>
+</dd>
+</dl>
+<p>get_emis_ave(pos)   &#8211; compute the fluctuation using the average over time</p>
+<dl class="docutils">
+<dt>get_emis_lifetime(pos,t_)</dt>
+<dd>&#8211; same as get_emis but compute the lifetime effect</dd>
+</dl>
+<p>Attribut:</p>
+<p>cfg_file     &#8211;  name of the config file
+data         &#8211;  data from the simulation
+timesteps    &#8211;  list of the timesteps considered
+adas_atte    &#8211;  list of file for the attenuation
+adas_emis    &#8211;  list of file for the emission
+collisions   &#8211;  class containing all the informations for the collisions
+coll_atte    &#8211;  tuple relating the adas file with the beams (choice of collision)</p>
+<blockquote>
+<div>for the attenuation</div></blockquote>
+<p>coll_emis    &#8211;  same as before but with the emission
+mass_b       &#8211;  mass of the particles in the beam (in amu)
+beam_comp    &#8211;  energy of each beam components
+power        &#8211;  total power of the beam
+frac         &#8211;  fraction of power for each components
+pos          &#8211;  origin of the beam
+direc        &#8211;  direction of the beam
+beam_width   &#8211;  FWHM of the beam at the origin
+Nz           &#8211;  number of point on the beam mesh
+Nlt          &#8211;  number of point for the lifetime effect
+t_max        &#8211;  upper boundary of the integral for the lifetime effect</p>
+<blockquote>
+<div>(in unit of the lifetime)</div></blockquote>
+<p>inters       &#8211;  ending point of the mesh
+mesh         &#8211;  mesh (first index for the dimension)</p>
+<p>density_beam &#8211;  beam density at the grid points
+speed        &#8211;  speed of each particles in a beam component
+std_dev      &#8211;  standard deviation of the beam at the origin
+std_dev2     &#8211;  square of std_dev
+dens         &#8211;  electron density at the grid points</p>
+<dl class="method">
+<dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.compute_beam_on_mesh">
+<tt class="descname">compute_beam_on_mesh</tt><big>(</big><em>eq=True</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.compute_beam_on_mesh"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.compute_beam_on_mesh" title="Permalink to this definition">¶</a></dt>
+<dd><p>compute the beam intensity at each position of the mesh 
+with the Gauss-Legendre quadrature (2 points)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.create_mesh">
+<tt class="descname">create_mesh</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.create_mesh"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.create_mesh" title="Permalink to this definition">¶</a></dt>
+<dd><p>create the 1D mesh between the source of the beam and the end 
+of the mesh</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.find_wall">
+<tt class="descname">find_wall</tt><big>(</big><em>eps=1e-06</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.find_wall"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.find_wall" title="Permalink to this definition">¶</a></dt>
+<dd><p>find the wall (of the mesh) that will stop the beam and return
+the coordinate of the intersection with the beam
+eps is used to avoid the end of the mesh</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.get_beam_density">
+<tt class="descname">get_beam_density</tt><big>(</big><em>pos</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.get_beam_density"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_beam_density" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the beam density at the position and time step wanted
+assuming a gaussian profile</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.get_emis">
+<tt class="descname">get_emis</tt><big>(</big><em>pos</em>, <em>t_</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.get_emis"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_emis" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the emissivity at pos and time <a href="#id3"><span class="problematic" id="id4">t_</span></a> 
+epsilon = &lt;sigma*v&gt; n_b n_e
+Argument:
+pos   &#8211; 2D array, first index is for X,Y,Z</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.get_emis_lifetime">
+<tt class="descname">get_emis_lifetime</tt><big>(</big><em>pos</em>, <em>t_</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.get_emis_lifetime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_emis_lifetime" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the emissivity at pos and time <a href="#id5"><span class="problematic" id="id6">t_</span></a> 
+epsilon = &lt;sigma*v&gt; n_b n_e with the effect
+of the lifetime (depends on the position))
+Argument:
+pos   &#8211; 2D array, first index is for X,Y,Z</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.get_mesh">
+<tt class="descname">get_mesh</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.get_mesh"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_mesh" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the mesh (3D array)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.get_origin">
+<tt class="descname">get_origin</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.get_origin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_origin" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the origin of the beam</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.get_quantities">
+<tt class="descname">get_quantities</tt><big>(</big><em>pos</em>, <em>t_</em>, <em>quant</em>, <em>eq=False</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.get_quantities"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_quantities" title="Permalink to this definition">¶</a></dt>
+<dd><p>get the wanted quantities inside the simulation data
+at pos and the timestep(s) number <a href="#id7"><span class="problematic" id="id8">t_</span></a></p>
+<p>Arguments:
+pos   &#8211;  1D array with (X,Y,Z) or 2D array with (X,Y,Z)</p>
+<blockquote>
+<div>as the second index</div></blockquote>
+<p><a href="#id9"><span class="problematic" id="id10">t_</span></a>    &#8211;  time step
+quant &#8211;  list containing the wanted quantities (see data class</p>
+<blockquote>
+<div>for more information)</div></blockquote>
+<p>eq    &#8211;  choice between equilibrium or exact quantities</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.get_width">
+<tt class="descname">get_width</tt><big>(</big><em>dist</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.get_width"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_width" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the width of the beam at the distance &#8220;dist&#8221; (projected 
+against the direction of the beam)
+Used for simplification in the case that someone want to add the
+beam divergence</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.set_data">
+<tt class="descname">set_data</tt><big>(</big><em>data</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.set_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.set_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Split the initialization in two part due to bes</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="FPSDP.Diagnostics.Beam.beam.to_other_index">
+<tt class="descclassname">FPSDP.Diagnostics.Beam.beam.</tt><tt class="descname">to_other_index</tt><big>(</big><em>pos</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#to_other_index"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.to_other_index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Change the order of the index</p>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/FPSDP.Diagnostics.Beam.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Loic Hausammann.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

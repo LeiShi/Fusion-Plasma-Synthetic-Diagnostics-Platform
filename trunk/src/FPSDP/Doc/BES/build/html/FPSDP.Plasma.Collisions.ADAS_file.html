@@ -1,0 +1,239 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Reading of the ADAS files &mdash; BES 0.8 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="BES 0.8 documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="reading-of-the-adas-files">
+<h1>Reading of the ADAS files<a class="headerlink" href="#reading-of-the-adas-files" title="Permalink to this headline">¶</a></h1>
+<p>This file contains the different kind of readers for the ADAS database.
+An abstract class (<a class="reference internal" href="#FPSDP.Plasma.Collisions.ADAS_file.ADAS_file" title="FPSDP.Plasma.Collisions.ADAS_file.ADAS_file"><tt class="xref py py-class docutils literal"><span class="pre">FPSDP.Plasma.Collisions.ADAS_file.ADAS_file</span></tt></a>) is defined for the inheritance and define how to read a block of data.</p>
+<div class="section" id="adas-file">
+<h2>ADAS_file<a class="headerlink" href="#adas-file" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="FPSDP.Plasma.Collisions.ADAS_file.ADAS_file">
+<em class="property">class </em><tt class="descclassname">FPSDP.Plasma.Collisions.ADAS_file.</tt><tt class="descname">ADAS_file</tt><big>(</big><em>name</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/Collisions/ADAS_file.html#ADAS_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.Collisions.ADAS_file.ADAS_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parent class for defining the different kind of database readers.</p>
+<p>This class is for inheritence purpose only. It will be inherited
+by all the ADAS readers.
+It defines how to read a block 
+of data (<tt class="xref py py-func docutils literal"><span class="pre">read_block()</span></tt>) [often used in 2D data of the ADAS database].
+The beam energy is divided by the atomic mass of the beam particles (eV/amu).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>name</strong> (<em>str</em>) &#8211; Name of the ADAS file</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Variables:</th><td class="field-body"><strong>name</strong> (<em>str</em>) &#8211; Name of the ADAS file</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="FPSDP.Plasma.Collisions.ADAS_file.ADAS_file.read_block">
+<tt class="descname">read_block</tt><big>(</big><em>data</em>, <em>i</em>, <em>array</em>, <em>n</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/Collisions/ADAS_file.html#ADAS_file.read_block"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.Collisions.ADAS_file.ADAS_file.read_block" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read one bloc in an ADAS file</p>
+<p>The coefficient depending on two coefficients are written in a block form,
+thus this function read the block at the line i and return the 
+number of the final line</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>data</strong> (<em>list[str]</em>) &#8211; file currently readed (each index is for a line)</li>
+<li><strong>i</strong> (<em>int</em>) &#8211; first line to look at (index of data)</li>
+<li><strong>array</strong> &#8211; array where to add the data from the file (should be of the</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>good size)
+:type array: np.array
+:param n: Number of item contained inside the data
+:type n: int</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">index of the index of the final line</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">int</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="adas21-reader">
+<h2>ADAS21 reader<a class="headerlink" href="#adas21-reader" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="FPSDP.Plasma.Collisions.ADAS_file.ADAS21">
+<em class="property">class </em><tt class="descclassname">FPSDP.Plasma.Collisions.ADAS_file.</tt><tt class="descname">ADAS21</tt><big>(</big><em>name</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/Collisions/ADAS_file.html#ADAS21"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.Collisions.ADAS_file.ADAS21" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class containing all the data from one ADAS file (adf21)</p>
+<p>The data contained in this kind of file is the beam stopping coefficient.
+The beam energy is divided by the atomic mass of the beam particles (eV/amu).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>name</strong> (<em>str</em>) &#8211; Name of the ADAS file</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
+<li><strong>n_b</strong> (<em>int</em>) &#8211; Size of the beam energy dimension</li>
+<li><strong>n_density</strong> (<em>int</em>) &#8211; Size of the density dimension</li>
+<li><strong>T_ref</strong> (<em>float</em>) &#8211; Reference temperature (eV)</li>
+<li><strong>adas_beam</strong> (<em>np.array[n_b]</em>) &#8211; Beam energies considered (eV/amu)</li>
+<li><strong>densities</strong> (<em>np.array[n_density]</em>) &#8211; Densities considered (m <sup>-3</sup>)</li>
+<li><strong>coef_dens</strong> (<em>np.array[n_density,n_b]</em>) &#8211; Beam stopping coefficient as a function of the density and the beam energy (m <sup>3</sup>/s)</li>
+<li><strong>n_T</strong> (<em>int</em>) &#8211; Size of the temperature dimension</li>
+<li><strong>E_ref</strong> (<em>float</em>) &#8211; Reference beam energy (eV/amu)</li>
+<li><strong>dens_ref</strong> (<em>float</em>) &#8211; Reference density (m <sup>-3</sup>)</li>
+<li><strong>temperature</strong> (<em>np.array[n_T]</em>) &#8211; Temperatures considered (eV)</li>
+<li><strong>coef_T</strong> (<em>np.array[n_T]</em>) &#8211; Beam stopping coefficient as a function of the temperature (m <sup>3</sup>/s)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="adas22-reader">
+<h2>ADAS22 reader<a class="headerlink" href="#adas22-reader" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="FPSDP.Plasma.Collisions.ADAS_file.ADAS22">
+<em class="property">class </em><tt class="descclassname">FPSDP.Plasma.Collisions.ADAS_file.</tt><tt class="descname">ADAS22</tt><big>(</big><em>name</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/Collisions/ADAS_file.html#ADAS22"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.Collisions.ADAS_file.ADAS22" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class containing all the data from one ADAS file (adf22)</p>
+<p>The data contained in this kind of file is the emission coefficient.
+The beam energy is divided by the atomic mass of the beam particles (eV/amu).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>name</strong> (<em>str</em>) &#8211; Name of the ADAS file</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
+<li><strong>n_b</strong> (<em>int</em>) &#8211; Size of the beam energy dimension</li>
+<li><strong>n_density</strong> (<em>int</em>) &#8211; Size of the density dimension</li>
+<li><strong>T_ref</strong> (<em>float</em>) &#8211; Reference temperature (eV)</li>
+<li><strong>adas_beam</strong> (<em>np.array[n_b]</em>) &#8211; Beam energies considered (eV/amu)</li>
+<li><strong>densities</strong> (<em>np.array[n_density]</em>) &#8211; Densities considered (m <sup>-3</sup>)</li>
+<li><strong>coef_dens</strong> (<em>np.array[n_density,n_b]</em>) &#8211; Emission coefficient as a function of the density and the beam energy (m <sup>3</sup>/s)</li>
+<li><strong>n_T</strong> (<em>int</em>) &#8211; Size of the temperature dimension</li>
+<li><strong>E_ref</strong> (<em>float</em>) &#8211; Reference beam energy (eV/amu)</li>
+<li><strong>dens_ref</strong> (<em>float</em>) &#8211; Reference density (m <sup>-3</sup>)</li>
+<li><strong>temperature</strong> (<em>np.array[n_T]</em>) &#8211; Temperatures considered (eV)</li>
+<li><strong>coef_T</strong> (<em>np.array[n_T]</em>) &#8211; Emission coefficient as a function of the temperature (m <sup>3</sup>/s)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="FPSDP.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Reading of the ADAS files</a><ul>
+<li><a class="reference internal" href="#adas-file">ADAS_file</a></li>
+<li><a class="reference internal" href="#adas21-reader">ADAS21 reader</a></li>
+<li><a class="reference internal" href="#adas22-reader">ADAS22 reader</a></li>
+</ul>
+</li>
+</ul>
+
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/FPSDP.Plasma.Collisions.ADAS_file.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Loic Hausammann.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

@@ -24,7 +24,10 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    <link rel="top" title="BES 0.8 documentation" href="index.html" /> 
+    <link rel="top" title="BES 0.8 documentation" href="index.html" />
+    <link rel="up" title="Collisions Directory" href="FPSDP.Plasma.Collisions.html" />
+    <link rel="next" title="XGC1 Loader" href="FPSDP.Plasma.XGC_Profile.html" />
+    <link rel="prev" title="Reading of the ADAS files" href="FPSDP.Plasma.Collisions.ADAS_file.html" /> 
   </head>
   <body>
     <div class="related">
@@ -36,7 +39,15 @@
         <li class="right" >
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li> 
+        <li class="right" >
+          <a href="FPSDP.Plasma.XGC_Profile.html" title="XGC1 Loader"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="FPSDP.Plasma.Collisions.ADAS_file.html" title="Reading of the ADAS files"
+             accesskey="P">previous</a> |</li>
+        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+          <li><a href="FPSDP.Plasma.html" >Collisions and Plasma Simulations Directory</a> &raquo;</li>
+          <li><a href="FPSDP.Plasma.Collisions.html" accesskey="U">Collisions Directory</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -58,34 +69,24 @@ the cross-sections (cubic spline interpolation is used).</p>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>files_atte</strong> (<em>[str]</em>) &#8211; List of names for ADAS21 files (beam stopping coefficient)</li>
-<li><strong>files_emis</strong> (<em>[str]</em>) &#8211; List of names for ADAS22 files (emission coefficient)</li>
-<li><strong>states</strong> (<em>[int]</em>) &#8211; Quantum number of the lower (states[0]) and the higher(states[1]) states of the hydrogen atom</li>
+<li><strong>files_atte</strong> (<em>list[str]</em>) &#8211; List of names for ADAS21 files (beam stopping coefficient)</li>
+<li><strong>files_emis</strong> (<em>list[str]</em>) &#8211; List of names for ADAS22 files (emission coefficient)</li>
+<li><strong>states</strong> (<em>list[int]</em>) &#8211; Quantum number of the lower (states[0]) and the higher(states[1]) states of the hydrogen atom</li>
 </ul>
 </td>
 </tr>
 <tr class="field-even field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
-<li><strong>files_atte</strong> (<em>[str]</em>) &#8211; List of names for ADAS21 files (beam stopping coefficient)</li>
-<li><strong>files_emis</strong> (<em>[str]</em>) &#8211; List of names for ADAS22 files (emission coefficient)</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-<p>:ivar [<tt class="xref py py-class docutils literal"><span class="pre">FPSDP.Plasma.Collisions.ADAS21</span></tt>] beam_atte: List of ADAS file for the beam stopping coefficient
-:ivar [<tt class="xref py py-class docutils literal"><span class="pre">FPSDP.Plasma.Collisions.ADAS22</span></tt>] beam_emis: List of ADAS file for the emission coefficient</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
-<li><strong>atte_tck_dens</strong> (<em>[tck_interp]</em>) &#8211; List of interpolant computed with bisplrep forthe beam stopping coefficient as a function of the density and the beam energy</li>
-<li><strong>emis_tck_dens</strong> (<em>[tck_interp]</em>) &#8211; List of interpolant computed with bisplrep forthe emission coefficient as a function of the density and the beam energy</li>
-<li><strong>atte_tck_temp</strong> (<em>[tck_interp]</em>) &#8211; List of interpolant computed with bisplrep forthe beam stopping coefficient as a function of the temperature</li>
-<li><strong>emis_tck_temp</strong> (<em>[tck_interp]</em>) &#8211; List of interpolant computed with bisplrep forthe emission coefficient as a function of the temperature</li>
-<li><strong>n_low</strong> (<em>float</em>) &#8211; Quantum number of the lower state for the hydrogen atom</li>
-<li><strong>n_high</strong> (<em>float</em>) &#8211; Quantum number of the higher state for the hydrogen atom</li>
-<li><strong>E0</strong> (<em>float</em>) &#8211; Energy of the ground state (in eV)</li>
+<li><strong>self.files_atte</strong> (<em>list[str]</em>) &#8211; List of names for ADAS21 files (beam stopping coefficient)</li>
+<li><strong>self.files_emis</strong> (<em>list[str]</em>) &#8211; List of names for ADAS22 files (emission coefficient)</li>
+<li><strong>self.beam_atte</strong> (<em>list[]</em>) &#8211; List of <a class="reference internal" href="FPSDP.Plasma.Collisions.ADAS_file.html#FPSDP.Plasma.Collisions.ADAS_file.ADAS21" title="FPSDP.Plasma.Collisions.ADAS_file.ADAS21"><tt class="xref py py-class docutils literal"><span class="pre">FPSDP.Plasma.Collisions.ADAS_file.ADAS21</span></tt></a> instance variable (beam stopping coefficient)</li>
+<li><strong>self.beam_emis</strong> (<em>list[]</em>) &#8211; List of <a class="reference internal" href="FPSDP.Plasma.Collisions.ADAS_file.html#FPSDP.Plasma.Collisions.ADAS_file.ADAS22" title="FPSDP.Plasma.Collisions.ADAS_file.ADAS22"><tt class="xref py py-class docutils literal"><span class="pre">FPSDP.Plasma.Collisions.ADAS_file.ADAS22</span></tt></a> instance variable (emission coefficient)</li>
+<li><strong>self.atte_tck_dens</strong> (<em>list[tck_interp]</em>) &#8211; List of interpolant computed with cubic spline forthe beam stopping coefficient as a function of the density and the beam energy</li>
+<li><strong>self.emis_tck_dens</strong> (<em>list[tck_interp]</em>) &#8211; List of interpolant computed with cubic spline forthe emission coefficient as a function of the density and the beam energy</li>
+<li><strong>self.atte_tck_temp</strong> (<em>list[tck_interp]</em>) &#8211; List of interpolant computed with cubic spline forthe beam stopping coefficient as a function of the temperature</li>
+<li><strong>self.emis_tck_temp</strong> (<em>list[tck_interp]</em>) &#8211; List of interpolant computed with cubic spline forthe emission coefficient as a function of the temperature</li>
+<li><strong>self.n_low</strong> (<em>float</em>) &#8211; Quantum number of the lower state for the hydrogen atom</li>
+<li><strong>self.n_high</strong> (<em>float</em>) &#8211; Quantum number of the higher state for the hydrogen atom</li>
+<li><strong>self.E0</strong> (<em>float</em>) &#8211; Energy of the ground state (in eV)</li>
 </ul>
 </td>
 </tr>
@@ -99,10 +100,16 @@ the cross-sections (cubic spline interpolation is used).</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>typ</strong> (<em>str</em>) &#8211; Choice of the type of file (&#8216;emis&#8217; or &#8216;atte&#8217;)</li>
 <li><strong>file_number</strong> (<em>int</em>) &#8211; File number (choosen in beam.py)</li>
 </ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Reference temperature</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">float</p>
 </td>
 </tr>
 </tbody>
@@ -120,13 +127,19 @@ we do a scaling with the temperature.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>beam</strong> (<em>float</em>) &#8211; Beam energy (eV)</li>
 <li><strong>or np.array[N] ne</strong> (<em>float</em>) &#8211; Electron density density</li>
 <li><strong>mass_b</strong> (<em>float</em>) &#8211; mass of a neutral particle in the beam (amu)</li>
 <li><strong>or np.array[N] Ti</strong> (<em>float</em>) &#8211; Ion temperature (should be of the same lenght than ne)</li>
 <li><strong>file_number</strong> (<em>int</em>) &#8211; File number wanted (choosen by beam.py)</li>
 </ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Beam stopping coefficient</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[ne.shape]</p>
 </td>
 </tr>
 </tbody>
@@ -141,10 +154,16 @@ we do a scaling with the temperature.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>typ</strong> (<em>str</em>) &#8211; Choice of the type of file (&#8216;emis&#8217; or &#8216;atte&#8217;)</li>
 <li><strong>file_number</strong> (<em>int</em>) &#8211; File number (choosen in beam.py)</li>
 </ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Coefficient as a function of the temperature</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
 </td>
 </tr>
 </tbody>
@@ -159,10 +178,16 @@ we do a scaling with the temperature.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>typ</strong> (<em>str</em>) &#8211; Choice of the type of file (&#8216;emis&#8217; or &#8216;atte&#8217;)</li>
 <li><strong>file_number</strong> (<em>int</em>) &#8211; File number (choosen in beam.py)</li>
 </ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Coefficient as a function of the density and the beam energy</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[Ndens,Nbeam]</p>
 </td>
 </tr>
 </tbody>
@@ -180,13 +205,19 @@ we do a scaling with the temperature.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>beam</strong> (<em>float</em>) &#8211; Beam energy (eV)</li>
 <li><strong>or np.array[N] ne</strong> (<em>float</em>) &#8211; Electron density density</li>
 <li><strong>mass_b</strong> (<em>float</em>) &#8211; mass of a neutral particle in the beam (amu)</li>
 <li><strong>or np.array[N] Ti</strong> (<em>float</em>) &#8211; Ion temperature (should be of the same lenght than ne)</li>
 <li><strong>file_number</strong> (<em>int</em>) &#8211; File number wanted (choosen by beam.py)</li>
 </ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Emission coefficient</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[ne.shape]</p>
 </td>
 </tr>
 </tbody>
@@ -203,7 +234,7 @@ assuming an hydrogen atom.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>beam</strong> (<em>float</em>) &#8211; Beam energy</li>
 <li><strong>ne</strong> (<em>np.array[N]</em>) &#8211; Electron density</li>
 <li><strong>mass_b</strong> (<em>float</em>) &#8211; Mass of a neutral particle in the beam (amu)</li>
@@ -211,6 +242,15 @@ assuming an hydrogen atom.</p>
 <li><strong>Ti</strong> (<em>np.array[N]</em>) &#8211; Ion temperature</li>
 <li><strong>file_number</strong> (<em>int</em>) &#8211; File number (choosen in Beam.py)</li>
 </ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Lifetime of the excited atom</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first">np.array[ne.shape]</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Todo:</th><td class="field-body"><p class="first last">everything</p>
 </td>
 </tr>
 </tbody>
@@ -225,10 +265,16 @@ assuming an hydrogen atom.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>typ</strong> (<em>str</em>) &#8211; Choice of the type of file (&#8216;emis&#8217; or &#8216;atte&#8217;)</li>
 <li><strong>file_number</strong> (<em>int</em>) &#8211; File number (choosen in beam.py)</li>
 </ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Beam energies computed in the ADAS file</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
 </td>
 </tr>
 </tbody>
@@ -243,10 +289,16 @@ assuming an hydrogen atom.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>typ</strong> (<em>str</em>) &#8211; Choice of the type of file (&#8216;emis&#8217; or &#8216;atte&#8217;)</li>
 <li><strong>file_number</strong> (<em>int</em>) &#8211; File number (choosen in beam.py)</li>
 </ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Densities computed in the ADAS file</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
 </td>
 </tr>
 </tbody>
@@ -261,10 +313,16 @@ assuming an hydrogen atom.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>typ</strong> (<em>str</em>) &#8211; Choice of the type of file (&#8216;emis&#8217; or &#8216;atte&#8217;)</li>
 <li><strong>file_number</strong> (<em>int</em>) &#8211; File number (choosen in beam.py)</li>
 </ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Temperatures computed in the ADAS file</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
 </td>
 </tr>
 </tbody>
@@ -287,6 +345,12 @@ assuming an hydrogen atom.</p>
       </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="FPSDP.Plasma.Collisions.ADAS_file.html"
+                        title="previous chapter">Reading of the ADAS files</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="FPSDP.Plasma.XGC_Profile.html"
+                        title="next chapter">XGC1 Loader</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="_sources/FPSDP.Plasma.Collisions.collisions.txt"
@@ -318,7 +382,15 @@ assuming an hydrogen atom.</p>
         <li class="right" >
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li> 
+        <li class="right" >
+          <a href="FPSDP.Plasma.XGC_Profile.html" title="XGC1 Loader"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="FPSDP.Plasma.Collisions.ADAS_file.html" title="Reading of the ADAS files"
+             >previous</a> |</li>
+        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+          <li><a href="FPSDP.Plasma.html" >Collisions and Plasma Simulations Directory</a> &raquo;</li>
+          <li><a href="FPSDP.Plasma.Collisions.html" >Collisions Directory</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">

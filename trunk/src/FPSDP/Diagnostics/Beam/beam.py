@@ -6,115 +6,65 @@ import FPSDP.Maths.Integration as integ
 import ConfigParser as psr
 import FPSDP.Maths.Interpolation as Fint
 from scipy import interpolate
-"""  BE CAREFULL WITH THE LOAD XGC, THE CARTESIAN GRID IS NOT IN
-     A CLASSICAL POSITION (Y for the heigth)
-     In the code of the BES, the Z axis is for the height (so switch between Y and Z)
-     data_on_grid[Z,Y,X]
-"""
-
-
-def to_other_index(pos):
-    " Change the order of the index "
-    if len(pos.shape) == 2:
-        a = np.array([pos[:,1],pos[:,2],pos[:,0]])
-    elif len(pos.shape) == 1:
-        a = np.array([pos[1],pos[2],pos[0]])
-    else:
-        raise NameError('Wrong shape of pos')
-    return a 
 
 class Beam1D:
-    """ Simulate a 1D beam with the help of datas from simulation
+    """ Simulate a 1D beam with the help of datas from simulation.
 
-        Methods:
-        __init__(config_file,timesteps,data)
-                            -- config_file is the name of the config file,
-                               timesteps is the list of the timesteps wanted
-                               and data are the data from XGC1 (for example)
-       
-        get_width(dist)     -- return the standard deviation at the distance given
+    Compute the beam density from the equilibrium data on a mesh.
+    The beam density is not very sensitive from the fluctuation, therefore
+    only the central line is computed and a gaussian profile is assumed (with a different
+    vertical and horizontal width).
+    When computing a beam density outside the mesh, an interpolation is made (cubic).
+    Two ways of computing the emission exists, a first one by assuming that
+    the lifetime of the excited state is negligible (thus only the datas from the point 
+    considered are used) and a second one that compute the expected value
+    from an exponential decay.
+    The simulation data are saved in this class.
 
-        create_mesh()       -- create the points of the mesh
+    :param str config_file: Name of the config file
 
-        find_wall(eps=1e-6) -- find the end (for the beam) of the mesh from the data
-                               eps is for avoiding the end of the mesh (relative length)
-
-        get_electron_density(pos,t_) 
-                            -- function simplificating the acces to the data
-                               (avoid the problem of the two representations)
-                               pos is a 1D or 2D array (first index is the dimension)
-                               the coordinate are the same than in the beam config file
-
-        get_ion_density(pos,t_)
-                            -- same as before
-                    
-        get_electron_temp(pos)
-                            -- same as before (the perturbation of the temperature)
-                               are not taken in account (small effect)
-
-        get_ion_temp(self,pos)
-                            -- same as before
-
-        get_electron_density_fluc(pos,t_)
-                            -- same as before
-
-
-        compute_beam_on_mesh()
-                            -- compute the density of the beam on the mesh with a
-                               Gauss-Legendre formula (two points)
- 
-        get_mesh()          -- return the mesh, same coordinate than the beam config file
-                               first index is for the dimension
- 
-        get_origin()        -- return the origin of the beam
-        
-        get_beam_density(pos,t_)
-                            -- use a gaussian profile and an interpolation in order to
-                               compute the beam density at the position. t_ is the index
-                               for the time
-
-
-        get_emis(pos,t_)    -- compute the emissivity \epsilon 
-
-        get_emis_fluc(pos,t_)
-                            -- compute the fluctuation of the emissivity with only
-                               the fluctuation part of the density
-        get_emis_ave(pos)   -- compute the fluctuation using the average over time
-
-        get_emis_lifetime(pos,t_)
-                            -- same as get_emis but compute the lifetime effect
-
-        Attribut:
+    :var str self.cfg_file: Name of the config file
+    :var str self.adas_atte: Name of the ADAS21 files (beam stopping coefficient)
+    :var str self.adas_emis: Name of the ADAS22 files (emission coefficient)
     
-        cfg_file     --  name of the config file
-        data         --  data from the simulation
-        timesteps    --  list of the timesteps considered
-        adas_atte    --  list of file for the attenuation
-        adas_emis    --  list of file for the emission
-        collisions   --  class containing all the informations for the collisions
-        coll_atte    --  tuple relating the adas file with the beams (choice of collision)
-                         for the attenuation
-        coll_emis    --  same as before but with the emission
-        mass_b       --  mass of the particles in the beam (in amu)
-        beam_comp    --  energy of each beam components
-        power        --  total power of the beam
-        frac         --  fraction of power for each components
-        pos          --  origin of the beam
-        direc        --  direction of the beam
-        beam_width   --  FWHM of the beam at the origin
-        Nz           --  number of point on the beam mesh
-        Nlt          --  number of point for the lifetime effect
-        t_max        --  upper boundary of the integral for the lifetime effect
-                         (in unit of the lifetime)
+    :var self.collisions: :class:`FPSDP.Plasma.Collisions.collisions.collisions` instance variable.\
+    Compute all the coefficients (beam stopping and emission) for the diagnostic.
 
-        inters       --  ending point of the mesh
-        mesh         --  mesh (first index for the dimension)
+    :var list[list[int,int]] self.coll_atte: List of couple between a ADAS21 file \
+    (beam stopping coefficient) and a beam component (in this order)
+    :var list[list[int,int]] self.coll_emis: List of couple between a ADAS21 file \
+    (emission coefficient) and a beam component (in this order)
+    
+    :var int self.Nlt: Number of point for the mesh in the lifetime effect
+    :var float elf.t_max: Cut-off for the integral of the liftetime effect\
+    (in unit of the lifetime)
 
-        density_beam --  beam density at the grid points
-        speed        --  speed of each particles in a beam component
-        std_dev      --  standard deviation of the beam at the origin
-        std_dev2     --  square of std_dev
-        dens         --  electron density at the grid points
+    :var np.array[Ncomp] self.mass_b: Mass of a particule in the beam (one for\
+    each beam component) in amu
+    :var np.array[Ncomp] self.beam_comp: Beam energy of each component (in eV)
+
+    :var float self.power: Total power of the laser (in W)
+    :var np.array[Ncomp] self.frac: Fraction of energy of each beam component (in percent)
+    :var np.array[3] self.pos: Position of the beam source (in cartesian grid) in m
+    :var np.array[3] self.direc: Direction of the beam (unit vector)
+    :var float self.beam_width_h: Horizontal beam width (FWHM) in m
+    :var float self.beam_width_v: Vertical beam width (FWHM) in m
+    :var float self.stddev_h: Horizontal beam width (standard deviation)
+    :var float self.stddev_v: Vertical beam width (standard deviation)
+    :var float self.stddev2_h: Square Horizontal beam width (standard deviation)
+    :var float self.stddev2_v: Square Vertical beam width (standard deviation)
+
+    :var np.array[Ncomp] self.speed: Speed of the particles of each component\
+    (does not take relativity in account)
+    :var self.data: Data from a loader (Actually only XGC datas are accepted)
+    :var np.array[3] self.inters: Ending 3D point of the mesh (intersection with\
+    the limit of the optical system)
+    :var int self.Nz: Number of point for the discretization of the beam
+    :var np.array[Nz] self.dl: Distance between the origin and each point of the mesh
+    :var np.array[Nz,3] self.mesh: Position of the mesh points
+    :var np.array[Ncomp,Nz] self.density_beam: Particle density of each component\
+    on the mesh
+    :var list[tck_interp] self.nb_tck: Interpolant for each component (use cubic spline)
 
     """
     
@@ -146,7 +96,6 @@ class Beam1D:
         self.beam_comp = json.loads(config.get('Beam energy','E'))           #!
         self.beam_comp = 1000*np.array(self.beam_comp)
         self.power = float(config.get('Beam energy','power'))                #!
-        self.power = np.array(self.power)
         self.frac = json.loads(config.get('Beam energy','f'))                #!
         self.frac = np.array(self.frac)
         if np.sum(self.frac) > 100: # allow the possibility to simulate only
@@ -178,43 +127,40 @@ class Beam1D:
 
 
     def set_data(self,data):
-        """ Split the initialization in two part due to bes
+        """ Second part of the initialization (should be called manually!).
+
+        Due to the computation of the limits (:func:`FPSDP.Diagnostics.BES.bes.BES.compute_limits`),
+        the data are loaded after the initialization.
+        This method save the data inside the instance and compute the beam density on the mesh
+
+        :param data: Loader of the simulation datas
+        :type data: e.g. :class:`FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES`
         """
         self.data = data                                                     #!
-        """grid_ = (self.data.grid.Z1D,self.data.grid.Y1D,
-                 self.data.grid.X1D)
-        self.ne_int = []
-        self.ni_int = []
-        for i in range(len(data.time_steps)):
-            self.ne_int.append(interpolate.RegularGridInterpolator(
-                grid_,self.data.ne_on_grid[0,i,:,:,:]))
-            
-            self.ni_int.append(interpolate.RegularGridInterpolator(
-                grid_,self.data.ni_on_grid[0,i,:,:,:]))
-            
-        self.Ti_int = interpolate.RegularGridInterpolator(
-            grid_,self.data.ti_on_grid)
-        
-        self.Te_int = interpolate.RegularGridInterpolator(
-            grid_,self.data.te_on_grid)
-        """ 
         print 'Creating mesh'
         self.create_mesh()
         print 'Computing density of the beam'
         self.compute_beam_on_mesh()
 
     def get_width(self,dist):
-        """ Return the width of the beam at the distance "dist" (projected 
-            against the direction of the beam)
-            Used for simplification in the case that someone want to add the
-            beam divergence
+        """ Compute the beam width at a specific distance.
+
+        Can be modify for adding the effect of the beam divergence.
+        
+        :param dist: Distance from the origin of the beam
+        :type dist: np.array[N]
+    
+        :returns: Horizontal and vertical beam width (0 for horizontal, 1 for vertical)
+        :rtype: np.array[2,dist.shape]
         """
         return np.array([self.stddev_h*np.ones(dist.shape),
                          self.stddev_v*np.ones(dist.shape)])
 
     def create_mesh(self):
-        """ create the 1D mesh between the source of the beam and the end 
-            of the mesh
+        """ Create the 1D mesh between the source of the beam and the end 
+            of the mesh.
+
+        Is called during the initialization
         """
         # intersection between end of mesh and beam
         self.inters = self.find_wall()                                       #!
@@ -227,9 +173,12 @@ class Beam1D:
         
                     
     def find_wall(self, eps=1e-6):
-        """ find the wall (of the mesh) that will stop the beam and return
-            the coordinate of the intersection with the beam
-            eps is used to avoid the end of the mesh
+        """ Find the wall (of the mesh) that will stop the beam and return
+        the coordinate of the intersection with the beam.
+        
+        :param float eps: Ratio of increase size on each side of the box
+        :returns: Position of the intersection between the end of the mesh and the beam
+        :rtype: np.array[3]
         """
         # X-direction
         if self.direc[0] == 0.0:
@@ -324,7 +273,7 @@ class Beam1D:
                 self.density_beam[:,j] = self.density_beam[:,j-1] - \
                                                 temp_beam
 
-        self.nb_tck = []
+        self.nb_tck = []                                                     #!
         # interpolant for the beam
         for i in range(len(self.beam_comp)):
             self.density_beam[i,:] = n0[i]*np.exp(self.density_beam[i,:])

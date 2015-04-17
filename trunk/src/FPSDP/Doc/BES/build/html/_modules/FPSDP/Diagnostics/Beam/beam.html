@@ -56,115 +56,65 @@
 <span class="kn">import</span> <span class="nn">ConfigParser</span> <span class="kn">as</span> <span class="nn">psr</span>
 <span class="kn">import</span> <span class="nn">FPSDP.Maths.Interpolation</span> <span class="kn">as</span> <span class="nn">Fint</span>
 <span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">interpolate</span>
-<span class="sd">&quot;&quot;&quot;  BE CAREFULL WITH THE LOAD XGC, THE CARTESIAN GRID IS NOT IN</span>
-<span class="sd">     A CLASSICAL POSITION (Y for the heigth)</span>
-<span class="sd">     In the code of the BES, the Z axis is for the height (so switch between Y and Z)</span>
-<span class="sd">     data_on_grid[Z,Y,X]</span>
-<span class="sd">&quot;&quot;&quot;</span>
 
-
-<div class="viewcode-block" id="to_other_index"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.to_other_index">[docs]</a><span class="k">def</span> <span class="nf">to_other_index</span><span class="p">(</span><span class="n">pos</span><span class="p">):</span>
-    <span class="s">&quot; Change the order of the index &quot;</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
-        <span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">pos</span><span class="p">[:,</span><span class="mi">1</span><span class="p">],</span><span class="n">pos</span><span class="p">[:,</span><span class="mi">2</span><span class="p">],</span><span class="n">pos</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]])</span>
-    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">pos</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Wrong shape of pos&#39;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">a</span> 
-</div>
 <div class="viewcode-block" id="Beam1D"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D">[docs]</a><span class="k">class</span> <span class="nc">Beam1D</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot; Simulate a 1D beam with the help of datas from simulation</span>
+    <span class="sd">&quot;&quot;&quot; Simulate a 1D beam with the help of datas from simulation.</span>
 
-<span class="sd">        Methods:</span>
-<span class="sd">        __init__(config_file,timesteps,data)</span>
-<span class="sd">                            -- config_file is the name of the config file,</span>
-<span class="sd">                               timesteps is the list of the timesteps wanted</span>
-<span class="sd">                               and data are the data from XGC1 (for example)</span>
-<span class="sd">       </span>
-<span class="sd">        get_width(dist)     -- return the standard deviation at the distance given</span>
+<span class="sd">    Compute the beam density from the equilibrium data on a mesh.</span>
+<span class="sd">    The beam density is not very sensitive from the fluctuation, therefore</span>
+<span class="sd">    only the central line is computed and a gaussian profile is assumed (with a different</span>
+<span class="sd">    vertical and horizontal width).</span>
+<span class="sd">    When computing a beam density outside the mesh, an interpolation is made (cubic).</span>
+<span class="sd">    Two ways of computing the emission exists, a first one by assuming that</span>
+<span class="sd">    the lifetime of the excited state is negligible (thus only the datas from the point </span>
+<span class="sd">    considered are used) and a second one that compute the expected value</span>
+<span class="sd">    from an exponential decay.</span>
+<span class="sd">    The simulation data are saved in this class.</span>
 
-<span class="sd">        create_mesh()       -- create the points of the mesh</span>
+<span class="sd">    :param str config_file: Name of the config file</span>
 
-<span class="sd">        find_wall(eps=1e-6) -- find the end (for the beam) of the mesh from the data</span>
-<span class="sd">                               eps is for avoiding the end of the mesh (relative length)</span>
-
-<span class="sd">        get_electron_density(pos,t_) </span>
-<span class="sd">                            -- function simplificating the acces to the data</span>
-<span class="sd">                               (avoid the problem of the two representations)</span>
-<span class="sd">                               pos is a 1D or 2D array (first index is the dimension)</span>
-<span class="sd">                               the coordinate are the same than in the beam config file</span>
-
-<span class="sd">        get_ion_density(pos,t_)</span>
-<span class="sd">                            -- same as before</span>
-<span class="sd">                    </span>
-<span class="sd">        get_electron_temp(pos)</span>
-<span class="sd">                            -- same as before (the perturbation of the temperature)</span>
-<span class="sd">                               are not taken in account (small effect)</span>
-
-<span class="sd">        get_ion_temp(self,pos)</span>
-<span class="sd">                            -- same as before</span>
-
-<span class="sd">        get_electron_density_fluc(pos,t_)</span>
-<span class="sd">                            -- same as before</span>
-
-
-<span class="sd">        compute_beam_on_mesh()</span>
-<span class="sd">                            -- compute the density of the beam on the mesh with a</span>
-<span class="sd">                               Gauss-Legendre formula (two points)</span>
-<span class="sd"> </span>
-<span class="sd">        get_mesh()          -- return the mesh, same coordinate than the beam config file</span>
-<span class="sd">                               first index is for the dimension</span>
-<span class="sd"> </span>
-<span class="sd">        get_origin()        -- return the origin of the beam</span>
-<span class="sd">        </span>
-<span class="sd">        get_beam_density(pos,t_)</span>
-<span class="sd">                            -- use a gaussian profile and an interpolation in order to</span>
-<span class="sd">                               compute the beam density at the position. t_ is the index</span>
-<span class="sd">                               for the time</span>
-
-
-<span class="sd">        get_emis(pos,t_)    -- compute the emissivity \epsilon </span>
-
-<span class="sd">        get_emis_fluc(pos,t_)</span>
-<span class="sd">                            -- compute the fluctuation of the emissivity with only</span>
-<span class="sd">                               the fluctuation part of the density</span>
-<span class="sd">        get_emis_ave(pos)   -- compute the fluctuation using the average over time</span>
-
-<span class="sd">        get_emis_lifetime(pos,t_)</span>
-<span class="sd">                            -- same as get_emis but compute the lifetime effect</span>
-
-<span class="sd">        Attribut:</span>
+<span class="sd">    :var str self.cfg_file: Name of the config file</span>
+<span class="sd">    :var str self.adas_atte: Name of the ADAS21 files (beam stopping coefficient)</span>
+<span class="sd">    :var str self.adas_emis: Name of the ADAS22 files (emission coefficient)</span>
 <span class="sd">    </span>
-<span class="sd">        cfg_file     --  name of the config file</span>
-<span class="sd">        data         --  data from the simulation</span>
-<span class="sd">        timesteps    --  list of the timesteps considered</span>
-<span class="sd">        adas_atte    --  list of file for the attenuation</span>
-<span class="sd">        adas_emis    --  list of file for the emission</span>
-<span class="sd">        collisions   --  class containing all the informations for the collisions</span>
-<span class="sd">        coll_atte    --  tuple relating the adas file with the beams (choice of collision)</span>
-<span class="sd">                         for the attenuation</span>
-<span class="sd">        coll_emis    --  same as before but with the emission</span>
-<span class="sd">        mass_b       --  mass of the particles in the beam (in amu)</span>
-<span class="sd">        beam_comp    --  energy of each beam components</span>
-<span class="sd">        power        --  total power of the beam</span>
-<span class="sd">        frac         --  fraction of power for each components</span>
-<span class="sd">        pos          --  origin of the beam</span>
-<span class="sd">        direc        --  direction of the beam</span>
-<span class="sd">        beam_width   --  FWHM of the beam at the origin</span>
-<span class="sd">        Nz           --  number of point on the beam mesh</span>
-<span class="sd">        Nlt          --  number of point for the lifetime effect</span>
-<span class="sd">        t_max        --  upper boundary of the integral for the lifetime effect</span>
-<span class="sd">                         (in unit of the lifetime)</span>
+<span class="sd">    :var self.collisions: :class:`FPSDP.Plasma.Collisions.collisions.collisions` instance variable.\</span>
+<span class="sd">    Compute all the coefficients (beam stopping and emission) for the diagnostic.</span>
 
-<span class="sd">        inters       --  ending point of the mesh</span>
-<span class="sd">        mesh         --  mesh (first index for the dimension)</span>
+<span class="sd">    :var list[list[int,int]] self.coll_atte: List of couple between a ADAS21 file \</span>
+<span class="sd">    (beam stopping coefficient) and a beam component (in this order)</span>
+<span class="sd">    :var list[list[int,int]] self.coll_emis: List of couple between a ADAS21 file \</span>
+<span class="sd">    (emission coefficient) and a beam component (in this order)</span>
+<span class="sd">    </span>
+<span class="sd">    :var int self.Nlt: Number of point for the mesh in the lifetime effect</span>
+<span class="sd">    :var float elf.t_max: Cut-off for the integral of the liftetime effect\</span>
+<span class="sd">    (in unit of the lifetime)</span>
 
-<span class="sd">        density_beam --  beam density at the grid points</span>
-<span class="sd">        speed        --  speed of each particles in a beam component</span>
-<span class="sd">        std_dev      --  standard deviation of the beam at the origin</span>
-<span class="sd">        std_dev2     --  square of std_dev</span>
-<span class="sd">        dens         --  electron density at the grid points</span>
+<span class="sd">    :var np.array[Ncomp] self.mass_b: Mass of a particule in the beam (one for\</span>
+<span class="sd">    each beam component) in amu</span>
+<span class="sd">    :var np.array[Ncomp] self.beam_comp: Beam energy of each component (in eV)</span>
+
+<span class="sd">    :var float self.power: Total power of the laser (in W)</span>
+<span class="sd">    :var np.array[Ncomp] self.frac: Fraction of energy of each beam component (in percent)</span>
+<span class="sd">    :var np.array[3] self.pos: Position of the beam source (in cartesian grid) in m</span>
+<span class="sd">    :var np.array[3] self.direc: Direction of the beam (unit vector)</span>
+<span class="sd">    :var float self.beam_width_h: Horizontal beam width (FWHM) in m</span>
+<span class="sd">    :var float self.beam_width_v: Vertical beam width (FWHM) in m</span>
+<span class="sd">    :var float self.stddev_h: Horizontal beam width (standard deviation)</span>
+<span class="sd">    :var float self.stddev_v: Vertical beam width (standard deviation)</span>
+<span class="sd">    :var float self.stddev2_h: Square Horizontal beam width (standard deviation)</span>
+<span class="sd">    :var float self.stddev2_v: Square Vertical beam width (standard deviation)</span>
+
+<span class="sd">    :var np.array[Ncomp] self.speed: Speed of the particles of each component\</span>
+<span class="sd">    (does not take relativity in account)</span>
+<span class="sd">    :var self.data: Data from a loader (Actually only XGC datas are accepted)</span>
+<span class="sd">    :var np.array[3] self.inters: Ending 3D point of the mesh (intersection with\</span>
+<span class="sd">    the limit of the optical system)</span>
+<span class="sd">    :var int self.Nz: Number of point for the discretization of the beam</span>
+<span class="sd">    :var np.array[Nz] self.dl: Distance between the origin and each point of the mesh</span>
+<span class="sd">    :var np.array[Nz,3] self.mesh: Position of the mesh points</span>
+<span class="sd">    :var np.array[Ncomp,Nz] self.density_beam: Particle density of each component\</span>
+<span class="sd">    on the mesh</span>
+<span class="sd">    :var list[tck_interp] self.nb_tck: Interpolant for each component (use cubic spline)</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
     
@@ -196,7 +146,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Beam energy&#39;</span><span class="p">,</span><span class="s">&#39;E&#39;</span><span class="p">))</span>           <span class="c">#!</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span> <span class="o">=</span> <span class="mi">1000</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">power</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Beam energy&#39;</span><span class="p">,</span><span class="s">&#39;power&#39;</span><span class="p">))</span>                <span class="c">#!</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">power</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">power</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">frac</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Beam energy&#39;</span><span class="p">,</span><span class="s">&#39;f&#39;</span><span class="p">))</span>                <span class="c">#!</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">frac</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frac</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frac</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">:</span> <span class="c"># allow the possibility to simulate only</span>
@@ -228,43 +177,40 @@
 
 
 <div class="viewcode-block" id="Beam1D.set_data"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.set_data">[docs]</a>    <span class="k">def</span> <span class="nf">set_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">data</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Split the initialization in two part due to bes</span>
+        <span class="sd">&quot;&quot;&quot; Second part of the initialization (should be called manually!).</span>
+
+<span class="sd">        Due to the computation of the limits (:func:`FPSDP.Diagnostics.BES.bes.BES.compute_limits`),</span>
+<span class="sd">        the data are loaded after the initialization.</span>
+<span class="sd">        This method save the data inside the instance and compute the beam density on the mesh</span>
+
+<span class="sd">        :param data: Loader of the simulation datas</span>
+<span class="sd">        :type data: e.g. :class:`FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES`</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>                                                     <span class="c">#!</span>
-        <span class="sd">&quot;&quot;&quot;grid_ = (self.data.grid.Z1D,self.data.grid.Y1D,</span>
-<span class="sd">                 self.data.grid.X1D)</span>
-<span class="sd">        self.ne_int = []</span>
-<span class="sd">        self.ni_int = []</span>
-<span class="sd">        for i in range(len(data.time_steps)):</span>
-<span class="sd">            self.ne_int.append(interpolate.RegularGridInterpolator(</span>
-<span class="sd">                grid_,self.data.ne_on_grid[0,i,:,:,:]))</span>
-<span class="sd">            </span>
-<span class="sd">            self.ni_int.append(interpolate.RegularGridInterpolator(</span>
-<span class="sd">                grid_,self.data.ni_on_grid[0,i,:,:,:]))</span>
-<span class="sd">            </span>
-<span class="sd">        self.Ti_int = interpolate.RegularGridInterpolator(</span>
-<span class="sd">            grid_,self.data.ti_on_grid)</span>
-<span class="sd">        </span>
-<span class="sd">        self.Te_int = interpolate.RegularGridInterpolator(</span>
-<span class="sd">            grid_,self.data.te_on_grid)</span>
-<span class="sd">        &quot;&quot;&quot;</span> 
         <span class="k">print</span> <span class="s">&#39;Creating mesh&#39;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">create_mesh</span><span class="p">()</span>
         <span class="k">print</span> <span class="s">&#39;Computing density of the beam&#39;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">compute_beam_on_mesh</span><span class="p">()</span>
 </div>
 <div class="viewcode-block" id="Beam1D.get_width"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.get_width">[docs]</a>    <span class="k">def</span> <span class="nf">get_width</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">dist</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Return the width of the beam at the distance &quot;dist&quot; (projected </span>
-<span class="sd">            against the direction of the beam)</span>
-<span class="sd">            Used for simplification in the case that someone want to add the</span>
-<span class="sd">            beam divergence</span>
+        <span class="sd">&quot;&quot;&quot; Compute the beam width at a specific distance.</span>
+
+<span class="sd">        Can be modify for adding the effect of the beam divergence.</span>
+<span class="sd">        </span>
+<span class="sd">        :param dist: Distance from the origin of the beam</span>
+<span class="sd">        :type dist: np.array[N]</span>
+<span class="sd">    </span>
+<span class="sd">        :returns: Horizontal and vertical beam width (0 for horizontal, 1 for vertical)</span>
+<span class="sd">        :rtype: np.array[2,dist.shape]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">stddev_h</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">dist</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span>
                          <span class="bp">self</span><span class="o">.</span><span class="n">stddev_v</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">dist</span><span class="o">.</span><span class="n">shape</span><span class="p">)])</span>
 </div>
 <div class="viewcode-block" id="Beam1D.create_mesh"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.create_mesh">[docs]</a>    <span class="k">def</span> <span class="nf">create_mesh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; create the 1D mesh between the source of the beam and the end </span>
-<span class="sd">            of the mesh</span>
+        <span class="sd">&quot;&quot;&quot; Create the 1D mesh between the source of the beam and the end </span>
+<span class="sd">            of the mesh.</span>
+
+<span class="sd">        Is called during the initialization</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># intersection between end of mesh and beam</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">inters</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_wall</span><span class="p">()</span>                                       <span class="c">#!</span>
@@ -277,9 +223,12 @@
         
                     </div>
 <div class="viewcode-block" id="Beam1D.find_wall"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.find_wall">[docs]</a>    <span class="k">def</span> <span class="nf">find_wall</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; find the wall (of the mesh) that will stop the beam and return</span>
-<span class="sd">            the coordinate of the intersection with the beam</span>
-<span class="sd">            eps is used to avoid the end of the mesh</span>
+        <span class="sd">&quot;&quot;&quot; Find the wall (of the mesh) that will stop the beam and return</span>
+<span class="sd">        the coordinate of the intersection with the beam.</span>
+<span class="sd">        </span>
+<span class="sd">        :param float eps: Ratio of increase size on each side of the box</span>
+<span class="sd">        :returns: Position of the intersection between the end of the mesh and the beam</span>
+<span class="sd">        :rtype: np.array[3]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># X-direction</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
@@ -374,7 +323,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span><span class="p">[:,</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span><span class="p">[:,</span><span class="n">j</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> \
                                                 <span class="n">temp_beam</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">nb_tck</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nb_tck</span> <span class="o">=</span> <span class="p">[]</span>                                                     <span class="c">#!</span>
         <span class="c"># interpolant for the beam</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">)):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span><span class="p">[</span><span class="n">i</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">n0</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span><span class="p">[</span><span class="n">i</span><span class="p">,:])</span>

@@ -17,7 +17,7 @@ class ADAS_file:
     
     :param str name: Name of the ADAS file
 
-    :ivar str name: Name of the ADAS file
+    :ivar str self.name: Name of the ADAS file
     
     """
     def __init__(self,name):

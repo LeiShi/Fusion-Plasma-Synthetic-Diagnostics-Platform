@@ -60,27 +60,28 @@
 <span class="sd">    the cross-sections (cubic spline interpolation is used).</span>
 <span class="sd">    </span>
 
-<span class="sd">    :param [str] files_atte: List of names for ADAS21 files (beam stopping coefficient)</span>
-<span class="sd">    :param [str] files_emis: List of names for ADAS22 files (emission coefficient)</span>
-<span class="sd">    :param [int] states: Quantum number of the lower (states[0]) and the higher(states[1]) states of the hydrogen atom</span>
+<span class="sd">    :param list[str] files_atte: List of names for ADAS21 files (beam stopping coefficient)</span>
+<span class="sd">    :param list[str] files_emis: List of names for ADAS22 files (emission coefficient)</span>
+<span class="sd">    :param list[int] states: Quantum number of the lower (states[0]) and the higher(states[1]) states of the hydrogen atom</span>
 <span class="sd">    </span>
-<span class="sd">    :ivar [str] files_atte: List of names for ADAS21 files (beam stopping coefficient)</span>
-<span class="sd">    :ivar [str] files_emis: List of names for ADAS22 files (emission coefficient)</span>
-<span class="sd">    :ivar [:class:`FPSDP.Plasma.Collisions.ADAS21`] beam_atte: List of ADAS file for the beam stopping coefficient</span>
-<span class="sd">    :ivar [:class:`FPSDP.Plasma.Collisions.ADAS22`] beam_emis: List of ADAS file for the emission coefficient</span>
+<span class="sd">    :var list[str] self.files_atte: List of names for ADAS21 files (beam stopping coefficient)</span>
+<span class="sd">    :var list[str] self.files_emis: List of names for ADAS22 files (emission coefficient)</span>
 
-<span class="sd">    :ivar [tck_interp] atte_tck_dens: List of interpolant computed with bisplrep for\</span>
+<span class="sd">    :var list[] self.beam_atte: List of :class:`FPSDP.Plasma.Collisions.ADAS_file.ADAS21` instance variable (beam stopping coefficient)</span>
+<span class="sd">    :var list[] self.beam_emis: List of :class:`FPSDP.Plasma.Collisions.ADAS_file.ADAS22` instance variable (emission coefficient)</span>
+
+<span class="sd">    :var list[tck_interp] self.atte_tck_dens: List of interpolant computed with cubic spline for\</span>
 <span class="sd">the beam stopping coefficient as a function of the density and the beam energy</span>
-<span class="sd">    :ivar [tck_interp] emis_tck_dens: List of interpolant computed with bisplrep for\</span>
+<span class="sd">    :var list[tck_interp] self.emis_tck_dens: List of interpolant computed with cubic spline for\</span>
 <span class="sd">the emission coefficient as a function of the density and the beam energy</span>
-<span class="sd">    :ivar [tck_interp] atte_tck_temp: List of interpolant computed with bisplrep for\</span>
+<span class="sd">    :var list[tck_interp] self.atte_tck_temp: List of interpolant computed with cubic spline for\</span>
 <span class="sd">the beam stopping coefficient as a function of the temperature</span>
-<span class="sd">    :ivar [tck_interp] emis_tck_temp: List of interpolant computed with bisplrep for\</span>
+<span class="sd">    :var list[tck_interp] self.emis_tck_temp: List of interpolant computed with cubic spline for\</span>
 <span class="sd">the emission coefficient as a function of the temperature</span>
 
-<span class="sd">    :ivar float n_low: Quantum number of the lower state for the hydrogen atom</span>
-<span class="sd">    :ivar float n_high: Quantum number of the higher state for the hydrogen atom</span>
-<span class="sd">    :ivar float E0: Energy of the ground state (in eV)    </span>
+<span class="sd">    :var float self.n_low: Quantum number of the lower state for the hydrogen atom</span>
+<span class="sd">    :var float self.n_high: Quantum number of the higher state for the hydrogen atom</span>
+<span class="sd">    :var float self.E0: Energy of the ground state (in eV)    </span>
 <span class="sd">        </span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
@@ -169,6 +170,9 @@
 <span class="sd">        :param float mass_b: mass of a neutral particle in the beam (amu)</span>
 <span class="sd">        :param float or np.array[N] Ti: Ion temperature (should be of the same lenght than ne) </span>
 <span class="sd">        :param int file_number: File number wanted (choosen by beam.py)</span>
+
+<span class="sd">        :returns: Beam stopping coefficient</span>
+<span class="sd">        :rtype: np.array[ne.shape]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">beam</span> <span class="o">/=</span> <span class="n">mass_b</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ne</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
@@ -193,6 +197,9 @@
 <span class="sd">        :param float mass_b: mass of a neutral particle in the beam (amu)</span>
 <span class="sd">        :param float or np.array[N] Ti: Ion temperature (should be of the same lenght than ne) </span>
 <span class="sd">        :param int file_number: File number wanted (choosen by beam.py)</span>
+
+<span class="sd">        :returns: Emission coefficient</span>
+<span class="sd">        :rtype: np.array[ne.shape]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">beam</span> <span class="o">/=</span> <span class="n">mass_b</span>
@@ -213,6 +220,9 @@
 
 <span class="sd">        :param str typ: Choice of the type of file (&#39;emis&#39; or &#39;atte&#39;)</span>
 <span class="sd">        :param int file_number: File number (choosen in beam.py)</span>
+
+<span class="sd">        :returns: Reference temperature</span>
+<span class="sd">        :rtype: float</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">typ</span> <span class="o">==</span> <span class="s">&#39;emis&#39;</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam_emis</span><span class="p">[</span><span class="n">file_number</span><span class="p">]</span><span class="o">.</span><span class="n">T_ref</span>
@@ -227,6 +237,9 @@
 
 <span class="sd">        :param str typ: Choice of the type of file (&#39;emis&#39; or &#39;atte&#39;)</span>
 <span class="sd">        :param int file_number: File number (choosen in beam.py)</span>
+
+<span class="sd">        :returns: Coefficient as a function of the density and the beam energy</span>
+<span class="sd">        :rtype: np.array[Ndens,Nbeam]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">typ</span> <span class="o">==</span> <span class="s">&#39;emis&#39;</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam_emis</span><span class="p">[</span><span class="n">file_number</span><span class="p">]</span><span class="o">.</span><span class="n">coef_dens</span>
@@ -241,6 +254,9 @@
 
 <span class="sd">        :param str typ: Choice of the type of file (&#39;emis&#39; or &#39;atte&#39;)</span>
 <span class="sd">        :param int file_number: File number (choosen in beam.py)</span>
+
+<span class="sd">        :returns: Coefficient as a function of the temperature</span>
+<span class="sd">        :rtype: np.array[N]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">typ</span> <span class="o">==</span> <span class="s">&#39;emis&#39;</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam_emis</span><span class="p">[</span><span class="n">file_number</span><span class="p">]</span><span class="o">.</span><span class="n">coef_T</span>
@@ -256,6 +272,9 @@
 
 <span class="sd">        :param str typ: Choice of the type of file (&#39;emis&#39; or &#39;atte&#39;)</span>
 <span class="sd">        :param int file_number: File number (choosen in beam.py)</span>
+
+<span class="sd">        :returns: Temperatures computed in the ADAS file</span>
+<span class="sd">        :rtype: np.array[N]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">typ</span> <span class="o">==</span> <span class="s">&#39;emis&#39;</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam_emis</span><span class="p">[</span><span class="n">file_number</span><span class="p">]</span><span class="o">.</span><span class="n">temperature</span>
@@ -270,6 +289,9 @@
 
 <span class="sd">        :param str typ: Choice of the type of file (&#39;emis&#39; or &#39;atte&#39;)</span>
 <span class="sd">        :param int file_number: File number (choosen in beam.py)</span>
+
+<span class="sd">        :returns: Densities computed in the ADAS file</span>
+<span class="sd">        :rtype: np.array[N]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">typ</span> <span class="o">==</span> <span class="s">&#39;emis&#39;</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam_emis</span><span class="p">[</span><span class="n">file_number</span><span class="p">]</span><span class="o">.</span><span class="n">densities</span>
@@ -284,6 +306,10 @@
 
 <span class="sd">        :param str typ: Choice of the type of file (&#39;emis&#39; or &#39;atte&#39;)</span>
 <span class="sd">        :param int file_number: File number (choosen in beam.py)</span>
+
+<span class="sd">        :returns: Beam energies computed in the ADAS file</span>
+<span class="sd">        :rtype: np.array[N]</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">typ</span> <span class="o">==</span> <span class="s">&#39;emis&#39;</span><span class="p">:</span>
             <span class="c"># multiply by the mass due to ADAS</span>
@@ -304,6 +330,11 @@
 <span class="sd">        :param np.array[N] Te: Electron temperature</span>
 <span class="sd">        :param np.array[N] Ti: Ion temperature</span>
 <span class="sd">        :param int file_number: File number (choosen in Beam.py)</span>
+
+<span class="sd">        :returns: Lifetime of the excited atom</span>
+<span class="sd">        :rtype: np.array[ne.shape]</span>
+
+<span class="sd">        :todo: everything</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c">#:todo:</span>
         <span class="n">l</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">ne</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>

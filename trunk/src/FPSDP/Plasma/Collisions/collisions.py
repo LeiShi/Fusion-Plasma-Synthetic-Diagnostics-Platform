@@ -17,8 +17,8 @@ class Collisions:
     :var list[str] self.files_atte: List of names for ADAS21 files (beam stopping coefficient)
     :var list[str] self.files_emis: List of names for ADAS22 files (emission coefficient)
 
-    :var list[] self.beam_atte: List of :class:`FPSDP.Plasma.Collisions.ADAS_file.ADAS21` instance variable (beam stopping coefficient)
-    :var list[] self.beam_emis: List of :class:`FPSDP.Plasma.Collisions.ADAS_file.ADAS22` instance variable (emission coefficient)
+    :var list[] self.beam_atte: List of :class:`ADAS21 <FPSDP.Plasma.Collisions.ADAS_file.ADAS21>` instance variable (beam stopping coefficient)
+    :var list[] self.beam_emis: List of :class:`ADAS22 <FPSDP.Plasma.Collisions.ADAS_file.ADAS22>` instance variable (emission coefficient)
 
     :var list[tck_interp] self.atte_tck_dens: List of interpolant computed with cubic spline for\
 the beam stopping coefficient as a function of the density and the beam energy

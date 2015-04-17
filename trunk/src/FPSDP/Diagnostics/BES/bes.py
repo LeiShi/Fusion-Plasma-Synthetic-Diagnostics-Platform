@@ -51,7 +51,7 @@ def solid_angle_disk(pos,r):
     """ Compute the solid angle of a circle on/off-axis from the pos
         the center of the circle should be in (0,0,0)
 
-        look the paper of Paxton: "Solid Angle Calculation for a 
+        look the paper of Paxton "Solid Angle Calculation for a 
         Circular Disk" in 1959
     """
     # define a few value (look Paxton paper for name)

@@ -1,5 +1,13 @@
+Beam Emission Spectroscopy Documentation
+========================================
+
+The Beam Emission Spectroscopy (BES) synthetic diagnostic use a configuration file (e.g. :download:`bes.in <../../../../FPSDP/Diagnostics/BES/bes.in>`).
+The only object that should be used for the diagnostic is :class:`FPSDP.Diagnostics.BES.bes.BES`,
+it creates everything from the config file and with the function :func:`FPSDP.Diagnostics.BES.bes.BES.get_bes` will compute the number of photons captured by each fiber.
+
+
 FPSDP Directory
-===============
+---------------
 
 Main directory of the library.
 
@@ -10,6 +18,7 @@ Main directory of the library.
 
 
 .. toctree::
+	   
    FPSDP.Diagnostics
    FPSDP.IO
    FPSDP.Maths

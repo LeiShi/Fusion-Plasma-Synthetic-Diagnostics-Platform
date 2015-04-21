@@ -15,6 +15,7 @@ if profiler:
 
 bes_ = bes.BES('FPSDP/Diagnostics/BES/bes.in',parallel)
 
+
 #b1d1 = bes_.beam
 #dl1 = np.sqrt(np.sum((b1d1.get_mesh()-b1d1.get_origin())**2,axis = 1))
 if profiler:

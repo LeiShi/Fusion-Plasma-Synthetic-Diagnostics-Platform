@@ -1,6 +1,7 @@
 import numpy as np
 import ADAS_file as adas
 from scipy import interpolate
+from FPSDP.GeneralSettings.UnitSystem import SI
 
 
 class Collisions:
@@ -38,13 +39,9 @@ the emission coefficient as a function of the temperature
     def __init__(self,files_atte,files_emis,states):
         """ Copy the input inside the instance
             
-            Arguments:
-            files_atte  -- list containing the name of the attenuation files
-            files_emis  -- list containing the name of the emission files
-            beams       -- list of the different energy beam (should be in the 
-                           same order than the files)
-            lifetime    -- list of the lifetime of the excited states (same 
-                           order than the other lists)
+        :param list[str] files_atte: List of names for ADAS21 files (beam stopping coefficient)
+        :param list[str] files_emis: List of names for ADAS22 files (emission coefficient)
+        :param list[int] states: Quantum number of the lower (states[0]) and the higher(states[1]) states of the hydrogen atom
         """
         self.files_atte = files_atte                                         #!
         self.files_emis = files_emis                                         #!
@@ -69,7 +66,8 @@ the emission coefficient as a function of the temperature
             lbeams, ldens = np.meshgrid(lbeams, ldensities)
             
             # interpolation over beam and density
-            self.atte_tck_dens.append(interpolate.bisplrep(lbeams,ldens,coef_dens))
+            self.atte_tck_dens.append(interpolate.bisplrep(
+                lbeams,ldens,coef_dens))
             
             # get data for the interpolation in temperature
             T = self.get_list_temperature('atte',i)
@@ -78,7 +76,8 @@ the emission coefficient as a function of the temperature
             index = abs((Tref-T)/Tref) < 1e-4
             
             #interpolation over the temperature
-            self.atte_tck_temp.append(interpolate.splrep(T,coef_T/coef_T[index]))
+            self.atte_tck_temp.append(interpolate.splrep(
+                T,coef_T/coef_T[index]))
 
         for i in range(len(self.beam_emis)):
             # get data
@@ -88,7 +87,8 @@ the emission coefficient as a function of the temperature
             lbeams, ldens = np.meshgrid(lbeams, ldensities)
             
             # interpolation over beam and density
-            self.emis_tck_dens.append(interpolate.bisplrep(lbeams,ldens,coef_dens))
+            self.emis_tck_dens.append(interpolate.bisplrep(
+                lbeams,ldens,coef_dens))
 
             # Get data for the interpolation in temperature
             T = self.get_list_temperature('emis',i)
@@ -97,7 +97,8 @@ the emission coefficient as a function of the temperature
             index = abs((Tref-T)/Tref) < 1e-4
             
             #interpolation over the temperature
-            self.emis_tck_temp.append(interpolate.splrep(T,coef_T/coef_T[index]))
+            self.emis_tck_temp.append(interpolate.splrep(
+                T,coef_T/coef_T[index]))
 
         
     def read_adas(self):
@@ -156,8 +157,7 @@ the emission coefficient as a function of the temperature
         if not isinstance(ne,float):
             coef = np.zeros(len(ne))
             for i in range(len(ne)):
-                coef[i] = interpolate.bisplev(beam,ne[i],
-                                              self.emis_tck_dens[file_number])
+                coef[i] = interpolate.bisplev(beam,ne[i],self.emis_tck_dens[file_number])
         else:
             coef =  interpolate.bisplev(beam,ne,self.emis_tck_dens[file_number])
 
@@ -274,11 +274,11 @@ the emission coefficient as a function of the temperature
         given by I. H. Hutchinson, Plasma Phys. Controlled Fusion 44,71 (2002)
         assuming an hydrogen atom.
 
-        :param float beam: Beam energy
-        :param np.array[N] ne: Electron density
+        :param float beam: Beam energy (eV)
+        :param np.array[N] ne: Electron density (m :sup:`-3`)
         :param float mass_b: Mass of a neutral particle in the beam (amu)
-        :param np.array[N] Te: Electron temperature
-        :param np.array[N] Ti: Ion temperature
+        :param np.array[N] Te: Electron temperature (eV)
+        :param np.array[N] Ti: Ion temperature (eV)
         :param int file_number: File number (choosen in Beam.py)
 
         :returns: Lifetime of the excited atom
@@ -286,10 +286,22 @@ the emission coefficient as a function of the temperature
 
         :todo: everything
         """
-        #:todo:
-        l = np.ones(ne.shape)
-        return 1.68e-9*l
-        #frac = (float(self.n_low)/float(self.n_high))**2
-        #E = -self.E0*(1.0/self.n_low**2 - 1.0/self.n_high**2)
-        #sigv = frac*np.exp(E/Te)*self.get_emission(beam,ne,mass_b,Ti,file_number)
+        #:todo: eV???
+        E = -self.E0*(1.0/self.n_low**2 - 1.0/self.n_high**2)
+        frac = (float(self.n_low)/float(self.n_high))**2
+        #print self.get_emission(beam,ne,mass_b,Ti,file_number)
+        sigv = frac*np.exp(E/Te)*self.get_attenutation(beam,ne,mass_b,Ti,file_number)
+        #print 'lifetime',1.0/(sigv*ne)
         #return 1.0/(sigv*ne)
+
+        return 3.5e-9*np.ones(ne.shape)
+
+    def get_wavelength(self):
+        """ Compute the wavelength of the emitted photons in the particles 
+        reference frame (assume an hydrogen atom).
+        
+        :returns: Wavelength emitted in reference frame (nm)
+        :rtype: float
+        """
+        E = -self.E0*(1.0/self.n_low**2 - 1.0/self.n_high**2)
+        return SI['hc']*1e12/(E*SI['keV'])

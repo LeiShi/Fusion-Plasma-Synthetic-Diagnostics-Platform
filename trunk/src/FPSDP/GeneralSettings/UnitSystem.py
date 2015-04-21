@@ -130,6 +130,10 @@ SI = UnitSystem('SI',
 # permeability of free space
                 mu_0 = 4e-7 * math.pi,
 # energy associated with 1keV
-                keV = 1.6022e-16
+                keV = 1.6022e-16,
+# Planck constant * speed of light
+                hc = 1.986445e-25,
+#atomic mass unit
+                amu = 1.660538e-27
 # more constants can be added later...
-                )
+)

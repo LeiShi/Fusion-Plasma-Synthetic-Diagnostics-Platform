@@ -16,11 +16,11 @@ import FPSDP.Geometry.Grid as Grid
 import FPSDP.Plasma.XGC_Profile.load_XGC_BES as xgc
 # quadrature formula
 import FPSDP.Maths.Integration as integ
+from FPSDP.GeneralSettings.UnitSystem import SI
+
 from os.path import exists # used for checking if the input file exists
 # it is not clear with configparser error
 
-# interpolation (for the ideal bes)
-from scipy import interpolate
 
 def _pickle_method(m):
     """ stuff for parallelisation"""
@@ -106,7 +106,7 @@ class BES:
         
         # Optics part
         self.pos_lens = json.loads(config.get('Optics','pos_lens'))          #!
-
+        self.pos_lens = np.array(self.pos_lens)
         self.rad_ring = json.loads(config.get('Optics','rad_ring'))          #!
         self.rad_lens = json.loads(config.get('Optics','rad_lens'))          #!
         self.inter = json.loads(config.get('Optics','int'))                  #!
@@ -147,6 +147,7 @@ class BES:
         start = json.loads(config.get('Data','timestart'))
         end = json.loads(config.get('Data','timeend'))
         timestep = json.loads(config.get('Data','timestep'))
+        filter_name = config.get('Data','filter')
         self.beam = be.Beam1D(input_file)                                    #!
         self.compute_limits()      # compute the limits of the mesh
         # position swap due to a difference in the axis        
@@ -180,6 +181,30 @@ class BES:
         for j in range(self.pos_foc.shape[0]):
             self.perp2[j,:] = np.cross(self.op_direc[j,:],self.perp1[j,:])
 
+        # interpolant for the filter
+        self.filter_ = self.load_filter(filter_name)                         #!
+        # wavelength of the photon in the particles reference frame
+        self.wl0 = self.beam.collisions.get_wavelength()                     #!
+
+
+    def load_filter(self,filter_name):
+        """ Load the data from the filter and compute the value for the wavelengths
+        considered.
+
+        :param str filter_name: Name of the file containing the filter datas
+
+        :returns: Transmission for the wavelengths considered
+        :rtype: np.array[Ncomp]
+        """
+        data = np.loadtxt(filter_name)
+        # wavelength in nanometer
+        wl = data[:,0]
+        # transmission coefficient
+        trans = data[:,1]
+        tck = sp.interpolate.interp1d(wl,trans,kind='cubic',fill_value=0.0)
+        return tck
+        
+        
     def compute_limits(self, eps=0.05, dxmin = 0.1, dymin = 0.1, dzmin = 0.5):
         """ Compute the limits of the mesh that should be loaded
             The only limitation comes from the sampling volume
@@ -310,14 +335,16 @@ class BES:
             if self.para:
                 p = mp.Pool()
                 a = np.array(p.map(self.intensity_para, range(nber_fiber)))
-                I[i,:] = a[:,0]
+                # sum the light from the different component
+                I[i,:] = a
                 # serial case
                 p.close()
             else:
                 for j in range(nber_fiber):
                     # compute the light received by each fiber
                     t_ = self.beam.data.current
-                    I[i,j] = self.intensity(i,j)[0]
+                    # sum the light from the different component
+                    I[i,j] = self.intensity(i,j)
         return I
         
     def intensity_para(self,i):
@@ -394,8 +421,7 @@ class BES:
                            not the one in the simulation)
             fiber_nber --  number of the fiber
         """
-        nber_comp = self.beam.beam_comp.shape[0]
-        I = np.zeros((z.shape[0],nber_comp))
+        I = np.zeros(z.shape[0])
         if self.type_int == '2D':
             # compute the integral with a few points
             # outside the central line
@@ -413,12 +439,12 @@ class BES:
                 eps = self.get_emis_from(pos,t_,fiber_nber)
                 # sum the emission of all the points with the appropriate
                 # weight
-                I[i,:] = np.einsum('k,jk->j',quad.w,eps)
+                I[i] = np.sum(quad.w*eps)
         elif self.type_int == '1D':
             # just use the point on the central line
             for i,z_ in enumerate(z):
                 pos = np.array([0,0,z_])
-                I[i,:] = self.get_emis_from(pos[np.newaxis,:],t_,fiber_nber)[0]
+                I[i] = self.get_emis_from(pos[np.newaxis,:],t_,fiber_nber)
         else:
             raise NameError('This type of integration does not exist')
         return I
@@ -428,8 +454,7 @@ class BES:
         """
         # first define the quadrature formula
         quad = integ.integration_points(1,'GL3') # Gauss-Legendre order 3
-        nber_comp = self.beam.beam_comp.shape[0]
-        I = np.zeros(nber_comp)
+        I = 0.0
         # compute the distance from the origin of the beam
         dist = np.dot(self.pos_foc[fiber_nber,:] - self.beam.pos,self.beam.direc)
         width = self.beam.get_width(dist)
@@ -441,20 +466,19 @@ class BES:
         Z = 0.5*(border[:-1] + border[1:])
         # half size of one interval
         ba2 = 0.5*(border[2]-border[1])
-        print 'check NaN'
         for z in Z:
             # distance of the plane from the lense
             pt = z + ba2*quad.pts + self.dist[fiber_nber]
             light = self.light_from_plane(pt,t_,fiber_nber)
             # sum the weight with the appropriate pts
-            I += np.einsum('k,kj->j',quad.w,light)
+            I += np.sum(quad.w*light)
         # multiply by the weigth of each interval
         I *= ba2
         return I
         
     def get_emis_from(self,pos,t_,fiber_nber):
         """ Compute the total emission received from pos (takes in account the
-            solid angle). [Paxton 1959]
+            solid angle and the filter). [Paxton 1959]
             Argument:
             pos  --  position of the emission in the optical coordinate (X,Y,Z)
 
@@ -469,6 +493,18 @@ class BES:
             eps = self.beam.get_emis(x,t_)/(4.0*np.pi)
         # now compute the solid angle
         solid = self.get_solid_angle(pos,fiber_nber)
+
+        # compute the effect of the filter
+        dist_ = self.pos_lens[np.newaxis,:] - pos
+        dist_ = dist_/np.sqrt(np.sum(dist_**2,axis=-1)[:,np.newaxis])
+
+        costh = np.einsum('ij,j->i',dist_,self.beam.direc)
+
+        wl = (1.0 - self.beam.speed[:,np.newaxis]*costh/SI['c'])
+        wl *= self.wl0
+        filt = self.filter_(wl)
+        # sum the intensity of all the components
+        eps = np.sum(eps*filt,axis=0)
         return eps*solid
 
     def get_solid_angle(self,pos,fib):
@@ -589,7 +625,8 @@ class BES:
         # distance between line
         d = np.abs(x1[:,0]*x2[:,1]-x2[:,0]*x1[:,1])/np.sqrt(np.sum((x2-x1)**2,axis=1))
 
-        print('useless computations')
+        #print('useless computations')
+        #:todo: This can be improved
         rmax = ((1.0/cospsi).T*d).T
         rmax[~ind2] = r
         rmax = np.minimum(r,rmax)

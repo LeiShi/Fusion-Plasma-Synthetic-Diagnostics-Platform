@@ -1,11 +1,15 @@
-import math
-import json
+# math
 import numpy as np
+import math
+from scipy import interpolate
+# file reading
+import json
+import ConfigParser as psr
+
 import FPSDP.Plasma.Collisions.collisions as col
 import FPSDP.Maths.Integration as integ
-import ConfigParser as psr
-import FPSDP.Maths.Interpolation as Fint
-from scipy import interpolate
+from FPSDP.GeneralSettings.UnitSystem import SI
+
 
 class Beam1D:
     """ Simulate a 1D beam with the help of datas from simulation.
@@ -122,8 +126,8 @@ class Beam1D:
 
         # speed of each beam
         self.speed = np.zeros(len(self.beam_comp))                           #!
-        self.speed = np.sqrt(2*self.beam_comp*9.6485383e7/self.mass_b)
-
+        self.speed = np.sqrt(2*self.beam_comp*SI['keV']/(1000*SI['amu']*self.mass_b))
+        print self.speed
 
 
     def set_data(self,data):
@@ -253,8 +257,8 @@ class Beam1D:
         print('If keep attenuation with eq, should remove time loop')
         # density of the beam at the origin
         n0 = np.zeros(len(self.beam_comp))
-        n0 = np.sqrt(2*self.mass_b*1.660538921e-27)*self.power
-        n0 *= self.frac/(self.beam_comp*1.60217733e-19)**(1.5)
+        n0 = np.sqrt(2*self.mass_b*SI['amu'])*self.power
+        n0 *= self.frac/(self.beam_comp*SI['keV']/1000)**(1.5)
         
         # define the quadrature formula for this method
         quad = integ.integration_points(1,'GL3') # Gauss-Legendre order 3
@@ -398,12 +402,13 @@ class Beam1D:
         :returns: :math:`\varepsilon_l`
         :rtype: np.array[N]
         """
-        print 'wavelength!!!'
 
         quad = integ.integration_points(1,'GL19') # Gauss-Legendre order 3
         emis = np.zeros((len(self.beam_comp),pos.shape[0]))
         # avoid the computation at each time
         ne_in, Ti_in,Te_in = self.get_quantities(pos,t_,['ne','Ti','Te'])
+        print np.max(ne_in)
+        #nb_in = self.get_beam_density(pos)
         for k in self.coll_emis:
             file_nber = k[0]
             beam_nber = k[1]

@@ -112,9 +112,11 @@ Nsol = 10
 # 1D for taking into account only the emission
 # of the central line or 2D for doing an integration
 # over a plane
-type_int = 1D
+type_int = 2D
 
 [Data]
+# name of the filter file
+filter = FPSDP/Diagnostics/BES/filter.dat
 # path to the simulation data
 data_path = /global/project/projectdirs/m499/jlang/particle_pinch/
 # number of step for the following line interpolation

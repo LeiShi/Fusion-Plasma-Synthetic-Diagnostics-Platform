@@ -34,7 +34,12 @@ copy_reg.pickle(types.MethodType, _pickle_method)
 
 def heuman(phi,m):
     """ Compute the Heuman's lambda function (defined in Paxton,
-        see soldi_angle_disk)
+        see :func:`solid_angle_disk`)
+
+    :param np.array[N] phi: The amplitude of the elliptic integrals
+    :param np.array[N] m: The parameter of the elliptic integrals
+    :returns: The evaluation of the Heuman's lambda function
+    :rtype: np.array[N]
     """
     m2 = 1-m
     F2 = sp.special.ellipkinc(phi,m2) # incomplete elliptic integral of 1st kind
@@ -44,15 +49,18 @@ def heuman(phi,m):
     ret = 2.0*(E*F2+K*E2-K*F2)/np.pi
     return ret
 
-def angle(v1,v2):
-    return np.arccos(np.dot(v1,v2)/(np.linalg.norm(v1)*np.linalg.norm(v2)))
-
 def solid_angle_disk(pos,r):
-    """ Compute the solid angle of a circle on/off-axis from the pos
+    """ Compute the solid angle of a disk on/off-axis from the pos
         the center of the circle should be in (0,0,0)
 
-        look the paper of Paxton "Solid Angle Calculation for a 
-        Circular Disk" in 1959
+        look the paper of `Paxton  <http://scitation.aip.org/content/aip/journal/rsi/30/4/10.1063/1.1716590>`_ "Solid Angle Calculation for a 
+        Circular Disk" in 1959 for the exact computation
+
+    :param np.array[N,3] pos: Position from which computing the solid angle
+    :param float r: Radius of the disk (the disk is centered in (0,0,0) and the perpendicular is along the z-axis)
+
+    :returns: The solid angle for each positions
+    :rtype: np.array[N]
     """
     # define a few value (look Paxton paper for name)
     r0 = np.sqrt(np.sum(pos[:,0:2]**2, axis=1))
@@ -87,7 +95,51 @@ def solid_angle_disk(pos,r):
     return solid
 
 class BES:
-    """ Class computing the image of all the fiber 
+    """ Class computing the image of all the fiber.
+    
+    Load the parameter from a config file and create everything from it.
+    The function :func:`get_bes()` is used for computing the intensity received by
+    each fiber (number of photons).
+
+    :param str input_file: Name of the config file
+    :param bool parallel: Choice between the serial code or the parallel one
+
+
+    :var str self.cfg_fil: Name of the config file
+    :var bool self.para: Choice between the serial code and the parallel one
+    :var np.array[3] self.pos_lens: Position of the lens (in the cartesian system)
+    :var np.array[Nfib] self.rad_ring: Radius of the focus point for each fiber
+    :var float self.rad_lens: Radius of the lens
+    :var float self.inter: Cutoff distance from the focus point (in unit of the beam width)
+    :var int self.Nint: Number of point for splitting the integral over the optical direction
+    :var int self.Nsol: Number of interval for the evaluation of the solid angle in the mixed case
+    :var np.array[Nfib,3] self.pos_foc: Position of the focus points (in the cartesian system)
+    :var np.array[Nfib,3] self.op_direc: Direction of the optical line (for each fiber)
+    :var np.array[Nfib] self.dist: Distance between the focus point and the lens
+    :var np.array[Nfib,3] self.perp1: Second basis vector for each fiber coordinates (first is the optical line)
+    :var np.array[Nfib,3] self.perp2: Third basis vector
+    :var str self.type_int: choice between the full computation of the intensity or only over the central line ('1D' or '2D')
+    :var float self.t_max: Cutoff time for the lifetime effect (in unit of the lifetime).\
+    If set to 0, the lifetime will not be taken in account    
+    :var bool self.lifetime: Choice between using the lifetime effect or not
+        
+    :var float self.tau_max: Upper limit for the lifetime of the excited particles.\
+    It does not need to be exact, it is only for computing the limits of the mesh.
+    :var int self.N_field: Number of interval for the field line interpolation
+    :var str self.data_path: Path to the data
+    :var self.beam: (:class:`Beam1D <FPSDP.Diagnostics.Beam.beam.Beam1D>`) Beam used for the diagnostic
+    :var np.array[Ntime] self.time: Time steps used for the simulation
+
+    :var tck_interp self.filter_: Interpolant of the filter
+    :var float self.wl0: Wavelength of the de-excitation photons
+    :var float self.Xmax: Upper limit of the X coordinate
+    :var float self.Xmin: Lower limit of the X coordinate
+    :var float self.Ymax: Upper limit of the Y coordinate
+    :var float self.Ymin: Lower limit of the Y coordinate
+    :var float self.Zmax: Upper limit of the Z coordinate
+    :var float self.Zmin: Lower limit of the Z coordinate
+
+    :var np.array[3,2] self.limits: Limits of the mesh (first index for X,Y,Z and second for max,min)
     """
 
     def __init__(self,input_file, parallel=False):
@@ -205,10 +257,17 @@ class BES:
         return tck
         
         
-    def compute_limits(self, eps=0.05, dxmin = 0.1, dymin = 0.1, dzmin = 0.5):
+    def compute_limits(self, eps=0.05, dxmin = 0.1, dymin = 0.1, dzmin = 0.1):
         """ Compute the limits of the mesh that should be loaded
-            The only limitation comes from the sampling volume
-            eps is for adding a small amount to the limits (avoids problems)
+
+        The only limitations comes from the sampling volume and the lifetime effect.
+        :todo: ADD PICTURE
+
+        :param float eps: Used for increasing the size of the box (relative size)
+        :param float dxmin: Smallest size accepted for the box in X
+        :param float dymin: Smallest size accepted for the box in Y
+        :param float dzmin: Smallest size accepted for the box in Z
+        
         """
         print('need to improve this ')
         # average beam width
@@ -317,10 +376,11 @@ class BES:
 
 
     def get_bes(self):
-        """ Compute the image of the turbulence in density
-            This function should be the only one used outside the class
-            Argument:
-            t_  -- list of timesteps
+        """ Compute the image of the density turbulence.
+            This function should be the only one used outside the class.
+        
+        :returns: Intensity collected by each fiber (number of photons)
+        :rtype: np.array[Ntime, Nfib]
         """
         print self.time
         nber_fiber = self.pos_foc.shape[0]
@@ -348,36 +408,46 @@ class BES:
         return I
         
     def intensity_para(self,i):
-        """ Same as intensity, but have only one argument (all the timesteps
-            are computed)
+        """ Same as :func:`intensity`, but have only one argument.
+        The only use is for the parallelization that ask only one argument.
         """
         t_ = self.beam.data.current
         return self.intensity(t_,i)
 
     def to_cart_coord(self,pos,fiber_nber):
-        """ return the cartesian coordinate from the coordinate of the lens
-            Attribut:
-            pos   --  (X,Y,Z) where Z is along the sightline, X coorespond
-                      to perp1, and Y to perp2
+        """ Change the optical coordinate to the cartesian system
+
+        :param np.array[N,3] pos: Position in the optical system
+        :param int fiber_nber: Index of the fiber
+
+        :returns: Position in the cartesian system
+        :rtype: np.arrray[N,3]
         """
         # use the three basis vectors for computing the vectors in the
         # cartesian coordinate
         if len(pos.shape) == 1:
-            ret = self.pos_lens + self.op_direc[fiber_nber,:]*pos[2]
-            ret += self.perp1[fiber_nber,:]*pos[0] + self.perp2[fiber_nber,:]*pos[1]
-        else:
-            ret = np.zeros(pos.shape)
-            ret[:,0] = self.pos_lens[0] + self.op_direc[fiber_nber,0]*pos[:,2]
-            ret[:,0] += self.perp1[fiber_nber,0]*pos[:,0] + self.perp2[fiber_nber,0]*pos[:,1]
-            ret[:,1] = self.pos_lens[1] + self.op_direc[fiber_nber,1]*pos[:,2]
-            ret[:,1] += self.perp1[fiber_nber,1]*pos[:,0] + self.perp2[fiber_nber,1]*pos[:,1]
-            ret[:,2] = self.pos_lens[2] + self.op_direc[fiber_nber,2]*pos[:,2]
-            ret[:,2] += self.perp1[fiber_nber,2]*pos[:,0] + self.perp2[fiber_nber,2]*pos[:,1]
+            pos = pos[np.newaxis,:]
+            
+        ret = np.zeros(pos.shape)
+        ret[:,0] = self.pos_lens[0] + self.op_direc[fiber_nber,0]*pos[:,2]
+        ret[:,0] += self.perp1[fiber_nber,0]*pos[:,0] + self.perp2[fiber_nber,0]*pos[:,1]
+        ret[:,1] = self.pos_lens[1] + self.op_direc[fiber_nber,1]*pos[:,2]
+        ret[:,1] += self.perp1[fiber_nber,1]*pos[:,0] + self.perp2[fiber_nber,1]*pos[:,1]
+        ret[:,2] = self.pos_lens[2] + self.op_direc[fiber_nber,2]*pos[:,2]
+        ret[:,2] += self.perp1[fiber_nber,2]*pos[:,0] + self.perp2[fiber_nber,2]*pos[:,1]
         return ret
 
     def get_width(self,pos,fiber_nber):
-        """ Return the radius of the light cone at pos (optical coordinate)
-            Assume two cones that meet at the focus disk
+        """ Compute the radius of the light cone.
+            Assume two cones that meet at the focus disk.
+
+        :todo: ADD A PICTURE IN ORDER TO EXPLAIN
+
+        :param np.array[N,3] pos: Position where to compute the width in the optical system
+        :param int fiber_nber: Index of the fiber
+
+        :returns: Radius of the optical cone
+        :rtype: np.array[N]
         """
         
         if len(pos.shape) == 1:
@@ -393,7 +463,13 @@ class BES:
     def check_in(self,pos,fib):
         """ Check if the position (optical coordinate) is inside the first cone
             (if the focus ring matter or not)
-            fib is the fiber number
+
+        :todo: ADD PICTURE
+        :param np.array[N,3] pos: Position in the optical system
+        :param int fib: Index of the fiber
+
+        :returns: True if inside the first cone
+        :rtype: np.array[N] of bool
         """
         ret = np.zeros(pos.shape[0], dtype=bool)
         # before the focus point
@@ -415,11 +491,14 @@ class BES:
     def light_from_plane(self,z, t_, fiber_nber):
         """ Compute the light from one plane using a order 10 method (see report or
             Abramowitz and Stegun)
-            Arguments:
-            z          --  distance from the fiber along the sightline
-            t_         --  timestep wanted (index inside the code,
-                           not the one in the simulation)
-            fiber_nber --  number of the fiber
+
+        :todo: ADD PICTURE
+        :param np.array[N] z: Distance from the fiber along the sightline
+        :param int t_: Time step to compute (is not important for the data loader, but is used as a check)
+        :param int fiber_nber: Index of the fiber
+
+        :returns: Intensity collected by the fiber from these planes
+        :rtype: np.array[N]
         """
         I = np.zeros(z.shape[0])
         if self.type_int == '2D':
@@ -431,7 +510,7 @@ class BES:
             r = self.get_width(center,fiber_nber)
             for i,r_ in enumerate(r):
                 # integration points
-                quad = integ.integration_points(2, 'order10', 'circle', r_)
+                quad = integ.integration_points(2, 'order10', 'disk', r_)
                 pos = np.zeros((quad.pts.shape[0],3))
                 pos[:,0] = quad.pts[:,0]
                 pos[:,1] = quad.pts[:,1]
@@ -450,7 +529,16 @@ class BES:
         return I
 
     def intensity(self,t_,fiber_nber):
-        """ Compute the light received by the fiber #fiber_nber
+        """ Compute the light received by a fiber at one time step.
+        
+        Use a Gauss-Legendre quadrature formula of order 3.
+        
+        :todo: ADD PICTURE
+        :param int t_: Time step to compute
+        :param int fiber_nber: Index of the fiber
+
+        :returns: Intensity of light collected by the fiber
+        :rtype: float
         """
         # first define the quadrature formula
         quad = integ.integration_points(1,'GL3') # Gauss-Legendre order 3
@@ -478,11 +566,16 @@ class BES:
         
     def get_emis_from(self,pos,t_,fiber_nber):
         """ Compute the total emission received from pos (takes in account the
-            solid angle and the filter). [Paxton 1959]
-            Argument:
-            pos  --  position of the emission in the optical coordinate (X,Y,Z)
+            solid angle and the filter).
 
-            Improvement possible: keep in memory the solid angle for different time
+        :todo: Improvement possible: keep in memory the solid angle for different time
+
+        :param np.array[N,3] pos: Position in the optical system 
+        :param int t_: Time step to compute
+        :param int fiber_nber: Index of the fiber
+
+        :returns: Intensity collected from each point
+        :rtype: np.array[N]
         """
         # first change coordinate: optical -> cartesian (Tokamak)
         x = self.to_cart_coord(pos,fiber_nber)
@@ -508,8 +601,22 @@ class BES:
         return eps*solid
 
     def get_solid_angle(self,pos,fib):
-        """ compute the solid angle from the position 
-            and for the fiber number (fib)
+        """ Compute the solid angle 
+
+        Three different cases can happen:
+        * Lens case
+        * Ring case
+        * mixed case
+        
+        :todo: add picture
+        The two first are solved with the formula of Paxton (:func:`solid_angle_disk`) and
+        the last one is solved numerically.
+
+        :param np.array[N,3] pos: Position in the optical system
+        :param int fib: Index of the fiber
+
+        :returns: Solid angle
+        :rtype: np.array[N]
         """
         test = self.check_in(pos,fib)
         #ind2 = np.where(~test)[0]
@@ -566,11 +673,13 @@ class BES:
     def solid_angle_mix_case(self,pos,x,y,fib):
         """ Compute numerically the solid angle for the mixted case
             (where the lens AND the ring limit the size of the solid angle)
-            Arguments:
-            pos -- position of the emission
-            x   -- position of the intersection on the ring
-            y   -- position of the intersection on the lens
-            fib -- fiber number
+
+        :todo: ADD picture
+        
+        :param np.array[N,3] pos: Position in the optical system
+        :param list[np.array[N],..] x: Position of the intersection on the ring (list contains 2 elements) 
+        :param list[np.array[N],..] y: Position of the intersection on the lens (list contains 2 elements)
+        :param int fib: Index of the fiber
         """
         # first the contribution of the ring
         omega = self.solid_angle_seg(pos-np.array([0,0,self.dist[fib]]),x,
@@ -582,12 +691,13 @@ class BES:
 
     def solid_angle_seg(self,pos,x,r,islens):
         """
-            Compute the solid angle of a disk without a segment
-            Argument:
-            pos    -- position of the emission
-            x      -- position of the intersection
-            r      -- radius of the disk
-            islens -- In the case of the lens, we have to use ~ind
+            Compute the solid angle of a disk where a segment has been removed
+        
+        :todo: ADD PICTURE
+        :param np.array[N,3] pos: Position in the optical system
+        :param list[np.array[N],..] x: Position of the intersection on the ring (list contains 2 elements) 
+        :param float r: Radius of the disk (should be centered at (0,0,0) and the perpendicular should be along the z-axis)
+        :param bool islens: True if the computation is for the lens (change of sign if it is the case)
         """
 
         # split the two intersections in two variables

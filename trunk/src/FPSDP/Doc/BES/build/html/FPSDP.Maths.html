@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Numerical Methods &mdash; BES 0.8 documentation</title>
+    <title>Maths Directory &mdash; BES 0.8 documentation</title>
     
     <link rel="stylesheet" href="_static/default.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -53,21 +53,35 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="numerical-methods">
-<h1>Numerical Methods<a class="headerlink" href="#numerical-methods" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="maths-directory">
+<span id="maths"></span><h1>Maths Directory<a class="headerlink" href="#maths-directory" title="Permalink to this headline">¶</a></h1>
+<p>Only the integration module is used for the BES diagnostic, it contains some useful quadrature formulas.</p>
 <div class="section" id="module-FPSDP.Maths.Integration">
-<span id="quadrature-formula-for-the-integration"></span><h2>Quadrature Formula for the Integration<a class="headerlink" href="#module-FPSDP.Maths.Integration" title="Permalink to this headline">¶</a></h2>
+<span id="integration-module"></span><h2>Integration Module<a class="headerlink" href="#module-FPSDP.Maths.Integration" title="Permalink to this headline">¶</a></h2>
 <dl class="function">
 <dt id="FPSDP.Maths.Integration.integration_points">
 <tt class="descclassname">FPSDP.Maths.Integration.</tt><tt class="descname">integration_points</tt><big>(</big><em>dim</em>, <em>meth</em>, <em>obj=''</em>, <em>size=-1</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Maths/Integration.html#integration_points"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Maths.Integration.integration_points" title="Permalink to this definition">¶</a></dt>
-<dd><p>Return the points and the weight for a 2D integration
-Arguments:
-dim   &#8211;  dimension of the integration (int)
-obj   &#8211;  type of domain of integration (for dim&gt;1)
-meth  &#8211;  method of integration
-size  &#8211;  number describing the obj (for example the radius</p>
-<blockquote>
-<div>for a circle)</div></blockquote>
+<dd><p>Defines a few quadrature formula (in any number of dimension)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>dim</strong> (<em>int</em>) &#8211; Dimension of the integration</li>
+<li><strong>obj</strong> (<em>str</em>) &#8211; Type of domain of integration (for dim&gt;1, e.g. &#8216;disk&#8217; )</li>
+<li><strong>meth</strong> (<em>str</em>) &#8211; Method of integration (e.g &#8216;GL3&#8217; for Gauss-Legendre order 3)</li>
+<li><strong>size</strong> &#8211; Object describing the geometry of the problem (e.g. radius for a disk)</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Points and weights of the quadrature formula</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">Named tuple (.pts and .w)</p>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 </div>
@@ -81,8 +95,8 @@ size  &#8211;  number describing the obj (for example the radius</p>
         <div class="sphinxsidebarwrapper">
   <h3><a href="FPSDP.html">Table Of Contents</a></h3>
   <ul>
-<li><a class="reference internal" href="#">Numerical Methods</a><ul>
-<li><a class="reference internal" href="#module-FPSDP.Maths.Integration">Quadrature Formula for the Integration</a></li>
+<li><a class="reference internal" href="#">Maths Directory</a><ul>
+<li><a class="reference internal" href="#module-FPSDP.Maths.Integration">Integration Module</a></li>
 </ul>
 </li>
 </ul>

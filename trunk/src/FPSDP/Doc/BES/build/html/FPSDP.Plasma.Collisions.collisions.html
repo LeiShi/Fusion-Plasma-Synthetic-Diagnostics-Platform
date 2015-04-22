@@ -27,7 +27,7 @@
     <link rel="top" title="BES 0.8 documentation" href="index.html" />
     <link rel="up" title="Collisions Directory" href="FPSDP.Plasma.Collisions.html" />
     <link rel="next" title="XGC1 Loader" href="FPSDP.Plasma.XGC_Profile.html" />
-    <link rel="prev" title="Reading of the ADAS files" href="FPSDP.Plasma.Collisions.ADAS_file.html" /> 
+    <link rel="prev" title="ADAS Readers" href="FPSDP.Plasma.Collisions.ADAS_file.html" /> 
   </head>
   <body>
     <div class="related">
@@ -43,7 +43,7 @@
           <a href="FPSDP.Plasma.XGC_Profile.html" title="XGC1 Loader"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="FPSDP.Plasma.Collisions.ADAS_file.html" title="Reading of the ADAS files"
+          <a href="FPSDP.Plasma.Collisions.ADAS_file.html" title="ADAS Readers"
              accesskey="P">previous</a> |</li>
         <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
           <li><a href="FPSDP.Plasma.html" >Collisions and Plasma Simulations Directory</a> &raquo;</li>
@@ -235,11 +235,11 @@ assuming an hydrogen atom.</p>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>beam</strong> (<em>float</em>) &#8211; Beam energy</li>
-<li><strong>ne</strong> (<em>np.array[N]</em>) &#8211; Electron density</li>
+<li><strong>beam</strong> (<em>float</em>) &#8211; Beam energy (eV)</li>
+<li><strong>ne</strong> (<em>np.array[N]</em>) &#8211; Electron density (m <sup>-3</sup>)</li>
 <li><strong>mass_b</strong> (<em>float</em>) &#8211; Mass of a neutral particle in the beam (amu)</li>
-<li><strong>Te</strong> (<em>np.array[N]</em>) &#8211; Electron temperature</li>
-<li><strong>Ti</strong> (<em>np.array[N]</em>) &#8211; Ion temperature</li>
+<li><strong>Te</strong> (<em>np.array[N]</em>) &#8211; Electron temperature (eV)</li>
+<li><strong>Ti</strong> (<em>np.array[N]</em>) &#8211; Ion temperature (eV)</li>
 <li><strong>file_number</strong> (<em>int</em>) &#8211; File number (choosen in Beam.py)</li>
 </ul>
 </td>
@@ -330,6 +330,23 @@ assuming an hydrogen atom.</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="FPSDP.Plasma.Collisions.collisions.Collisions.get_wavelength">
+<tt class="descname">get_wavelength</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/Collisions/collisions.html#Collisions.get_wavelength"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.Collisions.collisions.Collisions.get_wavelength" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the wavelength of the emitted photons in the particles 
+reference frame (assume an hydrogen atom).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Wavelength emitted in reference frame (nm)</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
 <dt id="FPSDP.Plasma.Collisions.collisions.Collisions.read_adas">
 <tt class="descname">read_adas</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/Collisions/collisions.html#Collisions.read_adas"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.Collisions.collisions.Collisions.read_adas" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read the ADAS files and stores them as attributes (used during the initialization)</p>
@@ -347,7 +364,7 @@ assuming an hydrogen atom.</p>
         <div class="sphinxsidebarwrapper">
   <h4>Previous topic</h4>
   <p class="topless"><a href="FPSDP.Plasma.Collisions.ADAS_file.html"
-                        title="previous chapter">Reading of the ADAS files</a></p>
+                        title="previous chapter">ADAS Readers</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="FPSDP.Plasma.XGC_Profile.html"
                         title="next chapter">XGC1 Loader</a></p>
@@ -386,7 +403,7 @@ assuming an hydrogen atom.</p>
           <a href="FPSDP.Plasma.XGC_Profile.html" title="XGC1 Loader"
              >next</a> |</li>
         <li class="right" >
-          <a href="FPSDP.Plasma.Collisions.ADAS_file.html" title="Reading of the ADAS files"
+          <a href="FPSDP.Plasma.Collisions.ADAS_file.html" title="ADAS Readers"
              >previous</a> |</li>
         <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
           <li><a href="FPSDP.Plasma.html" >Collisions and Plasma Simulations Directory</a> &raquo;</li>

@@ -26,6 +26,7 @@
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="top" title="BES 0.8 documentation" href="index.html" />
     <link rel="up" title="Collisions and Plasma Simulations Directory" href="FPSDP.Plasma.html" />
+    <link rel="next" title="General Settings Directory" href="FPSDP.GeneralSettings.html" />
     <link rel="prev" title="Collisions Manager" href="FPSDP.Plasma.Collisions.collisions.html" /> 
   </head>
   <body>
@@ -38,6 +39,9 @@
         <li class="right" >
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
+        <li class="right" >
+          <a href="FPSDP.GeneralSettings.html" title="General Settings Directory"
+             accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="FPSDP.Plasma.Collisions.collisions.html" title="Collisions Manager"
              accesskey="P">previous</a> |</li>
@@ -53,12 +57,32 @@
             
   <div class="section" id="module-FPSDP.Plasma.XGC_Profile.load_XGC_BES">
 <span id="xgc1-loader"></span><h1>XGC1 Loader<a class="headerlink" href="#module-FPSDP.Plasma.XGC_Profile.load_XGC_BES" title="Permalink to this headline">¶</a></h1>
-<p>Load XGC output data and interpolate the data
-Copy of load_XGC_profile but remove all the useless stuff for BES</p>
+<p>Moduel of the XGC loader for the BES synthetic diagnostic.</p>
+<p>It reads the data from the simulation and remove the points not used for the diagnostic (in order to keep the used memory at a low level).
+Do an interpolation along the B-field.</p>
 <dl class="class">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES">
 <em class="property">class </em><tt class="descclassname">FPSDP.Plasma.XGC_Profile.load_XGC_BES.</tt><tt class="descname">XGC_Loader_BES</tt><big>(</big><em>xgc_path</em>, <em>t_start</em>, <em>t_end</em>, <em>dt</em>, <em>limits</em>, <em>N_field</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES" title="Permalink to this definition">¶</a></dt>
-<dd><p>Loader for a given set of XGC output files</p>
+<dd><p>Loader classe for the BES diagnostic.</p>
+<p>The idea of this loader is to compute one time step at a time and calling the function 
+<a class="reference internal" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_next_time_step" title="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_next_time_step"><tt class="xref py py-func docutils literal"><span class="pre">load_next_time_step()</span></tt></a> at the end of the time step (no return possible with this implementation).
+The function <a class="reference internal" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data" title="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data"><tt class="xref py py-func docutils literal"><span class="pre">interpolate_data()</span></tt></a> is used to obtain the data from any position.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>xgc_path</strong> (<em>str</em>) &#8211; Name of the directory containing the data</li>
+<li><strong>t_start</strong> (<em>int</em>) &#8211; Time step at which starting the diagnostic</li>
+<li><strong>t_end</strong> (<em>int</em>) &#8211; Time step at which stoping the diagnostic</li>
+<li><strong>dt</strong> (<em>int</em>) &#8211; Interval between two time step that the diagnostic should compute</li>
+<li><strong>limits</strong> (<em>list[list[]]</em>) &#8211; Mesh limits for the diagnostic (first index is for X,Y,Z and second for min/max)</li>
+<li><strong>N_field</strong> (<em>int</em>) &#8211; Number of step for the interpolation along the field line</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 <dl class="method">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.calc_total_ne_2D3D">
 <tt class="descname">calc_total_ne_2D3D</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.calc_total_ne_2D3D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.calc_total_ne_2D3D" title="Permalink to this definition">¶</a></dt>
@@ -68,14 +92,30 @@ Copy of load_XGC_profile but remove all the useless stuff for BES</p>
 <dl class="method">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.cdf_output">
 <tt class="descname">cdf_output</tt><big>(</big><em>output_path</em>, <em>eq_file='equilibrium.cdf'</em>, <em>filehead='fluctuation'</em>, <em>WithBp=True</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.cdf_output"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.cdf_output" title="Permalink to this definition">¶</a></dt>
-<dd><p>Wrapper for cdf_output_2D and cdf_output_3D.
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body">Not modified for this class, therefore should not work</td>
+</tr>
+</tbody>
+</table>
+<p>Wrapper for cdf_output_2D and cdf_output_3D.
 Determining 2D/3D by checking the grid property.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.cdf_output_3D">
 <tt class="descname">cdf_output_3D</tt><big>(</big><em>output_path='./'</em>, <em>eq_filename='equilibrium3D.cdf'</em>, <em>flucfilehead='fluctuation'</em>, <em>WithBp=True</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.cdf_output_3D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.cdf_output_3D" title="Permalink to this definition">¶</a></dt>
-<dd><p>write out cdf files for FWR3D code to use</p>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body">Not modified for this class, therefore should not work</td>
+</tr>
+</tbody>
+</table>
+<p>write out cdf files for FWR3D code to use</p>
 <p>Arguments:
 output_path: string, the full path to put the output files
 eq_filename: string, the file name for the 2D equilibrium output
@@ -115,30 +155,68 @@ density</p>
 <dl class="method">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.find_interp_positions">
 <tt class="descname">find_interp_positions</tt><big>(</big><em>r</em>, <em>z</em>, <em>phi</em>, <em>prev_</em>, <em>next_</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.find_interp_positions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.find_interp_positions" title="Permalink to this definition">¶</a></dt>
-<dd><p>new version to find the interpolation positions.
-Using B field information and follows the exact field line.</p>
-<p>argument and return value are the same as find_interp_positions_v1.</p>
+<dd><p>Using B field information and follows the exact field line.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>r</strong> (<em>np.array[N]</em>) &#8211; R coordinates</li>
+<li><strong>z</strong> (<em>np.array[N]</em>) &#8211; Z coordinates</li>
+<li><strong>phi</strong> (<em>np.array[N]</em>) &#8211; Phi coordinates</li>
+<li><strong>prev</strong> (<em>np.array[N]</em>) &#8211; Previous planes</li>
+<li><strong>next</strong> (<em>np.array[N]</em>) &#8211; Next planes</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Positions on the the previous plane and the next one</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[2,3,N] (2 for the previous/next plane, 3 for R,Z,L where L is the distance between plane and points)</p>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data">
-<tt class="descname">interpolate_data</tt><big>(</big><em>pos</em>, <em>timesteps</em>, <em>quant</em>, <em>eq</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.interpolate_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">interpolate_data</tt><big>(</big><em>pos</em>, <em>timestep</em>, <em>quant</em>, <em>eq</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.interpolate_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data" title="Permalink to this definition">¶</a></dt>
 <dd><p>Interpolate the data to the position wanted</p>
-<p>Arguments:
-pos       &#8211;  1D array with (X,Y,Z) or 2D array with (X,Y,Z)</p>
-<blockquote>
-<div>as the second index</div></blockquote>
-<p>timesteps &#8211;  list of timesteps
-quant     &#8211;  list containing the wanted quantities (see data class</p>
-<blockquote>
-<div>for more information)</div></blockquote>
-<p>eq        &#8211;  choice between equilibrium or exact quantities</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>pos</strong> (<em>np.array[N,3]</em>) &#8211; Position (in cartesian system)</li>
+<li><strong>timestep</strong> (<em>int</em>) &#8211; Time step wanted (used to check if an error is not made)</li>
+<li><strong>quant</strong> (<em>list[str]</em>) &#8211; Desired quantities (can be &#8216;ni&#8217;, &#8216;ne&#8217;, &#8216;Ti&#8217;, &#8216;Te&#8217;)</li>
+<li><strong>eq</strong> (<em>bool</em>) &#8211; Choice between equilibrium or exact quantities</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Quantities asked in the right order</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">tuple(np.array[N],...)</p>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load">
 <tt class="descname">load</tt><big>(</big><em>filename='dne_file.sav'</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.load"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load" title="Permalink to this definition">¶</a></dt>
-<dd><p>load the previously saved xgc profile data file.
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body">Not modified for this class, therefore should not work</td>
+</tr>
+</tbody>
+</table>
+<p>load the previously saved xgc profile data file.
 The geometry information needs to be the same, otherwise an error will be raised.
 WARNING: Currently no serious checking is performed. The user is responsible to make sure the XGC_Loader object is initialized properly to load the corresponding saving file.</p>
 </dd></dl>
@@ -146,24 +224,19 @@ WARNING: Currently no serious checking is performed. The user is responsible to 
 <dl class="method">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_B_3D">
 <tt class="descname">load_B_3D</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.load_B_3D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_B_3D" title="Permalink to this definition">¶</a></dt>
-<dd><p>Load equilibrium magnetic field data</p>
-<p>B_total is interpolated over Z,R plane on given 3D Cartesian grid, 
-since B_0 is assumed symmetric along toroidal direction</p>
+<dd><p>Load equilibrium magnetic field data and compute the interpolant</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_eq_2D3D">
 <tt class="descname">load_eq_2D3D</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.load_eq_2D3D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_eq_2D3D" title="Permalink to this definition">¶</a></dt>
-<dd><p>Load equilibrium profiles</p>
+<dd><p>Load equilibrium profiles and compute the interpolant</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_eq_tene_nonElectronRun">
 <tt class="descname">load_eq_tene_nonElectronRun</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.load_eq_tene_nonElectronRun"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_eq_tene_nonElectronRun" title="Permalink to this definition">¶</a></dt>
 <dd><p>For ion only silumations, te and ne are read from simulation input files.</p>
-<p>Add Attributes:
-te0_sp: interpolator for Te_0 on psi
-ne0_sp: interpolator for ne_0 on psi</p>
 </dd></dl>
 
 <dl class="method">
@@ -175,11 +248,9 @@ ne0_sp: interpolator for ne_0 on psi</p>
 The required planes are calculated and stored in sorted array.
 fluctuation data on each plane is stored in the same order.</dd>
 </dl>
-<p>Note that for full-F runs, the purturbed electron density 
+<p>Note that for full-F runs, the perturbed electron density 
 includes both turbulent fluctuations and equilibrium relaxation,
 this loading method doesn&#8217;t differentiate them and will read all of them.</p>
-<p>the mean value of these two quantities on each time step is also calculated.
-for multiple cross-section runs, data is stored under each center_plane index.</p>
 </dd></dl>
 
 <dl class="method">
@@ -192,18 +263,32 @@ value and the series of points on that surface, calculate the arc length table.<
 <dl class="method">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_next_time_step">
 <tt class="descname">load_next_time_step</tt><big>(</big><em>increase=True</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.load_next_time_step"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_next_time_step" title="Permalink to this definition">¶</a></dt>
-<dd><p>Load all the quantities for the next time step.
-The old quantities are overwritten
-increase is used for the first time step that
-need to be keepen at 0</p>
-<p>can be easily change to load any time, but for BES
+<dd><p>Load all the quantities for the next time step.</p>
+<p>The old quantities are overwritten.
+Can be easily change to load any time, but for BES
 loading them in order is enough</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>increase</strong> (<em>bool</em>) &#8211; Define if the time step should be increase or not</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.save">
 <tt class="descname">save</tt><big>(</big><em>fname='xgc_profile.sav'</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.save"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.save" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="docutils">
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body">Not modified for this class, therefore should not work</td>
+</tr>
+</tbody>
+</table>
+<dl class="docutils">
 <dt>save the original and interpolated electron density fluctuations </dt>
 <dd>and useful equilibrium quantities to a local .npz file</dd>
 <dt>for 2D instances,The arrays saved are:</dt>
@@ -233,8 +318,25 @@ BY: vertical magnetic field</p>
 <dl class="function">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.get_interp_planes_BES">
 <tt class="descclassname">FPSDP.Plasma.XGC_Profile.load_XGC_BES.</tt><tt class="descname">get_interp_planes_BES</tt><big>(</big><em>my_xgc</em>, <em>phi3D</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#get_interp_planes_BES"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.get_interp_planes_BES" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get the plane numbers used for interpolation for each point 
-phi3D should be between 0 and 2pi</p>
+<dd><p>Get the plane numbers used for the interpolation of each point.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>my_xgc</strong> &#8211; (<a class="reference internal" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES" title="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES"><tt class="xref py py-class docutils literal"><span class="pre">XGC_Loader_BES</span></tt></a>) XGC loader</li>
+<li><strong>phi3D</strong> (<em>np.array[N]</em>) &#8211; Phi in the tokamak coordinate (should be between 0 and 2pi)</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Index of the two closest planes from phi3D</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">tuple(prev=np.array[N],next=np.array[N])</p>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 </div>
@@ -248,6 +350,9 @@ phi3D should be between 0 and 2pi</p>
   <h4>Previous topic</h4>
   <p class="topless"><a href="FPSDP.Plasma.Collisions.collisions.html"
                         title="previous chapter">Collisions Manager</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="FPSDP.GeneralSettings.html"
+                        title="next chapter">General Settings Directory</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="_sources/FPSDP.Plasma.XGC_Profile.txt"
@@ -279,6 +384,9 @@ phi3D should be between 0 and 2pi</p>
         <li class="right" >
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
+        <li class="right" >
+          <a href="FPSDP.GeneralSettings.html" title="General Settings Directory"
+             >next</a> |</li>
         <li class="right" >
           <a href="FPSDP.Plasma.Collisions.collisions.html" title="Collisions Manager"
              >previous</a> |</li>

@@ -48,14 +48,18 @@
           <div class="body">
             
   <h1>Source code for FPSDP.Diagnostics.Beam.beam</h1><div class="highlight"><pre>
-<span class="kn">import</span> <span class="nn">math</span>
-<span class="kn">import</span> <span class="nn">json</span>
+<span class="c"># math</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">interpolate</span>
+<span class="c"># file reading</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">ConfigParser</span> <span class="kn">as</span> <span class="nn">psr</span>
+
 <span class="kn">import</span> <span class="nn">FPSDP.Plasma.Collisions.collisions</span> <span class="kn">as</span> <span class="nn">col</span>
 <span class="kn">import</span> <span class="nn">FPSDP.Maths.Integration</span> <span class="kn">as</span> <span class="nn">integ</span>
-<span class="kn">import</span> <span class="nn">ConfigParser</span> <span class="kn">as</span> <span class="nn">psr</span>
-<span class="kn">import</span> <span class="nn">FPSDP.Maths.Interpolation</span> <span class="kn">as</span> <span class="nn">Fint</span>
-<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">interpolate</span>
+<span class="kn">from</span> <span class="nn">FPSDP.GeneralSettings.UnitSystem</span> <span class="kn">import</span> <span class="n">SI</span>
+
 
 <div class="viewcode-block" id="Beam1D"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D">[docs]</a><span class="k">class</span> <span class="nc">Beam1D</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot; Simulate a 1D beam with the help of datas from simulation.</span>
@@ -172,8 +176,8 @@
 
         <span class="c"># speed of each beam</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">speed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">))</span>                           <span class="c">#!</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">speed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="o">*</span><span class="mf">9.6485383e7</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">mass_b</span><span class="p">)</span>
-
+        <span class="bp">self</span><span class="o">.</span><span class="n">speed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="o">*</span><span class="n">SI</span><span class="p">[</span><span class="s">&#39;keV&#39;</span><span class="p">]</span><span class="o">/</span><span class="p">(</span><span class="mi">1000</span><span class="o">*</span><span class="n">SI</span><span class="p">[</span><span class="s">&#39;amu&#39;</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">mass_b</span><span class="p">))</span>
+        <span class="k">print</span> <span class="bp">self</span><span class="o">.</span><span class="n">speed</span>
 
 
 <div class="viewcode-block" id="Beam1D.set_data"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.set_data">[docs]</a>    <span class="k">def</span> <span class="nf">set_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">data</span><span class="p">):</span>
@@ -303,8 +307,8 @@
         <span class="k">print</span><span class="p">(</span><span class="s">&#39;If keep attenuation with eq, should remove time loop&#39;</span><span class="p">)</span>
         <span class="c"># density of the beam at the origin</span>
         <span class="n">n0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">))</span>
-        <span class="n">n0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">mass_b</span><span class="o">*</span><span class="mf">1.660538921e-27</span><span class="p">)</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">power</span>
-        <span class="n">n0</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frac</span><span class="o">/</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="o">*</span><span class="mf">1.60217733e-19</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="mf">1.5</span><span class="p">)</span>
+        <span class="n">n0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">mass_b</span><span class="o">*</span><span class="n">SI</span><span class="p">[</span><span class="s">&#39;amu&#39;</span><span class="p">])</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">power</span>
+        <span class="n">n0</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frac</span><span class="o">/</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="o">*</span><span class="n">SI</span><span class="p">[</span><span class="s">&#39;keV&#39;</span><span class="p">]</span><span class="o">/</span><span class="mi">1000</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="mf">1.5</span><span class="p">)</span>
         
         <span class="c"># define the quadrature formula for this method</span>
         <span class="n">quad</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL3&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 3</span>
@@ -448,12 +452,13 @@
 <span class="sd">        :returns: :math:`\varepsilon_l`</span>
 <span class="sd">        :rtype: np.array[N]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">print</span> <span class="s">&#39;wavelength!!!&#39;</span>
 
         <span class="n">quad</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL19&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 3</span>
         <span class="n">emis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">),</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
         <span class="c"># avoid the computation at each time</span>
         <span class="n">ne_in</span><span class="p">,</span> <span class="n">Ti_in</span><span class="p">,</span><span class="n">Te_in</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_quantities</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">,[</span><span class="s">&#39;ne&#39;</span><span class="p">,</span><span class="s">&#39;Ti&#39;</span><span class="p">,</span><span class="s">&#39;Te&#39;</span><span class="p">])</span>
+        <span class="k">print</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">ne_in</span><span class="p">)</span>
+        <span class="c">#nb_in = self.get_beam_density(pos)</span>
         <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">coll_emis</span><span class="p">:</span>
             <span class="n">file_nber</span> <span class="o">=</span> <span class="n">k</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">beam_nber</span> <span class="o">=</span> <span class="n">k</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>

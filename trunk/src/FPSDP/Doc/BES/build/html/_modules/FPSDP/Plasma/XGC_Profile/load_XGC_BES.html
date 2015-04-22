@@ -48,8 +48,11 @@
           <div class="body">
             
   <h1>Source code for FPSDP.Plasma.XGC_Profile.load_XGC_BES</h1><div class="highlight"><pre>
-<span class="sd">&quot;&quot;&quot;Load XGC output data and interpolate the data</span>
-<span class="sd">   Copy of load_XGC_profile but remove all the useless stuff for BES</span>
+<span class="sd">&quot;&quot;&quot;Moduel of the XGC loader for the BES synthetic diagnostic.</span>
+
+<span class="sd">It reads the data from the simulation and remove the points not used for the diagnostic (in order to keep the used memory at a low level).</span>
+<span class="sd">Do an interpolation along the B-field.</span>
+<span class="sd">   </span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span> <span class="nn">...IO.IO_funcs</span> <span class="kn">import</span> <span class="n">parse_num</span>
@@ -63,9 +66,14 @@
 <span class="kn">import</span> <span class="nn">scipy.io.netcdf</span> <span class="kn">as</span> <span class="nn">nc</span>
 <span class="kn">import</span> <span class="nn">pickle</span>
 
-<span class="k">def</span> <span class="nf">get_interp_planes_BES</span><span class="p">(</span><span class="n">my_xgc</span><span class="p">,</span><span class="n">phi3D</span><span class="p">):</span>
-<div class="viewcode-block" id="get_interp_planes_BES"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.get_interp_planes_BES">[docs]</a>    <span class="sd">&quot;&quot;&quot;Get the plane numbers used for interpolation for each point </span>
-<span class="sd">       phi3D should be between 0 and 2pi</span>
+<div class="viewcode-block" id="get_interp_planes_BES"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.get_interp_planes_BES">[docs]</a><span class="k">def</span> <span class="nf">get_interp_planes_BES</span><span class="p">(</span><span class="n">my_xgc</span><span class="p">,</span><span class="n">phi3D</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Get the plane numbers used for the interpolation of each point.</span>
+
+<span class="sd">    :param my_xgc: (:class:`XGC_Loader_BES`) XGC loader</span>
+<span class="sd">    :param np.array[N] phi3D: Phi in the tokamak coordinate (should be between 0 and 2pi)</span>
+
+<span class="sd">    :returns: Index of the two closest planes from phi3D</span>
+<span class="sd">    :rtype: tuple(prev=np.array[N],next=np.array[N])</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c"># angle between two planes</span>
@@ -86,9 +94,20 @@
 
     <span class="k">return</span> <span class="p">(</span><span class="n">prevplane</span><span class="p">,</span><span class="n">nextplane</span><span class="p">)</span>
 
+</div>
+<div class="viewcode-block" id="XGC_Loader_BES"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES">[docs]</a><span class="k">class</span> <span class="nc">XGC_Loader_BES</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Loader classe for the BES diagnostic.</span>
 
-<span class="k">class</span> <span class="nc">XGC_Loader_BES</span><span class="p">():</span></div>
-<div class="viewcode-block" id="XGC_Loader_BES"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES">[docs]</a>    <span class="sd">&quot;&quot;&quot;Loader for a given set of XGC output files</span>
+<span class="sd">    The idea of this loader is to compute one time step at a time and calling the function </span>
+<span class="sd">    :func:`load_next_time_step` at the end of the time step (no return possible with this implementation).</span>
+<span class="sd">    The function :func:`interpolate_data` is used to obtain the data from any position.</span>
+<span class="sd">   </span>
+<span class="sd">    :param str xgc_path: Name of the directory containing the data</span>
+<span class="sd">    :param int t_start: Time step at which starting the diagnostic</span>
+<span class="sd">    :param int t_end: Time step at which stoping the diagnostic</span>
+<span class="sd">    :param int dt: Interval between two time step that the diagnostic should compute</span>
+<span class="sd">    :param list[list[]] limits: Mesh limits for the diagnostic (first index is for X,Y,Z and second for min/max)</span>
+<span class="sd">    :param int N_field: Number of step for the interpolation along the field line</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">xgc_path</span><span class="p">,</span><span class="n">t_start</span><span class="p">,</span><span class="n">t_end</span><span class="p">,</span><span class="n">dt</span><span class="p">,</span><span class="n">limits</span><span class="p">,</span><span class="n">N_field</span><span class="p">):</span>
@@ -163,14 +182,15 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">load_next_time_step</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">load_next_time_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">increase</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
-<div class="viewcode-block" id="XGC_Loader_BES.load_next_time_step"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_next_time_step">[docs]</a>        <span class="sd">&quot;&quot;&quot; Load all the quantities for the next time step.</span>
-<span class="sd">            The old quantities are overwritten</span>
-<span class="sd">            increase is used for the first time step that</span>
-<span class="sd">            need to be keepen at 0</span>
+<div class="viewcode-block" id="XGC_Loader_BES.load_next_time_step"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_next_time_step">[docs]</a>    <span class="k">def</span> <span class="nf">load_next_time_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">increase</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Load all the quantities for the next time step.</span>
+<span class="sd">        </span>
+<span class="sd">        The old quantities are overwritten.</span>
+<span class="sd">        Can be easily change to load any time, but for BES</span>
+<span class="sd">        loading them in order is enough</span>
+<span class="sd">        </span>
+<span class="sd">        :param bool increase: Define if the time step should be increase or not</span>
 
-<span class="sd">            can be easily change to load any time, but for BES</span>
-<span class="sd">            loading them in order is enough</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">increase</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">current</span> <span class="o">+=</span> <span class="mi">1</span>
@@ -188,9 +208,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">compute_interpolant</span><span class="p">()</span>
         <span class="k">print</span> <span class="s">&#39;interpolant computed&#39;</span>
         
-            
-    <span class="k">def</span> <span class="nf">load_mesh_psi_3D</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span></div>
-<div class="viewcode-block" id="XGC_Loader_BES.load_mesh_psi_3D"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_mesh_psi_3D">[docs]</a>        <span class="sd">&quot;&quot;&quot;load R-Z mesh and psi values, then create map between each psi </span>
+            </div>
+<div class="viewcode-block" id="XGC_Loader_BES.load_mesh_psi_3D"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_mesh_psi_3D">[docs]</a>    <span class="k">def</span> <span class="nf">load_mesh_psi_3D</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;load R-Z mesh and psi values, then create map between each psi </span>
 <span class="sd">           value and the series of points on that surface, calculate the arc length table.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># open the file</span>
@@ -224,12 +244,9 @@
         <span class="n">fmesh</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
         
         
-
-    <span class="k">def</span> <span class="nf">load_B_3D</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span></div>
-<div class="viewcode-block" id="XGC_Loader_BES.load_B_3D"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_B_3D">[docs]</a>        <span class="sd">&quot;&quot;&quot;Load equilibrium magnetic field data</span>
-
-<span class="sd">        B_total is interpolated over Z,R plane on given 3D Cartesian grid, </span>
-<span class="sd">        since B_0 is assumed symmetric along toroidal direction</span>
+</div>
+<div class="viewcode-block" id="XGC_Loader_BES.load_B_3D"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_B_3D">[docs]</a>    <span class="k">def</span> <span class="nf">load_B_3D</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Load equilibrium magnetic field data and compute the interpolant</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">B_mesh</span> <span class="o">=</span> <span class="n">h5</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bfield_file</span><span class="p">,</span><span class="s">&#39;r&#39;</span><span class="p">)</span>
         <span class="n">B</span> <span class="o">=</span> <span class="n">B_mesh</span><span class="p">[</span><span class="s">&#39;node_data[0]&#39;</span><span class="p">][</span><span class="s">&#39;values&#39;</span><span class="p">]</span>
@@ -258,18 +275,16 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">CO_DIR</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">BPhi</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
         <span class="k">return</span> <span class="mi">0</span>
 
-
-    <span class="k">def</span> <span class="nf">load_fluctuations_3D_all</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span></div>
-<div class="viewcode-block" id="XGC_Loader_BES.load_fluctuations_3D_all"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_fluctuations_3D_all">[docs]</a>        <span class="sd">&quot;&quot;&quot;Load non-adiabatic electron density and electrical static </span>
+</div>
+<div class="viewcode-block" id="XGC_Loader_BES.load_fluctuations_3D_all"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_fluctuations_3D_all">[docs]</a>    <span class="k">def</span> <span class="nf">load_fluctuations_3D_all</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Load non-adiabatic electron density and electrical static </span>
 <span class="sd">           potential fluctuations for 3D mesh.</span>
 <span class="sd">           The required planes are calculated and stored in sorted array.</span>
 <span class="sd">           fluctuation data on each plane is stored in the same order.</span>
-<span class="sd">        Note that for full-F runs, the purturbed electron density </span>
+<span class="sd">        Note that for full-F runs, the perturbed electron density </span>
 <span class="sd">        includes both turbulent fluctuations and equilibrium relaxation,</span>
 <span class="sd">        this loading method doesn&#39;t differentiate them and will read all of them.</span>
 <span class="sd">        </span>
-<span class="sd">        the mean value of these two quantities on each time step is also calculated.</span>
-<span class="sd">        for multiple cross-section runs, data is stored under each center_plane index.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c">#similar to the 2D case, we first read one file to determine the total</span>
         <span class="c"># toroidal plane number in the simulation</span>
@@ -307,9 +322,9 @@
         <span class="n">fluc_mesh</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
             
         <span class="k">return</span> <span class="mi">0</span>
-
-    <span class="k">def</span> <span class="nf">load_eq_2D3D</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span></div>
-<div class="viewcode-block" id="XGC_Loader_BES.load_eq_2D3D"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_eq_2D3D">[docs]</a>        <span class="sd">&quot;&quot;&quot;Load equilibrium profiles</span>
+</div>
+<div class="viewcode-block" id="XGC_Loader_BES.load_eq_2D3D"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_eq_2D3D">[docs]</a>    <span class="k">def</span> <span class="nf">load_eq_2D3D</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Load equilibrium profiles and compute the interpolant</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">eqf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">xgc_path</span> <span class="o">+</span> <span class="s">&#39;xgc.oneddiag.h5&#39;</span>
         <span class="n">eq_mesh</span> <span class="o">=</span> <span class="n">h5</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">eqf</span><span class="p">,</span><span class="s">&#39;r&#39;</span><span class="p">)</span>
@@ -340,13 +355,10 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">load_eq_tene_nonElectronRun</span><span class="p">()</span> 
         <span class="n">eq_mesh</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="XGC_Loader_BES.load_eq_tene_nonElectronRun"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_eq_tene_nonElectronRun">[docs]</a>    <span class="k">def</span> <span class="nf">load_eq_tene_nonElectronRun</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;For ion only silumations, te and ne are read from simulation input files.</span>
 
-    <span class="k">def</span> <span class="nf">load_eq_tene_nonElectronRun</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span></div>
-<div class="viewcode-block" id="XGC_Loader_BES.load_eq_tene_nonElectronRun"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_eq_tene_nonElectronRun">[docs]</a>        <span class="sd">&quot;&quot;&quot;For ion only silumations, te and ne are read from simulation input files.</span>
-
-<span class="sd">        Add Attributes:</span>
-<span class="sd">        te0_sp: interpolator for Te_0 on psi</span>
-<span class="sd">        ne0_sp: interpolator for ne_0 on psi</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">te_fname</span> <span class="o">=</span> <span class="s">&#39;xgc.Te_prof.prf&#39;</span>
         <span class="n">ne_fname</span> <span class="o">=</span> <span class="s">&#39;xgc.ne_prof.prf&#39;</span>
@@ -362,9 +374,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">te0_sp</span> <span class="o">=</span> <span class="n">interp1d</span><span class="p">(</span><span class="n">psi_te</span><span class="p">,</span><span class="n">te</span><span class="p">,</span><span class="n">bounds_error</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span><span class="n">fill_value</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ne0_sp</span> <span class="o">=</span> <span class="n">interp1d</span><span class="p">(</span><span class="n">psi_ne</span><span class="p">,</span><span class="n">ne</span><span class="p">,</span><span class="n">bounds_error</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span><span class="n">fill_value</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span>
         
-
-    <span class="k">def</span> <span class="nf">calc_total_ne_2D3D</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span></div>
-<div class="viewcode-block" id="XGC_Loader_BES.calc_total_ne_2D3D"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.calc_total_ne_2D3D">[docs]</a>        <span class="sd">&quot;&quot;&quot;calculate the total electron and ion density in raw XGC grid points</span>
+</div>
+<div class="viewcode-block" id="XGC_Loader_BES.calc_total_ne_2D3D"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.calc_total_ne_2D3D">[docs]</a>    <span class="k">def</span> <span class="nf">calc_total_ne_2D3D</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;calculate the total electron and ion density in raw XGC grid points</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># temperature and density (equilibrium) on the psi mesh</span>
         <span class="n">te0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">te0_sp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">psi</span><span class="p">)</span>
@@ -399,9 +411,9 @@
 
         <span class="c"># clear some space</span>
         <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">nani</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">dni_ad</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">nane</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">dne_ad</span>
-
-    <span class="k">def</span> <span class="nf">compute_interpolant</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span></div>
-<div class="viewcode-block" id="XGC_Loader_BES.compute_interpolant"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.compute_interpolant">[docs]</a>        <span class="sd">&quot;&quot;&quot; Compute the interpolant for the ion and electron</span>
+</div>
+<div class="viewcode-block" id="XGC_Loader_BES.compute_interpolant"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.compute_interpolant">[docs]</a>    <span class="k">def</span> <span class="nf">compute_interpolant</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Compute the interpolant for the ion and electron</span>
 <span class="sd">            density</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># list of interpolant</span>
@@ -415,12 +427,18 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">ne_interp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
                 <span class="n">CloughTocher2DInterpolator</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">ne</span><span class="p">[</span><span class="n">j</span><span class="p">,:],</span><span class="n">fill_value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">))</span>
 
-
-    <span class="k">def</span> <span class="nf">find_interp_positions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">z</span><span class="p">,</span><span class="n">phi</span><span class="p">,</span><span class="n">prev_</span><span class="p">,</span><span class="n">next_</span><span class="p">):</span></div>
-<div class="viewcode-block" id="XGC_Loader_BES.find_interp_positions"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.find_interp_positions">[docs]</a>        <span class="sd">&quot;&quot;&quot;new version to find the interpolation positions.</span>
-<span class="sd">        Using B field information and follows the exact field line.</span>
+</div>
+<div class="viewcode-block" id="XGC_Loader_BES.find_interp_positions"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.find_interp_positions">[docs]</a>    <span class="k">def</span> <span class="nf">find_interp_positions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">z</span><span class="p">,</span><span class="n">phi</span><span class="p">,</span><span class="n">prev_</span><span class="p">,</span><span class="n">next_</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Using B field information and follows the exact field line.</span>
 <span class="sd">        </span>
-<span class="sd">        argument and return value are the same as find_interp_positions_v1. </span>
+<span class="sd">        :param np.array[N] r: R coordinates</span>
+<span class="sd">        :param np.array[N] z: Z coordinates</span>
+<span class="sd">        :param np.array[N] phi: Phi coordinates</span>
+<span class="sd">        :param np.array[N] prev_: Previous planes</span>
+<span class="sd">        :param np.array[N] next_: Next planes</span>
+
+<span class="sd">        :returns: Positions on the the previous plane and the next one</span>
+<span class="sd">        :rtype: np.array[2,3,N] (2 for the previous/next plane, 3 for R,Z,L where L is the distance between plane and points)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">prevplane</span><span class="p">,</span><span class="n">nextplane</span> <span class="o">=</span> <span class="n">prev_</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span><span class="n">next_</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
 
@@ -497,19 +515,19 @@
 
         <span class="k">return</span> <span class="n">interp_positions</span>
 
-
-    <span class="k">def</span> <span class="nf">interpolate_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">timesteps</span><span class="p">,</span><span class="n">quant</span><span class="p">,</span><span class="n">eq</span><span class="p">):</span></div>
-<div class="viewcode-block" id="XGC_Loader_BES.interpolate_data"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data">[docs]</a>        <span class="sd">&quot;&quot;&quot; Interpolate the data to the position wanted</span>
+</div>
+<div class="viewcode-block" id="XGC_Loader_BES.interpolate_data"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data">[docs]</a>    <span class="k">def</span> <span class="nf">interpolate_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">timestep</span><span class="p">,</span><span class="n">quant</span><span class="p">,</span><span class="n">eq</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Interpolate the data to the position wanted</span>
 <span class="sd">        </span>
-<span class="sd">            Arguments:</span>
-<span class="sd">            pos       --  1D array with (X,Y,Z) or 2D array with (X,Y,Z)</span>
-<span class="sd">                          as the second index</span>
-<span class="sd">            timesteps --  list of timesteps</span>
-<span class="sd">            quant     --  list containing the wanted quantities (see data class</span>
-<span class="sd">                          for more information)</span>
-<span class="sd">            eq        --  choice between equilibrium or exact quantities</span>
+<span class="sd">        :param np.array[N,3] pos: Position (in cartesian system)</span>
+<span class="sd">        :param int timestep: Time step wanted (used to check if an error is not made)</span>
+<span class="sd">        :param list[str] quant: Desired quantities (can be &#39;ni&#39;, &#39;ne&#39;, &#39;Ti&#39;, &#39;Te&#39;)</span>
+<span class="sd">        :param bool eq: Choice between equilibrium or exact quantities</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: Quantities asked in the right order</span>
+<span class="sd">        :rtype: tuple(np.array[N],...)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="p">(</span><span class="n">timesteps</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">current</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">eq</span> <span class="ow">is</span> <span class="bp">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">timestep</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">current</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">eq</span> <span class="ow">is</span> <span class="bp">False</span><span class="p">):</span>
             <span class="k">print</span> <span class="s">&#39;Maybe an error is made, the requested time step is not the same than the XGC one&#39;</span>
         
 
@@ -618,9 +636,12 @@
                 <span class="k">raise</span> <span class="n">XGC_Loader_Error</span><span class="p">(</span><span class="s">&#39;{} is not a valid value in the evaluation of XGC data&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">ret</span>
 
-        
-    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">fname</span> <span class="o">=</span> <span class="s">&#39;xgc_profile.sav&#39;</span><span class="p">):</span></div>
-<div class="viewcode-block" id="XGC_Loader_BES.save"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.save">[docs]</a>        <span class="sd">&quot;&quot;&quot;save the original and interpolated electron density fluctuations </span>
+        </div>
+<div class="viewcode-block" id="XGC_Loader_BES.save"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">fname</span> <span class="o">=</span> <span class="s">&#39;xgc_profile.sav&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :todo: Not modified for this class, therefore should not work</span>
+
+<span class="sd">        save the original and interpolated electron density fluctuations </span>
 <span class="sd">           and useful equilibrium quantities to a local .npz file</span>
 
 <span class="sd">        for 2D instances,The arrays saved are:</span>
@@ -673,9 +694,12 @@
             <span class="n">saving_dic</span><span class="p">[</span><span class="s">&#39;BX&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">BX_on_grid</span>
             <span class="n">saving_dic</span><span class="p">[</span><span class="s">&#39;BY&#39;</span><span class="p">]</span> <span class="o">=</span>  <span class="bp">self</span><span class="o">.</span><span class="n">BY_on_grid</span>
         <span class="n">np</span><span class="o">.</span><span class="n">savez</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span><span class="o">**</span><span class="n">saving_dic</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="XGC_Loader_BES.load"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load">[docs]</a>    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span> <span class="o">=</span> <span class="s">&#39;dne_file.sav&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :todo: Not modified for this class, therefore should not work</span>
 
-    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span> <span class="o">=</span> <span class="s">&#39;dne_file.sav&#39;</span><span class="p">):</span></div>
-<div class="viewcode-block" id="XGC_Loader_BES.load"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load">[docs]</a>        <span class="sd">&quot;&quot;&quot;load the previously saved xgc profile data file.</span>
+<span class="sd">        load the previously saved xgc profile data file.</span>
 <span class="sd">        The geometry information needs to be the same, otherwise an error will be raised.</span>
 <span class="sd">        WARNING: Currently no serious checking is performed. The user is responsible to make sure the XGC_Loader object is initialized properly to load the corresponding saving file. </span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -719,9 +743,12 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">BY_on_grid</span> <span class="o">=</span> <span class="n">nefile</span><span class="p">[</span><span class="s">&#39;BY&#39;</span><span class="p">]</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">B_on_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">BX_on_grid</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">BY_on_grid</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">BZ_on_grid</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> 
 
+</div>
+<div class="viewcode-block" id="XGC_Loader_BES.cdf_output"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.cdf_output">[docs]</a>    <span class="k">def</span> <span class="nf">cdf_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">output_path</span><span class="p">,</span><span class="n">eq_file</span> <span class="o">=</span> <span class="s">&#39;equilibrium.cdf&#39;</span><span class="p">,</span><span class="n">filehead</span> <span class="o">=</span> <span class="s">&#39;fluctuation&#39;</span><span class="p">,</span><span class="n">WithBp</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">cdf_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">output_path</span><span class="p">,</span><span class="n">eq_file</span> <span class="o">=</span> <span class="s">&#39;equilibrium.cdf&#39;</span><span class="p">,</span><span class="n">filehead</span> <span class="o">=</span> <span class="s">&#39;fluctuation&#39;</span><span class="p">,</span><span class="n">WithBp</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span></div>
-<div class="viewcode-block" id="XGC_Loader_BES.cdf_output"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.cdf_output">[docs]</a>        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :todo: Not modified for this class, therefore should not work</span>
+
 <span class="sd">        Wrapper for cdf_output_2D and cdf_output_3D.</span>
 <span class="sd">        Determining 2D/3D by checking the grid property.</span>
 <span class="sd">            </span>
@@ -732,9 +759,12 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">cdf_output_3D</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span><span class="n">eq_file</span><span class="p">,</span><span class="n">filehead</span><span class="p">,</span><span class="n">WithBp</span><span class="p">)</span>
         
 
+</div>
+<div class="viewcode-block" id="XGC_Loader_BES.cdf_output_3D"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.cdf_output_3D">[docs]</a>    <span class="k">def</span> <span class="nf">cdf_output_3D</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">output_path</span> <span class="o">=</span> <span class="s">&#39;./&#39;</span><span class="p">,</span><span class="n">eq_filename</span> <span class="o">=</span> <span class="s">&#39;equilibrium3D.cdf&#39;</span><span class="p">,</span><span class="n">flucfilehead</span><span class="o">=</span><span class="s">&#39;fluctuation&#39;</span><span class="p">,</span><span class="n">WithBp</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :todo: Not modified for this class, therefore should not work</span>
 
-    <span class="k">def</span> <span class="nf">cdf_output_3D</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">output_path</span> <span class="o">=</span> <span class="s">&#39;./&#39;</span><span class="p">,</span><span class="n">eq_filename</span> <span class="o">=</span> <span class="s">&#39;equilibrium3D.cdf&#39;</span><span class="p">,</span><span class="n">flucfilehead</span><span class="o">=</span><span class="s">&#39;fluctuation&#39;</span><span class="p">,</span><span class="n">WithBp</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span></div>
-<div class="viewcode-block" id="XGC_Loader_BES.cdf_output_3D"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.cdf_output_3D">[docs]</a>        <span class="sd">&quot;&quot;&quot;write out cdf files for FWR3D code to use</span>
+<span class="sd">        write out cdf files for FWR3D code to use</span>
 
 <span class="sd">        Arguments:</span>
 <span class="sd">        output_path: string, the full path to put the output files</span>

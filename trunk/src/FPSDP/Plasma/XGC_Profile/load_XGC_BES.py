@@ -1,6 +1,8 @@
+"""Moduel of the XGC loader for the BES synthetic diagnostic.
 
-"""Load XGC output data and interpolate the data
-   Copy of load_XGC_profile but remove all the useless stuff for BES
+It reads the data from the simulation and remove the points not used for the diagnostic (in order to keep the used memory at a low level).
+Do an interpolation along the B-field.
+   
 """
 
 from ...IO.IO_funcs import parse_num
@@ -15,8 +17,13 @@ import scipy.io.netcdf as nc
 import pickle
 
 def get_interp_planes_BES(my_xgc,phi3D):
-    """Get the plane numbers used for interpolation for each point 
-       phi3D should be between 0 and 2pi
+    """Get the plane numbers used for the interpolation of each point.
+
+    :param my_xgc: (:class:`XGC_Loader_BES`) XGC loader
+    :param np.array[N] phi3D: Phi in the tokamak coordinate (should be between 0 and 2pi)
+
+    :returns: Index of the two closest planes from phi3D
+    :rtype: tuple(prev=np.array[N],next=np.array[N])
     """
 
     # angle between two planes
@@ -39,7 +46,18 @@ def get_interp_planes_BES(my_xgc,phi3D):
 
 
 class XGC_Loader_BES():
-    """Loader for a given set of XGC output files
+    """Loader classe for the BES diagnostic.
+
+    The idea of this loader is to compute one time step at a time and calling the function 
+    :func:`load_next_time_step` at the end of the time step (no return possible with this implementation).
+    The function :func:`interpolate_data` is used to obtain the data from any position.
+   
+    :param str xgc_path: Name of the directory containing the data
+    :param int t_start: Time step at which starting the diagnostic
+    :param int t_end: Time step at which stoping the diagnostic
+    :param int dt: Interval between two time step that the diagnostic should compute
+    :param list[list[]] limits: Mesh limits for the diagnostic (first index is for X,Y,Z and second for min/max)
+    :param int N_field: Number of step for the interpolation along the field line
     """
 
     def __init__(self,xgc_path,t_start,t_end,dt,limits,N_field):
@@ -116,12 +134,13 @@ class XGC_Loader_BES():
 
     def load_next_time_step(self,increase=True):
         """ Load all the quantities for the next time step.
-            The old quantities are overwritten
-            increase is used for the first time step that
-            need to be keepen at 0
+        
+        The old quantities are overwritten.
+        Can be easily change to load any time, but for BES
+        loading them in order is enough
+        
+        :param bool increase: Define if the time step should be increase or not
 
-            can be easily change to load any time, but for BES
-            loading them in order is enough
         """
         if increase:
             self.current += 1
@@ -177,10 +196,7 @@ class XGC_Loader_BES():
         
 
     def load_B_3D(self):
-        """Load equilibrium magnetic field data
-
-        B_total is interpolated over Z,R plane on given 3D Cartesian grid, 
-        since B_0 is assumed symmetric along toroidal direction
+        """Load equilibrium magnetic field data and compute the interpolant
         """
         B_mesh = h5.File(self.bfield_file,'r')
         B = B_mesh['node_data[0]']['values']
@@ -215,12 +231,10 @@ class XGC_Loader_BES():
            potential fluctuations for 3D mesh.
            The required planes are calculated and stored in sorted array.
            fluctuation data on each plane is stored in the same order.
-        Note that for full-F runs, the purturbed electron density 
+        Note that for full-F runs, the perturbed electron density 
         includes both turbulent fluctuations and equilibrium relaxation,
         this loading method doesn't differentiate them and will read all of them.
         
-        the mean value of these two quantities on each time step is also calculated.
-        for multiple cross-section runs, data is stored under each center_plane index.
         """
         #similar to the 2D case, we first read one file to determine the total
         # toroidal plane number in the simulation
@@ -260,7 +274,7 @@ class XGC_Loader_BES():
         return 0
 
     def load_eq_2D3D(self):
-        """Load equilibrium profiles
+        """Load equilibrium profiles and compute the interpolant
         """
         eqf = self.xgc_path + 'xgc.oneddiag.h5'
         eq_mesh = h5.File(eqf,'r')
@@ -295,9 +309,6 @@ class XGC_Loader_BES():
     def load_eq_tene_nonElectronRun(self):
         """For ion only silumations, te and ne are read from simulation input files.
 
-        Add Attributes:
-        te0_sp: interpolator for Te_0 on psi
-        ne0_sp: interpolator for ne_0 on psi
         """
         te_fname = 'xgc.Te_prof.prf'
         ne_fname = 'xgc.ne_prof.prf'
@@ -368,10 +379,16 @@ class XGC_Loader_BES():
 
 
     def find_interp_positions(self,r,z,phi,prev_,next_):
-        """new version to find the interpolation positions.
-        Using B field information and follows the exact field line.
+        """Using B field information and follows the exact field line.
         
-        argument and return value are the same as find_interp_positions_v1. 
+        :param np.array[N] r: R coordinates
+        :param np.array[N] z: Z coordinates
+        :param np.array[N] phi: Phi coordinates
+        :param np.array[N] prev_: Previous planes
+        :param np.array[N] next_: Next planes
+
+        :returns: Positions on the the previous plane and the next one
+        :rtype: np.array[2,3,N] (2 for the previous/next plane, 3 for R,Z,L where L is the distance between plane and points)
         """
         prevplane,nextplane = prev_.flatten(),next_.flatten()
 
@@ -449,18 +466,18 @@ class XGC_Loader_BES():
         return interp_positions
 
 
-    def interpolate_data(self,pos,timesteps,quant,eq):
+    def interpolate_data(self,pos,timestep,quant,eq):
         """ Interpolate the data to the position wanted
         
-            Arguments:
-            pos       --  1D array with (X,Y,Z) or 2D array with (X,Y,Z)
-                          as the second index
-            timesteps --  list of timesteps
-            quant     --  list containing the wanted quantities (see data class
-                          for more information)
-            eq        --  choice between equilibrium or exact quantities
+        :param np.array[N,3] pos: Position (in cartesian system)
+        :param int timestep: Time step wanted (used to check if an error is not made)
+        :param list[str] quant: Desired quantities (can be 'ni', 'ne', 'Ti', 'Te')
+        :param bool eq: Choice between equilibrium or exact quantities
+        
+        :returns: Quantities asked in the right order
+        :rtype: tuple(np.array[N],...)
         """
-        if (timesteps is not self.current) and (eq is False):
+        if (timestep is not self.current) and (eq is False):
             print 'Maybe an error is made, the requested time step is not the same than the XGC one'
         
 
@@ -571,7 +588,10 @@ class XGC_Loader_BES():
 
         
     def save(self,fname = 'xgc_profile.sav'):
-        """save the original and interpolated electron density fluctuations 
+        """
+        :todo: Not modified for this class, therefore should not work
+
+        save the original and interpolated electron density fluctuations 
            and useful equilibrium quantities to a local .npz file
 
         for 2D instances,The arrays saved are:
@@ -626,7 +646,10 @@ class XGC_Loader_BES():
         np.savez(file_name,**saving_dic)
 
     def load(self, filename = 'dne_file.sav'):
-        """load the previously saved xgc profile data file.
+        """
+        :todo: Not modified for this class, therefore should not work
+
+        load the previously saved xgc profile data file.
         The geometry information needs to be the same, otherwise an error will be raised.
         WARNING: Currently no serious checking is performed. The user is responsible to make sure the XGC_Loader object is initialized properly to load the corresponding saving file. 
         """
@@ -673,6 +696,9 @@ class XGC_Loader_BES():
 
     def cdf_output(self,output_path,eq_file = 'equilibrium.cdf',filehead = 'fluctuation',WithBp=True):
         """
+
+        :todo: Not modified for this class, therefore should not work
+
         Wrapper for cdf_output_2D and cdf_output_3D.
         Determining 2D/3D by checking the grid property.
             
@@ -685,7 +711,10 @@ class XGC_Loader_BES():
 
 
     def cdf_output_3D(self,output_path = './',eq_filename = 'equilibrium3D.cdf',flucfilehead='fluctuation',WithBp=True):
-        """write out cdf files for FWR3D code to use
+        """
+        :todo: Not modified for this class, therefore should not work
+
+        write out cdf files for FWR3D code to use
 
         Arguments:
         output_path: string, the full path to put the output files

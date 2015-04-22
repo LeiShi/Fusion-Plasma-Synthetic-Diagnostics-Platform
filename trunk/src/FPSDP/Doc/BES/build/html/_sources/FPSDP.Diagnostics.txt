@@ -1,5 +1,7 @@
-Diagnostics Directoy
-===================
+.. _diag_dir:
+
+Diagnostics Directory
+=====================
 
 Directory containing all the diagnostics of the library.
 For this documentation, we are only interested in the Beam Emission Spectroscopy (BES).

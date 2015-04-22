@@ -51,6 +51,7 @@
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">ADAS_file</span> <span class="kn">as</span> <span class="nn">adas</span>
 <span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">interpolate</span>
+<span class="kn">from</span> <span class="nn">FPSDP.GeneralSettings.UnitSystem</span> <span class="kn">import</span> <span class="n">SI</span>
 
 
 <div class="viewcode-block" id="Collisions"><a class="viewcode-back" href="../../../../FPSDP.Plasma.Collisions.collisions.html#FPSDP.Plasma.Collisions.collisions.Collisions">[docs]</a><span class="k">class</span> <span class="nc">Collisions</span><span class="p">:</span>
@@ -88,13 +89,9 @@
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">files_atte</span><span class="p">,</span><span class="n">files_emis</span><span class="p">,</span><span class="n">states</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Copy the input inside the instance</span>
 <span class="sd">            </span>
-<span class="sd">            Arguments:</span>
-<span class="sd">            files_atte  -- list containing the name of the attenuation files</span>
-<span class="sd">            files_emis  -- list containing the name of the emission files</span>
-<span class="sd">            beams       -- list of the different energy beam (should be in the </span>
-<span class="sd">                           same order than the files)</span>
-<span class="sd">            lifetime    -- list of the lifetime of the excited states (same </span>
-<span class="sd">                           order than the other lists)</span>
+<span class="sd">        :param list[str] files_atte: List of names for ADAS21 files (beam stopping coefficient)</span>
+<span class="sd">        :param list[str] files_emis: List of names for ADAS22 files (emission coefficient)</span>
+<span class="sd">        :param list[int] states: Quantum number of the lower (states[0]) and the higher(states[1]) states of the hydrogen atom</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">files_atte</span> <span class="o">=</span> <span class="n">files_atte</span>                                         <span class="c">#!</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">files_emis</span> <span class="o">=</span> <span class="n">files_emis</span>                                         <span class="c">#!</span>
@@ -119,7 +116,8 @@
             <span class="n">lbeams</span><span class="p">,</span> <span class="n">ldens</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">lbeams</span><span class="p">,</span> <span class="n">ldensities</span><span class="p">)</span>
             
             <span class="c"># interpolation over beam and density</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">atte_tck_dens</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">bisplrep</span><span class="p">(</span><span class="n">lbeams</span><span class="p">,</span><span class="n">ldens</span><span class="p">,</span><span class="n">coef_dens</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">atte_tck_dens</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">bisplrep</span><span class="p">(</span>
+                <span class="n">lbeams</span><span class="p">,</span><span class="n">ldens</span><span class="p">,</span><span class="n">coef_dens</span><span class="p">))</span>
             
             <span class="c"># get data for the interpolation in temperature</span>
             <span class="n">T</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_list_temperature</span><span class="p">(</span><span class="s">&#39;atte&#39;</span><span class="p">,</span><span class="n">i</span><span class="p">)</span>
@@ -128,7 +126,8 @@
             <span class="n">index</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">((</span><span class="n">Tref</span><span class="o">-</span><span class="n">T</span><span class="p">)</span><span class="o">/</span><span class="n">Tref</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-4</span>
             
             <span class="c">#interpolation over the temperature</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">atte_tck_temp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">splrep</span><span class="p">(</span><span class="n">T</span><span class="p">,</span><span class="n">coef_T</span><span class="o">/</span><span class="n">coef_T</span><span class="p">[</span><span class="n">index</span><span class="p">]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">atte_tck_temp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">splrep</span><span class="p">(</span>
+                <span class="n">T</span><span class="p">,</span><span class="n">coef_T</span><span class="o">/</span><span class="n">coef_T</span><span class="p">[</span><span class="n">index</span><span class="p">]))</span>
 
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_emis</span><span class="p">)):</span>
             <span class="c"># get data</span>
@@ -138,7 +137,8 @@
             <span class="n">lbeams</span><span class="p">,</span> <span class="n">ldens</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">lbeams</span><span class="p">,</span> <span class="n">ldensities</span><span class="p">)</span>
             
             <span class="c"># interpolation over beam and density</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">emis_tck_dens</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">bisplrep</span><span class="p">(</span><span class="n">lbeams</span><span class="p">,</span><span class="n">ldens</span><span class="p">,</span><span class="n">coef_dens</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">emis_tck_dens</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">bisplrep</span><span class="p">(</span>
+                <span class="n">lbeams</span><span class="p">,</span><span class="n">ldens</span><span class="p">,</span><span class="n">coef_dens</span><span class="p">))</span>
 
             <span class="c"># Get data for the interpolation in temperature</span>
             <span class="n">T</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_list_temperature</span><span class="p">(</span><span class="s">&#39;emis&#39;</span><span class="p">,</span><span class="n">i</span><span class="p">)</span>
@@ -147,7 +147,8 @@
             <span class="n">index</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">((</span><span class="n">Tref</span><span class="o">-</span><span class="n">T</span><span class="p">)</span><span class="o">/</span><span class="n">Tref</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-4</span>
             
             <span class="c">#interpolation over the temperature</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">emis_tck_temp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">splrep</span><span class="p">(</span><span class="n">T</span><span class="p">,</span><span class="n">coef_T</span><span class="o">/</span><span class="n">coef_T</span><span class="p">[</span><span class="n">index</span><span class="p">]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">emis_tck_temp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">splrep</span><span class="p">(</span>
+                <span class="n">T</span><span class="p">,</span><span class="n">coef_T</span><span class="o">/</span><span class="n">coef_T</span><span class="p">[</span><span class="n">index</span><span class="p">]))</span>
 
         
 <div class="viewcode-block" id="Collisions.read_adas"><a class="viewcode-back" href="../../../../FPSDP.Plasma.Collisions.collisions.html#FPSDP.Plasma.Collisions.collisions.Collisions.read_adas">[docs]</a>    <span class="k">def</span> <span class="nf">read_adas</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -206,8 +207,7 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ne</span><span class="p">,</span><span class="nb">float</span><span class="p">):</span>
             <span class="n">coef</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ne</span><span class="p">))</span>
             <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ne</span><span class="p">)):</span>
-                <span class="n">coef</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">bisplev</span><span class="p">(</span><span class="n">beam</span><span class="p">,</span><span class="n">ne</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
-                                              <span class="bp">self</span><span class="o">.</span><span class="n">emis_tck_dens</span><span class="p">[</span><span class="n">file_number</span><span class="p">])</span>
+                <span class="n">coef</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">bisplev</span><span class="p">(</span><span class="n">beam</span><span class="p">,</span><span class="n">ne</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">emis_tck_dens</span><span class="p">[</span><span class="n">file_number</span><span class="p">])</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">coef</span> <span class="o">=</span>  <span class="n">interpolate</span><span class="o">.</span><span class="n">bisplev</span><span class="p">(</span><span class="n">beam</span><span class="p">,</span><span class="n">ne</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">emis_tck_dens</span><span class="p">[</span><span class="n">file_number</span><span class="p">])</span>
 
@@ -324,11 +324,11 @@
 <span class="sd">        given by I. H. Hutchinson, Plasma Phys. Controlled Fusion 44,71 (2002)</span>
 <span class="sd">        assuming an hydrogen atom.</span>
 
-<span class="sd">        :param float beam: Beam energy</span>
-<span class="sd">        :param np.array[N] ne: Electron density</span>
+<span class="sd">        :param float beam: Beam energy (eV)</span>
+<span class="sd">        :param np.array[N] ne: Electron density (m :sup:`-3`)</span>
 <span class="sd">        :param float mass_b: Mass of a neutral particle in the beam (amu)</span>
-<span class="sd">        :param np.array[N] Te: Electron temperature</span>
-<span class="sd">        :param np.array[N] Ti: Ion temperature</span>
+<span class="sd">        :param np.array[N] Te: Electron temperature (eV)</span>
+<span class="sd">        :param np.array[N] Ti: Ion temperature (eV)</span>
 <span class="sd">        :param int file_number: File number (choosen in Beam.py)</span>
 
 <span class="sd">        :returns: Lifetime of the excited atom</span>
@@ -336,13 +336,25 @@
 
 <span class="sd">        :todo: everything</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c">#:todo:</span>
-        <span class="n">l</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">ne</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-        <span class="k">return</span> <span class="mf">1.68e-9</span><span class="o">*</span><span class="n">l</span>
-        <span class="c">#frac = (float(self.n_low)/float(self.n_high))**2</span>
-        <span class="c">#E = -self.E0*(1.0/self.n_low**2 - 1.0/self.n_high**2)</span>
-        <span class="c">#sigv = frac*np.exp(E/Te)*self.get_emission(beam,ne,mass_b,Ti,file_number)</span>
-        <span class="c">#return 1.0/(sigv*ne)</span></div></div>
+        <span class="c">#:todo: eV???</span>
+        <span class="n">E</span> <span class="o">=</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">E0</span><span class="o">*</span><span class="p">(</span><span class="mf">1.0</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">n_low</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mf">1.0</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">n_high</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">frac</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_low</span><span class="p">)</span><span class="o">/</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_high</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span>
+        <span class="c">#print self.get_emission(beam,ne,mass_b,Ti,file_number)</span>
+        <span class="n">sigv</span> <span class="o">=</span> <span class="n">frac</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">E</span><span class="o">/</span><span class="n">Te</span><span class="p">)</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">get_attenutation</span><span class="p">(</span><span class="n">beam</span><span class="p">,</span><span class="n">ne</span><span class="p">,</span><span class="n">mass_b</span><span class="p">,</span><span class="n">Ti</span><span class="p">,</span><span class="n">file_number</span><span class="p">)</span>
+        <span class="c">#print &#39;lifetime&#39;,1.0/(sigv*ne)</span>
+        <span class="c">#return 1.0/(sigv*ne)</span>
+
+        <span class="k">return</span> <span class="mf">3.5e-9</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">ne</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Collisions.get_wavelength"><a class="viewcode-back" href="../../../../FPSDP.Plasma.Collisions.collisions.html#FPSDP.Plasma.Collisions.collisions.Collisions.get_wavelength">[docs]</a>    <span class="k">def</span> <span class="nf">get_wavelength</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Compute the wavelength of the emitted photons in the particles </span>
+<span class="sd">        reference frame (assume an hydrogen atom).</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: Wavelength emitted in reference frame (nm)</span>
+<span class="sd">        :rtype: float</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">E</span> <span class="o">=</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">E0</span><span class="o">*</span><span class="p">(</span><span class="mf">1.0</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">n_low</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mf">1.0</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">n_high</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">SI</span><span class="p">[</span><span class="s">&#39;hc&#39;</span><span class="p">]</span><span class="o">*</span><span class="mf">1e12</span><span class="o">/</span><span class="p">(</span><span class="n">E</span><span class="o">*</span><span class="n">SI</span><span class="p">[</span><span class="s">&#39;keV&#39;</span><span class="p">])</span></div></div>
 </pre></div>
 
           </div>

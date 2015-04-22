@@ -2,13 +2,15 @@ import collections
 import numpy as np
 
 def integration_points(dim, meth, obj='', size=-1):
-    """ Return the points and the weight for a 2D integration
-        Arguments:
-        dim   --  dimension of the integration (int)
-        obj   --  type of domain of integration (for dim>1)
-        meth  --  method of integration
-        size  --  number describing the obj (for example the radius
-                  for a circle)
+    """ Defines a few quadrature formula (in any number of dimension)
+
+    :param int dim: Dimension of the integration
+    :param str obj: Type of domain of integration (for dim>1, e.g. 'disk' )
+    :param str meth: Method of integration (e.g 'GL3' for Gauss-Legendre order 3)
+    :param size: Object describing the geometry of the problem (e.g. radius for a disk)
+
+    :returns: Points and weights of the quadrature formula
+    :rtype: Named tuple (.pts and .w)
     """
     if dim == 1:
         if meth == 'GL3': # gauss legendre order 3
@@ -68,7 +70,7 @@ def integration_points(dim, meth, obj='', size=-1):
             points[8] = -0.9739065285171717
             points[9] = 0.9739065285171717
     elif dim == 2:
-        if obj == 'circle':
+        if obj == 'disk':
             if size == -1:
                 raise NameError('You should specify a radius')
             if meth == 'order10':

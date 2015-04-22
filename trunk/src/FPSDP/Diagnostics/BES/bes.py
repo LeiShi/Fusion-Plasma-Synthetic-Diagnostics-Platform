@@ -249,13 +249,14 @@ class BES:
 
 
     def load_filter(self,filter_name):
-        """ Load the data from the filter and compute the value for the wavelengths
-        considered.
+        """ Load the data from the filter and compute the interpolant.
+
+        
 
         :param str filter_name: Name of the file containing the filter datas
 
-        :returns: Transmission for the wavelengths considered
-        :rtype: np.array[Ncomp]
+        :returns: Interpolant
+        :rtype: tck_interp
         """
         data = np.loadtxt(filter_name)
         # wavelength in nanometer
@@ -272,6 +273,7 @@ class BES:
         The only limitations comes from the sampling volume and the lifetime of the excited state.
         In the figure below, blue is for the beam and the lifetime effect, red for the ring and the cutoff values,
         straight black lines are for the sampling volume, and, the dashed one are the box.
+
 
         .. tikz::
            % beam
@@ -443,6 +445,11 @@ class BES:
     def intensity_para(self,i):
         """ Same as :func:`intensity`, but have only one argument.
         The only use is for the parallelization that ask only one argument.
+        Use the variable current from the data loader.
+
+        :param int i: Index of a fiber
+        :returns: Intensity received by the fiber (number of photons per second)
+        :rtype: float
         """
         t_ = self.beam.data.current
         return self.intensity(t_,i)
@@ -476,9 +483,23 @@ class BES:
 
         .. tikz::
            \draw (3,3) -- (-2.5,0) -- (3,-3);
-
-  
-        :todo: ADD A PICTURE IN ORDER TO EXPLAIN
+           \draw[ultra thick] (3,3) -- (3,-3);
+           \node at (3.5,1.5) {Lens};
+           \draw[ultra thick] (0,1.35) -- (0,-1.35);
+           \node at (0, 1.8) {Ring};
+           \draw[dashed] (-3,3) -- (2.5,0) -- (-3,-3);
+           \draw[-{Triangle[angle=45:5pt 5]}] (3.6,0) to (-3,0);
+           \draw (-1.2,0) -- (-1.2,0.7);
+           %first pos
+           \node at (-1.5,0.3) {$r_1$};
+           \node at (-1.2,-0.5) {x};
+           \node at (-0.6,-0.5) {Pos$_1$};
+           % second pos
+           \draw (1.9,0) -- (1.9,0.33);
+           %\node at (1.9,0.1) {$r_2$};
+           \node at (1.9,0.6) {x};
+           \node at (2.45,0.6) {Pos$_2$};
+           :libs: arrows.meta
 
         :param np.array[N,3] pos: Position where to compute the width in the optical system
         :param int fiber_nber: Index of the fiber
@@ -532,10 +553,27 @@ class BES:
         return ret
         
     def light_from_plane(self,z, t_, fiber_nber):
-        """ Compute the light from one plane using a order 10 method (see report or
-            Abramowitz and Stegun)
+        r""" Compute the light from one plane using a method of order 10 (see report or
+        Abramowitz and Stegun).
+        
+        .. math::
+           I_\text{plane} = \iint_D f(x) \mathrm{d}\sigma \approx \sum_i \omega_i f(x_i)
+        where :math:`f(x)` is the value obtained by :func:`get_emis_from`, D is the disk
+        representing the plane, and, :math:`\omega_i` and :math:`x_i` are the weights and the points
+        of the quadrature formula.
 
-        :todo: ADD PICTURE
+        The points are given in the figure below and the weights are :math:`\frac{1}{9}` for the center,
+        :math:`\frac{16\pm\sqrt{6}}{360}` for the innermost circle (plus sign) and the outermost circle (minus sign)
+
+        .. tikz::
+           \draw (0,0) circle(3);
+           \foreach \i in {1,...,10}
+           {
+              \fill ({2.757*cos(36*\i)},{2.757*sin(36*\i)}) circle(2pt);
+              \fill ({1.788*cos(36*\i)},{1.788*sin(36*\i)}) circle(2pt);
+           }
+           \fill (0,0) circle(2pt);
+
         :param np.array[N] z: Distance from the fiber along the sightline
         :param int t_: Time step to compute (is not important for the data loader, but is used as a check)
         :param int fiber_nber: Index of the fiber
@@ -572,11 +610,20 @@ class BES:
         return I
 
     def intensity(self,t_,fiber_nber):
-        """ Compute the light received by a fiber at one time step.
+        r""" Compute the light received by a fiber at one time step.
         
         Use a Gauss-Legendre quadrature formula of order 3.
         
-        :todo: ADD PICTURE
+        .. math::
+           I = \int_{-d}^d f(z) \mathrm{d}z \approx 
+           \sum_i \frac{b_i-a_i}{2} \sum_j \omega_j f\left(\frac{b_i-a_i}{2}x_j + \frac{a_i+b_i}{2}\right)
+
+        where the index i is for the splitting in subintervals, j is for the Gauss-Legendre formula,
+        :math:`f(z) = \frac{I_\text{plane}(z)}{A(z)}` is the light emitted by the planes normalized by its area,
+        :math:`d = \text{inter} \cdot w`, inter is the cutoff in unit of the average beam width (w),
+        :math:`a_i` and :math:`b_i` are the lower and upper limits for each intervals, :math:`\omega` and :math:`x_i` are
+        the weights and points of the quadrature formula. See figure :func:`compute_limits` for a view of the situation.
+
         :param int t_: Time step to compute
         :param int fiber_nber: Index of the fiber
 
@@ -608,10 +655,12 @@ class BES:
         return I
         
     def get_emis_from(self,pos,t_,fiber_nber):
-        """ Compute the total emission received from pos (takes in account the
-            solid angle and the filter).
+        """ Compute the total emission received from a position (takes in account the
+        solid angle and the filter).
+        As long as it is possible, the effect of the optic should be written here (a lot more efficient than
+        keeping all the wavelength until the end).
 
-        :todo: Improvement possible: keep in memory the solid angle for different time
+        :todo: Improvement possible: keep in memory the solid angle for different time step
 
         :param np.array[N,3] pos: Position in the optical system 
         :param int t_: Time step to compute
@@ -714,11 +763,26 @@ class BES:
         return solid
 
     def solid_angle_mix_case(self,pos,x,y,fib):
-        """ Compute numerically the solid angle for the mixted case
-            (where the lens AND the ring limit the size of the solid angle)
+        r""" Compute numerically the solid angle for the mixted case
+        (where the lens AND the ring limit the size of the solid angle)
 
-        :todo: ADD picture
-        
+        The view from the emission point is given in the figure below.
+        The light collected by the fiber is within the continuous lines.
+
+        .. tikz::
+           \draw [red,dashed,domain=115:180] plot ({4*cos(\x)}, {4*sin(\x)});
+           \draw [red,dashed,domain=360:425] plot ({4*cos(\x)}, {4*sin(\x)});
+           \draw [black,thick,domain=150:390] plot ({2*cos(\x)}, {8/3+2*sin(\x)});
+           \draw [red,thick,domain=65:115] plot ({4*cos(\x)}, {4*sin(\x)});
+           \draw [black,dashed,domain=30:150] plot ({2*cos(\x)}, {8/3+2*sin(\x)});
+           \node at ({-5*2/3},0) {Lens};
+           \node at ({2.4*2/3},{2/3}) {Ring};
+           \node at ({2.66*2/3},{5.38*2/3}) {x};
+           \node at ({3.2*2/3},{5.8*2/3}) {$x_2$,$y_2$};
+           \node at ({-2.66*2/3},{5.38*2/3}) {x};
+           \node at ({-3.2*2/3},{5.8*2/3}) {$x_1$,$y_1$};
+
+
         :param np.array[N,3] pos: Position in the optical system
         :param list[np.array[N],..] x: Position of the intersection on the ring (list contains 2 elements) 
         :param list[np.array[N],..] y: Position of the intersection on the lens (list contains 2 elements)
@@ -733,10 +797,45 @@ class BES:
 
 
     def solid_angle_seg(self,pos,x,r,islens):
-        """
-            Compute the solid angle of a disk where a segment has been removed
+        r""" Compute the solid angle of a disk where a segment has been removed.
+
+        First, the numerical integration will be carried out over the biggest area of the disk,
+        and, in a second time, if necessary, the integral over the full disk is computed
+        (with the analytical formula) and subtracted by the numerical integral.
+
+        The idea is to compute numerically the 2D integral by splitting the domain in 
+        sector of the same angle and doing a Gauss-Legendre quadrature formula over
+        each dimension.
+
+        In a first time, the maximum radius (that will depends on the coordinate :math:`\omega`)
+        has to be compute.
+
+        In this figure, we want to compute the area between the black line and the blue one
+
+        .. tikz::
+           \draw [red,dashed,domain=115:180] plot ({6*cos(\x)}, {6*sin(\x)});
+           \draw [red,dashed,domain=360:425] plot ({6*cos(\x)}, {6*sin(\x)});
+           \draw [black,thick,domain=150:390] plot ({3*cos(\x)}, {4+3*sin(\x)});
+           \draw [red,thick,domain=65:115] plot ({6*cos(\x)}, {6*sin(\x)});
+           \draw [black,dashed,domain=30:150] plot ({3*cos(\x)}, {4+3*sin(\x)});
+           \draw [domain=-10:80] plot ({0.8*cos(\x)}, {4+0.8*sin(\x)});
+           \node at (1,4.6) {$\theta$};
+           \node at (-5,0) {Lens};
+           \node at (2.4,1) {Ring};
+           \node at (0,0) {x};
+           \node at (0,4) {x};
+           \draw (0,4) -- (0.51,6.94);
+           \draw (0,4) -- ({3*cos(-10)}, {4+3*sin(-10)});
+           \node at (2.66,5.38) {x};
+           \node at (3.2,5.8) {$x_2$,$y_2$};
+           \node at (-2.66,5.38) {x};
+           \node at (-3.2,5.8) {$x_1$,$y_1$};
+           \draw [blue] (-2.66,5.38) -- (2.66,5.38);
+           \node at (0.25,5.4) {x};
+           \node at (0.8,5.2) {$r_{max}$};
+
         
-        :todo: ADD PICTURE
+        :todo: improvement: remove useless computation of rmax
         :param np.array[N,3] pos: Position in the optical system
         :param list[np.array[N],..] x: Position of the intersection on the ring (list contains 2 elements) 
         :param float r: Radius of the disk (should be centered at (0,0,0) and the perpendicular should be along the z-axis)
@@ -752,14 +851,16 @@ class BES:
         quadr = integ.integration_points(1,'GL3') # Gauss-Legendre order 3
         quadt = integ.integration_points(1,'GL3') # Gauss-Legendre order 3
 
-        # mid point of the limits
+        # mid point of the limits in theta
         av = 0.5*(theta[:-1] + theta[1:])
-        # half size of the intervals
+        # half size of the intervals in theta
         diff = 0.5*np.diff(theta)
+        # array containing all the value of theta that will be computed
         th = ((diff[:,np.newaxis]*quadt.pts).T + av).T
 
         # perpendicular vector to x1->x2
         perp = -pos[:,0:2]
+
         # indices where we want to compute the big part
         ind = np.einsum('ij,ij->i',perp,x1) > 0
         if islens:
@@ -772,7 +873,9 @@ class BES:
         delta = np.rollaxis(delta,0,3)
         # now detla[Nsol-1,quadt,dim]
 
+        # compute the scalar product (=> the cos)
         cospsi = np.einsum('ak,ijk->aij',perp,delta)
+        # index where the line can cross the segment
         ind2 = cospsi > 0
 
         # distance between line
@@ -780,12 +883,18 @@ class BES:
 
         #print('useless computations')
         #:todo: This can be improved
+        # compute the distance along theta where the segment is crossed
         rmax = ((1.0/cospsi).T*d).T
+        # if the line cannot be cross, therefore the computation can raise some trouble
+        # => set it manually to the good value
         rmax[~ind2] = r
+        # take the min between the intersection with the segment and the circle
         rmax = np.minimum(r,rmax)
 
+        # array containing the evaluation of the function that will be integrated
         R = np.zeros((pos.shape[0],self.Nsol-1,quadt.pts.shape[0],
                       quadr.pts.shape[0],3))
+        # radius that will be computed
         temp = (0.5*rmax[...,np.newaxis]*(quadr.pts+1.0))
         R[...,0] = pos[:,np.newaxis,np.newaxis,np.newaxis,0]\
                    + temp*delta[...,np.newaxis,0]
@@ -793,11 +902,15 @@ class BES:
                    + temp*delta[...,np.newaxis,1]
         R[...,2] = pos[:,np.newaxis,np.newaxis,np.newaxis,2]
 
+        # compute the norm of the vector
         R = np.sum(R**2,axis=4)**(-1.5)
+        # sum over all the index (theta and r quadrature formula, and, sector)
         omega = np.sum(0.5*diff*np.sum(rmax*np.sum(temp*R*quadr.w,axis=3)*quadt.w,axis=2),axis=1)
-        
+
+        # multiply by the scalar product between the position and the normal (to the disk) vector 
         omega *= np.abs(pos[:,2])
 
+        # change the area that we want to compute
         omega[~ind] = solid_angle_disk(pos[~ind,:],r)-omega[~ind]
         return omega
 

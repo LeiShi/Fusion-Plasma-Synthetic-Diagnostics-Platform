@@ -198,7 +198,9 @@ latex_elements = {
 'preamble': '''
 \usepackage{tikz}
 \usepackage{pgfplots}
-\usetikzlibrary{arrows}
+%\usetikzlibrary{arrows}
+\usetikzlibrary{arrows.meta}
+\input{arrowsnew}
 ''',
 }
 

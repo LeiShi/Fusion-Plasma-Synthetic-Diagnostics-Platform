@@ -284,15 +284,15 @@ This function should be the only one used outside the class.</p>
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES.get_emis_from">
 <tt class="descname">get_emis_from</tt><big>(</big><em>pos</em>, <em>t_</em>, <em>fiber_nber</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_emis_from"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_emis_from" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="docutils">
-<dt>Compute the total emission received from pos (takes in account the</dt>
-<dd>solid angle and the filter).</dd>
-</dl>
+<dd><p>Compute the total emission received from a position (takes in account the
+solid angle and the filter).
+As long as it is possible, the effect of the optic should be written here (a lot more efficient than
+keeping all the wavelength until the end).</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body"><p class="first">Improvement possible: keep in memory the solid angle for different time</p>
+<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body"><p class="first">Improvement possible: keep in memory the solid angle for different time step</p>
 </td>
 </tr>
 <tr class="field-even field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
@@ -356,24 +356,37 @@ the last one is solved numerically.</p>
 <dd><p>Compute the radius of the light cone.
 Assume two cones that meet at the focus disk.</p>
 <div class="figure">
-<p><img src="_images/tikz-c48104b94240016e63772ec2ffca2c60f7eeb6e6.png" alt="\draw (3,3) -- (-2.5,0) -- (3,-3);" /></p>
+<p><img src="_images/tikz-a949d4e44eb73d34f7734848739e97b1f4b34fe1.png" alt="\draw (3,3) -- (-2.5,0) -- (3,-3);
+\draw[ultra thick] (3,3) -- (3,-3);
+\node at (3.5,1.5) {Lens};
+\draw[ultra thick] (0,1.35) -- (0,-1.35);
+\node at (0, 1.8) {Ring};
+\draw[dashed] (-3,3) -- (2.5,0) -- (-3,-3);
+\draw[-{Triangle[angle=45:5pt 5]}] (3.6,0) to (-3,0);
+\draw (-1.2,0) -- (-1.2,0.7);
+%first pos
+\node at (-1.5,0.3) {$r_1$};
+\node at (-1.2,-0.5) {x};
+\node at (-0.6,-0.5) {Pos$_1$};
+% second pos
+\draw (1.9,0) -- (1.9,0.33);
+%\node at (1.9,0.1) {$r_2$};
+\node at (1.9,0.6) {x};
+\node at (2.45,0.6) {Pos$_2$};" /></p>
 </div><table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body"><p class="first">ADD A PICTURE IN ORDER TO EXPLAIN</p>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>pos</strong> (<em>np.array[N,3]</em>) &#8211; Position where to compute the width in the optical system</li>
 <li><strong>fiber_nber</strong> (<em>int</em>) &#8211; Index of the fiber</li>
 </ul>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Radius of the optical cone</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Radius of the optical cone</p>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
 </td>
 </tr>
 </tbody>
@@ -385,23 +398,28 @@ Assume two cones that meet at the focus disk.</p>
 <tt class="descname">intensity</tt><big>(</big><em>t_</em>, <em>fiber_nber</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.intensity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.intensity" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the light received by a fiber at one time step.</p>
 <p>Use a Gauss-Legendre quadrature formula of order 3.</p>
+<div class="math">
+\[I = \int_{-d}^d f(z) \mathrm{d}z \approx 
+\sum_i \frac{b_i-a_i}{2} \sum_j \omega_j f\left(\frac{b_i-a_i}{2}x_j + \frac{a_i+b_i}{2}\right)\]</div>
+<p>where the index i is for the splitting in subintervals, j is for the Gauss-Legendre formula,
+<span class="math">\(f(z) = \frac{I_\text{plane}(z)}{A(z)}\)</span> is the light emitted by the planes normalized by its area,
+<span class="math">\(d = \text{inter} \cdot w\)</span>, inter is the cutoff in unit of the average beam width (w),
+<span class="math">\(a_i\)</span> and <span class="math">\(b_i\)</span> are the lower and upper limits for each intervals, <span class="math">\(\omega\)</span> and <span class="math">\(x_i\)</span> are
+the weights and points of the quadrature formula. See figure <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.compute_limits" title="FPSDP.Diagnostics.BES.bes.BES.compute_limits"><tt class="xref py py-func docutils literal"><span class="pre">compute_limits()</span></tt></a> for a view of the situation.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body"><p class="first">ADD PICTURE</p>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>t</strong> (<em>int</em>) &#8211; Time step to compute</li>
 <li><strong>fiber_nber</strong> (<em>int</em>) &#8211; Index of the fiber</li>
 </ul>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Intensity of light collected by the fiber</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Intensity of light collected by the fiber</p>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">float</p>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">float</p>
 </td>
 </tr>
 </tbody>
@@ -412,34 +430,57 @@ Assume two cones that meet at the focus disk.</p>
 <dt id="FPSDP.Diagnostics.BES.bes.BES.intensity_para">
 <tt class="descname">intensity_para</tt><big>(</big><em>i</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.intensity_para"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.intensity_para" title="Permalink to this definition">¶</a></dt>
 <dd><p>Same as <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.intensity" title="FPSDP.Diagnostics.BES.bes.BES.intensity"><tt class="xref py py-func docutils literal"><span class="pre">intensity()</span></tt></a>, but have only one argument.
-The only use is for the parallelization that ask only one argument.</p>
+The only use is for the parallelization that ask only one argument.
+Use the variable current from the data loader.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>i</strong> (<em>int</em>) &#8211; Index of a fiber</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Intensity received by the fiber (number of photons per second)</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES.light_from_plane">
 <tt class="descname">light_from_plane</tt><big>(</big><em>z</em>, <em>t_</em>, <em>fiber_nber</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.light_from_plane"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.light_from_plane" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="docutils">
-<dt>Compute the light from one plane using a order 10 method (see report or</dt>
-<dd>Abramowitz and Stegun)</dd>
-</dl>
-<table class="docutils field-list" frame="void" rules="none">
+<dd><p>Compute the light from one plane using a method of order 10 (see report or
+Abramowitz and Stegun).</p>
+<div class="math">
+\[I_\text{plane} = \iint_D f(x) \mathrm{d}\sigma \approx \sum_i \omega_i f(x_i)\]</div>
+<p>where <span class="math">\(f(x)\)</span> is the value obtained by <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.get_emis_from" title="FPSDP.Diagnostics.BES.bes.BES.get_emis_from"><tt class="xref py py-func docutils literal"><span class="pre">get_emis_from()</span></tt></a>, D is the disk
+representing the plane, and, <span class="math">\(\omega_i\)</span> and <span class="math">\(x_i\)</span> are the weights and the points
+of the quadrature formula.</p>
+<p>The points are given in the figure below and the weights are <span class="math">\(\frac{1}{9}\)</span> for the center,
+<span class="math">\(\frac{16\pm\sqrt{6}}{360}\)</span> for the innermost circle (plus sign) and the outermost circle (minus sign)</p>
+<div class="figure">
+<p><img src="_images/tikz-1255f245afcc07739b5066ff37808ff51540170f.png" alt="\draw (0,0) circle(3);
+\foreach \i in {1,...,10}
+{
+   \fill ({2.757*cos(36*\i)},{2.757*sin(36*\i)}) circle(2pt);
+   \fill ({1.788*cos(36*\i)},{1.788*sin(36*\i)}) circle(2pt);
+}
+\fill (0,0) circle(2pt);" /></p>
+</div><table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body"><p class="first">ADD PICTURE</p>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>z</strong> (<em>np.array[N]</em>) &#8211; Distance from the fiber along the sightline</li>
 <li><strong>t</strong> (<em>int</em>) &#8211; Time step to compute (is not important for the data loader, but is used as a check)</li>
 <li><strong>fiber_nber</strong> (<em>int</em>) &#8211; Index of the fiber</li>
 </ul>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Intensity collected by the fiber from these planes</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Intensity collected by the fiber from these planes</p>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
 </td>
 </tr>
 </tbody>
@@ -449,17 +490,16 @@ The only use is for the parallelization that ask only one argument.</p>
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES.load_filter">
 <tt class="descname">load_filter</tt><big>(</big><em>filter_name</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.load_filter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.load_filter" title="Permalink to this definition">¶</a></dt>
-<dd><p>Load the data from the filter and compute the value for the wavelengths
-considered.</p>
+<dd><p>Load the data from the filter and compute the interpolant.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>filter_name</strong> (<em>str</em>) &#8211; Name of the file containing the filter datas</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Transmission for the wavelengths considered</td>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Interpolant</td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">np.array[Ncomp]</td>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">tck_interp</td>
 </tr>
 </tbody>
 </table>
@@ -468,18 +508,27 @@ considered.</p>
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES.solid_angle_mix_case">
 <tt class="descname">solid_angle_mix_case</tt><big>(</big><em>pos</em>, <em>x</em>, <em>y</em>, <em>fib</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.solid_angle_mix_case"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.solid_angle_mix_case" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="docutils">
-<dt>Compute numerically the solid angle for the mixted case</dt>
-<dd>(where the lens AND the ring limit the size of the solid angle)</dd>
-</dl>
-<table class="docutils field-list" frame="void" rules="none">
+<dd><p>Compute numerically the solid angle for the mixted case
+(where the lens AND the ring limit the size of the solid angle)</p>
+<p>The view from the emission point is given in the figure below.
+The light collected by the fiber is within the continuous lines.</p>
+<div class="figure">
+<p><img src="_images/tikz-0b50ec51de9e2f9fdf0d2d412b87dbc1d8dea16c.png" alt="\draw [red,dashed,domain=115:180] plot ({4*cos(\x)}, {4*sin(\x)});
+\draw [red,dashed,domain=360:425] plot ({4*cos(\x)}, {4*sin(\x)});
+\draw [black,thick,domain=150:390] plot ({2*cos(\x)}, {8/3+2*sin(\x)});
+\draw [red,thick,domain=65:115] plot ({4*cos(\x)}, {4*sin(\x)});
+\draw [black,dashed,domain=30:150] plot ({2*cos(\x)}, {8/3+2*sin(\x)});
+\node at ({-5*2/3},0) {Lens};
+\node at ({2.4*2/3},{2/3}) {Ring};
+\node at ({2.66*2/3},{5.38*2/3}) {x};
+\node at ({3.2*2/3},{5.8*2/3}) {$x_2$,$y_2$};
+\node at ({-2.66*2/3},{5.38*2/3}) {x};
+\node at ({-3.2*2/3},{5.8*2/3}) {$x_1$,$y_1$};" /></p>
+</div><table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body"><p class="first">ADD picture</p>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
 <li><strong>pos</strong> (<em>np.array[N,3]</em>) &#8211; Position in the optical system</li>
 <li><strong>x</strong> (<em>list[np.array[N],..]</em>) &#8211; Position of the intersection on the ring (list contains 2 elements)</li>
 <li><strong>y</strong> (<em>list[np.array[N],..]</em>) &#8211; Position of the intersection on the lens (list contains 2 elements)</li>
@@ -494,13 +543,42 @@ considered.</p>
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES.solid_angle_seg">
 <tt class="descname">solid_angle_seg</tt><big>(</big><em>pos</em>, <em>x</em>, <em>r</em>, <em>islens</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.solid_angle_seg"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.solid_angle_seg" title="Permalink to this definition">¶</a></dt>
-<dd><blockquote>
-<div>Compute the solid angle of a disk where a segment has been removed</div></blockquote>
-<table class="docutils field-list" frame="void" rules="none">
+<dd><p>Compute the solid angle of a disk where a segment has been removed.</p>
+<p>First, the numerical integration will be carried out over the biggest area of the disk,
+and, in a second time, if necessary, the integral over the full disk is computed
+(with the analytical formula) and subtracted by the numerical integral.</p>
+<p>The idea is to compute numerically the 2D integral by splitting the domain in 
+sector of the same angle and doing a Gauss-Legendre quadrature formula over
+each dimension.</p>
+<p>In a first time, the maximum radius (that will depends on the coordinate <span class="math">\(\omega\)</span>)
+has to be compute.</p>
+<p>In this figure, we want to compute the area between the black line and the blue one</p>
+<div class="figure">
+<p><img src="_images/tikz-26474fc0c8cf31bb4059adec29c3e7665698ae47.png" alt="\draw [red,dashed,domain=115:180] plot ({6*cos(\x)}, {6*sin(\x)});
+\draw [red,dashed,domain=360:425] plot ({6*cos(\x)}, {6*sin(\x)});
+\draw [black,thick,domain=150:390] plot ({3*cos(\x)}, {4+3*sin(\x)});
+\draw [red,thick,domain=65:115] plot ({6*cos(\x)}, {6*sin(\x)});
+\draw [black,dashed,domain=30:150] plot ({3*cos(\x)}, {4+3*sin(\x)});
+\draw [domain=-10:80] plot ({0.8*cos(\x)}, {4+0.8*sin(\x)});
+\node at (1,4.6) {$\theta$};
+\node at (-5,0) {Lens};
+\node at (2.4,1) {Ring};
+\node at (0,0) {x};
+\node at (0,4) {x};
+\draw (0,4) -- (0.51,6.94);
+\draw (0,4) -- ({3*cos(-10)}, {4+3*sin(-10)});
+\node at (2.66,5.38) {x};
+\node at (3.2,5.8) {$x_2$,$y_2$};
+\node at (-2.66,5.38) {x};
+\node at (-3.2,5.8) {$x_1$,$y_1$};
+\draw [blue] (-2.66,5.38) -- (2.66,5.38);
+\node at (0.25,5.4) {x};
+\node at (0.8,5.2) {$r_{max}$};" /></p>
+</div><table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body"><p class="first">ADD PICTURE</p>
+<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body"><p class="first">improvement: remove useless computation of rmax</p>
 </td>
 </tr>
 <tr class="field-even field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">

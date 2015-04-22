@@ -299,13 +299,14 @@
 
 
 <div class="viewcode-block" id="BES.load_filter"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.load_filter">[docs]</a>    <span class="k">def</span> <span class="nf">load_filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filter_name</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Load the data from the filter and compute the value for the wavelengths</span>
-<span class="sd">        considered.</span>
+        <span class="sd">&quot;&quot;&quot; Load the data from the filter and compute the interpolant.</span>
+
+<span class="sd">        </span>
 
 <span class="sd">        :param str filter_name: Name of the file containing the filter datas</span>
 
-<span class="sd">        :returns: Transmission for the wavelengths considered</span>
-<span class="sd">        :rtype: np.array[Ncomp]</span>
+<span class="sd">        :returns: Interpolant</span>
+<span class="sd">        :rtype: tck_interp</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">filter_name</span><span class="p">)</span>
         <span class="c"># wavelength in nanometer</span>
@@ -322,6 +323,7 @@
 <span class="sd">        The only limitations comes from the sampling volume and the lifetime of the excited state.</span>
 <span class="sd">        In the figure below, blue is for the beam and the lifetime effect, red for the ring and the cutoff values,</span>
 <span class="sd">        straight black lines are for the sampling volume, and, the dashed one are the box.</span>
+
 
 <span class="sd">        .. tikz::</span>
 <span class="sd">           % beam</span>
@@ -493,6 +495,11 @@
 <div class="viewcode-block" id="BES.intensity_para"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.intensity_para">[docs]</a>    <span class="k">def</span> <span class="nf">intensity_para</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">i</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Same as :func:`intensity`, but have only one argument.</span>
 <span class="sd">        The only use is for the parallelization that ask only one argument.</span>
+<span class="sd">        Use the variable current from the data loader.</span>
+
+<span class="sd">        :param int i: Index of a fiber</span>
+<span class="sd">        :returns: Intensity received by the fiber (number of photons per second)</span>
+<span class="sd">        :rtype: float</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">t_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">current</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensity</span><span class="p">(</span><span class="n">t_</span><span class="p">,</span><span class="n">i</span><span class="p">)</span>
@@ -526,9 +533,23 @@
 
 <span class="sd">        .. tikz::</span>
 <span class="sd">           \draw (3,3) -- (-2.5,0) -- (3,-3);</span>
-
-<span class="sd">  </span>
-<span class="sd">        :todo: ADD A PICTURE IN ORDER TO EXPLAIN</span>
+<span class="sd">           \draw[ultra thick] (3,3) -- (3,-3);</span>
+<span class="sd">           \node at (3.5,1.5) {Lens};</span>
+<span class="sd">           \draw[ultra thick] (0,1.35) -- (0,-1.35);</span>
+<span class="sd">           \node at (0, 1.8) {Ring};</span>
+<span class="sd">           \draw[dashed] (-3,3) -- (2.5,0) -- (-3,-3);</span>
+<span class="sd">           \draw[-{Triangle[angle=45:5pt 5]}] (3.6,0) to (-3,0);</span>
+<span class="sd">           \draw (-1.2,0) -- (-1.2,0.7);</span>
+<span class="sd">           %first pos</span>
+<span class="sd">           \node at (-1.5,0.3) {$r_1$};</span>
+<span class="sd">           \node at (-1.2,-0.5) {x};</span>
+<span class="sd">           \node at (-0.6,-0.5) {Pos$_1$};</span>
+<span class="sd">           % second pos</span>
+<span class="sd">           \draw (1.9,0) -- (1.9,0.33);</span>
+<span class="sd">           %\node at (1.9,0.1) {$r_2$};</span>
+<span class="sd">           \node at (1.9,0.6) {x};</span>
+<span class="sd">           \node at (2.45,0.6) {Pos$_2$};</span>
+<span class="sd">           :libs: arrows.meta</span>
 
 <span class="sd">        :param np.array[N,3] pos: Position where to compute the width in the optical system</span>
 <span class="sd">        :param int fiber_nber: Index of the fiber</span>
@@ -582,10 +603,27 @@
         <span class="k">return</span> <span class="n">ret</span>
         </div>
 <div class="viewcode-block" id="BES.light_from_plane"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.light_from_plane">[docs]</a>    <span class="k">def</span> <span class="nf">light_from_plane</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">z</span><span class="p">,</span> <span class="n">t_</span><span class="p">,</span> <span class="n">fiber_nber</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Compute the light from one plane using a order 10 method (see report or</span>
-<span class="sd">            Abramowitz and Stegun)</span>
+        <span class="sd">r&quot;&quot;&quot; Compute the light from one plane using a method of order 10 (see report or</span>
+<span class="sd">        Abramowitz and Stegun).</span>
+<span class="sd">        </span>
+<span class="sd">        .. math::</span>
+<span class="sd">           I_\text{plane} = \iint_D f(x) \mathrm{d}\sigma \approx \sum_i \omega_i f(x_i)</span>
+<span class="sd">        where :math:`f(x)` is the value obtained by :func:`get_emis_from`, D is the disk</span>
+<span class="sd">        representing the plane, and, :math:`\omega_i` and :math:`x_i` are the weights and the points</span>
+<span class="sd">        of the quadrature formula.</span>
 
-<span class="sd">        :todo: ADD PICTURE</span>
+<span class="sd">        The points are given in the figure below and the weights are :math:`\frac{1}{9}` for the center,</span>
+<span class="sd">        :math:`\frac{16\pm\sqrt{6}}{360}` for the innermost circle (plus sign) and the outermost circle (minus sign)</span>
+
+<span class="sd">        .. tikz::</span>
+<span class="sd">           \draw (0,0) circle(3);</span>
+<span class="sd">           \foreach \i in {1,...,10}</span>
+<span class="sd">           {</span>
+<span class="sd">              \fill ({2.757*cos(36*\i)},{2.757*sin(36*\i)}) circle(2pt);</span>
+<span class="sd">              \fill ({1.788*cos(36*\i)},{1.788*sin(36*\i)}) circle(2pt);</span>
+<span class="sd">           }</span>
+<span class="sd">           \fill (0,0) circle(2pt);</span>
+
 <span class="sd">        :param np.array[N] z: Distance from the fiber along the sightline</span>
 <span class="sd">        :param int t_: Time step to compute (is not important for the data loader, but is used as a check)</span>
 <span class="sd">        :param int fiber_nber: Index of the fiber</span>
@@ -622,11 +660,20 @@
         <span class="k">return</span> <span class="n">I</span>
 </div>
 <div class="viewcode-block" id="BES.intensity"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.intensity">[docs]</a>    <span class="k">def</span> <span class="nf">intensity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">t_</span><span class="p">,</span><span class="n">fiber_nber</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Compute the light received by a fiber at one time step.</span>
+        <span class="sd">r&quot;&quot;&quot; Compute the light received by a fiber at one time step.</span>
 <span class="sd">        </span>
 <span class="sd">        Use a Gauss-Legendre quadrature formula of order 3.</span>
 <span class="sd">        </span>
-<span class="sd">        :todo: ADD PICTURE</span>
+<span class="sd">        .. math::</span>
+<span class="sd">           I = \int_{-d}^d f(z) \mathrm{d}z \approx </span>
+<span class="sd">           \sum_i \frac{b_i-a_i}{2} \sum_j \omega_j f\left(\frac{b_i-a_i}{2}x_j + \frac{a_i+b_i}{2}\right)</span>
+
+<span class="sd">        where the index i is for the splitting in subintervals, j is for the Gauss-Legendre formula,</span>
+<span class="sd">        :math:`f(z) = \frac{I_\text{plane}(z)}{A(z)}` is the light emitted by the planes normalized by its area,</span>
+<span class="sd">        :math:`d = \text{inter} \cdot w`, inter is the cutoff in unit of the average beam width (w),</span>
+<span class="sd">        :math:`a_i` and :math:`b_i` are the lower and upper limits for each intervals, :math:`\omega` and :math:`x_i` are</span>
+<span class="sd">        the weights and points of the quadrature formula. See figure :func:`compute_limits` for a view of the situation.</span>
+
 <span class="sd">        :param int t_: Time step to compute</span>
 <span class="sd">        :param int fiber_nber: Index of the fiber</span>
 
@@ -658,10 +705,12 @@
         <span class="k">return</span> <span class="n">I</span>
         </div>
 <div class="viewcode-block" id="BES.get_emis_from"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.get_emis_from">[docs]</a>    <span class="k">def</span> <span class="nf">get_emis_from</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">,</span><span class="n">fiber_nber</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Compute the total emission received from pos (takes in account the</span>
-<span class="sd">            solid angle and the filter).</span>
+        <span class="sd">&quot;&quot;&quot; Compute the total emission received from a position (takes in account the</span>
+<span class="sd">        solid angle and the filter).</span>
+<span class="sd">        As long as it is possible, the effect of the optic should be written here (a lot more efficient than</span>
+<span class="sd">        keeping all the wavelength until the end).</span>
 
-<span class="sd">        :todo: Improvement possible: keep in memory the solid angle for different time</span>
+<span class="sd">        :todo: Improvement possible: keep in memory the solid angle for different time step</span>
 
 <span class="sd">        :param np.array[N,3] pos: Position in the optical system </span>
 <span class="sd">        :param int t_: Time step to compute</span>
@@ -764,11 +813,26 @@
         <span class="k">return</span> <span class="n">solid</span>
 </div>
 <div class="viewcode-block" id="BES.solid_angle_mix_case"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.solid_angle_mix_case">[docs]</a>    <span class="k">def</span> <span class="nf">solid_angle_mix_case</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">fib</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Compute numerically the solid angle for the mixted case</span>
-<span class="sd">            (where the lens AND the ring limit the size of the solid angle)</span>
+        <span class="sd">r&quot;&quot;&quot; Compute numerically the solid angle for the mixted case</span>
+<span class="sd">        (where the lens AND the ring limit the size of the solid angle)</span>
 
-<span class="sd">        :todo: ADD picture</span>
-<span class="sd">        </span>
+<span class="sd">        The view from the emission point is given in the figure below.</span>
+<span class="sd">        The light collected by the fiber is within the continuous lines.</span>
+
+<span class="sd">        .. tikz::</span>
+<span class="sd">           \draw [red,dashed,domain=115:180] plot ({4*cos(\x)}, {4*sin(\x)});</span>
+<span class="sd">           \draw [red,dashed,domain=360:425] plot ({4*cos(\x)}, {4*sin(\x)});</span>
+<span class="sd">           \draw [black,thick,domain=150:390] plot ({2*cos(\x)}, {8/3+2*sin(\x)});</span>
+<span class="sd">           \draw [red,thick,domain=65:115] plot ({4*cos(\x)}, {4*sin(\x)});</span>
+<span class="sd">           \draw [black,dashed,domain=30:150] plot ({2*cos(\x)}, {8/3+2*sin(\x)});</span>
+<span class="sd">           \node at ({-5*2/3},0) {Lens};</span>
+<span class="sd">           \node at ({2.4*2/3},{2/3}) {Ring};</span>
+<span class="sd">           \node at ({2.66*2/3},{5.38*2/3}) {x};</span>
+<span class="sd">           \node at ({3.2*2/3},{5.8*2/3}) {$x_2$,$y_2$};</span>
+<span class="sd">           \node at ({-2.66*2/3},{5.38*2/3}) {x};</span>
+<span class="sd">           \node at ({-3.2*2/3},{5.8*2/3}) {$x_1$,$y_1$};</span>
+
+
 <span class="sd">        :param np.array[N,3] pos: Position in the optical system</span>
 <span class="sd">        :param list[np.array[N],..] x: Position of the intersection on the ring (list contains 2 elements) </span>
 <span class="sd">        :param list[np.array[N],..] y: Position of the intersection on the lens (list contains 2 elements)</span>
@@ -783,10 +847,45 @@
 
 </div>
 <div class="viewcode-block" id="BES.solid_angle_seg"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.solid_angle_seg">[docs]</a>    <span class="k">def</span> <span class="nf">solid_angle_seg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">x</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">islens</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">            Compute the solid angle of a disk where a segment has been removed</span>
+        <span class="sd">r&quot;&quot;&quot; Compute the solid angle of a disk where a segment has been removed.</span>
+
+<span class="sd">        First, the numerical integration will be carried out over the biggest area of the disk,</span>
+<span class="sd">        and, in a second time, if necessary, the integral over the full disk is computed</span>
+<span class="sd">        (with the analytical formula) and subtracted by the numerical integral.</span>
+
+<span class="sd">        The idea is to compute numerically the 2D integral by splitting the domain in </span>
+<span class="sd">        sector of the same angle and doing a Gauss-Legendre quadrature formula over</span>
+<span class="sd">        each dimension.</span>
+
+<span class="sd">        In a first time, the maximum radius (that will depends on the coordinate :math:`\omega`)</span>
+<span class="sd">        has to be compute.</span>
+
+<span class="sd">        In this figure, we want to compute the area between the black line and the blue one</span>
+
+<span class="sd">        .. tikz::</span>
+<span class="sd">           \draw [red,dashed,domain=115:180] plot ({6*cos(\x)}, {6*sin(\x)});</span>
+<span class="sd">           \draw [red,dashed,domain=360:425] plot ({6*cos(\x)}, {6*sin(\x)});</span>
+<span class="sd">           \draw [black,thick,domain=150:390] plot ({3*cos(\x)}, {4+3*sin(\x)});</span>
+<span class="sd">           \draw [red,thick,domain=65:115] plot ({6*cos(\x)}, {6*sin(\x)});</span>
+<span class="sd">           \draw [black,dashed,domain=30:150] plot ({3*cos(\x)}, {4+3*sin(\x)});</span>
+<span class="sd">           \draw [domain=-10:80] plot ({0.8*cos(\x)}, {4+0.8*sin(\x)});</span>
+<span class="sd">           \node at (1,4.6) {$\theta$};</span>
+<span class="sd">           \node at (-5,0) {Lens};</span>
+<span class="sd">           \node at (2.4,1) {Ring};</span>
+<span class="sd">           \node at (0,0) {x};</span>
+<span class="sd">           \node at (0,4) {x};</span>
+<span class="sd">           \draw (0,4) -- (0.51,6.94);</span>
+<span class="sd">           \draw (0,4) -- ({3*cos(-10)}, {4+3*sin(-10)});</span>
+<span class="sd">           \node at (2.66,5.38) {x};</span>
+<span class="sd">           \node at (3.2,5.8) {$x_2$,$y_2$};</span>
+<span class="sd">           \node at (-2.66,5.38) {x};</span>
+<span class="sd">           \node at (-3.2,5.8) {$x_1$,$y_1$};</span>
+<span class="sd">           \draw [blue] (-2.66,5.38) -- (2.66,5.38);</span>
+<span class="sd">           \node at (0.25,5.4) {x};</span>
+<span class="sd">           \node at (0.8,5.2) {$r_{max}$};</span>
+
 <span class="sd">        </span>
-<span class="sd">        :todo: ADD PICTURE</span>
+<span class="sd">        :todo: improvement: remove useless computation of rmax</span>
 <span class="sd">        :param np.array[N,3] pos: Position in the optical system</span>
 <span class="sd">        :param list[np.array[N],..] x: Position of the intersection on the ring (list contains 2 elements) </span>
 <span class="sd">        :param float r: Radius of the disk (should be centered at (0,0,0) and the perpendicular should be along the z-axis)</span>
@@ -802,14 +901,16 @@
         <span class="n">quadr</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL3&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 3</span>
         <span class="n">quadt</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL3&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 3</span>
 
-        <span class="c"># mid point of the limits</span>
+        <span class="c"># mid point of the limits in theta</span>
         <span class="n">av</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">theta</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">theta</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
-        <span class="c"># half size of the intervals</span>
+        <span class="c"># half size of the intervals in theta</span>
         <span class="n">diff</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span>
+        <span class="c"># array containing all the value of theta that will be computed</span>
         <span class="n">th</span> <span class="o">=</span> <span class="p">((</span><span class="n">diff</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="n">quadt</span><span class="o">.</span><span class="n">pts</span><span class="p">)</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">av</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
 
         <span class="c"># perpendicular vector to x1-&gt;x2</span>
         <span class="n">perp</span> <span class="o">=</span> <span class="o">-</span><span class="n">pos</span><span class="p">[:,</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span>
+
         <span class="c"># indices where we want to compute the big part</span>
         <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s">&#39;ij,ij-&gt;i&#39;</span><span class="p">,</span><span class="n">perp</span><span class="p">,</span><span class="n">x1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
         <span class="k">if</span> <span class="n">islens</span><span class="p">:</span>
@@ -822,7 +923,9 @@
         <span class="n">delta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">rollaxis</span><span class="p">(</span><span class="n">delta</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span>
         <span class="c"># now detla[Nsol-1,quadt,dim]</span>
 
+        <span class="c"># compute the scalar product (=&gt; the cos)</span>
         <span class="n">cospsi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s">&#39;ak,ijk-&gt;aij&#39;</span><span class="p">,</span><span class="n">perp</span><span class="p">,</span><span class="n">delta</span><span class="p">)</span>
+        <span class="c"># index where the line can cross the segment</span>
         <span class="n">ind2</span> <span class="o">=</span> <span class="n">cospsi</span> <span class="o">&gt;</span> <span class="mi">0</span>
 
         <span class="c"># distance between line</span>
@@ -830,12 +933,18 @@
 
         <span class="c">#print(&#39;useless computations&#39;)</span>
         <span class="c">#:todo: This can be improved</span>
+        <span class="c"># compute the distance along theta where the segment is crossed</span>
         <span class="n">rmax</span> <span class="o">=</span> <span class="p">((</span><span class="mf">1.0</span><span class="o">/</span><span class="n">cospsi</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="o">*</span><span class="n">d</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="c"># if the line cannot be cross, therefore the computation can raise some trouble</span>
+        <span class="c"># =&gt; set it manually to the good value</span>
         <span class="n">rmax</span><span class="p">[</span><span class="o">~</span><span class="n">ind2</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span>
+        <span class="c"># take the min between the intersection with the segment and the circle</span>
         <span class="n">rmax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">r</span><span class="p">,</span><span class="n">rmax</span><span class="p">)</span>
 
+        <span class="c"># array containing the evaluation of the function that will be integrated</span>
         <span class="n">R</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">Nsol</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">quadt</span><span class="o">.</span><span class="n">pts</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
                       <span class="n">quadr</span><span class="o">.</span><span class="n">pts</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="mi">3</span><span class="p">))</span>
+        <span class="c"># radius that will be computed</span>
         <span class="n">temp</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.5</span><span class="o">*</span><span class="n">rmax</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="p">(</span><span class="n">quadr</span><span class="o">.</span><span class="n">pts</span><span class="o">+</span><span class="mf">1.0</span><span class="p">))</span>
         <span class="n">R</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>\
                    <span class="o">+</span> <span class="n">temp</span><span class="o">*</span><span class="n">delta</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
@@ -843,11 +952,15 @@
                    <span class="o">+</span> <span class="n">temp</span><span class="o">*</span><span class="n">delta</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
         <span class="n">R</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span>
 
+        <span class="c"># compute the norm of the vector</span>
         <span class="n">R</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">R</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="o">-</span><span class="mf">1.5</span><span class="p">)</span>
+        <span class="c"># sum over all the index (theta and r quadrature formula, and, sector)</span>
         <span class="n">omega</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mf">0.5</span><span class="o">*</span><span class="n">diff</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">rmax</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">temp</span><span class="o">*</span><span class="n">R</span><span class="o">*</span><span class="n">quadr</span><span class="o">.</span><span class="n">w</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span><span class="o">*</span><span class="n">quadt</span><span class="o">.</span><span class="n">w</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-        
+
+        <span class="c"># multiply by the scalar product between the position and the normal (to the disk) vector </span>
         <span class="n">omega</span> <span class="o">*=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">pos</span><span class="p">[:,</span><span class="mi">2</span><span class="p">])</span>
 
+        <span class="c"># change the area that we want to compute</span>
         <span class="n">omega</span><span class="p">[</span><span class="o">~</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="n">solid_angle_disk</span><span class="p">(</span><span class="n">pos</span><span class="p">[</span><span class="o">~</span><span class="n">ind</span><span class="p">,:],</span><span class="n">r</span><span class="p">)</span><span class="o">-</span><span class="n">omega</span><span class="p">[</span><span class="o">~</span><span class="n">ind</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">omega</span>
 

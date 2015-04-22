@@ -32,6 +32,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
+    'sphinxcontrib.tikz',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -194,6 +195,11 @@ latex_elements = {
 
 # Additional stuff for the LaTeX preamble.
 #'preamble': '',
+'preamble': '''
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usetikzlibrary{arrows}
+''',
 }
 
 # Grouping the document tree into LaTeX files. List of tuples

@@ -1,7 +1,7 @@
 .. _IO:
 
-Input and Output
-================
+Input and Output Directory
+==========================
 
 .. automodule:: FPSDP.IO.IO_funcs
     :members:

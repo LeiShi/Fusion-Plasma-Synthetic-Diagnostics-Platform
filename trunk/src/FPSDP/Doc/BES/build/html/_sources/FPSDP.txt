@@ -2,8 +2,8 @@ Beam Emission Spectroscopy Documentation
 ========================================
 
 The Beam Emission Spectroscopy (BES) synthetic diagnostic use a configuration file (e.g. :download:`bes.in <../../../../FPSDP/Diagnostics/BES/bes.in>`).
-The only object that should be used for the diagnostic is :class:`BES <FPSDP.Diagnostics.BES.bes.BES>`,
-it creates everything from the config file and with the function :func:`get_bes <FPSDP.Diagnostics.BES.bes.BES.get_bes>` will compute the number of photons captured by each fiber.
+The only object that should be used for the diagnostic is the class :class:`BES <FPSDP.Diagnostics.BES.bes.BES>`,
+it creates everything from the config file and with the method :func:`get_bes() <FPSDP.Diagnostics.BES.bes.BES.get_bes>` will compute the number of photons captured by each fiber.
 :download:`example.py <../../../../FPSDP/Diagnostics/BES/example.py>` is an example of how to use the code.
 
 In the documentation, I tried to specify the unit of each variable, but it is possible that I forgot a few.

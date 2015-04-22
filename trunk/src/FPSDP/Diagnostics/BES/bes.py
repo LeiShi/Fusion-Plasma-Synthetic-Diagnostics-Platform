@@ -33,12 +33,15 @@ def _pickle_method(m):
 copy_reg.pickle(types.MethodType, _pickle_method)
 
 def heuman(phi,m):
-    """ Compute the Heuman's lambda function (defined in Paxton,
-        see :func:`solid_angle_disk`)
+    r""" Compute the Heuman's lambda function
+
+    :math:`\Lambda_0 (\xi,k) = \frac{2}{\pi}\left[E(k)F(\xi,k') + K(k)E(\xi,k')- K(k)F(\xi,k')\right]`
+    where :math:`k' = \sqrt{(1-k^2)}`
 
     :param np.array[N] phi: The amplitude of the elliptic integrals
     :param np.array[N] m: The parameter of the elliptic integrals
-    :returns: The evaluation of the Heuman's lambda function
+
+    :returns: Evaluation of the Heuman's lambda function
     :rtype: np.array[N]
     """
     m2 = 1-m
@@ -50,16 +53,23 @@ def heuman(phi,m):
     return ret
 
 def solid_angle_disk(pos,r):
-    """ Compute the solid angle of a disk on/off-axis from the pos
-        the center of the circle should be in (0,0,0)
+    r""" Compute the solid angle of a disk on/off-axis from the pos
+    the center of the circle should be in (0,0,0)
 
-        look the paper of `Paxton  <http://scitation.aip.org/content/aip/journal/rsi/30/4/10.1063/1.1716590>`_ "Solid Angle Calculation for a 
-        Circular Disk" in 1959 for the exact computation
+    .. math::
+      \Omega = \left\{\begin{array}{lr}
+      2\pi-\frac{2L}{R_\text{max}}K(k)-\pi\Lambda_0(\xi,k) & r_0 < r_m \\
+      \phantom{2}\pi-\frac{2L}{R_\text{max}}K(k) & r_0 = r_m \\
+      \phantom{2\pi}-\frac{2L}{R_\text{max}}K(k)+\pi\Lambda_0(\xi,k) & r_0 > r_m \\
+      \end{array}\right.
+
+    Read the paper of `Paxton  <http://scitation.aip.org/content/aip/journal/rsi/30/4/10.1063/1.1716590>`_ "Solid Angle Calculation for a 
+    Circular Disk" in 1959 for the exact computation.
 
     :param np.array[N,3] pos: Position from which computing the solid angle
     :param float r: Radius of the disk (the disk is centered in (0,0,0) and the perpendicular is along the z-axis)
 
-    :returns: The solid angle for each positions
+    :returns: Solid angle for each positions
     :rtype: np.array[N]
     """
     # define a few value (look Paxton paper for name)
@@ -95,16 +105,15 @@ def solid_angle_disk(pos,r):
     return solid
 
 class BES:
-    """ Class computing the image of all the fiber.
+    """ Class computing the image of all the fibers.
     
     Load the parameter from a config file and create everything from it.
     The function :func:`get_bes()` is used for computing the intensity received by
-    each fiber (number of photons).
+    each fiber (number of photons per second).
 
     :param str input_file: Name of the config file
     :param bool parallel: Choice between the serial code or the parallel one
-
-
+    |
     :var str self.cfg_fil: Name of the config file
     :var bool self.para: Choice between the serial code and the parallel one
     :var np.array[3] self.pos_lens: Position of the lens (in the cartesian system)
@@ -258,10 +267,34 @@ class BES:
         
         
     def compute_limits(self, eps=0.05, dxmin = 0.1, dymin = 0.1, dzmin = 0.1):
-        """ Compute the limits of the mesh that should be loaded
+        r""" Compute the limits of the mesh that should be loaded
 
-        The only limitations comes from the sampling volume and the lifetime effect.
-        :todo: ADD PICTURE
+        The only limitations comes from the sampling volume and the lifetime of the excited state.
+        In the figure below, blue is for the beam and the lifetime effect, red for the ring and the cutoff values,
+        straight black lines are for the sampling volume, and, the dashed one are the box.
+
+        .. tikz::
+           % beam
+           \draw[blue] (-5,0.5) -- (7,0.5);
+           \draw[blue] (-5,-0.5) -- (7,-0.5);
+           \node[blue] at (-4.5,0) {Beam};
+           \draw[->,thick,blue] (-3.5,0) -- (-2.5,0);
+           % Sampling volume + ring
+           \draw (3,-3.7) -- (2.8,-0.1);
+           \draw (3.4,0.1) -- (6,-2.8);
+           \draw (0.4,2.5) -- (2.8,-0.1);
+           \draw (3.4,0.1) -- (3,2.9);
+           \draw[red] (2.8,-0.1) -- (3.4,0.1);
+           %cutoff
+           \draw[red] (2.825,-1) -- (4,-0.56);
+           \draw[red] (2.15,0.6) -- (3.25,1);
+           %lifetime effect
+           \draw[blue,->] (2.15,0.6) -- (1.65,0.6);
+           \draw[blue,->] (2.825,-1) -- (2.325,-1);
+           \draw[blue,->] (4,-0.56) -- (3.5,-0.56);
+           \draw[blue,->] (3.25,1) -- (2.75,1);
+           %box
+           \draw[dashed] (1.5, 1.1) -- (1.5,-1.1) -- (4.1,-1.1) -- (4.1,1.1) -- cycle;
 
         :param float eps: Used for increasing the size of the box (relative size)
         :param float dxmin: Smallest size accepted for the box in X
@@ -377,7 +410,7 @@ class BES:
 
     def get_bes(self):
         """ Compute the image of the density turbulence.
-            This function should be the only one used outside the class.
+        This function should be the only one used outside the class.
         
         :returns: Intensity collected by each fiber (number of photons)
         :rtype: np.array[Ntime, Nfib]
@@ -438,9 +471,13 @@ class BES:
         return ret
 
     def get_width(self,pos,fiber_nber):
-        """ Compute the radius of the light cone.
-            Assume two cones that meet at the focus disk.
+        r""" Compute the radius of the light cone.
+        Assume two cones that meet at the focus disk.
 
+        .. tikz::
+           \draw (3,3) -- (-2.5,0) -- (3,-3);
+
+  
         :todo: ADD A PICTURE IN ORDER TO EXPLAIN
 
         :param np.array[N,3] pos: Position where to compute the width in the optical system
@@ -451,20 +488,26 @@ class BES:
         """
         
         if len(pos.shape) == 1:
-            # distance from the ring
-            a = abs(pos[2]-self.dist[fiber_nber])
-            a *= (self.rad_lens-self.rad_ring[fiber_nber])/self.dist[fiber_nber]
-        else:
-            # distance from the ring
-            a = abs(pos[:,2]-self.dist[fiber_nber])
-            a *= (self.rad_lens-self.rad_ring[fiber_nber])/self.dist[fiber_nber]
+            pos = pos[np.newaxis,:]
+
+        # distance from the ring
+        a = abs(pos[:,2]-self.dist[fiber_nber])
+        a *= (self.rad_lens-self.rad_ring[fiber_nber])/self.dist[fiber_nber]
         return a + self.rad_ring[fiber_nber]
     
     def check_in(self,pos,fib):
-        """ Check if the position (optical coordinate) is inside the first cone
-            (if the focus ring matter or not)
+        r""" Check if the position (optical coordinate) is inside the first cone (blue area)
+        (if the focus ring matter or not).
+        The shape of the sampling area is asume to be linear along the z-axis (optic direction).
 
-        :todo: ADD PICTURE
+        .. tikz::
+           \draw[fill=blue] (-1,0) -- (3,2) -- (3,-2) -- cycle;
+           \draw[ultra thick] (3,2) -- (3,-2);           
+           \draw[thick] (0,0.5) -- (0,-0.5);
+           \draw[dashed] (-3,-2) -- (1,0) -- (-3,2);
+           \node at (3.5, 0) {Lens};
+           \node at (0,0.9) {Ring};
+
         :param np.array[N,3] pos: Position in the optical system
         :param int fib: Index of the fiber
 

@@ -83,12 +83,15 @@
 <span class="n">copy_reg</span><span class="o">.</span><span class="n">pickle</span><span class="p">(</span><span class="n">types</span><span class="o">.</span><span class="n">MethodType</span><span class="p">,</span> <span class="n">_pickle_method</span><span class="p">)</span>
 
 <div class="viewcode-block" id="heuman"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.heuman">[docs]</a><span class="k">def</span> <span class="nf">heuman</span><span class="p">(</span><span class="n">phi</span><span class="p">,</span><span class="n">m</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot; Compute the Heuman&#39;s lambda function (defined in Paxton,</span>
-<span class="sd">        see :func:`solid_angle_disk`)</span>
+    <span class="sd">r&quot;&quot;&quot; Compute the Heuman&#39;s lambda function</span>
+
+<span class="sd">    :math:`\Lambda_0 (\xi,k) = \frac{2}{\pi}\left[E(k)F(\xi,k&#39;) + K(k)E(\xi,k&#39;)- K(k)F(\xi,k&#39;)\right]`</span>
+<span class="sd">    where :math:`k&#39; = \sqrt{(1-k^2)}`</span>
 
 <span class="sd">    :param np.array[N] phi: The amplitude of the elliptic integrals</span>
 <span class="sd">    :param np.array[N] m: The parameter of the elliptic integrals</span>
-<span class="sd">    :returns: The evaluation of the Heuman&#39;s lambda function</span>
+
+<span class="sd">    :returns: Evaluation of the Heuman&#39;s lambda function</span>
 <span class="sd">    :rtype: np.array[N]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">m2</span> <span class="o">=</span> <span class="mi">1</span><span class="o">-</span><span class="n">m</span>
@@ -100,16 +103,23 @@
     <span class="k">return</span> <span class="n">ret</span>
 </div>
 <div class="viewcode-block" id="solid_angle_disk"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.solid_angle_disk">[docs]</a><span class="k">def</span> <span class="nf">solid_angle_disk</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span><span class="n">r</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot; Compute the solid angle of a disk on/off-axis from the pos</span>
-<span class="sd">        the center of the circle should be in (0,0,0)</span>
+    <span class="sd">r&quot;&quot;&quot; Compute the solid angle of a disk on/off-axis from the pos</span>
+<span class="sd">    the center of the circle should be in (0,0,0)</span>
 
-<span class="sd">        look the paper of `Paxton  &lt;http://scitation.aip.org/content/aip/journal/rsi/30/4/10.1063/1.1716590&gt;`_ &quot;Solid Angle Calculation for a </span>
-<span class="sd">        Circular Disk&quot; in 1959 for the exact computation</span>
+<span class="sd">    .. math::</span>
+<span class="sd">      \Omega = \left\{\begin{array}{lr}</span>
+<span class="sd">      2\pi-\frac{2L}{R_\text{max}}K(k)-\pi\Lambda_0(\xi,k) &amp; r_0 &lt; r_m \\</span>
+<span class="sd">      \phantom{2}\pi-\frac{2L}{R_\text{max}}K(k) &amp; r_0 = r_m \\</span>
+<span class="sd">      \phantom{2\pi}-\frac{2L}{R_\text{max}}K(k)+\pi\Lambda_0(\xi,k) &amp; r_0 &gt; r_m \\</span>
+<span class="sd">      \end{array}\right.</span>
+
+<span class="sd">    Read the paper of `Paxton  &lt;http://scitation.aip.org/content/aip/journal/rsi/30/4/10.1063/1.1716590&gt;`_ &quot;Solid Angle Calculation for a </span>
+<span class="sd">    Circular Disk&quot; in 1959 for the exact computation.</span>
 
 <span class="sd">    :param np.array[N,3] pos: Position from which computing the solid angle</span>
 <span class="sd">    :param float r: Radius of the disk (the disk is centered in (0,0,0) and the perpendicular is along the z-axis)</span>
 
-<span class="sd">    :returns: The solid angle for each positions</span>
+<span class="sd">    :returns: Solid angle for each positions</span>
 <span class="sd">    :rtype: np.array[N]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c"># define a few value (look Paxton paper for name)</span>
@@ -145,16 +155,15 @@
     <span class="k">return</span> <span class="n">solid</span>
 </div>
 <div class="viewcode-block" id="BES"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES">[docs]</a><span class="k">class</span> <span class="nc">BES</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot; Class computing the image of all the fiber.</span>
+    <span class="sd">&quot;&quot;&quot; Class computing the image of all the fibers.</span>
 <span class="sd">    </span>
 <span class="sd">    Load the parameter from a config file and create everything from it.</span>
 <span class="sd">    The function :func:`get_bes()` is used for computing the intensity received by</span>
-<span class="sd">    each fiber (number of photons).</span>
+<span class="sd">    each fiber (number of photons per second).</span>
 
 <span class="sd">    :param str input_file: Name of the config file</span>
 <span class="sd">    :param bool parallel: Choice between the serial code or the parallel one</span>
-
-
+<span class="sd">    |</span>
 <span class="sd">    :var str self.cfg_fil: Name of the config file</span>
 <span class="sd">    :var bool self.para: Choice between the serial code and the parallel one</span>
 <span class="sd">    :var np.array[3] self.pos_lens: Position of the lens (in the cartesian system)</span>
@@ -308,10 +317,34 @@
         
         </div>
 <div class="viewcode-block" id="BES.compute_limits"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.compute_limits">[docs]</a>    <span class="k">def</span> <span class="nf">compute_limits</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">dxmin</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">dymin</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">dzmin</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Compute the limits of the mesh that should be loaded</span>
+        <span class="sd">r&quot;&quot;&quot; Compute the limits of the mesh that should be loaded</span>
 
-<span class="sd">        The only limitations comes from the sampling volume and the lifetime effect.</span>
-<span class="sd">        :todo: ADD PICTURE</span>
+<span class="sd">        The only limitations comes from the sampling volume and the lifetime of the excited state.</span>
+<span class="sd">        In the figure below, blue is for the beam and the lifetime effect, red for the ring and the cutoff values,</span>
+<span class="sd">        straight black lines are for the sampling volume, and, the dashed one are the box.</span>
+
+<span class="sd">        .. tikz::</span>
+<span class="sd">           % beam</span>
+<span class="sd">           \draw[blue] (-5,0.5) -- (7,0.5);</span>
+<span class="sd">           \draw[blue] (-5,-0.5) -- (7,-0.5);</span>
+<span class="sd">           \node[blue] at (-4.5,0) {Beam};</span>
+<span class="sd">           \draw[-&gt;,thick,blue] (-3.5,0) -- (-2.5,0);</span>
+<span class="sd">           % Sampling volume + ring</span>
+<span class="sd">           \draw (3,-3.7) -- (2.8,-0.1);</span>
+<span class="sd">           \draw (3.4,0.1) -- (6,-2.8);</span>
+<span class="sd">           \draw (0.4,2.5) -- (2.8,-0.1);</span>
+<span class="sd">           \draw (3.4,0.1) -- (3,2.9);</span>
+<span class="sd">           \draw[red] (2.8,-0.1) -- (3.4,0.1);</span>
+<span class="sd">           %cutoff</span>
+<span class="sd">           \draw[red] (2.825,-1) -- (4,-0.56);</span>
+<span class="sd">           \draw[red] (2.15,0.6) -- (3.25,1);</span>
+<span class="sd">           %lifetime effect</span>
+<span class="sd">           \draw[blue,-&gt;] (2.15,0.6) -- (1.65,0.6);</span>
+<span class="sd">           \draw[blue,-&gt;] (2.825,-1) -- (2.325,-1);</span>
+<span class="sd">           \draw[blue,-&gt;] (4,-0.56) -- (3.5,-0.56);</span>
+<span class="sd">           \draw[blue,-&gt;] (3.25,1) -- (2.75,1);</span>
+<span class="sd">           %box</span>
+<span class="sd">           \draw[dashed] (1.5, 1.1) -- (1.5,-1.1) -- (4.1,-1.1) -- (4.1,1.1) -- cycle;</span>
 
 <span class="sd">        :param float eps: Used for increasing the size of the box (relative size)</span>
 <span class="sd">        :param float dxmin: Smallest size accepted for the box in X</span>
@@ -427,7 +460,7 @@
 </div>
 <div class="viewcode-block" id="BES.get_bes"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.get_bes">[docs]</a>    <span class="k">def</span> <span class="nf">get_bes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Compute the image of the density turbulence.</span>
-<span class="sd">            This function should be the only one used outside the class.</span>
+<span class="sd">        This function should be the only one used outside the class.</span>
 <span class="sd">        </span>
 <span class="sd">        :returns: Intensity collected by each fiber (number of photons)</span>
 <span class="sd">        :rtype: np.array[Ntime, Nfib]</span>
@@ -488,9 +521,13 @@
         <span class="k">return</span> <span class="n">ret</span>
 </div>
 <div class="viewcode-block" id="BES.get_width"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.get_width">[docs]</a>    <span class="k">def</span> <span class="nf">get_width</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">fiber_nber</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Compute the radius of the light cone.</span>
-<span class="sd">            Assume two cones that meet at the focus disk.</span>
+        <span class="sd">r&quot;&quot;&quot; Compute the radius of the light cone.</span>
+<span class="sd">        Assume two cones that meet at the focus disk.</span>
 
+<span class="sd">        .. tikz::</span>
+<span class="sd">           \draw (3,3) -- (-2.5,0) -- (3,-3);</span>
+
+<span class="sd">  </span>
 <span class="sd">        :todo: ADD A PICTURE IN ORDER TO EXPLAIN</span>
 
 <span class="sd">        :param np.array[N,3] pos: Position where to compute the width in the optical system</span>
@@ -501,20 +538,26 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="c"># distance from the ring</span>
-            <span class="n">a</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">pos</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">])</span>
-            <span class="n">a</span> <span class="o">*=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_lens</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_ring</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">])</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c"># distance from the ring</span>
-            <span class="n">a</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">pos</span><span class="p">[:,</span><span class="mi">2</span><span class="p">]</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">])</span>
-            <span class="n">a</span> <span class="o">*=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_lens</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_ring</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">])</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">]</span>
+            <span class="n">pos</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span>
+
+        <span class="c"># distance from the ring</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">pos</span><span class="p">[:,</span><span class="mi">2</span><span class="p">]</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">])</span>
+        <span class="n">a</span> <span class="o">*=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_lens</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_ring</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">])</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">a</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">rad_ring</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">]</span>
     </div>
 <div class="viewcode-block" id="BES.check_in"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.check_in">[docs]</a>    <span class="k">def</span> <span class="nf">check_in</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">fib</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Check if the position (optical coordinate) is inside the first cone</span>
-<span class="sd">            (if the focus ring matter or not)</span>
+        <span class="sd">r&quot;&quot;&quot; Check if the position (optical coordinate) is inside the first cone (blue area)</span>
+<span class="sd">        (if the focus ring matter or not).</span>
+<span class="sd">        The shape of the sampling area is asume to be linear along the z-axis (optic direction).</span>
 
-<span class="sd">        :todo: ADD PICTURE</span>
+<span class="sd">        .. tikz::</span>
+<span class="sd">           \draw[fill=blue] (-1,0) -- (3,2) -- (3,-2) -- cycle;</span>
+<span class="sd">           \draw[ultra thick] (3,2) -- (3,-2);           </span>
+<span class="sd">           \draw[thick] (0,0.5) -- (0,-0.5);</span>
+<span class="sd">           \draw[dashed] (-3,-2) -- (1,0) -- (-3,2);</span>
+<span class="sd">           \node at (3.5, 0) {Lens};</span>
+<span class="sd">           \node at (0,0.9) {Ring};</span>
+
 <span class="sd">        :param np.array[N,3] pos: Position in the optical system</span>
 <span class="sd">        :param int fib: Index of the fiber</span>
 

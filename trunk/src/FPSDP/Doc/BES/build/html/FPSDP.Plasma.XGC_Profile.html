@@ -57,9 +57,14 @@
             
   <div class="section" id="module-FPSDP.Plasma.XGC_Profile.load_XGC_BES">
 <span id="xgc1-loader"></span><h1>XGC1 Loader<a class="headerlink" href="#module-FPSDP.Plasma.XGC_Profile.load_XGC_BES" title="Permalink to this headline">¶</a></h1>
-<p>Moduel of the XGC loader for the BES synthetic diagnostic.</p>
+<p>Module of the XGC loader for the BES synthetic diagnostic.</p>
 <p>It reads the data from the simulation and remove the points not used for the diagnostic (in order to keep the used memory at a low level).
-Do an interpolation along the B-field.</p>
+Do an interpolation along the B-field.
+Consists mainly of a copy from an other <a class="reference download internal" href="_downloads/load_XGC_profile.py"><tt class="xref download docutils literal"><span class="pre">code</span></tt></a>.
+The orginal code was doing a 3D mesh and interpolation the data from the simulation on this one, now, the code is computing one
+time step at a time and interpolate only the value asked by the user.
+The other difference is in the interpolation along the field line, the code now try to a number of step on each side that depends
+on the distance to the previous/next plane.</p>
 <dl class="class">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES">
 <em class="property">class </em><tt class="descclassname">FPSDP.Plasma.XGC_Profile.load_XGC_BES.</tt><tt class="descname">XGC_Loader_BES</tt><big>(</big><em>xgc_path</em>, <em>t_start</em>, <em>t_end</em>, <em>dt</em>, <em>limits</em>, <em>N_field</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES" title="Permalink to this definition">¶</a></dt>
@@ -242,13 +247,11 @@ WARNING: Currently no serious checking is performed. The user is responsible to 
 <dl class="method">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_fluctuations_3D_all">
 <tt class="descname">load_fluctuations_3D_all</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.load_fluctuations_3D_all"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_fluctuations_3D_all" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="docutils">
-<dt>Load non-adiabatic electron density and electrical static </dt>
-<dd>potential fluctuations for 3D mesh.
+<dd><p>Load non-adiabatic electron density and electrical static 
+potential fluctuations for 3D mesh.
 The required planes are calculated and stored in sorted array.
-fluctuation data on each plane is stored in the same order.</dd>
-</dl>
-<p>Note that for full-F runs, the perturbed electron density 
+fluctuation data on each plane is stored in the same order.
+Note that for full-F runs, the perturbed electron density 
 includes both turbulent fluctuations and equilibrium relaxation,
 this loading method doesn&#8217;t differentiate them and will read all of them.</p>
 </dd></dl>

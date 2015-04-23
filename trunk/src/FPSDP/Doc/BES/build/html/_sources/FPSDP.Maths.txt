@@ -3,7 +3,9 @@
 Maths Directory
 ===============
 
-Only the integration module is used for the BES diagnostic, it contains some useful quadrature formulas.
+Only the integration and Funcs  modules are used for the BES diagnostic.
+The first one contains some useful quadrature formulas and the second one contains some function for the
+computation of the solid angle.
 
 Integration Module
 ------------------
@@ -13,3 +15,11 @@ Integration Module
     :undoc-members:
     :show-inheritance:
 
+
+Funcs Module
+------------
+
+.. automodule:: FPSDP.Maths.Funcs
+    :members:
+    :undoc-members:
+    :show-inheritance:

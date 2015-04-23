@@ -5,35 +5,38 @@ from FPSDP.GeneralSettings.UnitSystem import SI
 
 
 class Collisions:
-    """ Class containing all the physics about the collisions
+    r""" Class containing all the physics about the collisions
         
     Read the files from ADAS database, compute the lifetime, and compute
     the cross-sections (cubic spline interpolation is used).
     
+    For computing the coefficients, two interpolations are done.
+    A first one in 2D (beam energy and density) and a second one in temperature.
+    The final result is given by:
 
+    .. math::
+       C = \frac{\text{Interp}(E_b,\rho)\cdot \text{Interp}(T)}{C_\text{ref}}
+
+    where :math:`C_\text{ref}` is the coefficient at the reference temperature, density and beam energy.
+    
+    
     :param list[str] files_atte: List of names for ADAS21 files (beam stopping coefficient)
     :param list[str] files_emis: List of names for ADAS22 files (emission coefficient)
     :param list[int] states: Quantum number of the lower (states[0]) and the higher(states[1]) states of the hydrogen atom
-    
+
+    |
     :var list[str] self.files_atte: List of names for ADAS21 files (beam stopping coefficient)
     :var list[str] self.files_emis: List of names for ADAS22 files (emission coefficient)
-
     :var list[] self.beam_atte: List of :class:`ADAS21 <FPSDP.Plasma.Collisions.ADAS_file.ADAS21>` instance variable (beam stopping coefficient)
     :var list[] self.beam_emis: List of :class:`ADAS22 <FPSDP.Plasma.Collisions.ADAS_file.ADAS22>` instance variable (emission coefficient)
-
-    :var list[tck_interp] self.atte_tck_dens: List of interpolant computed with cubic spline for\
-the beam stopping coefficient as a function of the density and the beam energy
-    :var list[tck_interp] self.emis_tck_dens: List of interpolant computed with cubic spline for\
-the emission coefficient as a function of the density and the beam energy
-    :var list[tck_interp] self.atte_tck_temp: List of interpolant computed with cubic spline for\
-the beam stopping coefficient as a function of the temperature
-    :var list[tck_interp] self.emis_tck_temp: List of interpolant computed with cubic spline for\
-the emission coefficient as a function of the temperature
-
+    :var list[tck_interp] self.atte_tck_dens: List of interpolant computed with cubic spline for the beam stopping coefficient as a function of the density and the beam energy
+    :var list[tck_interp] self.emis_tck_dens: List of interpolant computed with cubic spline for the emission coefficient as a function of the density and the beam energy
+    :var list[tck_interp] self.atte_tck_temp: List of interpolant computed with cubic spline for the beam stopping coefficient as a function of the temperature
+    :var list[tck_interp] self.emis_tck_temp: List of interpolant computed with cubic spline for the emission coefficient as a function of the temperature
     :var float self.n_low: Quantum number of the lower state for the hydrogen atom
     :var float self.n_high: Quantum number of the higher state for the hydrogen atom
     :var float self.E0: Energy of the ground state (in eV)    
-        
+    
     """
 
     def __init__(self,files_atte,files_emis,states):

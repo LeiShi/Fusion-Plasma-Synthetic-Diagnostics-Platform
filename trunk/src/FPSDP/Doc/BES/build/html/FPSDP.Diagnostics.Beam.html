@@ -114,28 +114,28 @@ The simulation data are saved in this class.</p>
 </table>
 <dl class="method">
 <dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.compute_beam_on_mesh">
-<tt class="descname">compute_beam_on_mesh</tt><big>(</big><em>eq=True</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.compute_beam_on_mesh"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.compute_beam_on_mesh" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">compute_beam_on_mesh</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.compute_beam_on_mesh"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.compute_beam_on_mesh" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the beam density on the mesh and the interpolant.</p>
-<p>Use the Gauss-Legendre quadrature of order 3 for computing the integral:
-<span class="math">\(n_b(P) = n_{b,0} \exp\left(-\int_0^P n_e(z)S_\text{cr}(E,n_e(z),T_i(z))\sqrt{\frac{m}{2E}}\mathrm{d}z\right)\)</span>
-where <span class="math">\(n_b(P)\)</span> is the density at the point P (along the beam central line),
+<p>Use the Gauss-Legendre quadrature of order 3 for computing the integral:</p>
+<div class="math">
+\[n_b(P) = n_{b,0} \exp\left(-\int_0^P n_e(z)S_\text{cr}\left(E,n_e(z),T_i(z)\right)\sqrt{\frac{m}{2E}}\mathrm{d}z\right)\]</div>
+<p>where <span class="math">\(n_b(P)\)</span> is the density at the point P (along the beam central line),
 <span class="math">\(n_{b,0}\)</span> is the density at the origin, <span class="math">\(n_e\)</span> is the electron density,
 <span class="math">\(S_\text{cr}\)</span> is the beam stopping coefficient (depending on the beam energy [<span class="math">\(E_b\)</span>],
 the ion temperature [<span class="math">\(T_i\)</span>] and the electron density), <span class="math">\(m\)</span> is the mass of a particle in the beam,
 <span class="math">\(\mathrm{d}z\)</span> is along the central line.</p>
-<p>The initial density is computed with the help of the total power (<span class="math">\(P\)</span>):
-<span class="math">\(P = \int_\Omega E v n_{b,0} \mathrm{d}\sigma\)</span> 
-where <span class="math">\(\Omega\)</span> is the 2D space perpendicular to the beam direction and
-<span class="math">\(v = \sqrt{\frac{m}{2E}}\)</span> is the velocity of the particles.</p>
+<p>The initial density is computed with the help of the total power (<span class="math">\(P\)</span>):</p>
+<div class="math">
+\[P = \int_\Omega E v n_{b,0} \mathrm{d}\sigma\]</div>
+<p>where <span class="math">\(\Omega\)</span> is the 2D space perpendicular to the beam direction and
+<span class="math">\(v = \sqrt{\frac{2E}{m}}\)</span> is the velocity of the particles.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.create_mesh">
 <tt class="descname">create_mesh</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.create_mesh"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.create_mesh" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="docutils">
-<dt>Create the 1D mesh between the source of the beam and the end </dt>
-<dd>of the mesh.</dd>
-</dl>
+<dd><p>Create the 1D mesh between the source of the beam and the end 
+of the mesh.</p>
 <p>Is called during the initialization</p>
 </dd></dl>
 
@@ -150,12 +150,12 @@ the coordinate of the intersection with the beam.</p>
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>eps</strong> (<em>float</em>) &#8211; Ratio of increase size on each side of the box</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Position of the intersection between the end of the mesh and the beam</td>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Position of the intersection between the end of the mesh and the beam        (in cartesian system)</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">np.array[3]</td>
 </tr>
 </tbody>
 </table>
-<p>(in cartesian system)
-:rtype: np.array[3]</p>
 </dd></dl>
 
 <dl class="method">
@@ -317,14 +317,14 @@ See <a class="reference internal" href="FPSDP.Plasma.XGC_Profile.html#FPSDP.Plas
 <dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.set_data">
 <tt class="descname">set_data</tt><big>(</big><em>data</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.set_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.set_data" title="Permalink to this definition">¶</a></dt>
 <dd><p>Second part of the initialization (should be called manually!).</p>
-<p>Due to the computation of the limits (<a class="reference internal" href="FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.compute_limits" title="FPSDP.Diagnostics.BES.bes.BES.compute_limits"><tt class="xref py py-func docutils literal"><span class="pre">FPSDP.Diagnostics.BES.bes.BES.compute_limits()</span></tt></a>),
+<p>Due to the computation of the limits (<a class="reference internal" href="FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.compute_limits" title="FPSDP.Diagnostics.BES.bes.BES.compute_limits"><tt class="xref py py-func docutils literal"><span class="pre">compute_limits</span></tt></a>),
 the data are loaded after the initialization.
 This method save the data inside the instance and compute the beam density on the mesh</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>data</strong> (e.g. <a class="reference internal" href="FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES" title="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES"><tt class="xref py py-class docutils literal"><span class="pre">FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES</span></tt></a>) &#8211; Loader of the simulation datas</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>data</strong> (e.g. <a class="reference internal" href="FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES" title="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES"><tt class="xref py py-class docutils literal"><span class="pre">XGC_Loader_BES</span></tt></a>) &#8211; Loader of the simulation data</td>
 </tr>
 </tbody>
 </table>

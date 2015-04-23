@@ -4,12 +4,6 @@ In order to compare the exact density fluctuation and the BES diagnostic, two cl
 A first one that implement the diagnostic (:class:`BES <FPSDP.Diagnostics.BES.bes.BES>`) and a second one that copy the
 structure of the diagnostic and just take density value at the focus points (:class:`BES_ideal <FPSDP.Diagnostics.BES.bes.BES_ideal>`).
 
-Function Defined in the Module
-------------------------------
-
-.. automodule:: FPSDP.Diagnostics.BES.bes
-   :members: heuman, solid_angle_disk
-
 Beam Emission Spectroscopy
 --------------------------
 

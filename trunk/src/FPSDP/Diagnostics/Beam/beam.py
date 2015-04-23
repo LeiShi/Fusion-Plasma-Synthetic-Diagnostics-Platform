@@ -133,12 +133,12 @@ class Beam1D:
     def set_data(self,data):
         """ Second part of the initialization (should be called manually!).
 
-        Due to the computation of the limits (:func:`FPSDP.Diagnostics.BES.bes.BES.compute_limits`),
+        Due to the computation of the limits (:func:`compute_limits <FPSDP.Diagnostics.BES.bes.BES.compute_limits>`),
         the data are loaded after the initialization.
         This method save the data inside the instance and compute the beam density on the mesh
 
-        :param data: Loader of the simulation datas
-        :type data: e.g. :class:`FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES`
+        :param data: Loader of the simulation data
+        :type data: e.g. :class:`XGC_Loader_BES <FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES>`
         """
         self.data = data                                                     #!
         print 'Creating mesh'
@@ -162,7 +162,7 @@ class Beam1D:
 
     def create_mesh(self):
         """ Create the 1D mesh between the source of the beam and the end 
-            of the mesh.
+        of the mesh.
 
         Is called during the initialization
         """
@@ -181,7 +181,7 @@ class Beam1D:
         the coordinate of the intersection with the beam.
         
         :param float eps: Ratio of increase size on each side of the box
-        :returns: Position of the intersection between the end of the mesh and the beam
+        :returns: Position of the intersection between the end of the mesh and the beam\
         (in cartesian system)
         :rtype: np.array[3]
         """
@@ -236,11 +236,14 @@ class Beam1D:
         return self.data.interpolate_data(pos,t_,quant,eq)
         
         
-    def compute_beam_on_mesh(self,eq=True):
+    def compute_beam_on_mesh(self):
         r""" Compute the beam density on the mesh and the interpolant.
 
         Use the Gauss-Legendre quadrature of order 3 for computing the integral:
-        :math:`n_b(P) = n_{b,0} \exp\left(-\int_0^P n_e(z)S_\text{cr}(E,n_e(z),T_i(z))\sqrt{\frac{m}{2E}}\mathrm{d}z\right)`
+
+        .. math::
+           n_b(P) = n_{b,0} \exp\left(-\int_0^P n_e(z)S_\text{cr}\left(E,n_e(z),T_i(z)\right)\sqrt{\frac{m}{2E}}\mathrm{d}z\right)
+
         where :math:`n_b(P)` is the density at the point P (along the beam central line),
         :math:`n_{b,0}` is the density at the origin, :math:`n_e` is the electron density,
         :math:`S_\text{cr}` is the beam stopping coefficient (depending on the beam energy [:math:`E_b`],
@@ -248,9 +251,14 @@ class Beam1D:
         :math:`\mathrm{d}z` is along the central line.
 
         The initial density is computed with the help of the total power (:math:`P`):
-        :math:`P = \int_\Omega E v n_{b,0} \mathrm{d}\sigma` 
+
+        .. math::
+
+           P = \int_\Omega E v n_{b,0} \mathrm{d}\sigma
+
         where :math:`\Omega` is the 2D space perpendicular to the beam direction and
-        :math:`v = \sqrt{\frac{m}{2E}}` is the velocity of the particles.
+        :math:`v = \sqrt{\frac{2E}{m}}` is the velocity of the particles.
+
         """
         
         self.density_beam = np.zeros((len(self.beam_comp),self.Nz))  #!

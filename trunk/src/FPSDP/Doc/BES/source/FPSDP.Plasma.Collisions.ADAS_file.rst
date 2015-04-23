@@ -2,7 +2,7 @@ ADAS Readers
 ============
 
 This file contains the different kind of readers for the ADAS database.
-An abstract class (:class:`FPSDP.Plasma.Collisions.ADAS_file.ADAS_file`) is defined for the inheritance and define how to read a block of data.
+An abstract class (:class:`ADAS_file <FPSDP.Plasma.Collisions.ADAS_file.ADAS_file>`) is defined for the inheritance and define how to read a block of data.
 
 ADAS_file
 ---------

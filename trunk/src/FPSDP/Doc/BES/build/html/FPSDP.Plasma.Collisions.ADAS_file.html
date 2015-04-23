@@ -59,7 +59,7 @@
   <div class="section" id="adas-readers">
 <h1>ADAS Readers<a class="headerlink" href="#adas-readers" title="Permalink to this headline">¶</a></h1>
 <p>This file contains the different kind of readers for the ADAS database.
-An abstract class (<a class="reference internal" href="#FPSDP.Plasma.Collisions.ADAS_file.ADAS_file" title="FPSDP.Plasma.Collisions.ADAS_file.ADAS_file"><tt class="xref py py-class docutils literal"><span class="pre">FPSDP.Plasma.Collisions.ADAS_file.ADAS_file</span></tt></a>) is defined for the inheritance and define how to read a block of data.</p>
+An abstract class (<a class="reference internal" href="#FPSDP.Plasma.Collisions.ADAS_file.ADAS_file" title="FPSDP.Plasma.Collisions.ADAS_file.ADAS_file"><tt class="xref py py-class docutils literal"><span class="pre">ADAS_file</span></tt></a>) is defined for the inheritance and define how to read a block of data.</p>
 <div class="section" id="adas-file">
 <h2>ADAS_file<a class="headerlink" href="#adas-file" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
@@ -69,7 +69,7 @@ An abstract class (<a class="reference internal" href="#FPSDP.Plasma.Collisions.
 <p>This class is for inheritence purpose only. It will be inherited
 by all the ADAS readers.
 It defines how to read a block 
-of data (<tt class="xref py py-func docutils literal"><span class="pre">read_block()</span></tt>) [often used in 2D data of the ADAS database].
+of data (<a class="reference internal" href="#FPSDP.Plasma.Collisions.ADAS_file.ADAS_file.read_block" title="FPSDP.Plasma.Collisions.ADAS_file.ADAS_file.read_block"><tt class="xref py py-func docutils literal"><span class="pre">read_block</span></tt></a>) [often used in 2D data of the ADAS database].
 The beam energy is divided by the atomic mass of the beam particles (eV/amu).</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -92,26 +92,19 @@ number of the final line</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>data</strong> (<em>list[str]</em>) &#8211; file currently readed (each index is for a line)</li>
 <li><strong>i</strong> (<em>int</em>) &#8211; first line to look at (index of data)</li>
-<li><strong>array</strong> &#8211; array where to add the data from the file (should be of the</li>
+<li><strong>array</strong> (<em>np.array</em>) &#8211; array where to add the data from the file (should be of the         good size)</li>
+<li><strong>n</strong> (<em>int</em>) &#8211; Number of item contained inside the data</li>
 </ul>
 </td>
 </tr>
-</tbody>
-</table>
-<p>good size)
-:type array: np.array
-:param n: Number of item contained inside the data
-:type n: int</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">index of the index of the final line</td>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">index of the index of the final line</p>
+</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">int</td>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">int</p>
+</td>
 </tr>
 </tbody>
 </table>

@@ -17,6 +17,7 @@ import FPSDP.Plasma.XGC_Profile.load_XGC_BES as xgc
 # quadrature formula
 import FPSDP.Maths.Integration as integ
 from FPSDP.GeneralSettings.UnitSystem import SI
+from FPSDP.Maths.Funcs import heuman, solid_angle_disk
 
 from os.path import exists # used for checking if the input file exists
 # it is not clear with configparser error
@@ -32,77 +33,6 @@ def _pickle_method(m):
 # for parallelisation
 copy_reg.pickle(types.MethodType, _pickle_method)
 
-def heuman(phi,m):
-    r""" Compute the Heuman's lambda function
-
-    :math:`\Lambda_0 (\xi,k) = \frac{2}{\pi}\left[E(k)F(\xi,k') + K(k)E(\xi,k')- K(k)F(\xi,k')\right]`
-    where :math:`k' = \sqrt{(1-k^2)}`
-
-    :param np.array[N] phi: The amplitude of the elliptic integrals
-    :param np.array[N] m: The parameter of the elliptic integrals
-
-    :returns: Evaluation of the Heuman's lambda function
-    :rtype: np.array[N]
-    """
-    m2 = 1-m
-    F2 = sp.special.ellipkinc(phi,m2) # incomplete elliptic integral of 1st kind
-    K = sp.special.ellipk(m) # complete elliptic integral of 1st kind
-    E = sp.special.ellipe(m) # complete elliptic integral of 2nd kind
-    E2 = sp.special.ellipeinc(phi,m2) # incomplete elliptic integral of 2nd kind
-    ret = 2.0*(E*F2+K*E2-K*F2)/np.pi
-    return ret
-
-def solid_angle_disk(pos,r):
-    r""" Compute the solid angle of a disk on/off-axis from the pos
-    the center of the circle should be in (0,0,0)
-
-    .. math::
-      \Omega = \left\{\begin{array}{lr}
-      2\pi-\frac{2L}{R_\text{max}}K(k)-\pi\Lambda_0(\xi,k) & r_0 < r_m \\
-      \phantom{2}\pi-\frac{2L}{R_\text{max}}K(k) & r_0 = r_m \\
-      \phantom{2\pi}-\frac{2L}{R_\text{max}}K(k)+\pi\Lambda_0(\xi,k) & r_0 > r_m \\
-      \end{array}\right.
-
-    Read the paper of `Paxton  <http://scitation.aip.org/content/aip/journal/rsi/30/4/10.1063/1.1716590>`_ "Solid Angle Calculation for a 
-    Circular Disk" in 1959 for the exact computation.
-
-    :param np.array[N,3] pos: Position from which computing the solid angle
-    :param float r: Radius of the disk (the disk is centered in (0,0,0) and the perpendicular is along the z-axis)
-
-    :returns: Solid angle for each positions
-    :rtype: np.array[N]
-    """
-    # define a few value (look Paxton paper for name)
-    r0 = np.sqrt(np.sum(pos[:,0:2]**2, axis=1))
-    ind1 = r0 != 0
-    ind2 = ~ind1
-    Rmax = np.sqrt(pos[ind1,2]**2 + (r0[ind1]+r)**2)
-    R1 = np.sqrt(pos[ind1,2]**2 + (r0[ind1]-r)**2)
-    k = np.sqrt(1-(R1/Rmax)**2)
-    LK_R = 2.0*abs(pos[ind1,2])*sp.special.ellipk(k**2)/Rmax
-    # not use for r0=r but it should not append
-    # often
-    xsi = np.arctan(abs(pos[ind1,2]/(r-r0[ind1])))
-    pilam = np.pi*heuman(xsi,k**2)
-    # the three different case
-    inda = r0[ind1] == r
-    indb = r0[ind1] < r
-    indc = (~inda) & (~indb)
-    # compute the solid angle
-    solid = np.zeros(pos.shape[0])
-    temp = np.zeros(np.sum(ind1))
-    temp[inda] = np.pi - LK_R[inda]
-    temp[indb] = 2.0*np.pi - LK_R[indb] - pilam[indb]
-    temp[indc] = - LK_R[indc] + pilam[indc]
-    solid[ind1] = temp
-
-    # on axis case (easy analytical computation)
-    solid[ind2] = 2*np.pi*(1.0 - np.abs(pos[ind2,2])/np.sqrt(r**2 + pos[ind2,2]**2))
-    if (solid <= 0).any():
-        print('Solid angle:',solid)
-        print('Position:', pos)
-        raise NameError('Solid angle smaller than 0')
-    return solid
 
 class BES:
     """ Class computing the image of all the fibers.
@@ -693,15 +623,33 @@ class BES:
         return eps*solid
 
     def get_solid_angle(self,pos,fib):
-        """ Compute the solid angle 
+        r""" Compute the solid angle 
 
         Three different cases can happen:
+
         * Lens case
         * Ring case
         * mixed case
-        
-        :todo: add picture
-        The two first are solved with the formula of Paxton (:func:`solid_angle_disk`) and
+
+        In the following drawing, the vision from a particle that emits some photons is shown.
+        The red circles are for the lens and the black ones are for the ring.
+
+        .. tikz::
+           % lens case
+           \draw[red] (-5,0) circle(1.5);
+           \draw (-5,0.3) circle(2);
+           \node at (-5,2.5) {Lens Case};
+           % ring case 
+           \draw (0,0) circle(1.5);
+           \draw[red] (0,0.3) circle(2);
+           \node at (0,2.5) {Ring Case};
+           % mixed case
+           \draw (5,0) circle(1.5);
+           \draw[red] (5,0.3) circle(1.4);
+           \node at (5,2.5) {Mixted Case};
+
+
+        The two first are solved with the formula of Paxton (:func:`solid_angle_disk <FPSDP.Maths.Funcs.solid_angle_disk`) and
         the last one is solved numerically.
 
         :param np.array[N,3] pos: Position in the optical system
@@ -973,7 +921,7 @@ class BES_ideal:
         
 
     def compute_limits(self, eps=1, dxmin = 0.1, dymin = 0.1, dzmin = 0.5):
-        """ find max of the focus points """
+        """ find min/max of the focus points """
         # first in X
         self.Xmax = np.max(self.pos_foc[:,0])
 
@@ -1047,7 +995,7 @@ class BES_ideal:
 
 
     def intensity(self,t_,fiber_nber):
-        """ Compute the light received by the fiber #fiber_nber
+        """ Compute the light received by the fiber
         """
         I = self.data.interpolate_data(self.pos_foc[fiber_nber,:],t_,['ne'],False)[0]
         return I

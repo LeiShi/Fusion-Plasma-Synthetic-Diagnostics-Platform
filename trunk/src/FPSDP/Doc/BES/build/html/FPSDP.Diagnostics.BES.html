@@ -60,68 +60,6 @@
 <p>In order to compare the exact density fluctuation and the BES diagnostic, two classes have been created.
 A first one that implement the diagnostic (<a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES" title="FPSDP.Diagnostics.BES.bes.BES"><tt class="xref py py-class docutils literal"><span class="pre">BES</span></tt></a>) and a second one that copy the
 structure of the diagnostic and just take density value at the focus points (<a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES_ideal" title="FPSDP.Diagnostics.BES.bes.BES_ideal"><tt class="xref py py-class docutils literal"><span class="pre">BES_ideal</span></tt></a>).</p>
-<div class="section" id="module-FPSDP.Diagnostics.BES.bes">
-<span id="function-defined-in-the-module"></span><h2>Function Defined in the Module<a class="headerlink" href="#module-FPSDP.Diagnostics.BES.bes" title="Permalink to this headline">¶</a></h2>
-<dl class="function">
-<dt id="FPSDP.Diagnostics.BES.bes.heuman">
-<tt class="descclassname">FPSDP.Diagnostics.BES.bes.</tt><tt class="descname">heuman</tt><big>(</big><em>phi</em>, <em>m</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#heuman"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.heuman" title="Permalink to this definition">¶</a></dt>
-<dd><p>Compute the Heuman&#8217;s lambda function</p>
-<p><span class="math">\(\Lambda_0 (\xi,k) = \frac{2}{\pi}\left[E(k)F(\xi,k') + K(k)E(\xi,k')- K(k)F(\xi,k')\right]\)</span>
-where <span class="math">\(k' = \sqrt{(1-k^2)}\)</span></p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>phi</strong> (<em>np.array[N]</em>) &#8211; The amplitude of the elliptic integrals</li>
-<li><strong>m</strong> (<em>np.array[N]</em>) &#8211; The parameter of the elliptic integrals</li>
-</ul>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Evaluation of the Heuman&#8217;s lambda function</p>
-</td>
-</tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="function">
-<dt id="FPSDP.Diagnostics.BES.bes.solid_angle_disk">
-<tt class="descclassname">FPSDP.Diagnostics.BES.bes.</tt><tt class="descname">solid_angle_disk</tt><big>(</big><em>pos</em>, <em>r</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#solid_angle_disk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.solid_angle_disk" title="Permalink to this definition">¶</a></dt>
-<dd><p>Compute the solid angle of a disk on/off-axis from the pos
-the center of the circle should be in (0,0,0)</p>
-<div class="math">
-\[\begin{split}\Omega = \left\{\begin{array}{lr}
-2\pi-\frac{2L}{R_\text{max}}K(k)-\pi\Lambda_0(\xi,k) &amp; r_0 &lt; r_m \\
-\phantom{2}\pi-\frac{2L}{R_\text{max}}K(k) &amp; r_0 = r_m \\
-\phantom{2\pi}-\frac{2L}{R_\text{max}}K(k)+\pi\Lambda_0(\xi,k) &amp; r_0 &gt; r_m \\
-\end{array}\right.\end{split}\]</div>
-<p>Read the paper of <a class="reference external" href="http://scitation.aip.org/content/aip/journal/rsi/30/4/10.1063/1.1716590">Paxton</a> &#8220;Solid Angle Calculation for a 
-Circular Disk&#8221; in 1959 for the exact computation.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>pos</strong> (<em>np.array[N,3]</em>) &#8211; Position from which computing the solid angle</li>
-<li><strong>r</strong> (<em>float</em>) &#8211; Radius of the disk (the disk is centered in (0,0,0) and the perpendicular is along the z-axis)</li>
-</ul>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Solid angle for each positions</p>
-</td>
-</tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-</div>
 <div class="section" id="beam-emission-spectroscopy">
 <h2>Beam Emission Spectroscopy<a class="headerlink" href="#beam-emission-spectroscopy" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
@@ -129,7 +67,7 @@ Circular Disk&#8221; in 1959 for the exact computation.</p>
 <em class="property">class </em><tt class="descclassname">FPSDP.Diagnostics.BES.bes.</tt><tt class="descname">BES</tt><big>(</big><em>input_file</em>, <em>parallel=False</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES" title="Permalink to this definition">¶</a></dt>
 <dd><p>Class computing the image of all the fibers.</p>
 <p>Load the parameter from a config file and create everything from it.
-The function <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.get_bes" title="FPSDP.Diagnostics.BES.bes.BES.get_bes"><tt class="xref py py-func docutils literal"><span class="pre">get_bes()</span></tt></a> is used for computing the intensity received by
+The function <tt class="xref py py-func docutils literal"><span class="pre">get_bes()</span></tt> is used for computing the intensity received by
 each fiber (number of photons per second).</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -316,19 +254,28 @@ keeping all the wavelength until the end).</p>
 <dt id="FPSDP.Diagnostics.BES.bes.BES.get_solid_angle">
 <tt class="descname">get_solid_angle</tt><big>(</big><em>pos</em>, <em>fib</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_solid_angle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_solid_angle" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the solid angle</p>
-<p>Three different cases can happen:
-* Lens case
-* Ring case
-* mixed case</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body">add picture</td>
-</tr>
-</tbody>
-</table>
-<p>The two first are solved with the formula of Paxton (<a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.solid_angle_disk" title="FPSDP.Diagnostics.BES.bes.solid_angle_disk"><tt class="xref py py-func docutils literal"><span class="pre">solid_angle_disk()</span></tt></a>) and
+<p>Three different cases can happen:</p>
+<ul class="simple">
+<li>Lens case</li>
+<li>Ring case</li>
+<li>mixed case</li>
+</ul>
+<p>In the following drawing, the vision from a particle that emits some photons is shown.
+The red circles are for the lens and the black ones are for the ring.</p>
+<div class="figure">
+<p><img src="_images/tikz-87bcc0c468e7871ddf745936e3298dce8a9cd414.png" alt="% lens case
+\draw[red] (-5,0) circle(1.5);
+\draw (-5,0.3) circle(2);
+\node at (-5,2.5) {Lens Case};
+% ring case 
+\draw (0,0) circle(1.5);
+\draw[red] (0,0.3) circle(2);
+\node at (0,2.5) {Ring Case};
+% mixed case
+\draw (5,0) circle(1.5);
+\draw[red] (5,0.3) circle(1.4);
+\node at (5,2.5) {Mixted Case};" /></p>
+</div><p>The two first are solved with the formula of Paxton (<tt class="xref py py-func docutils literal"><span class="pre">solid_angle_disk</span> <span class="pre">&lt;FPSDP.Maths.Funcs.solid_angle_disk()</span></tt>) and
 the last one is solved numerically.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -405,7 +352,7 @@ Assume two cones that meet at the focus disk.</p>
 <span class="math">\(f(z) = \frac{I_\text{plane}(z)}{A(z)}\)</span> is the light emitted by the planes normalized by its area,
 <span class="math">\(d = \text{inter} \cdot w\)</span>, inter is the cutoff in unit of the average beam width (w),
 <span class="math">\(a_i\)</span> and <span class="math">\(b_i\)</span> are the lower and upper limits for each intervals, <span class="math">\(\omega\)</span> and <span class="math">\(x_i\)</span> are
-the weights and points of the quadrature formula. See figure <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.compute_limits" title="FPSDP.Diagnostics.BES.bes.BES.compute_limits"><tt class="xref py py-func docutils literal"><span class="pre">compute_limits()</span></tt></a> for a view of the situation.</p>
+the weights and points of the quadrature formula. See figure <tt class="xref py py-func docutils literal"><span class="pre">compute_limits()</span></tt> for a view of the situation.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -429,7 +376,7 @@ the weights and points of the quadrature formula. See figure <a class="reference
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES.intensity_para">
 <tt class="descname">intensity_para</tt><big>(</big><em>i</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.intensity_para"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.intensity_para" title="Permalink to this definition">¶</a></dt>
-<dd><p>Same as <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.intensity" title="FPSDP.Diagnostics.BES.bes.BES.intensity"><tt class="xref py py-func docutils literal"><span class="pre">intensity()</span></tt></a>, but have only one argument.
+<dd><p>Same as <tt class="xref py py-func docutils literal"><span class="pre">intensity()</span></tt>, but have only one argument.
 The only use is for the parallelization that ask only one argument.
 Use the variable current from the data loader.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -453,7 +400,7 @@ Use the variable current from the data loader.</p>
 Abramowitz and Stegun).</p>
 <div class="math">
 \[I_\text{plane} = \iint_D f(x) \mathrm{d}\sigma \approx \sum_i \omega_i f(x_i)\]</div>
-<p>where <span class="math">\(f(x)\)</span> is the value obtained by <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.get_emis_from" title="FPSDP.Diagnostics.BES.bes.BES.get_emis_from"><tt class="xref py py-func docutils literal"><span class="pre">get_emis_from()</span></tt></a>, D is the disk
+<p>where <span class="math">\(f(x)\)</span> is the value obtained by <tt class="xref py py-func docutils literal"><span class="pre">get_emis_from()</span></tt>, D is the disk
 representing the plane, and, <span class="math">\(\omega_i\)</span> and <span class="math">\(x_i\)</span> are the weights and the points
 of the quadrature formula.</p>
 <p>The points are given in the figure below and the weights are <span class="math">\(\frac{1}{9}\)</span> for the center,
@@ -632,7 +579,7 @@ the comments</p>
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES_ideal.compute_limits">
 <tt class="descname">compute_limits</tt><big>(</big><em>eps=1</em>, <em>dxmin=0.1</em>, <em>dymin=0.1</em>, <em>dzmin=0.5</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES_ideal.compute_limits"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES_ideal.compute_limits" title="Permalink to this definition">¶</a></dt>
-<dd><p>find max of the focus points</p>
+<dd><p>find min/max of the focus points</p>
 </dd></dl>
 
 <dl class="method">
@@ -645,7 +592,7 @@ This function should be the only one used outside the class</p>
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES_ideal.intensity">
 <tt class="descname">intensity</tt><big>(</big><em>t_</em>, <em>fiber_nber</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES_ideal.intensity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES_ideal.intensity" title="Permalink to this definition">¶</a></dt>
-<dd><p>Compute the light received by the fiber #fiber_nber</p>
+<dd><p>Compute the light received by the fiber</p>
 </dd></dl>
 
 </dd></dl>
@@ -662,7 +609,6 @@ This function should be the only one used outside the class</p>
   <h3><a href="FPSDP.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Beam Emission Spectroscopy (BES) Directory</a><ul>
-<li><a class="reference internal" href="#module-FPSDP.Diagnostics.BES.bes">Function Defined in the Module</a></li>
 <li><a class="reference internal" href="#beam-emission-spectroscopy">Beam Emission Spectroscopy</a></li>
 <li><a class="reference internal" href="#raw-electron-density-fluctuations">Raw Electron Density Fluctuations</a></li>
 </ul>

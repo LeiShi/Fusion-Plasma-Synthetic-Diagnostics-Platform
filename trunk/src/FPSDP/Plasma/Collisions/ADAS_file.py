@@ -11,7 +11,7 @@ class ADAS_file:
     This class is for inheritence purpose only. It will be inherited
     by all the ADAS readers.
     It defines how to read a block 
-    of data (:func:`read_block`) [often used in 2D data of the ADAS database].
+    of data (:func:`read_block <FPSDP.Plasma.Collisions.ADAS_file.ADAS_file.read_block>`) [often used in 2D data of the ADAS database].
     The beam energy is divided by the atomic mass of the beam particles (eV/amu).
 
     
@@ -43,7 +43,7 @@ class ADAS_file:
         :type data: list[str]
         :param i: first line to look at (index of data)
         :type i: int
-        :param array: array where to add the data from the file (should be of the 
+        :param array: array where to add the data from the file (should be of the \
         good size)
         :type array: np.array
         :param n: Number of item contained inside the data

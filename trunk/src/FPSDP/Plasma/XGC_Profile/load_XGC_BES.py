@@ -1,8 +1,13 @@
-"""Moduel of the XGC loader for the BES synthetic diagnostic.
+"""Module of the XGC loader for the BES synthetic diagnostic.
 
 It reads the data from the simulation and remove the points not used for the diagnostic (in order to keep the used memory at a low level).
 Do an interpolation along the B-field.
-   
+Consists mainly of a copy from an other :download:`code <../../../../FPSDP/Plasma/XGC_Profile/load_XGC_profile.py>`.
+The orginal code was doing a 3D mesh and interpolation the data from the simulation on this one, now, the code is computing one
+time step at a time and interpolate only the value asked by the user.
+The other difference is in the interpolation along the field line, the code now try to a number of step on each side that depends
+on the distance to the previous/next plane.
+
 """
 
 from ...IO.IO_funcs import parse_num
@@ -145,7 +150,7 @@ class XGC_Loader_BES():
         if increase:
             self.current += 1
         if self.current >= len(self.time_steps):
-            raise XGC_Loader_Error('The time step is bigger than the one\
+            raise XGC_Loader_Error('The time step is bigger than the ones\
             requested')
         
 
@@ -228,9 +233,9 @@ class XGC_Loader_BES():
 
     def load_fluctuations_3D_all(self):
         """Load non-adiabatic electron density and electrical static 
-           potential fluctuations for 3D mesh.
-           The required planes are calculated and stored in sorted array.
-           fluctuation data on each plane is stored in the same order.
+        potential fluctuations for 3D mesh.
+        The required planes are calculated and stored in sorted array.
+        fluctuation data on each plane is stored in the same order.
         Note that for full-F runs, the perturbed electron density 
         includes both turbulent fluctuations and equilibrium relaxation,
         this loading method doesn't differentiate them and will read all of them.

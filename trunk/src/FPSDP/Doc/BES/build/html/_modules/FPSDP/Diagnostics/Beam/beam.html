@@ -183,12 +183,12 @@
 <div class="viewcode-block" id="Beam1D.set_data"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.set_data">[docs]</a>    <span class="k">def</span> <span class="nf">set_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">data</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Second part of the initialization (should be called manually!).</span>
 
-<span class="sd">        Due to the computation of the limits (:func:`FPSDP.Diagnostics.BES.bes.BES.compute_limits`),</span>
+<span class="sd">        Due to the computation of the limits (:func:`compute_limits &lt;FPSDP.Diagnostics.BES.bes.BES.compute_limits&gt;`),</span>
 <span class="sd">        the data are loaded after the initialization.</span>
 <span class="sd">        This method save the data inside the instance and compute the beam density on the mesh</span>
 
-<span class="sd">        :param data: Loader of the simulation datas</span>
-<span class="sd">        :type data: e.g. :class:`FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES`</span>
+<span class="sd">        :param data: Loader of the simulation data</span>
+<span class="sd">        :type data: e.g. :class:`XGC_Loader_BES &lt;FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES&gt;`</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>                                                     <span class="c">#!</span>
         <span class="k">print</span> <span class="s">&#39;Creating mesh&#39;</span>
@@ -212,7 +212,7 @@
 </div>
 <div class="viewcode-block" id="Beam1D.create_mesh"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.create_mesh">[docs]</a>    <span class="k">def</span> <span class="nf">create_mesh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Create the 1D mesh between the source of the beam and the end </span>
-<span class="sd">            of the mesh.</span>
+<span class="sd">        of the mesh.</span>
 
 <span class="sd">        Is called during the initialization</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -231,7 +231,7 @@
 <span class="sd">        the coordinate of the intersection with the beam.</span>
 <span class="sd">        </span>
 <span class="sd">        :param float eps: Ratio of increase size on each side of the box</span>
-<span class="sd">        :returns: Position of the intersection between the end of the mesh and the beam</span>
+<span class="sd">        :returns: Position of the intersection between the end of the mesh and the beam\</span>
 <span class="sd">        (in cartesian system)</span>
 <span class="sd">        :rtype: np.array[3]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -286,11 +286,14 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">interpolate_data</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">,</span><span class="n">quant</span><span class="p">,</span><span class="n">eq</span><span class="p">)</span>
         
         </div>
-<div class="viewcode-block" id="Beam1D.compute_beam_on_mesh"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.compute_beam_on_mesh">[docs]</a>    <span class="k">def</span> <span class="nf">compute_beam_on_mesh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">eq</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+<div class="viewcode-block" id="Beam1D.compute_beam_on_mesh"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.compute_beam_on_mesh">[docs]</a>    <span class="k">def</span> <span class="nf">compute_beam_on_mesh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">r&quot;&quot;&quot; Compute the beam density on the mesh and the interpolant.</span>
 
 <span class="sd">        Use the Gauss-Legendre quadrature of order 3 for computing the integral:</span>
-<span class="sd">        :math:`n_b(P) = n_{b,0} \exp\left(-\int_0^P n_e(z)S_\text{cr}(E,n_e(z),T_i(z))\sqrt{\frac{m}{2E}}\mathrm{d}z\right)`</span>
+
+<span class="sd">        .. math::</span>
+<span class="sd">           n_b(P) = n_{b,0} \exp\left(-\int_0^P n_e(z)S_\text{cr}\left(E,n_e(z),T_i(z)\right)\sqrt{\frac{m}{2E}}\mathrm{d}z\right)</span>
+
 <span class="sd">        where :math:`n_b(P)` is the density at the point P (along the beam central line),</span>
 <span class="sd">        :math:`n_{b,0}` is the density at the origin, :math:`n_e` is the electron density,</span>
 <span class="sd">        :math:`S_\text{cr}` is the beam stopping coefficient (depending on the beam energy [:math:`E_b`],</span>
@@ -298,9 +301,14 @@
 <span class="sd">        :math:`\mathrm{d}z` is along the central line.</span>
 
 <span class="sd">        The initial density is computed with the help of the total power (:math:`P`):</span>
-<span class="sd">        :math:`P = \int_\Omega E v n_{b,0} \mathrm{d}\sigma` </span>
+
+<span class="sd">        .. math::</span>
+
+<span class="sd">           P = \int_\Omega E v n_{b,0} \mathrm{d}\sigma</span>
+
 <span class="sd">        where :math:`\Omega` is the 2D space perpendicular to the beam direction and</span>
-<span class="sd">        :math:`v = \sqrt{\frac{m}{2E}}` is the velocity of the particles.</span>
+<span class="sd">        :math:`v = \sqrt{\frac{2E}{m}}` is the velocity of the particles.</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
         
         <span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">),</span><span class="bp">self</span><span class="o">.</span><span class="n">Nz</span><span class="p">))</span>  <span class="c">#!</span>

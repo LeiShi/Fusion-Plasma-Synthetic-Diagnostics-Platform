@@ -55,35 +55,38 @@
 
 
 <div class="viewcode-block" id="Collisions"><a class="viewcode-back" href="../../../../FPSDP.Plasma.Collisions.collisions.html#FPSDP.Plasma.Collisions.collisions.Collisions">[docs]</a><span class="k">class</span> <span class="nc">Collisions</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot; Class containing all the physics about the collisions</span>
+    <span class="sd">r&quot;&quot;&quot; Class containing all the physics about the collisions</span>
 <span class="sd">        </span>
 <span class="sd">    Read the files from ADAS database, compute the lifetime, and compute</span>
 <span class="sd">    the cross-sections (cubic spline interpolation is used).</span>
 <span class="sd">    </span>
+<span class="sd">    For computing the coefficients, two interpolations are done.</span>
+<span class="sd">    A first one in 2D (beam energy and density) and a second one in temperature.</span>
+<span class="sd">    The final result is given by:</span>
 
+<span class="sd">    .. math::</span>
+<span class="sd">       C = \frac{\text{Interp}(E_b,\rho)\cdot \text{Interp}(T)}{C_\text{ref}}</span>
+
+<span class="sd">    where :math:`C_\text{ref}` is the coefficient at the reference temperature, density and beam energy.</span>
+<span class="sd">    </span>
+<span class="sd">    </span>
 <span class="sd">    :param list[str] files_atte: List of names for ADAS21 files (beam stopping coefficient)</span>
 <span class="sd">    :param list[str] files_emis: List of names for ADAS22 files (emission coefficient)</span>
 <span class="sd">    :param list[int] states: Quantum number of the lower (states[0]) and the higher(states[1]) states of the hydrogen atom</span>
-<span class="sd">    </span>
+
+<span class="sd">    |</span>
 <span class="sd">    :var list[str] self.files_atte: List of names for ADAS21 files (beam stopping coefficient)</span>
 <span class="sd">    :var list[str] self.files_emis: List of names for ADAS22 files (emission coefficient)</span>
-
 <span class="sd">    :var list[] self.beam_atte: List of :class:`ADAS21 &lt;FPSDP.Plasma.Collisions.ADAS_file.ADAS21&gt;` instance variable (beam stopping coefficient)</span>
 <span class="sd">    :var list[] self.beam_emis: List of :class:`ADAS22 &lt;FPSDP.Plasma.Collisions.ADAS_file.ADAS22&gt;` instance variable (emission coefficient)</span>
-
-<span class="sd">    :var list[tck_interp] self.atte_tck_dens: List of interpolant computed with cubic spline for\</span>
-<span class="sd">the beam stopping coefficient as a function of the density and the beam energy</span>
-<span class="sd">    :var list[tck_interp] self.emis_tck_dens: List of interpolant computed with cubic spline for\</span>
-<span class="sd">the emission coefficient as a function of the density and the beam energy</span>
-<span class="sd">    :var list[tck_interp] self.atte_tck_temp: List of interpolant computed with cubic spline for\</span>
-<span class="sd">the beam stopping coefficient as a function of the temperature</span>
-<span class="sd">    :var list[tck_interp] self.emis_tck_temp: List of interpolant computed with cubic spline for\</span>
-<span class="sd">the emission coefficient as a function of the temperature</span>
-
+<span class="sd">    :var list[tck_interp] self.atte_tck_dens: List of interpolant computed with cubic spline for the beam stopping coefficient as a function of the density and the beam energy</span>
+<span class="sd">    :var list[tck_interp] self.emis_tck_dens: List of interpolant computed with cubic spline for the emission coefficient as a function of the density and the beam energy</span>
+<span class="sd">    :var list[tck_interp] self.atte_tck_temp: List of interpolant computed with cubic spline for the beam stopping coefficient as a function of the temperature</span>
+<span class="sd">    :var list[tck_interp] self.emis_tck_temp: List of interpolant computed with cubic spline for the emission coefficient as a function of the temperature</span>
 <span class="sd">    :var float self.n_low: Quantum number of the lower state for the hydrogen atom</span>
 <span class="sd">    :var float self.n_high: Quantum number of the higher state for the hydrogen atom</span>
 <span class="sd">    :var float self.E0: Energy of the ground state (in eV)    </span>
-<span class="sd">        </span>
+<span class="sd">    </span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">files_atte</span><span class="p">,</span><span class="n">files_emis</span><span class="p">,</span><span class="n">states</span><span class="p">):</span>

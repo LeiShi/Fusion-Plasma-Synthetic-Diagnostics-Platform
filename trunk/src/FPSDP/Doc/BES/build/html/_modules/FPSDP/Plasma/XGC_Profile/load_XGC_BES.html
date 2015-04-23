@@ -48,11 +48,16 @@
           <div class="body">
             
   <h1>Source code for FPSDP.Plasma.XGC_Profile.load_XGC_BES</h1><div class="highlight"><pre>
-<span class="sd">&quot;&quot;&quot;Moduel of the XGC loader for the BES synthetic diagnostic.</span>
+<span class="sd">&quot;&quot;&quot;Module of the XGC loader for the BES synthetic diagnostic.</span>
 
 <span class="sd">It reads the data from the simulation and remove the points not used for the diagnostic (in order to keep the used memory at a low level).</span>
 <span class="sd">Do an interpolation along the B-field.</span>
-<span class="sd">   </span>
+<span class="sd">Consists mainly of a copy from an other :download:`code &lt;../../../../FPSDP/Plasma/XGC_Profile/load_XGC_profile.py&gt;`.</span>
+<span class="sd">The orginal code was doing a 3D mesh and interpolation the data from the simulation on this one, now, the code is computing one</span>
+<span class="sd">time step at a time and interpolate only the value asked by the user.</span>
+<span class="sd">The other difference is in the interpolation along the field line, the code now try to a number of step on each side that depends</span>
+<span class="sd">on the distance to the previous/next plane.</span>
+
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span> <span class="nn">...IO.IO_funcs</span> <span class="kn">import</span> <span class="n">parse_num</span>
@@ -195,7 +200,7 @@
         <span class="k">if</span> <span class="n">increase</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">current</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">current</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time_steps</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">XGC_Loader_Error</span><span class="p">(</span><span class="s">&#39;The time step is bigger than the one</span><span class="se">\</span>
+            <span class="k">raise</span> <span class="n">XGC_Loader_Error</span><span class="p">(</span><span class="s">&#39;The time step is bigger than the ones</span><span class="se">\</span>
 <span class="s">            requested&#39;</span><span class="p">)</span>
         
 
@@ -278,9 +283,9 @@
 </div>
 <div class="viewcode-block" id="XGC_Loader_BES.load_fluctuations_3D_all"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_fluctuations_3D_all">[docs]</a>    <span class="k">def</span> <span class="nf">load_fluctuations_3D_all</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Load non-adiabatic electron density and electrical static </span>
-<span class="sd">           potential fluctuations for 3D mesh.</span>
-<span class="sd">           The required planes are calculated and stored in sorted array.</span>
-<span class="sd">           fluctuation data on each plane is stored in the same order.</span>
+<span class="sd">        potential fluctuations for 3D mesh.</span>
+<span class="sd">        The required planes are calculated and stored in sorted array.</span>
+<span class="sd">        fluctuation data on each plane is stored in the same order.</span>
 <span class="sd">        Note that for full-F runs, the perturbed electron density </span>
 <span class="sd">        includes both turbulent fluctuations and equilibrium relaxation,</span>
 <span class="sd">        this loading method doesn&#39;t differentiate them and will read all of them.</span>

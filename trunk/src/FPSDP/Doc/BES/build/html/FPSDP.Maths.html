@@ -55,7 +55,9 @@
             
   <div class="section" id="maths-directory">
 <span id="maths"></span><h1>Maths Directory<a class="headerlink" href="#maths-directory" title="Permalink to this headline">¶</a></h1>
-<p>Only the integration module is used for the BES diagnostic, it contains some useful quadrature formulas.</p>
+<p>Only the integration and Funcs  modules are used for the BES diagnostic.
+The first one contains some useful quadrature formulas and the second one contains some function for the
+computation of the solid angle.</p>
 <div class="section" id="module-FPSDP.Maths.Integration">
 <span id="integration-module"></span><h2>Integration Module<a class="headerlink" href="#module-FPSDP.Maths.Integration" title="Permalink to this headline">¶</a></h2>
 <dl class="function">
@@ -85,6 +87,100 @@
 </dd></dl>
 
 </div>
+<div class="section" id="module-FPSDP.Maths.Funcs">
+<span id="funcs-module"></span><h2>Funcs Module<a class="headerlink" href="#module-FPSDP.Maths.Funcs" title="Permalink to this headline">¶</a></h2>
+<p>simple math functions used for debugging and/or productive runs</p>
+<dl class="function">
+<dt id="FPSDP.Maths.Funcs.determinent3d">
+<tt class="descclassname">FPSDP.Maths.Funcs.</tt><tt class="descname">determinent3d</tt><big>(</big><em>x1</em>, <em>y1</em>, <em>z1</em>, <em>x2</em>, <em>y2</em>, <em>z2</em>, <em>x3</em>, <em>y3</em>, <em>z3</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Maths/Funcs.html#determinent3d"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Maths.Funcs.determinent3d" title="Permalink to this definition">¶</a></dt>
+<dd><p>calculate the determinent of 3*3 matrix</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="FPSDP.Maths.Funcs.heuman">
+<tt class="descclassname">FPSDP.Maths.Funcs.</tt><tt class="descname">heuman</tt><big>(</big><em>phi</em>, <em>m</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Maths/Funcs.html#heuman"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Maths.Funcs.heuman" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the Heuman&#8217;s lambda function</p>
+<p><span class="math">\(\Lambda_0 (\xi,k) = \frac{2}{\pi}\left[E(k)F(\xi,k') + K(k)E(\xi,k')- K(k)F(\xi,k')\right]\)</span>
+where <span class="math">\(k' = \sqrt{(1-k^2)}\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>phi</strong> (<em>np.array[N]</em>) &#8211; The amplitude of the elliptic integrals</li>
+<li><strong>m</strong> (<em>np.array[N]</em>) &#8211; The parameter of the elliptic integrals</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Evaluation of the Heuman&#8217;s lambda function</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="FPSDP.Maths.Funcs.my_quad">
+<tt class="descclassname">FPSDP.Maths.Funcs.</tt><tt class="descname">my_quad</tt><big>(</big><em>y</em>, <em>x</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Maths/Funcs.html#my_quad"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Maths.Funcs.my_quad" title="Permalink to this definition">¶</a></dt>
+<dd><p>quadratic integration on given grids
+I = Sum (y[i+1]+y[i])*(x[i+1]-x[i])/2</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="FPSDP.Maths.Funcs.solid_angle_disk">
+<tt class="descclassname">FPSDP.Maths.Funcs.</tt><tt class="descname">solid_angle_disk</tt><big>(</big><em>pos</em>, <em>r</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Maths/Funcs.html#solid_angle_disk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Maths.Funcs.solid_angle_disk" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the solid angle of a disk on/off-axis from the pos
+the center of the circle should be in (0,0,0)</p>
+<div class="math">
+\[\begin{split}\Omega = \left\{\begin{array}{lr}
+2\pi-\frac{2L}{R_\text{max}}K(k)-\pi\Lambda_0(\xi,k) &amp; r_0 &lt; r_m \\
+\phantom{2}\pi-\frac{2L}{R_\text{max}}K(k) &amp; r_0 = r_m \\
+\phantom{2\pi}-\frac{2L}{R_\text{max}}K(k)+\pi\Lambda_0(\xi,k) &amp; r_0 &gt; r_m \\
+\end{array}\right.\end{split}\]</div>
+<p>Read the paper of <a class="reference external" href="http://scitation.aip.org/content/aip/journal/rsi/30/4/10.1063/1.1716590">Paxton</a> &#8220;Solid Angle Calculation for a 
+Circular Disk&#8221; in 1959 for the exact computation.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>pos</strong> (<em>np.array[N,3]</em>) &#8211; Position from which computing the solid angle</li>
+<li><strong>r</strong> (<em>float</em>) &#8211; Radius of the disk (the disk is centered in (0,0,0) and the perpendicular is along the z-axis)</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Solid angle for each positions</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="FPSDP.Maths.Funcs.sweeping_correlation">
+<tt class="descclassname">FPSDP.Maths.Funcs.</tt><tt class="descname">sweeping_correlation</tt><big>(</big><em>s1</em>, <em>s2</em>, <em>dt=1</em>, <em>nt_min=100</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Maths/Funcs.html#sweeping_correlation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Maths.Funcs.sweeping_correlation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the correlation of two given time-series signals.</p>
+<p>Correlation is defined as:</p>
+<p>gamma(s1,s2) = &lt;(s1_tilde * conj(s2_tilde))&gt;/sqrt(&lt;<a href="#id1"><span class="problematic" id="id2">|</span></a>s1_tilde|^2&gt; &lt;<a href="#id3"><span class="problematic" id="id4">|</span></a>s2_tilde|^2&gt;)</p>
+<p>where s1_tilde = s1 - &lt;s1&gt;, &lt;...&gt; denotes time average.</p>
+<p>Sweeping correlation is carried out by correlating one signal to a delayed(or advanced) version of the other signal.</p>
+<dl class="docutils">
+<dt>Arguments:</dt>
+<dd>s1,s2: signals to be correlated, ndarray with same shape, the first dimension is &#8220;time&#8221;.
+dt: int, sweeping step size, move s2 dt units in time every step, and carryout another correlation with s1
+nt_min: optional, int, the minimum time overlap for sweeping correlation, the average must be taken over longer time period than set by this, otherwise sweeping will stop. Default to be 100.</dd>
+<dt>Returns:</dt>
+<dd>SCorrelation: ndarray, same shape as s1 and s2 except for the first dimension, the first dimension length will be total number of sweeping correlations, it&#8217;s determined by dt, nt_min, and the original time series length. Indexing convention for time dimension is similar to that in fft, if total length is 2n+1, index 0 is for correlation without moving, index 1 to n for s2 delayed compared to s1, index -1 to -n for s2 advanced compared to s1.</dd>
+</dl>
+</dd></dl>
+
+</div>
 </div>
 
 
@@ -97,6 +193,7 @@
   <ul>
 <li><a class="reference internal" href="#">Maths Directory</a><ul>
 <li><a class="reference internal" href="#module-FPSDP.Maths.Integration">Integration Module</a></li>
+<li><a class="reference internal" href="#module-FPSDP.Maths.Funcs">Funcs Module</a></li>
 </ul>
 </li>
 </ul>

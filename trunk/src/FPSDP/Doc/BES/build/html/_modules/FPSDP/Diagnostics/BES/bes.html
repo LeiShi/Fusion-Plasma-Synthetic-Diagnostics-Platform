@@ -93,7 +93,6 @@
 
 <span class="sd">    :param str input_file: Name of the config file</span>
 <span class="sd">    :param bool parallel: Choice between the serial code or the parallel one</span>
-<span class="sd">    |</span>
 <span class="sd">    :var str self.cfg_fil: Name of the config file</span>
 <span class="sd">    :var bool self.para: Choice between the serial code and the parallel one</span>
 <span class="sd">    :var np.array[3] self.pos_lens: Position of the lens (in the cartesian system)</span>
@@ -111,14 +110,12 @@
 <span class="sd">    :var float self.t_max: Cutoff time for the lifetime effect (in unit of the lifetime).\</span>
 <span class="sd">    If set to 0, the lifetime will not be taken in account    </span>
 <span class="sd">    :var bool self.lifetime: Choice between using the lifetime effect or not</span>
-<span class="sd">        </span>
 <span class="sd">    :var float self.tau_max: Upper limit for the lifetime of the excited particles.\</span>
 <span class="sd">    It does not need to be exact, it is only for computing the limits of the mesh.</span>
 <span class="sd">    :var int self.N_field: Number of interval for the field line interpolation</span>
 <span class="sd">    :var str self.data_path: Path to the data</span>
 <span class="sd">    :var self.beam: (:class:`Beam1D &lt;FPSDP.Diagnostics.Beam.beam.Beam1D&gt;`) Beam used for the diagnostic</span>
 <span class="sd">    :var np.array[Ntime] self.time: Time steps used for the simulation</span>
-
 <span class="sd">    :var tck_interp self.filter_: Interpolant of the filter</span>
 <span class="sd">    :var float self.wl0: Wavelength of the de-excitation photons</span>
 <span class="sd">    :var float self.Xmax: Upper limit of the X coordinate</span>
@@ -127,7 +124,6 @@
 <span class="sd">    :var float self.Ymin: Lower limit of the Y coordinate</span>
 <span class="sd">    :var float self.Zmax: Upper limit of the Z coordinate</span>
 <span class="sd">    :var float self.Zmin: Lower limit of the Z coordinate</span>
-
 <span class="sd">    :var np.array[3,2] self.limits: Limits of the mesh (first index for X,Y,Z and second for max,min)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
@@ -538,6 +534,7 @@
 <span class="sd">        </span>
 <span class="sd">        .. math::</span>
 <span class="sd">           I_\text{plane} = \iint_D f(x) \mathrm{d}\sigma \approx \sum_i \omega_i f(x_i)</span>
+<span class="sd">        </span>
 <span class="sd">        where :math:`f(x)` is the value obtained by :func:`get_emis_from`, D is the disk</span>
 <span class="sd">        representing the plane, and, :math:`\omega_i` and :math:`x_i` are the weights and the points</span>
 <span class="sd">        of the quadrature formula.</span>

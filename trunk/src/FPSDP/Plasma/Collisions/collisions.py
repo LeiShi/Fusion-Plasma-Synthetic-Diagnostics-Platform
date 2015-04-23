@@ -23,8 +23,6 @@ class Collisions:
     :param list[str] files_atte: List of names for ADAS21 files (beam stopping coefficient)
     :param list[str] files_emis: List of names for ADAS22 files (emission coefficient)
     :param list[int] states: Quantum number of the lower (states[0]) and the higher(states[1]) states of the hydrogen atom
-
-    |
     :var list[str] self.files_atte: List of names for ADAS21 files (beam stopping coefficient)
     :var list[str] self.files_emis: List of names for ADAS22 files (emission coefficient)
     :var list[] self.beam_atte: List of :class:`ADAS21 <FPSDP.Plasma.Collisions.ADAS_file.ADAS21>` instance variable (beam stopping coefficient)

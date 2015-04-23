@@ -43,7 +43,6 @@ class BES:
 
     :param str input_file: Name of the config file
     :param bool parallel: Choice between the serial code or the parallel one
-    |
     :var str self.cfg_fil: Name of the config file
     :var bool self.para: Choice between the serial code and the parallel one
     :var np.array[3] self.pos_lens: Position of the lens (in the cartesian system)
@@ -61,14 +60,12 @@ class BES:
     :var float self.t_max: Cutoff time for the lifetime effect (in unit of the lifetime).\
     If set to 0, the lifetime will not be taken in account    
     :var bool self.lifetime: Choice between using the lifetime effect or not
-        
     :var float self.tau_max: Upper limit for the lifetime of the excited particles.\
     It does not need to be exact, it is only for computing the limits of the mesh.
     :var int self.N_field: Number of interval for the field line interpolation
     :var str self.data_path: Path to the data
     :var self.beam: (:class:`Beam1D <FPSDP.Diagnostics.Beam.beam.Beam1D>`) Beam used for the diagnostic
     :var np.array[Ntime] self.time: Time steps used for the simulation
-
     :var tck_interp self.filter_: Interpolant of the filter
     :var float self.wl0: Wavelength of the de-excitation photons
     :var float self.Xmax: Upper limit of the X coordinate
@@ -77,7 +74,6 @@ class BES:
     :var float self.Ymin: Lower limit of the Y coordinate
     :var float self.Zmax: Upper limit of the Z coordinate
     :var float self.Zmin: Lower limit of the Z coordinate
-
     :var np.array[3,2] self.limits: Limits of the mesh (first index for X,Y,Z and second for max,min)
     """
 
@@ -488,6 +484,7 @@ class BES:
         
         .. math::
            I_\text{plane} = \iint_D f(x) \mathrm{d}\sigma \approx \sum_i \omega_i f(x_i)
+        
         where :math:`f(x)` is the value obtained by :func:`get_emis_from`, D is the disk
         representing the plane, and, :math:`\omega_i` and :math:`x_i` are the weights and the points
         of the quadrature formula.

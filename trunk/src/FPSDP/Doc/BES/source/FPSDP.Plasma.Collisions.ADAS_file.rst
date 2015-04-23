@@ -6,6 +6,7 @@ An abstract class (:class:`ADAS_file <FPSDP.Plasma.Collisions.ADAS_file.ADAS_fil
 
 ADAS_file
 ---------
+
 .. autoclass:: FPSDP.Plasma.Collisions.ADAS_file.ADAS_file
     :members:
    
@@ -14,11 +15,15 @@ ADAS_file
 ADAS21 reader
 -------------
 
+.. inheritance-diagram:: FPSDP.Plasma.Collisions.ADAS_file.ADAS21
+
 .. autoclass:: FPSDP.Plasma.Collisions.ADAS_file.ADAS21
    :members:
 
 ADAS22 reader
 -------------
+
+.. inheritance-diagram:: FPSDP.Plasma.Collisions.ADAS_file.ADAS22
 
 .. autoclass:: FPSDP.Plasma.Collisions.ADAS_file.ADAS22
    :members:

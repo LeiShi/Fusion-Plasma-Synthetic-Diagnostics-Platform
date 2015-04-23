@@ -57,6 +57,27 @@ it creates everything from the config file and with the method <a class="referen
 <a class="reference download internal" href="_downloads/example.py"><tt class="xref download docutils literal"><span class="pre">example.py</span></tt></a> is an example of how to use the code.</p>
 <p>In the documentation, I tried to specify the unit of each variable, but it is possible that I forgot a few.
 I choose to use the SI system as often as possible (except for the beam energy), therefore it should be the first guess.</p>
+<p>The following graph shows the dependencies between the different classes.
+A black arrow shows an attribut dependency and a red one an inheritance.</p>
+<p class="graphviz">
+<img src="_images/graphviz-6a5f2d200e0c61eb10a3b6d1c53cd4e85c94b9df.png" alt="digraph FPSDP{
+size=&quot;5&quot;; ratio=fill; node[fontsize=24];
+
+BES-&gt;Beam1D-&gt;Collisions-&gt;ADAS_file; BES_ideal-&gt;XGC_Loader_BES;
+Beam1D-&gt;XGC_Loader_BES; ADAS_file-&gt;ADAS21[color=&quot;red&quot;]; ADAS_file-&gt;ADAS22[color=&quot;red&quot;];
+
+subgraph cluster_bes { label=&quot;FPSDP/Diagnostics/BES/bes.py&quot;; BES; BES_ideal; }
+
+subgraph cluster_beam { label=&quot;FPSDP/Diagnostics/Beam/beam.py&quot;; Beam1D; }
+
+subgraph cluster_XGC { label=&quot;FPSDP/Plasma/XGC_Profile/XGC_Loader_BES.py&quot;; XGC_Loader_BES; }
+
+subgraph cluster_ADAS { label=&quot;FPSDP/Plasma/Collisions/ADAS_file.py&quot;; ADAS_file; ADAS21; ADAS22; }
+
+subgraph cluster_collisions { label=&quot;FPSDP/Plasma/Collisions/collisions.py&quot;; Collisions; }
+
+}" />
+</p>
 <div class="section" id="fpsdp-directory">
 <h2>FPSDP Directory<a class="headerlink" href="#fpsdp-directory" title="Permalink to this headline">¶</a></h2>
 <p>The main directory of the library contains the following directory:</p>

@@ -50,7 +50,7 @@
   <h1>Source code for FPSDP.Plasma.XGC_Profile.load_XGC_BES</h1><div class="highlight"><pre>
 <span class="sd">&quot;&quot;&quot;Module of the XGC loader for the BES synthetic diagnostic.</span>
 
-<span class="sd">It reads the data from the simulation and remove the points not used for the diagnostic (in order to keep the used memory at a low level).</span>
+<span class="sd">It reads the data from the simulation and remove the points not used for the diagnostics (in order to keep the used memory at a low level).</span>
 <span class="sd">Do an interpolation along the B-field.</span>
 <span class="sd">Consists mainly of a copy from an other :download:`code &lt;../../../../FPSDP/Plasma/XGC_Profile/load_XGC_profile.py&gt;`.</span>
 <span class="sd">The orginal code was doing a 3D mesh and interpolation the data from the simulation on this one, now, the code is computing one</span>
@@ -101,23 +101,23 @@
 
 </div>
 <div class="viewcode-block" id="XGC_Loader_BES"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES">[docs]</a><span class="k">class</span> <span class="nc">XGC_Loader_BES</span><span class="p">():</span>
-    <span class="sd">&quot;&quot;&quot;Loader classe for the BES diagnostic.</span>
+    <span class="sd">&quot;&quot;&quot;Loader classe for the BES diagnostics.</span>
 
 <span class="sd">    The idea of this loader is to compute one time step at a time and calling the function </span>
 <span class="sd">    :func:`load_next_time_step` at the end of the time step (no return possible with this implementation).</span>
 <span class="sd">    The function :func:`interpolate_data` is used to obtain the data from any position.</span>
 <span class="sd">   </span>
 <span class="sd">    :param str xgc_path: Name of the directory containing the data</span>
-<span class="sd">    :param int t_start: Time step at which starting the diagnostic</span>
-<span class="sd">    :param int t_end: Time step at which stoping the diagnostic</span>
-<span class="sd">    :param int dt: Interval between two time step that the diagnostic should compute</span>
-<span class="sd">    :param list[list[]] limits: Mesh limits for the diagnostic (first index is for X,Y,Z and second for min/max)</span>
+<span class="sd">    :param int t_start: Time step at which starting the diagnostics</span>
+<span class="sd">    :param int t_end: Time step at which stoping the diagnostics</span>
+<span class="sd">    :param int dt: Interval between two time step that the diagnostics should compute</span>
+<span class="sd">    :param list[list[]] limits: Mesh limits for the diagnostics (first index is for X,Y,Z and second for min/max)</span>
 <span class="sd">    :param int N_field: Number of step for the interpolation along the field line</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">xgc_path</span><span class="p">,</span><span class="n">t_start</span><span class="p">,</span><span class="n">t_end</span><span class="p">,</span><span class="n">dt</span><span class="p">,</span><span class="n">limits</span><span class="p">,</span><span class="n">N_field</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;The main caller of all functions to prepare a loaded XGC </span>
-<span class="sd">           profile for the BES diagnostic.</span>
+<span class="sd">           profile for the BES diagnostics.</span>
 
 <span class="sd">        Inputs:</span>
 <span class="sd">            xgc_path       -- string, the directory of all the XGC output files</span>
@@ -255,7 +255,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">B_mesh</span> <span class="o">=</span> <span class="n">h5</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bfield_file</span><span class="p">,</span><span class="s">&#39;r&#39;</span><span class="p">)</span>
         <span class="n">B</span> <span class="o">=</span> <span class="n">B_mesh</span><span class="p">[</span><span class="s">&#39;node_data[0]&#39;</span><span class="p">][</span><span class="s">&#39;values&#39;</span><span class="p">]</span>
-        <span class="c"># keep only the values around the diagnostic</span>
+        <span class="c"># keep only the values around the diagnostics</span>
         <span class="n">BR</span> <span class="o">=</span> <span class="n">B</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ind</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">BZ</span> <span class="o">=</span> <span class="n">B</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ind</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
         <span class="n">BPhi</span> <span class="o">=</span> <span class="n">B</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ind</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span>

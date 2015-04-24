@@ -1,6 +1,6 @@
 """Module of the XGC loader for the BES synthetic diagnostic.
 
-It reads the data from the simulation and remove the points not used for the diagnostic (in order to keep the used memory at a low level).
+It reads the data from the simulation and remove the points not used for the diagnostics (in order to keep the used memory at a low level).
 Do an interpolation along the B-field.
 Consists mainly of a copy from an other :download:`code <../../../../FPSDP/Plasma/XGC_Profile/load_XGC_profile.py>`.
 The orginal code was doing a 3D mesh and interpolation the data from the simulation on this one, now, the code is computing one
@@ -51,23 +51,23 @@ def get_interp_planes_BES(my_xgc,phi3D):
 
 
 class XGC_Loader_BES():
-    """Loader classe for the BES diagnostic.
+    """Loader classe for the BES diagnostics.
 
     The idea of this loader is to compute one time step at a time and calling the function 
     :func:`load_next_time_step` at the end of the time step (no return possible with this implementation).
     The function :func:`interpolate_data` is used to obtain the data from any position.
    
     :param str xgc_path: Name of the directory containing the data
-    :param int t_start: Time step at which starting the diagnostic
-    :param int t_end: Time step at which stoping the diagnostic
-    :param int dt: Interval between two time step that the diagnostic should compute
-    :param list[list[]] limits: Mesh limits for the diagnostic (first index is for X,Y,Z and second for min/max)
+    :param int t_start: Time step at which starting the diagnostics
+    :param int t_end: Time step at which stoping the diagnostics
+    :param int dt: Interval between two time step that the diagnostics should compute
+    :param list[list[]] limits: Mesh limits for the diagnostics (first index is for X,Y,Z and second for min/max)
     :param int N_field: Number of step for the interpolation along the field line
     """
 
     def __init__(self,xgc_path,t_start,t_end,dt,limits,N_field):
         """The main caller of all functions to prepare a loaded XGC 
-           profile for the BES diagnostic.
+           profile for the BES diagnostics.
 
         Inputs:
             xgc_path       -- string, the directory of all the XGC output files
@@ -205,7 +205,7 @@ class XGC_Loader_BES():
         """
         B_mesh = h5.File(self.bfield_file,'r')
         B = B_mesh['node_data[0]']['values']
-        # keep only the values around the diagnostic
+        # keep only the values around the diagnostics
         BR = B[self.ind,0]
         BZ = B[self.ind,1]
         BPhi = B[self.ind,2]

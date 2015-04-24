@@ -58,7 +58,7 @@
   <div class="section" id="module-FPSDP.Plasma.XGC_Profile.load_XGC_BES">
 <span id="xgc1-loader"></span><h1>XGC1 Loader<a class="headerlink" href="#module-FPSDP.Plasma.XGC_Profile.load_XGC_BES" title="Permalink to this headline">¶</a></h1>
 <p>Module of the XGC loader for the BES synthetic diagnostic.</p>
-<p>It reads the data from the simulation and remove the points not used for the diagnostic (in order to keep the used memory at a low level).
+<p>It reads the data from the simulation and remove the points not used for the diagnostics (in order to keep the used memory at a low level).
 Do an interpolation along the B-field.
 Consists mainly of a copy from an other <a class="reference download internal" href="_downloads/load_XGC_profile.py"><tt class="xref download docutils literal"><span class="pre">code</span></tt></a>.
 The orginal code was doing a 3D mesh and interpolation the data from the simulation on this one, now, the code is computing one
@@ -68,7 +68,7 @@ on the distance to the previous/next plane.</p>
 <dl class="class">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES">
 <em class="property">class </em><tt class="descclassname">FPSDP.Plasma.XGC_Profile.load_XGC_BES.</tt><tt class="descname">XGC_Loader_BES</tt><big>(</big><em>xgc_path</em>, <em>t_start</em>, <em>t_end</em>, <em>dt</em>, <em>limits</em>, <em>N_field</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES" title="Permalink to this definition">¶</a></dt>
-<dd><p>Loader classe for the BES diagnostic.</p>
+<dd><p>Loader classe for the BES diagnostics.</p>
 <p>The idea of this loader is to compute one time step at a time and calling the function 
 <a class="reference internal" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_next_time_step" title="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_next_time_step"><tt class="xref py py-func docutils literal"><span class="pre">load_next_time_step()</span></tt></a> at the end of the time step (no return possible with this implementation).
 The function <a class="reference internal" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data" title="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data"><tt class="xref py py-func docutils literal"><span class="pre">interpolate_data()</span></tt></a> is used to obtain the data from any position.</p>
@@ -78,10 +78,10 @@ The function <a class="reference internal" href="#FPSDP.Plasma.XGC_Profile.load_
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
 <li><strong>xgc_path</strong> (<em>str</em>) &#8211; Name of the directory containing the data</li>
-<li><strong>t_start</strong> (<em>int</em>) &#8211; Time step at which starting the diagnostic</li>
-<li><strong>t_end</strong> (<em>int</em>) &#8211; Time step at which stoping the diagnostic</li>
-<li><strong>dt</strong> (<em>int</em>) &#8211; Interval between two time step that the diagnostic should compute</li>
-<li><strong>limits</strong> (<em>list[list[]]</em>) &#8211; Mesh limits for the diagnostic (first index is for X,Y,Z and second for min/max)</li>
+<li><strong>t_start</strong> (<em>int</em>) &#8211; Time step at which starting the diagnostics</li>
+<li><strong>t_end</strong> (<em>int</em>) &#8211; Time step at which stoping the diagnostics</li>
+<li><strong>dt</strong> (<em>int</em>) &#8211; Interval between two time step that the diagnostics should compute</li>
+<li><strong>limits</strong> (<em>list[list[]]</em>) &#8211; Mesh limits for the diagnostics (first index is for X,Y,Z and second for min/max)</li>
 <li><strong>N_field</strong> (<em>int</em>) &#8211; Number of step for the interpolation along the field line</li>
 </ul>
 </td>

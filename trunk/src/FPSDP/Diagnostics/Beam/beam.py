@@ -32,7 +32,7 @@ class Beam1D:
     :var str self.adas_emis: Name of the ADAS22 files (emission coefficient)
     
     :var self.collisions: :class:`Collisions <FPSDP.Plasma.Collisions.collisions.Collisions>` instance variable.\
-    Compute all the coefficients (beam stopping and emission) for the diagnostic.
+    Compute all the coefficients (beam stopping and emission) for the diagnostics.
 
     :var list[list[int,int]] self.coll_atte: List of couple between a ADAS21 file \
     (beam stopping coefficient) and a beam component (in this order)

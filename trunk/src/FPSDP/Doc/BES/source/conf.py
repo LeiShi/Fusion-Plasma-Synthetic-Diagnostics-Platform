@@ -209,7 +209,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ('index', 'BES.tex', u'BES Documentation',
+  ('FPSDP', 'BES.tex', u'BES Documentation',
    u'Loic Hausammann', 'manual'),
 ]
 

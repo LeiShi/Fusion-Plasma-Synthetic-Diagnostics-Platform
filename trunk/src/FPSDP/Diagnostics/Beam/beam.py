@@ -239,7 +239,7 @@ class Beam1D:
     def compute_beam_on_mesh(self):
         r""" Compute the beam density on the mesh and the interpolant.
 
-        Use the Gauss-Legendre quadrature of order 3 for computing the integral:
+        Use the Gauss-Legendre quadrature of order 5 for computing the integral:
 
         .. math::
            n_b(P) = n_{b,0} \exp\left(-\int_0^P n_e(z)S_\text{cr}\left(E,n_e(z),T_i(z)\right)\sqrt{\frac{m}{2E}}\mathrm{d}z\right)
@@ -411,7 +411,7 @@ class Beam1D:
         :rtype: np.array[N]
         """
 
-        quad = integ.integration_points(1,'GL5') # Gauss-Legendre order 3
+        quad = integ.integration_points(1,'GL5') # Gauss-Legendre order 5
         emis = np.zeros((len(self.beam_comp),pos.shape[0]))
         # avoid the computation at each time
         ne_in, Ti_in,Te_in = self.get_quantities(pos,t_,['ne','Ti','Te'])

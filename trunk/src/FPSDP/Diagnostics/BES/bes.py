@@ -539,7 +539,7 @@ class BES:
     def intensity(self,t_,fiber_nber):
         r""" Compute the light received by a fiber at one time step.
         
-        Use a Gauss-Legendre quadrature formula of order 3.
+        Use a Gauss-Legendre quadrature formula of order 5.
         
         .. math::
            I = \int_{-d}^d f(z) \mathrm{d}z \approx 

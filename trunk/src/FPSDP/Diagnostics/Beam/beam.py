@@ -269,7 +269,7 @@ class Beam1D:
         n0 *= self.frac/(self.beam_comp*SI['keV']/1000)**(1.5)
         
         # define the quadrature formula for this method
-        quad = integ.integration_points(1,'GL3') # Gauss-Legendre order 3
+        quad = integ.integration_points(1,'GL5') # Gauss-Legendre order 5
         for j in range(len(self.mesh[:,0])):
             # density over the central line (usefull for some check)
             if j is not 0:
@@ -411,7 +411,7 @@ class Beam1D:
         :rtype: np.array[N]
         """
 
-        quad = integ.integration_points(1,'GL19') # Gauss-Legendre order 3
+        quad = integ.integration_points(1,'GL5') # Gauss-Legendre order 3
         emis = np.zeros((len(self.beam_comp),pos.shape[0]))
         # avoid the computation at each time
         ne_in, Ti_in,Te_in = self.get_quantities(pos,t_,['ne','Ti','Te'])

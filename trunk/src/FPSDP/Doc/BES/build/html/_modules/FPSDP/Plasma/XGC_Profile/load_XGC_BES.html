@@ -60,7 +60,7 @@
 
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">from</span> <span class="nn">...IO.IO_funcs</span> <span class="kn">import</span> <span class="n">parse_num</span>
+<span class="kn">from</span> <span class="nn">FPSDP.IO.IO_funcs</span> <span class="kn">import</span> <span class="n">parse_num</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">h5py</span> <span class="kn">as</span> <span class="nn">h5</span>
@@ -154,8 +154,13 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">Zmax</span> <span class="o">=</span> <span class="n">limits</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
 
         <span class="c"># limits in tokamak coordinates</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">Rmin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Xmin</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">Ymin</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">Rmax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Xmax</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">Ymax</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">xmin</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Xmin</span><span class="p">),</span><span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Xmax</span><span class="p">))</span>
+        <span class="n">xmax</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Xmin</span><span class="p">),</span><span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Xmax</span><span class="p">))</span>
+        <span class="n">ymin</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Ymin</span><span class="p">),</span><span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Ymax</span><span class="p">))</span>
+        <span class="n">ymax</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Ymin</span><span class="p">),</span><span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Ymax</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">Rmin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">xmin</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">ymin</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Rmax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">xmax</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">ymax</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
         <span class="n">phi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="bp">self</span><span class="o">.</span><span class="n">Xmin</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">Ymin</span><span class="p">],[</span><span class="bp">self</span><span class="o">.</span><span class="n">Xmin</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">Ymax</span><span class="p">],</span>
                         <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">Xmax</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">Ymin</span><span class="p">],[</span><span class="bp">self</span><span class="o">.</span><span class="n">Xmax</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">Ymax</span><span class="p">]])</span>
 
@@ -222,15 +227,15 @@
         <span class="n">mesh</span> <span class="o">=</span> <span class="n">h5</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mesh_file</span><span class="p">,</span><span class="s">&#39;r&#39;</span><span class="p">)</span>
         <span class="n">RZ</span> <span class="o">=</span> <span class="n">mesh</span><span class="p">[</span><span class="s">&#39;coordinates&#39;</span><span class="p">][</span><span class="s">&#39;values&#39;</span><span class="p">]</span>
         <span class="n">Rpts</span> <span class="o">=</span><span class="n">RZ</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span>
+
         <span class="c"># remove the points outside the window</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ind</span> <span class="o">=</span> <span class="p">(</span><span class="n">Rpts</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">Rmin</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">Rpts</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">Rmax</span><span class="p">)</span>
         <span class="n">Zpts</span> <span class="o">=</span> <span class="n">RZ</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ind</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ind</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">Zpts</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">Zmin</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">Zpts</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">Zmax</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">ind</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ind</span>
         <span class="n">Rpts</span> <span class="o">=</span> <span class="n">Rpts</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ind</span><span class="p">]</span>
         <span class="n">Zpts</span> <span class="o">=</span> <span class="n">Zpts</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ind</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">Zpts</span><span class="p">,</span><span class="n">Rpts</span><span class="p">])</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
-
+        
         <span class="k">print</span> <span class="s">&#39;Keep: &#39;</span><span class="p">,</span><span class="nb">str</span><span class="p">(</span><span class="n">Rpts</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span><span class="s">&#39;Points on a total of: &#39;</span>\
             <span class="p">,</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ind</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 
@@ -483,11 +488,9 @@
             <span class="n">dR_FWD</span> <span class="o">=</span> <span class="n">RdPhi_FWD</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">BR_interp</span><span class="p">(</span><span class="n">Z_FWD</span><span class="p">,</span><span class="n">R_FWD</span><span class="p">)</span> <span class="o">/</span> <span class="n">BPhi_FWD</span>
             <span class="n">dZ_FWD</span> <span class="o">=</span> <span class="n">RdPhi_FWD</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">BZ_interp</span><span class="p">(</span><span class="n">Z_FWD</span><span class="p">,</span><span class="n">R_FWD</span><span class="p">)</span> <span class="o">/</span> <span class="n">BPhi_FWD</span>
             
-            <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">dR_FWD</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
             <span class="c">#when the point gets outside of the XGC mesh, set BR,BZ to zero.</span>
-            <span class="n">dR_FWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
-            <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">dZ_FWD</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">dZ_FWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="n">dR_FWD</span><span class="p">[</span><span class="n">dR_FWD</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="n">dZ_FWD</span><span class="p">[</span><span class="n">dZ_FWD</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
             
             <span class="n">s_FWD</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">RdPhi_FWD</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dR_FWD</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dZ_FWD</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
             <span class="n">R_FWD</span> <span class="o">+=</span> <span class="n">dR_FWD</span>
@@ -500,10 +503,8 @@
             <span class="n">dR_BWD</span> <span class="o">=</span> <span class="n">RdPhi_BWD</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">BR_interp</span><span class="p">(</span><span class="n">Z_BWD</span><span class="p">,</span><span class="n">R_BWD</span><span class="p">)</span> <span class="o">/</span> <span class="n">BPhi_BWD</span>
             <span class="n">dZ_BWD</span> <span class="o">=</span> <span class="n">RdPhi_BWD</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">BZ_interp</span><span class="p">(</span><span class="n">Z_BWD</span><span class="p">,</span><span class="n">R_BWD</span><span class="p">)</span> <span class="o">/</span> <span class="n">BPhi_BWD</span>
             
-            <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">dR_BWD</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">dR_BWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
-            <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">dZ_BWD</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">dZ_BWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="n">dR_BWD</span><span class="p">[</span><span class="n">dR_BWD</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="n">dZ_BWD</span><span class="p">[</span><span class="n">dZ_BWD</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
             
             <span class="n">s_BWD</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">RdPhi_BWD</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dR_BWD</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dZ_BWD</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
             <span class="n">R_BWD</span> <span class="o">+=</span> <span class="n">dR_BWD</span>
@@ -521,14 +522,15 @@
         <span class="k">return</span> <span class="n">interp_positions</span>
 
 </div>
-<div class="viewcode-block" id="XGC_Loader_BES.interpolate_data"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data">[docs]</a>    <span class="k">def</span> <span class="nf">interpolate_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">timestep</span><span class="p">,</span><span class="n">quant</span><span class="p">,</span><span class="n">eq</span><span class="p">):</span>
+<div class="viewcode-block" id="XGC_Loader_BES.interpolate_data"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data">[docs]</a>    <span class="k">def</span> <span class="nf">interpolate_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">timestep</span><span class="p">,</span><span class="n">quant</span><span class="p">,</span><span class="n">eq</span><span class="p">,</span><span class="n">check</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Interpolate the data to the position wanted</span>
 <span class="sd">        </span>
 <span class="sd">        :param np.array[N,3] pos: Position (in cartesian system)</span>
 <span class="sd">        :param int timestep: Time step wanted (used to check if an error is not made)</span>
 <span class="sd">        :param list[str] quant: Desired quantities (can be &#39;ni&#39;, &#39;ne&#39;, &#39;Ti&#39;, &#39;Te&#39;)</span>
 <span class="sd">        :param bool eq: Choice between equilibrium or exact quantities</span>
-<span class="sd">        </span>
+<span class="sd">        :param bool check: Print message if outside the mesh</span>
+
 <span class="sd">        :returns: Quantities asked in the right order</span>
 <span class="sd">        :rtype: tuple(np.array[N],...)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -599,7 +601,7 @@
                 <span class="c"># of the tokamak</span>
                 <span class="n">ne</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">ne</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">r</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">Rmax</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">r</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">Rmin</span><span class="p">)</span> <span class="o">&amp;</span>
                    <span class="p">(</span><span class="n">z</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">Zmax</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">z</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">Zmin</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">0.0</span>
-                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">ne</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">check</span> <span class="o">&amp;</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">ne</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
                     <span class="k">print</span> <span class="s">&#39;r&#39;</span><span class="p">,</span><span class="n">r</span>
                     <span class="k">print</span> <span class="s">&#39;z&#39;</span><span class="p">,</span><span class="n">z</span>
                     <span class="k">print</span> <span class="s">&#39;phi&#39;</span><span class="p">,</span><span class="n">phi</span>
@@ -607,7 +609,6 @@
                     <span class="k">print</span> <span class="s">&#39;next&#39;</span><span class="p">,</span><span class="n">nextn</span>
                     <span class="k">print</span> <span class="n">interp_positions</span>
                     <span class="k">print</span> <span class="s">&#39;inside&#39;</span><span class="p">,</span><span class="n">ne</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">ne</span><span class="p">)]</span>
-                    
             <span class="sd">&quot;&quot;&quot;   NOW WE WORK WITH IONS   &quot;&quot;&quot;</span>
                     
             <span class="k">if</span> <span class="n">ni_bool</span><span class="p">:</span>

@@ -64,7 +64,7 @@
 <span class="kn">import</span> <span class="nn">FPSDP.Geometry.Grid</span> <span class="kn">as</span> <span class="nn">Grid</span>
 <span class="c"># data loader</span>
 <span class="kn">import</span> <span class="nn">FPSDP.Plasma.XGC_Profile.load_XGC_BES</span> <span class="kn">as</span> <span class="nn">xgc</span>
-<span class="c"># quadrature formula</span>
+<span class="c"># quadrature formula and utility functions</span>
 <span class="kn">import</span> <span class="nn">FPSDP.Maths.Integration</span> <span class="kn">as</span> <span class="nn">integ</span>
 <span class="kn">from</span> <span class="nn">FPSDP.GeneralSettings.UnitSystem</span> <span class="kn">import</span> <span class="n">SI</span>
 <span class="kn">from</span> <span class="nn">FPSDP.Maths.Funcs</span> <span class="kn">import</span> <span class="n">heuman</span><span class="p">,</span> <span class="n">solid_angle_disk</span>
@@ -125,6 +125,76 @@
 <span class="sd">    :var float self.Zmax: Upper limit of the Z coordinate</span>
 <span class="sd">    :var float self.Zmin: Lower limit of the Z coordinate</span>
 <span class="sd">    :var np.array[3,2] self.limits: Limits of the mesh (first index for X,Y,Z and second for max,min)</span>
+
+<span class="sd">    The following graph shows the most important call during the initialization of the BES class.</span>
+<span class="sd">    The red arrows show the call order and the black ones show what is inside the function.</span>
+
+<span class="sd">    .. graphviz::</span>
+<span class="sd">     </span>
+<span class="sd">       digraph bes_init{</span>
+<span class="sd">       compound=true;</span>
+<span class="sd">       // BES.__INIT__</span>
+
+<span class="sd">       subgraph cluster_besinit { label=&quot;BES.__init__&quot;; &quot;Beam1D.__init__&quot;-&gt;compute_limits-&gt;</span>
+<span class="sd">         &quot;XGC_Loader_BES.__init__&quot;-&gt;&quot;Beam1D.set_data&quot;-&gt;&quot;BES.load_filter&quot;-&gt;&quot;Collisions.get_wavelength&quot;[color=&quot;red&quot;]</span>
+<span class="sd">       }</span>
+<span class="sd">    </span>
+<span class="sd">       A [label=&quot;load_XGC_BES.get_interp_planes_BES&quot;];</span>
+<span class="sd">       B [label=&quot;load_XGC_BES.get_interp_planes_BES&quot;];</span>
+
+
+<span class="sd">       // BEAM1D.__INIT__</span>
+<span class="sd">       &quot;Beam1D.__init__&quot;-&gt;&quot;Collisions.__init__&quot; [lhead=cluster_Beam1D];</span>
+<span class="sd">       subgraph cluster_Beam1D { label=&quot;Beam1D.__init__&quot;; &quot;Collisions.__init__&quot;;}</span>
+
+<span class="sd">       &quot;Collisions.__init__&quot;-&gt;&quot;Collisions.read_adas&quot;[lhead=cluster_collisions];</span>
+
+<span class="sd">       // COLLISIONS.__INIT__</span>
+<span class="sd">       subgraph cluster_collisions { label=&quot;Collisions.__init__&quot;; &quot;Collisions.read_adas&quot;;}</span>
+<span class="sd">       &quot;Collisions.read_adas&quot;-&gt;&quot;ADAS_file.__init__&quot; [lhead=&quot;cluster_read_adas&quot;];</span>
+<span class="sd">       subgraph cluster_read_adas { label=&quot;Collisions.read_adas&quot;; &quot;ADAS_file.__init__&quot;;}</span>
+<span class="sd">       </span>
+
+
+<span class="sd">       // XGC_LOADER_BES.__INIT__</span>
+<span class="sd">       &quot;XGC_Loader_BES.__init__&quot;-&gt;&quot;XGC_Loader_BES.load_mesh_psi_3D&quot; [lhead=cluster_XGC];</span>
+
+<span class="sd">       subgraph cluster_XGC { label=&quot;XGC_Loader.__init__&quot;; &quot;XGC_Loader_BES.load_mesh_psi_3D&quot;-&gt;</span>
+<span class="sd">       &quot;XGC_Loader_BES.load_B_3D&quot;-&gt;A-&gt;&quot;XGC_Loader_BES.load_eq_3D&quot;</span>
+<span class="sd">       -&gt;&quot;XGC_Loader_BES.load_next_time_step&quot;[color=&quot;red&quot;];}</span>
+<span class="sd">       </span>
+<span class="sd">       // XGC_LOADER_BES.LOAD_NEXT_TIME_STEP</span>
+<span class="sd">       &quot;XGC_Loader_BES.load_next_time_step&quot;-&gt;&quot;XGC_Loader_BES.load_fluctuations_3D_all&quot;[lhead=cluster_next];</span>
+<span class="sd">       subgraph cluster_next { label=&quot;XGC_Loader_BES.load_next_time_step&quot;; &quot;XGC_Loader_BES.load_fluctuations_3D_all&quot;-&gt;</span>
+<span class="sd">       &quot;XGC_Loader_BES.calc_total_ne_3D&quot;-&gt;&quot;XGC_Loader_BES.compute_interpolant&quot;[color=&quot;red&quot;];}</span>
+
+<span class="sd">       // BEAM.SET_DATA</span>
+<span class="sd">       &quot;Beam1D.set_data&quot;-&gt;&quot;Beam1D.create_mesh&quot; [lhead=cluster_set_data];    </span>
+
+<span class="sd">       subgraph cluster_set_data { label=&quot;Beam1D.set_data&quot;; &quot;Beam1D.create_mesh&quot;-&gt;&quot;Beam1D.compute_beam_on_mesh&quot;[color=&quot;red&quot;];</span>
+<span class="sd">       }</span>
+<span class="sd">       &quot;Beam1D.create_mesh&quot;-&gt;&quot;Beam1D.find_wall&quot;[lhead=cluster_create_mesh];</span>
+
+<span class="sd">       subgraph cluster_create_mesh { label=&quot;Beam1D.create_mesh&quot;; &quot;Beam1D.find_wall&quot;;}</span>
+<span class="sd">       </span>
+
+<span class="sd">       // BEAM.COMPUTE_BEAM_ON_MESH</span>
+<span class="sd">       &quot;Beam1D.compute_beam_on_mesh&quot;-&gt;&quot;Integration.integration_points&quot;[lhead=cluster_compute_beam];</span>
+
+<span class="sd">       subgraph cluster_compute_beam { label=&quot;Beam1D.compute_beam_on_mesh&quot;; &quot;Integration.integration_points&quot;-&gt;</span>
+<span class="sd">       &quot;Beam1D.get_quantities&quot;-&gt;&quot;Collisions.get_attenuation&quot;[color=&quot;red&quot;]; }</span>
+
+<span class="sd">       &quot;Beam1D.get_quantities&quot;-&gt;&quot;XGC_Loader_BES.interpolate_data&quot; [lhead=cluster_quantities];</span>
+<span class="sd">        subgraph cluster_quantities { label=&quot;Beam1D.get_quantities&quot;; &quot;XGC_Loader_BES.interpolate_data&quot;}</span>
+
+<span class="sd">       // XGC_LOADER_BES.INTERPOLATE_DATA</span>
+<span class="sd">       &quot;XGC_Loader_BES.interpolate_data&quot;-&gt;B [lhead=cluster_interpolate];</span>
+<span class="sd">       subgraph cluster_interpolate { label=&quot;XGC_Loader_BES.interpolate_data&quot;; B-&gt;</span>
+<span class="sd">       &quot;XGC_Loader_BES.find_interp_positions&quot;[color=&quot;red&quot;];</span>
+<span class="sd">       }</span>
+
+<span class="sd">       }    </span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">input_file</span><span class="p">,</span> <span class="n">parallel</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
@@ -159,6 +229,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">Y</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">Z</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">op_direc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_lens</span>                           <span class="c">#!</span>
+        
         <span class="n">norm_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">op_direc</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_ring</span><span class="p">,</span><span class="nb">float</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">rad_ring</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rad_ring</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
@@ -196,7 +267,7 @@
 
         <span class="c"># set the data inside the beam (2nd part of the initialization)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">set_data</span><span class="p">(</span><span class="n">xgc_</span><span class="p">)</span>
-        <span class="k">print</span> <span class="s">&#39;no check of division by zero&#39;</span>
+        
         <span class="c"># compute the two others basis vector</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">perp1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
         <span class="c"># put the first variable to 1</span>
@@ -243,7 +314,7 @@
         <span class="k">return</span> <span class="n">tck</span>
         
         </div>
-<div class="viewcode-block" id="BES.compute_limits"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.compute_limits">[docs]</a>    <span class="k">def</span> <span class="nf">compute_limits</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">dxmin</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">dymin</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">dzmin</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">):</span>
+<div class="viewcode-block" id="BES.compute_limits"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.compute_limits">[docs]</a>    <span class="k">def</span> <span class="nf">compute_limits</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">dxmin</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">dymin</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">dzmin</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">):</span>
         <span class="sd">r&quot;&quot;&quot; Compute the limits of the mesh that should be loaded</span>
 
 <span class="sd">        The only limitations comes from the sampling volume and the lifetime of the excited state.</span>
@@ -351,6 +422,15 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">Zmin</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">Zmin</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Zmin</span> <span class="o">-</span> <span class="n">be_dir</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">l</span><span class="p">])</span>
 
 
+        <span class="c"># check if use equilibrium data for the attenuation</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">eq</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">Xmax</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">Xmax</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">Xmin</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">Xmin</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">Ymax</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">Ymax</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">Ymin</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">Ymin</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">Zmax</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">Zmax</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">pos</span><span class="p">[</span><span class="mi">2</span><span class="p">]])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">Zmin</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">Zmin</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">pos</span><span class="p">[</span><span class="mi">2</span><span class="p">]])</span>
+
         <span class="c"># try to keep an interval big enough</span>
         <span class="n">dX</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Xmax</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">Xmin</span>
         <span class="n">dY</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Ymax</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">Ymin</span>
@@ -392,34 +472,129 @@
 <span class="sd">        </span>
 <span class="sd">        :returns: Intensity collected by each fiber (number of photons)</span>
 <span class="sd">        :rtype: np.array[Ntime, Nfib]</span>
+
+<span class="sd">        The following graph shows the most important call during the computation of the intensity collected by the fibers.</span>
+<span class="sd">        The red arrows show the call order and the black ones show what is inside the function.</span>
+<span class="sd">        When two red arrows comes from the same point, it means that a if condition is present.</span>
+
+<span class="sd">        .. graphviz::</span>
+
+<span class="sd">           digraph get_bes{</span>
+<span class="sd">           compound=true;</span>
+
+<span class="sd">           // list of variable that will be present at least twice</span>
+<span class="sd">           A [label=&quot;BES.intensity&quot;];</span>
+<span class="sd">           B [label=&quot;BES.intensity&quot;];</span>
+
+<span class="sd">           Aint [label=&quot;Integration.integration_points&quot;];</span>
+<span class="sd">           Bint [label=&quot;Integration.integration_points&quot;];</span>
+<span class="sd">           Cint [label=&quot;Integration.integration_points&quot;];</span>
+<span class="sd">           Dint [label=&quot;Integration.integration_points&quot;];</span>
+
+<span class="sd">           Aquant [label=&quot;Beam1D.get_quantities&quot;];</span>
+<span class="sd">           Bquant [label=&quot;Beam1D.get_quantities&quot;];</span>
+
+<span class="sd">           Abeam [label=&quot;Beam1D.get_beam_density&quot;];</span>
+<span class="sd">           Bbeam [label=&quot;Beam1D.get_beam_density&quot;];</span>
+
+<span class="sd">           Aemis [label=&quot;Collisions.get_emission&quot;];</span>
+<span class="sd">           Bemis [label=&quot;Collisions.get_emission&quot;];</span>
+
+<span class="sd">           // BES.GET_BES</span>
+<span class="sd">           subgraph cluster_get_bes { label=&quot;BES.get_bes&quot;; &quot;XGC_Loader_BES.load_next_time_step&quot;-&gt;&quot;Beam1D.compute_beam_on_mesh&quot;-&gt;</span>
+<span class="sd">           &quot;BES.intensity_para&quot;[color=&quot;red&quot;];</span>
+<span class="sd">           &quot;Beam1D.compute_beam_on_mesh&quot;-&gt;A[color=&quot;red&quot;];</span>
+<span class="sd">           }</span>
+
+<span class="sd">           &quot;BES.intensity_para&quot;-&gt;B[lhead=cluster_para];</span>
+<span class="sd">           subgraph cluster_para { label=&quot;BES.intensity_para&quot;; B;}</span>
+
+<span class="sd">           // BES.INTENSITY</span>
+<span class="sd">           A-&gt;Aint[lhead=cluster_intensity];</span>
+<span class="sd">           B-&gt;Aint[lhead=cluster_intensity];</span>
+<span class="sd">           subgraph cluster_intensity { label=&quot;BES.intensity&quot;; Aint-&gt;&quot;BES.light_from_plane&quot;[color=&quot;red&quot;]}</span>
+
+<span class="sd">           // BES.LIGHT_FROM_PLANE</span>
+<span class="sd">           &quot;BES.light_from_plane&quot;-&gt;Bint[lhead=cluster_light]</span>
+<span class="sd">           subgraph cluster_light { label=&quot;BES.light_from_plane&quot;; Bint-&gt;&quot;BES.get_emis_from&quot;[color=&quot;red&quot;]}</span>
+
+<span class="sd">           // BES.GET_EMIS_FROM</span>
+<span class="sd">           &quot;BES.get_emis_from&quot;-&gt;&quot;BES.to_cart_coord&quot;[lhead=cluster_emis_from];</span>
+<span class="sd">           subgraph cluster_emis_from { label=&quot;BES.get_emis_from&quot;; &quot;BES.to_cart_coord&quot;-&gt;&quot;Beam1D.get_emis_lifetime&quot;</span>
+<span class="sd">           -&gt;&quot;BES.get_solid_angle&quot;-&gt;&quot;BES.filter&quot;[color=&quot;red&quot;];</span>
+<span class="sd">           &quot;BES.to_cart_coord&quot;-&gt;&quot;Beam1D.get_emis&quot;-&gt;&quot;BES.get_solid_angle&quot;[color=&quot;red&quot;];</span>
+<span class="sd">           }</span>
+
+<span class="sd">           // BEAM1D.GET_EMIS_LIFETIME</span>
+<span class="sd">           &quot;Beam1D.get_emis_lifetime&quot;-&gt;Cint[lhead=cluster_lifetime];</span>
+<span class="sd">           subgraph cluster_lifetime { label=&quot;Beam1D.get_emis_lifetime&quot;; Cint-&gt;Aquant-&gt;&quot;Collisions.get_lifetime&quot;-&gt;</span>
+<span class="sd">           Abeam-&gt;Aemis[color=&quot;red&quot;];}</span>
+
+<span class="sd">           // BEAM1D.GET_EMIS</span>
+<span class="sd">           &quot;Beam1D.get_emis&quot;-&gt;Bquant[lhead=cluster_emis];</span>
+<span class="sd">           subgraph cluster_emis { label=&quot;Beam1D.get_emis&quot;; Bquant-&gt;Bbeam-&gt;</span>
+<span class="sd">           Bemis[color=&quot;red&quot;]}</span>
+
+
+<span class="sd">           // BEAM1D.GET_QUANTITIES</span>
+<span class="sd">           Aquant-&gt;&quot;XGC_Loader_BES.interpolate_data&quot; [lhead=cluster_quantities];</span>
+<span class="sd">           Bquant-&gt;&quot;XGC_Loader_BES.interpolate_data&quot; [lhead=cluster_quantities];</span>
+<span class="sd">           subgraph cluster_quantities { label=&quot;Beam1D.get_quantities&quot;; &quot;XGC_Loader_BES.interpolate_data&quot;}</span>
+
+<span class="sd">           // XGC_LOADER_BES.INTERPOLATE_DATA</span>
+<span class="sd">           &quot;XGC_Loader_BES.interpolate_data&quot;-&gt; &quot;load_XGC_BES.get_interp_planes_BES&quot;[lhead=cluster_interpolate];</span>
+<span class="sd">           </span>
+<span class="sd">           subgraph cluster_interpolate { label=&quot;XGC_Loader_BES.interpolate_data&quot;; </span>
+<span class="sd">           &quot;load_XGC_BES.get_interp_planes_BES&quot;-&gt;&quot;XGC_Loader_BES.find_interp_positions&quot;[color=&quot;red&quot;];</span>
+<span class="sd">           }</span>
+
+
+<span class="sd">           // BES.GET_SOLID_ANGLE</span>
+<span class="sd">           &quot;BES.get_solid_angle&quot;-&gt;&quot;BES.check_in&quot;[lhead=cluster_solid_angle];</span>
+<span class="sd">           subgraph cluster_solid_angle { label=&quot;BES.get_solid_angle&quot;;</span>
+<span class="sd">           &quot;BES.check_in&quot;-&gt;&quot;Funcs.solid_angle_disk&quot;-&gt;&quot;BES.solid_angle_mix_case&quot;[color=&quot;red&quot;]; </span>
+<span class="sd">           }</span>
+<span class="sd">        </span>
+<span class="sd">           &quot;Funcs.solid_angle_disk&quot;-&gt;&quot;Funcs.heuman&quot;[lhead=cluster_heuman];</span>
+<span class="sd">           subgraph cluster_heuman { label=&quot;Funcs.solid_angle_disk&quot;; &quot;Funcs.heuman&quot;;}</span>
+
+
+<span class="sd">           // BES.SOLID_ANGLE_MIX_CASE</span>
+<span class="sd">           &quot;BES.solid_angle_mix_case&quot;-&gt;&quot;BES.solid_angle_seg&quot;[lhead=cluster_solid_angle_mix_case];</span>
+<span class="sd">           subgraph cluster_solid_angle_mix_case { label=&quot;BES.solid_angle_mix_case&quot;;</span>
+<span class="sd">           &quot;BES.solid_angle_seg&quot;;}</span>
+
+<span class="sd">           // BES.SOLID_ANGLE_SEG</span>
+<span class="sd">           &quot;BES.solid_angle_seg&quot;-&gt;Dint[lhead=cluster_solid_angle_mix_case];</span>
+<span class="sd">           subgraph cluster_seg { label=&quot;BES.solid_angle_seg&quot;; Dint}</span>
+
+
+
+<span class="sd">           }</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">print</span> <span class="bp">self</span><span class="o">.</span><span class="n">time</span>
         <span class="n">nber_fiber</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="k">print</span> <span class="s">&#39;do not take in account the wavelenght&#39;</span>
-        <span class="k">print</span> <span class="s">&#39;only the main component is used&#39;</span>
         <span class="n">I</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="p">),</span><span class="n">nber_fiber</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">time</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="p">):</span>
             <span class="k">print</span><span class="p">(</span><span class="s">&#39;Time step number: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39;/&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="p">)))</span>
             <span class="c"># first time step already loaded</span>
             <span class="k">if</span> <span class="n">i</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">load_next_time_step</span><span class="p">()</span>
+                <span class="k">if</span> <span class="o">~</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">eq</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">compute_beam_on_mesh</span><span class="p">()</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">para</span><span class="p">:</span>
                 <span class="n">p</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Pool</span><span class="p">()</span>
                 <span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">intensity_para</span><span class="p">,</span> <span class="nb">range</span><span class="p">(</span><span class="n">nber_fiber</span><span class="p">)))</span>
-                <span class="c"># sum the light from the different component</span>
                 <span class="n">I</span><span class="p">[</span><span class="n">i</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">a</span>
-                <span class="c"># serial case</span>
                 <span class="n">p</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nber_fiber</span><span class="p">):</span>
                     <span class="c"># compute the light received by each fiber</span>
-                    <span class="n">t_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">current</span>
-                    <span class="c"># sum the light from the different component</span>
                     <span class="n">I</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensity</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">I</span>
         </div>
 <div class="viewcode-block" id="BES.intensity_para"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.intensity_para">[docs]</a>    <span class="k">def</span> <span class="nf">intensity_para</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">i</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Same as :func:`intensity`, but have only one argument.</span>
+        <span class="sd">&quot;&quot;&quot; Same as :func:`intensity &lt;FPSDP.Diagnostics.BES.bes.BES.intensity&gt;`, but have only one argument.</span>
 <span class="sd">        The only use is for the parallelization that ask only one argument.</span>
 <span class="sd">        Use the variable current from the data loader.</span>
 
@@ -535,8 +710,8 @@
 <span class="sd">        .. math::</span>
 <span class="sd">           I_\text{plane} = \iint_D f(x) \mathrm{d}\sigma \approx \sum_i \omega_i f(x_i)</span>
 <span class="sd">        </span>
-<span class="sd">        where :math:`f(x)` is the value obtained by :func:`get_emis_from`, D is the disk</span>
-<span class="sd">        representing the plane, and, :math:`\omega_i` and :math:`x_i` are the weights and the points</span>
+<span class="sd">        where :math:`f(x)` is the value obtained by :func:`get_emis_from &lt;FPSDP.Diagnostics.BES.bes.BES.get_emis_from&gt;`,</span>
+<span class="sd">        D is the disk representing the plane, and, :math:`\omega_i` and :math:`x_i` are the weights and the points</span>
 <span class="sd">        of the quadrature formula.</span>
 
 <span class="sd">        The points are given in the figure below and the weights are :math:`\frac{1}{9}` for the center,</span>
@@ -589,7 +764,7 @@
 <div class="viewcode-block" id="BES.intensity"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.intensity">[docs]</a>    <span class="k">def</span> <span class="nf">intensity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">t_</span><span class="p">,</span><span class="n">fiber_nber</span><span class="p">):</span>
         <span class="sd">r&quot;&quot;&quot; Compute the light received by a fiber at one time step.</span>
 <span class="sd">        </span>
-<span class="sd">        Use a Gauss-Legendre quadrature formula of order 3.</span>
+<span class="sd">        Use a Gauss-Legendre quadrature formula of order 5.</span>
 <span class="sd">        </span>
 <span class="sd">        .. math::</span>
 <span class="sd">           I = \int_{-d}^d f(z) \mathrm{d}z \approx </span>
@@ -599,7 +774,7 @@
 <span class="sd">        :math:`f(z) = \frac{I_\text{plane}(z)}{A(z)}` is the light emitted by the planes normalized by its area,</span>
 <span class="sd">        :math:`d = \text{inter} \cdot w`, inter is the cutoff in unit of the average beam width (w),</span>
 <span class="sd">        :math:`a_i` and :math:`b_i` are the lower and upper limits for each intervals, :math:`\omega` and :math:`x_i` are</span>
-<span class="sd">        the weights and points of the quadrature formula. See figure :func:`compute_limits` for a view of the situation.</span>
+<span class="sd">        the weights and points of the quadrature formula. See figure :func:`compute_limits &lt;FPSDP.Diagnostics.BES.bes.BES.compute_limits&gt;` for a view of the situation.</span>
 
 <span class="sd">        :param int t_: Time step to compute</span>
 <span class="sd">        :param int fiber_nber: Index of the fiber</span>
@@ -608,7 +783,7 @@
 <span class="sd">        :rtype: float</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># first define the quadrature formula</span>
-        <span class="n">quad</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL3&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 3</span>
+        <span class="n">quad</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL5&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 5</span>
         <span class="n">I</span> <span class="o">=</span> <span class="mf">0.0</span>
         <span class="c"># compute the distance from the origin of the beam</span>
         <span class="n">dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">,:]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">pos</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">direc</span><span class="p">)</span>
@@ -693,11 +868,29 @@
 <span class="sd">           % mixed case</span>
 <span class="sd">           \draw (5,0) circle(1.5);</span>
 <span class="sd">           \draw[red] (5,0.3) circle(1.4);</span>
-<span class="sd">           \node at (5,2.5) {Mixted Case};</span>
+<span class="sd">           \node at (5,2.5) {Mixed Case};</span>
 
 
-<span class="sd">        The two first are solved with the formula of Paxton (:func:`solid_angle_disk &lt;FPSDP.Maths.Funcs.solid_angle_disk`) and</span>
+<span class="sd">        The two first are solved with the formula of Paxton (:func:`solid_angle_disk &lt;FPSDP.Maths.Funcs.solid_angle_disk&gt;`) and</span>
 <span class="sd">        the last one is solved numerically.</span>
+
+<span class="sd">        For finding in which case a point is, in a first time we check the lens case (easily done by geometry [look </span>
+<span class="sd">        :func:`check_in &lt;FPSDP.Diagnostics.BES.bes.BES.check_in&gt;`]), and, in a second time, we look if there is an intersection</span>
+<span class="sd">        as in the mixed case.</span>
+<span class="sd">        For finding if the intersections are seen or not, the following system is solved </span>
+<span class="sd">        [assuming that the coordinate system is the optical one] and if the solution is real, therefore the intersections exist:</span>
+<span class="sd">        </span>
+<span class="sd">        .. math::</span>
+<span class="sd">           \left\{ \begin{array}{ccc}</span>
+<span class="sd">           x_1^2 + x_2^2 &amp; = &amp; r_r^2 \\</span>
+<span class="sd">           y_1^2 + y_2^2 &amp; = &amp; r_l^2 \\</span>
+<span class="sd">           \frac{{\bf y}-{\bf P}}{z} &amp; = &amp; \frac{{\bf y}-{\bf x}}{L}\\</span>
+<span class="sd">           \end{array}\right.</span>
+
+<span class="sd">        where :math:`x_i` (:math:`y_i`) are the coordinates of the intersection on the ring (lens),</span>
+<span class="sd">        :math:`{\bf P}` is the point where we want to compute the solid angle, :math:`r_r` (:math:`r_l`) </span>
+<span class="sd">        is the radius of the ring (lens), :math:`z` is the last coordinate of :math:`{\bf P}` </span>
+<span class="sd">        (thus the distance to the lens) and :math:`L` is the one for :math:`{\bf x}`.</span>
 
 <span class="sd">        :param np.array[N,3] pos: Position in the optical system</span>
 <span class="sd">        :param int fib: Index of the fiber</span>
@@ -758,7 +951,7 @@
         <span class="k">return</span> <span class="n">solid</span>
 </div>
 <div class="viewcode-block" id="BES.solid_angle_mix_case"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.solid_angle_mix_case">[docs]</a>    <span class="k">def</span> <span class="nf">solid_angle_mix_case</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">fib</span><span class="p">):</span>
-        <span class="sd">r&quot;&quot;&quot; Compute numerically the solid angle for the mixted case</span>
+        <span class="sd">r&quot;&quot;&quot; Compute numerically the solid angle for the mixed case</span>
 <span class="sd">        (where the lens AND the ring limit the size of the solid angle)</span>
 
 <span class="sd">        The view from the emission point is given in the figure below.</span>
@@ -843,8 +1036,8 @@
         
         <span class="c"># limits (in angle) considered for the integration</span>
         <span class="n">theta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">Nsol</span><span class="p">)</span>
-        <span class="n">quadr</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL3&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 3</span>
-        <span class="n">quadt</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL3&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 3</span>
+        <span class="n">quadr</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL5&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 5</span>
+        <span class="n">quadt</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL5&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 5</span>
 
         <span class="c"># mid point of the limits in theta</span>
         <span class="n">av</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">theta</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">theta</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>

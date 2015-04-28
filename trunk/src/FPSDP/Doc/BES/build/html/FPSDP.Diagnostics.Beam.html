@@ -61,11 +61,11 @@
 <dt id="FPSDP.Diagnostics.Beam.beam.Beam1D">
 <em class="property">class </em><tt class="descclassname">FPSDP.Diagnostics.Beam.beam.</tt><tt class="descname">Beam1D</tt><big>(</big><em>config_file</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D" title="Permalink to this definition">¶</a></dt>
 <dd><p>Simulate a 1D beam with the help of datas from simulation.</p>
-<p>Compute the beam density from the equilibrium data on a mesh.
+<p>Compute the beam density from the equilibrium or the raw data on a mesh.
 The beam density is not very sensitive from the fluctuation, therefore
 only the central line is computed and a gaussian profile is assumed (with a different
 vertical and horizontal width).
-When computing a beam density outside the mesh, an interpolation is made (cubic).
+When computing a beam density outside the mesh, an extrapolation is made (cubic).
 Two ways of computing the emission exists, a first one by assuming that
 the lifetime of the excited state is negligible (thus only the datas from the point 
 considered are used) and a second one that compute the expected value
@@ -107,6 +107,8 @@ The simulation data are saved in this class.</p>
 <li><strong>self.mesh</strong> (<em>np.array[Nz,3]</em>) &#8211; Position of the mesh points (in cartesian system)</li>
 <li><strong>self.density_beam</strong> (<em>np.array[Ncomp,Nz]</em>) &#8211; Particle density of each component    on the mesh</li>
 <li><strong>self.nb_tck</strong> (<em>list[tck_interp]</em>) &#8211; Interpolant for each component (use cubic spline)</li>
+<li><strong>self.t</strong> (<em>int</em>) &#8211; Current time step</li>
+<li><strong>self.eq</strong> (<em>bool</em>) &#8211; Equilibrium data for the attenuation</li>
 </ul>
 </td>
 </tr>
@@ -116,7 +118,7 @@ The simulation data are saved in this class.</p>
 <dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.compute_beam_on_mesh">
 <tt class="descname">compute_beam_on_mesh</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.compute_beam_on_mesh"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.compute_beam_on_mesh" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the beam density on the mesh and the interpolant.</p>
-<p>Use the Gauss-Legendre quadrature of order 3 for computing the integral:</p>
+<p>Use the Gauss-Legendre quadrature of order 5 for computing the integral:</p>
 <div class="math">
 \[n_b(P) = n_{b,0} \exp\left(-\int_0^P n_e(z)S_\text{cr}\left(E,n_e(z),T_i(z)\right)\sqrt{\frac{m}{2E}}\mathrm{d}z\right)\]</div>
 <p>where <span class="math">\(n_b(P)\)</span> is the density at the point P (along the beam central line),
@@ -268,7 +270,7 @@ where <span class="math">\(v\)</span> is the velocity of the beam particles (<sp
 
 <dl class="method">
 <dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.get_quantities">
-<tt class="descname">get_quantities</tt><big>(</big><em>pos</em>, <em>t_</em>, <em>quant</em>, <em>eq=False</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.get_quantities"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_quantities" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">get_quantities</tt><big>(</big><em>pos</em>, <em>t_</em>, <em>quant</em>, <em>eq=False</em>, <em>check=True</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.get_quantities"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_quantities" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the quantities from the datas</p>
 <p>Use the list of string quant for taking the good values inside the simulation datas.
 See <a class="reference internal" href="FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data" title="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data"><tt class="xref py py-func docutils literal"><span class="pre">interpolate_data</span></tt></a></p>
@@ -281,6 +283,7 @@ See <a class="reference internal" href="FPSDP.Plasma.XGC_Profile.html#FPSDP.Plas
 <li><strong>t</strong> (<em>int</em>) &#8211; Time step considered</li>
 <li><strong>quant</strong> (<em>list[str]</em>) &#8211; List containing the wanted quantities         (See <a class="reference internal" href="FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data" title="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data"><tt class="xref py py-func docutils literal"><span class="pre">interpolate_data</span></tt></a>        for more information)</li>
 <li><strong>eq</strong> (<em>bool</em>) &#8211; Equilibrium data or not</li>
+<li><strong>check</strong> (<em>bool</em>) &#8211; Print error message if outside the mesh or not</li>
 </ul>
 </td>
 </tr>

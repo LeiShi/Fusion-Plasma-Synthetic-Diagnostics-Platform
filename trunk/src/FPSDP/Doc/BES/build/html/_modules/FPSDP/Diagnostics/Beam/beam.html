@@ -64,11 +64,11 @@
 <div class="viewcode-block" id="Beam1D"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D">[docs]</a><span class="k">class</span> <span class="nc">Beam1D</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot; Simulate a 1D beam with the help of datas from simulation.</span>
 
-<span class="sd">    Compute the beam density from the equilibrium data on a mesh.</span>
+<span class="sd">    Compute the beam density from the equilibrium or the raw data on a mesh.</span>
 <span class="sd">    The beam density is not very sensitive from the fluctuation, therefore</span>
 <span class="sd">    only the central line is computed and a gaussian profile is assumed (with a different</span>
 <span class="sd">    vertical and horizontal width).</span>
-<span class="sd">    When computing a beam density outside the mesh, an interpolation is made (cubic).</span>
+<span class="sd">    When computing a beam density outside the mesh, an extrapolation is made (cubic).</span>
 <span class="sd">    Two ways of computing the emission exists, a first one by assuming that</span>
 <span class="sd">    the lifetime of the excited state is negligible (thus only the datas from the point </span>
 <span class="sd">    considered are used) and a second one that compute the expected value</span>
@@ -119,7 +119,8 @@
 <span class="sd">    :var np.array[Ncomp,Nz] self.density_beam: Particle density of each component\</span>
 <span class="sd">    on the mesh</span>
 <span class="sd">    :var list[tck_interp] self.nb_tck: Interpolant for each component (use cubic spline)</span>
-
+<span class="sd">    :var int self.t_: Current time step</span>
+<span class="sd">    :var bool self.eq: Equilibrium data for the attenuation</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">config_file</span><span class="p">):</span>
@@ -177,7 +178,11 @@
         <span class="c"># speed of each beam</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">speed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">))</span>                           <span class="c">#!</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">speed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="o">*</span><span class="n">SI</span><span class="p">[</span><span class="s">&#39;keV&#39;</span><span class="p">]</span><span class="o">/</span><span class="p">(</span><span class="mi">1000</span><span class="o">*</span><span class="n">SI</span><span class="p">[</span><span class="s">&#39;amu&#39;</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">mass_b</span><span class="p">))</span>
-        <span class="k">print</span> <span class="bp">self</span><span class="o">.</span><span class="n">speed</span>
+
+        <span class="c"># equilibrium data for the attenuation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eq</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Collisions&#39;</span><span class="p">,</span><span class="s">&#39;eq_atte&#39;</span><span class="p">))</span>                   <span class="c">#!</span>
+        <span class="c"># current time step</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t_</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>                                                         <span class="c">#!</span>
 
 
 <div class="viewcode-block" id="Beam1D.set_data"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.set_data">[docs]</a>    <span class="k">def</span> <span class="nf">set_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">data</span><span class="p">):</span>
@@ -264,7 +269,7 @@
         
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">direc</span><span class="o">*</span><span class="n">t_</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">eps</span><span class="p">)</span>
 </div>
-<div class="viewcode-block" id="Beam1D.get_quantities"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.get_quantities">[docs]</a>    <span class="k">def</span> <span class="nf">get_quantities</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">,</span><span class="n">quant</span><span class="p">,</span><span class="n">eq</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+<div class="viewcode-block" id="Beam1D.get_quantities"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.get_quantities">[docs]</a>    <span class="k">def</span> <span class="nf">get_quantities</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">,</span><span class="n">quant</span><span class="p">,</span><span class="n">eq</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Compute the quantities from the datas</span>
 <span class="sd">        </span>
 <span class="sd">        Use the list of string quant for taking the good values inside the simulation datas.</span>
@@ -277,19 +282,20 @@
 <span class="sd">        (See :func:`interpolate_data &lt;FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data&gt;`\</span>
 <span class="sd">        for more information)</span>
 <span class="sd">        :param bool eq: Equilibrium data or not</span>
+<span class="sd">        :param bool check: Print error message if outside the mesh or not</span>
 
 <span class="sd">        :returns: The interpolated value from the simulation in the same order than quant</span>
 <span class="sd">        :rtype: tuple[quant]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t_</span><span class="p">,</span><span class="nb">list</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Only one time should be given&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">interpolate_data</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">,</span><span class="n">quant</span><span class="p">,</span><span class="n">eq</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">interpolate_data</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">,</span><span class="n">quant</span><span class="p">,</span><span class="n">eq</span><span class="p">,</span><span class="n">check</span><span class="p">)</span>
         
         </div>
 <div class="viewcode-block" id="Beam1D.compute_beam_on_mesh"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.compute_beam_on_mesh">[docs]</a>    <span class="k">def</span> <span class="nf">compute_beam_on_mesh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">r&quot;&quot;&quot; Compute the beam density on the mesh and the interpolant.</span>
 
-<span class="sd">        Use the Gauss-Legendre quadrature of order 3 for computing the integral:</span>
+<span class="sd">        Use the Gauss-Legendre quadrature of order 5 for computing the integral:</span>
 
 <span class="sd">        .. math::</span>
 <span class="sd">           n_b(P) = n_{b,0} \exp\left(-\int_0^P n_e(z)S_\text{cr}\left(E,n_e(z),T_i(z)\right)\sqrt{\frac{m}{2E}}\mathrm{d}z\right)</span>
@@ -310,16 +316,15 @@
 <span class="sd">        :math:`v = \sqrt{\frac{2E}{m}}` is the velocity of the particles.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
-        
+        <span class="bp">self</span><span class="o">.</span><span class="n">t_</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">),</span><span class="bp">self</span><span class="o">.</span><span class="n">Nz</span><span class="p">))</span>  <span class="c">#!</span>
-        <span class="k">print</span><span class="p">(</span><span class="s">&#39;If keep attenuation with eq, should remove time loop&#39;</span><span class="p">)</span>
         <span class="c"># density of the beam at the origin</span>
         <span class="n">n0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">))</span>
         <span class="n">n0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">mass_b</span><span class="o">*</span><span class="n">SI</span><span class="p">[</span><span class="s">&#39;amu&#39;</span><span class="p">])</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">power</span>
         <span class="n">n0</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frac</span><span class="o">/</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="o">*</span><span class="n">SI</span><span class="p">[</span><span class="s">&#39;keV&#39;</span><span class="p">]</span><span class="o">/</span><span class="mi">1000</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="mf">1.5</span><span class="p">)</span>
         
         <span class="c"># define the quadrature formula for this method</span>
-        <span class="n">quad</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL3&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 3</span>
+        <span class="n">quad</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL5&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 5</span>
         <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mesh</span><span class="p">[:,</span><span class="mi">0</span><span class="p">])):</span>
             <span class="c"># density over the central line (usefull for some check)</span>
             <span class="k">if</span> <span class="n">j</span> <span class="ow">is</span> <span class="ow">not</span> <span class="mi">0</span><span class="p">:</span>
@@ -337,13 +342,19 @@
                     <span class="c"># integration point</span>
                     <span class="n">pt</span> <span class="o">=</span> <span class="n">quad</span><span class="o">.</span><span class="n">pts</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="n">diff</span> <span class="o">+</span> <span class="n">av</span>
                     <span class="c"># compute all the values needed for the integral</span>
-                    <span class="n">ne</span><span class="p">,</span> <span class="n">T</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_quantities</span><span class="p">(</span><span class="n">pt</span><span class="p">,</span><span class="bp">None</span><span class="p">,[</span><span class="s">&#39;ne&#39;</span><span class="p">,</span><span class="s">&#39;Ti&#39;</span><span class="p">],</span><span class="n">eq</span><span class="p">)</span>
+                    <span class="n">ne</span><span class="p">,</span> <span class="n">T</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_quantities</span><span class="p">(</span><span class="n">pt</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">t_</span><span class="p">,[</span><span class="s">&#39;ne&#39;</span><span class="p">,</span><span class="s">&#39;Ti&#39;</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">eq</span><span class="p">,</span><span class="n">check</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
                     
                     <span class="c"># attenuation coefficient from adas</span>
                     <span class="n">S</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collisions</span><span class="o">.</span><span class="n">get_attenutation</span><span class="p">(</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">],</span><span class="n">ne</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">mass_b</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">],</span>
                         <span class="n">T</span><span class="p">,</span><span class="n">file_nber</span><span class="p">)</span>
-                    
+                    <span class="c"># the interpolation for the non equilibrium case</span>
+                    <span class="c"># can be outside the mesh</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">eq</span><span class="p">:</span>
+                        <span class="n">ne</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">ne</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">0.0</span>
+                        <span class="n">S</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">S</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">0.0</span>
+                        <span class="n">T</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">T</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">0.0</span>
+                        
                     <span class="c"># half distance between a &amp; b</span>
                     <span class="n">norm_</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">b</span><span class="o">-</span><span class="n">a</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
                     <span class="n">temp1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">ne</span><span class="o">*</span><span class="n">S</span><span class="o">*</span><span class="n">quad</span><span class="o">.</span><span class="n">w</span><span class="p">)</span>
@@ -353,10 +364,10 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span><span class="p">[:,</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span><span class="p">[:,</span><span class="n">j</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> \
                                                 <span class="n">temp_beam</span>
 
+        <span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span> <span class="o">=</span> <span class="n">n0</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nb_tck</span> <span class="o">=</span> <span class="p">[]</span>                                                     <span class="c">#!</span>
         <span class="c"># interpolant for the beam</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">)):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span><span class="p">[</span><span class="n">i</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">n0</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span><span class="p">[</span><span class="n">i</span><span class="p">,:])</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">nb_tck</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">splrep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dl</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span><span class="p">[</span><span class="n">i</span><span class="p">,:]))</span>
                 
             </div>
@@ -461,11 +472,11 @@
 <span class="sd">        :rtype: np.array[N]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="n">quad</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL19&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 3</span>
+        <span class="n">quad</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL5&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 5</span>
         <span class="n">emis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">),</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
         <span class="c"># avoid the computation at each time</span>
         <span class="n">ne_in</span><span class="p">,</span> <span class="n">Ti_in</span><span class="p">,</span><span class="n">Te_in</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_quantities</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">,[</span><span class="s">&#39;ne&#39;</span><span class="p">,</span><span class="s">&#39;Ti&#39;</span><span class="p">,</span><span class="s">&#39;Te&#39;</span><span class="p">])</span>
-        <span class="k">print</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">ne_in</span><span class="p">)</span>
+        
         <span class="c">#nb_in = self.get_beam_density(pos)</span>
         <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">coll_emis</span><span class="p">:</span>
             <span class="n">file_nber</span> <span class="o">=</span> <span class="n">k</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -513,7 +524,8 @@
                                       <span class="bp">self</span><span class="o">.</span><span class="n">speed</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">]))</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">speed</span><span class="p">[</span><span class="n">beam_nber</span><span class="p">]</span>
 
             <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
-                <span class="k">print</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                <span class="k">print</span> <span class="s">&#39;isnan&#39;</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                <span class="k">print</span> <span class="s">&#39;pos&#39;</span><span class="p">,</span><span class="n">pos</span>
                 <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Mesh not well computed&#39;</span><span class="p">)</span>
             
             <span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s">&#39;kmn,n-&gt;km&#39;</span><span class="p">,</span><span class="n">f</span><span class="p">,</span><span class="n">quad</span><span class="o">.</span><span class="n">w</span><span class="p">)</span>

@@ -186,7 +186,7 @@ density</p>
 
 <dl class="method">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data">
-<tt class="descname">interpolate_data</tt><big>(</big><em>pos</em>, <em>timestep</em>, <em>quant</em>, <em>eq</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.interpolate_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">interpolate_data</tt><big>(</big><em>pos</em>, <em>timestep</em>, <em>quant</em>, <em>eq</em>, <em>check=True</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.interpolate_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data" title="Permalink to this definition">¶</a></dt>
 <dd><p>Interpolate the data to the position wanted</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -197,6 +197,7 @@ density</p>
 <li><strong>timestep</strong> (<em>int</em>) &#8211; Time step wanted (used to check if an error is not made)</li>
 <li><strong>quant</strong> (<em>list[str]</em>) &#8211; Desired quantities (can be &#8216;ni&#8217;, &#8216;ne&#8217;, &#8216;Ti&#8217;, &#8216;Te&#8217;)</li>
 <li><strong>eq</strong> (<em>bool</em>) &#8211; Choice between equilibrium or exact quantities</li>
+<li><strong>check</strong> (<em>bool</em>) &#8211; Print message if outside the mesh</li>
 </ul>
 </td>
 </tr>

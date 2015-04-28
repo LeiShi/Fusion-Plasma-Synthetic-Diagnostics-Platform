@@ -75,6 +75,76 @@ class BES:
     :var float self.Zmax: Upper limit of the Z coordinate
     :var float self.Zmin: Lower limit of the Z coordinate
     :var np.array[3,2] self.limits: Limits of the mesh (first index for X,Y,Z and second for max,min)
+
+    The following graph shows the most important call during the initialization of the BES class.
+    The red arrows show the call order and the black ones show what is inside the function.
+
+    .. graphviz::
+     
+       digraph bes_init{
+       compound=true;
+       // BES.__INIT__
+
+       subgraph cluster_besinit { label="BES.__init__"; "Beam1D.__init__"->compute_limits->
+         "XGC_Loader_BES.__init__"->"Beam1D.set_data"->"BES.load_filter"->"Collisions.get_wavelength"[color="red"]
+       }
+    
+       A [label="load_XGC_BES.get_interp_planes_BES"];
+       B [label="load_XGC_BES.get_interp_planes_BES"];
+
+
+       // BEAM1D.__INIT__
+       "Beam1D.__init__"->"Collisions.__init__" [lhead=cluster_Beam1D];
+       subgraph cluster_Beam1D { label="Beam1D.__init__"; "Collisions.__init__";}
+
+       "Collisions.__init__"->"Collisions.read_adas"[lhead=cluster_collisions];
+
+       // COLLISIONS.__INIT__
+       subgraph cluster_collisions { label="Collisions.__init__"; "Collisions.read_adas";}
+       "Collisions.read_adas"->"ADAS_file.__init__" [lhead="cluster_read_adas"];
+       subgraph cluster_read_adas { label="Collisions.read_adas"; "ADAS_file.__init__";}
+       
+
+
+       // XGC_LOADER_BES.__INIT__
+       "XGC_Loader_BES.__init__"->"XGC_Loader_BES.load_mesh_psi_3D" [lhead=cluster_XGC];
+
+       subgraph cluster_XGC { label="XGC_Loader.__init__"; "XGC_Loader_BES.load_mesh_psi_3D"->
+       "XGC_Loader_BES.load_B_3D"->A->"XGC_Loader_BES.load_eq_3D"
+       ->"XGC_Loader_BES.load_next_time_step"[color="red"];}
+       
+       // XGC_LOADER_BES.LOAD_NEXT_TIME_STEP
+       "XGC_Loader_BES.load_next_time_step"->"XGC_Loader_BES.load_fluctuations_3D_all"[lhead=cluster_next];
+       subgraph cluster_next { label="XGC_Loader_BES.load_next_time_step"; "XGC_Loader_BES.load_fluctuations_3D_all"->
+       "XGC_Loader_BES.calc_total_ne_3D"->"XGC_Loader_BES.compute_interpolant"[color="red"];}
+
+       // BEAM.SET_DATA
+       "Beam1D.set_data"->"Beam1D.create_mesh" [lhead=cluster_set_data];    
+
+       subgraph cluster_set_data { label="Beam1D.set_data"; "Beam1D.create_mesh"->"Beam1D.compute_beam_on_mesh"[color="red"];
+       }
+       "Beam1D.create_mesh"->"Beam1D.find_wall"[lhead=cluster_create_mesh];
+
+       subgraph cluster_create_mesh { label="Beam1D.create_mesh"; "Beam1D.find_wall";}
+       
+
+       // BEAM.COMPUTE_BEAM_ON_MESH
+       "Beam1D.compute_beam_on_mesh"->"Integration.integration_points"[lhead=cluster_compute_beam];
+
+       subgraph cluster_compute_beam { label="Beam1D.compute_beam_on_mesh"; "Integration.integration_points"->
+       "Beam1D.get_quantities"->"Collisions.get_attenuation"[color="red"]; }
+
+       "Beam1D.get_quantities"->"XGC_Loader_BES.interpolate_data" [lhead=cluster_quantities];
+        subgraph cluster_quantities { label="Beam1D.get_quantities"; "XGC_Loader_BES.interpolate_data"}
+
+       // XGC_LOADER_BES.INTERPOLATE_DATA
+       "XGC_Loader_BES.interpolate_data"->B [lhead=cluster_interpolate];
+       subgraph cluster_interpolate { label="XGC_Loader_BES.interpolate_data"; B->
+       "XGC_Loader_BES.find_interp_positions"[color="red"];
+       }
+
+       }    
+
     """
 
     def __init__(self,input_file, parallel=False):
@@ -352,6 +422,105 @@ class BES:
         
         :returns: Intensity collected by each fiber (number of photons)
         :rtype: np.array[Ntime, Nfib]
+
+        The following graph shows the most important call during the computation of the intensity collected by the fibers.
+        The red arrows show the call order and the black ones show what is inside the function.
+        When two red arrows comes from the same point, it means that a if condition is present.
+
+        .. graphviz::
+
+           digraph get_bes{
+           compound=true;
+
+           // list of variable that will be present at least twice
+           A [label="BES.intensity"];
+           B [label="BES.intensity"];
+
+           Aint [label="Integration.integration_points"];
+           Bint [label="Integration.integration_points"];
+           Cint [label="Integration.integration_points"];
+           Dint [label="Integration.integration_points"];
+
+           Aquant [label="Beam1D.get_quantities"];
+           Bquant [label="Beam1D.get_quantities"];
+
+           Abeam [label="Beam1D.get_beam_density"];
+           Bbeam [label="Beam1D.get_beam_density"];
+
+           Aemis [label="Collisions.get_emission"];
+           Bemis [label="Collisions.get_emission"];
+
+           // BES.GET_BES
+           subgraph cluster_get_bes { label="BES.get_bes"; "XGC_Loader_BES.load_next_time_step"->"Beam1D.compute_beam_on_mesh"->
+           "BES.intensity_para"[color="red"];
+           "Beam1D.compute_beam_on_mesh"->A[color="red"];
+           }
+
+           "BES.intensity_para"->B[lhead=cluster_para];
+           subgraph cluster_para { label="BES.intensity_para"; B;}
+
+           // BES.INTENSITY
+           A->Aint[lhead=cluster_intensity];
+           B->Aint[lhead=cluster_intensity];
+           subgraph cluster_intensity { label="BES.intensity"; Aint->"BES.light_from_plane"[color="red"]}
+
+           // BES.LIGHT_FROM_PLANE
+           "BES.light_from_plane"->Bint[lhead=cluster_light]
+           subgraph cluster_light { label="BES.light_from_plane"; Bint->"BES.get_emis_from"[color="red"]}
+
+           // BES.GET_EMIS_FROM
+           "BES.get_emis_from"->"BES.to_cart_coord"[lhead=cluster_emis_from];
+           subgraph cluster_emis_from { label="BES.get_emis_from"; "BES.to_cart_coord"->"Beam1D.get_emis_lifetime"
+           ->"BES.get_solid_angle"->"BES.filter"[color="red"];
+           "BES.to_cart_coord"->"Beam1D.get_emis"->"BES.get_solid_angle"[color="red"];
+           }
+
+           // BEAM1D.GET_EMIS_LIFETIME
+           "Beam1D.get_emis_lifetime"->Cint[lhead=cluster_lifetime];
+           subgraph cluster_lifetime { label="Beam1D.get_emis_lifetime"; Cint->Aquant->"Collisions.get_lifetime"->
+           Abeam->Aemis[color="red"];}
+
+           // BEAM1D.GET_EMIS
+           "Beam1D.get_emis"->Bquant[lhead=cluster_emis];
+           subgraph cluster_emis { label="Beam1D.get_emis"; Bquant->Bbeam->
+           Bemis[color="red"]}
+
+
+           // BEAM1D.GET_QUANTITIES
+           Aquant->"XGC_Loader_BES.interpolate_data" [lhead=cluster_quantities];
+           Bquant->"XGC_Loader_BES.interpolate_data" [lhead=cluster_quantities];
+           subgraph cluster_quantities { label="Beam1D.get_quantities"; "XGC_Loader_BES.interpolate_data"}
+
+           // XGC_LOADER_BES.INTERPOLATE_DATA
+           "XGC_Loader_BES.interpolate_data"-> "load_XGC_BES.get_interp_planes_BES"[lhead=cluster_interpolate];
+           
+           subgraph cluster_interpolate { label="XGC_Loader_BES.interpolate_data"; 
+           "load_XGC_BES.get_interp_planes_BES"->"XGC_Loader_BES.find_interp_positions"[color="red"];
+           }
+
+
+           // BES.GET_SOLID_ANGLE
+           "BES.get_solid_angle"->"BES.check_in"[lhead=cluster_solid_angle];
+           subgraph cluster_solid_angle { label="BES.get_solid_angle";
+           "BES.check_in"->"Funcs.solid_angle_disk"->"BES.solid_angle_mix_case"[color="red"]; 
+           }
+        
+           "Funcs.solid_angle_disk"->"Funcs.heuman"[lhead=cluster_heuman];
+           subgraph cluster_heuman { label="Funcs.solid_angle_disk"; "Funcs.heuman";}
+
+
+           // BES.SOLID_ANGLE_MIX_CASE
+           "BES.solid_angle_mix_case"->"BES.solid_angle_seg"[lhead=cluster_solid_angle_mix_case];
+           subgraph cluster_solid_angle_mix_case { label="BES.solid_angle_mix_case";
+           "BES.solid_angle_seg";}
+
+           // BES.SOLID_ANGLE_SEG
+           "BES.solid_angle_seg"->Dint[lhead=cluster_solid_angle_mix_case];
+           subgraph cluster_seg { label="BES.solid_angle_seg"; Dint}
+
+
+
+           }
         """
         print self.time
         nber_fiber = self.pos_foc.shape[0]
@@ -366,20 +535,16 @@ class BES:
             if self.para:
                 p = mp.Pool()
                 a = np.array(p.map(self.intensity_para, range(nber_fiber)))
-                # sum the light from the different component
                 I[i,:] = a
-                # serial case
                 p.close()
             else:
                 for j in range(nber_fiber):
                     # compute the light received by each fiber
-                    t_ = self.beam.data.current
-                    # sum the light from the different component
                     I[i,j] = self.intensity(i,j)
         return I
         
     def intensity_para(self,i):
-        """ Same as :func:`intensity`, but have only one argument.
+        """ Same as :func:`intensity <FPSDP.Diagnostics.BES.bes.BES.intensity>`, but have only one argument.
         The only use is for the parallelization that ask only one argument.
         Use the variable current from the data loader.
 
@@ -495,8 +660,8 @@ class BES:
         .. math::
            I_\text{plane} = \iint_D f(x) \mathrm{d}\sigma \approx \sum_i \omega_i f(x_i)
         
-        where :math:`f(x)` is the value obtained by :func:`get_emis_from`, D is the disk
-        representing the plane, and, :math:`\omega_i` and :math:`x_i` are the weights and the points
+        where :math:`f(x)` is the value obtained by :func:`get_emis_from <FPSDP.Diagnostics.BES.bes.BES.get_emis_from>`,
+        D is the disk representing the plane, and, :math:`\omega_i` and :math:`x_i` are the weights and the points
         of the quadrature formula.
 
         The points are given in the figure below and the weights are :math:`\frac{1}{9}` for the center,
@@ -559,7 +724,7 @@ class BES:
         :math:`f(z) = \frac{I_\text{plane}(z)}{A(z)}` is the light emitted by the planes normalized by its area,
         :math:`d = \text{inter} \cdot w`, inter is the cutoff in unit of the average beam width (w),
         :math:`a_i` and :math:`b_i` are the lower and upper limits for each intervals, :math:`\omega` and :math:`x_i` are
-        the weights and points of the quadrature formula. See figure :func:`compute_limits` for a view of the situation.
+        the weights and points of the quadrature formula. See figure :func:`compute_limits <FPSDP.Diagnostics.BES.bes.BES.compute_limits>` for a view of the situation.
 
         :param int t_: Time step to compute
         :param int fiber_nber: Index of the fiber
@@ -653,11 +818,29 @@ class BES:
            % mixed case
            \draw (5,0) circle(1.5);
            \draw[red] (5,0.3) circle(1.4);
-           \node at (5,2.5) {Mixted Case};
+           \node at (5,2.5) {Mixed Case};
 
 
-        The two first are solved with the formula of Paxton (:func:`solid_angle_disk <FPSDP.Maths.Funcs.solid_angle_disk`) and
+        The two first are solved with the formula of Paxton (:func:`solid_angle_disk <FPSDP.Maths.Funcs.solid_angle_disk>`) and
         the last one is solved numerically.
+
+        For finding in which case a point is, in a first time we check the lens case (easily done by geometry [look 
+        :func:`check_in <FPSDP.Diagnostics.BES.bes.BES.check_in>`]), and, in a second time, we look if there is an intersection
+        as in the mixed case.
+        For finding if the intersections are seen or not, the following system is solved 
+        [assuming that the coordinate system is the optical one] and if the solution is real, therefore the intersections exist:
+        
+        .. math::
+           \left\{ \begin{array}{ccc}
+           x_1^2 + x_2^2 & = & r_r^2 \\
+           y_1^2 + y_2^2 & = & r_l^2 \\
+           \frac{{\bf y}-{\bf P}}{z} & = & \frac{{\bf y}-{\bf x}}{L}\\
+           \end{array}\right.
+
+        where :math:`x_i` (:math:`y_i`) are the coordinates of the intersection on the ring (lens),
+        :math:`{\bf P}` is the point where we want to compute the solid angle, :math:`r_r` (:math:`r_l`) 
+        is the radius of the ring (lens), :math:`z` is the last coordinate of :math:`{\bf P}` 
+        (thus the distance to the lens) and :math:`L` is the one for :math:`{\bf x}`.
 
         :param np.array[N,3] pos: Position in the optical system
         :param int fib: Index of the fiber
@@ -718,7 +901,7 @@ class BES:
         return solid
 
     def solid_angle_mix_case(self,pos,x,y,fib):
-        r""" Compute numerically the solid angle for the mixted case
+        r""" Compute numerically the solid angle for the mixed case
         (where the lens AND the ring limit the size of the solid angle)
 
         The view from the emission point is given in the figure below.

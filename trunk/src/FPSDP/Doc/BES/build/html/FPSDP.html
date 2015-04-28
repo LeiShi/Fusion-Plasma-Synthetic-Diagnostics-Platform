@@ -53,11 +53,11 @@
 <h1>Beam Emission Spectroscopy Documentation<a class="headerlink" href="#beam-emission-spectroscopy-documentation" title="Permalink to this headline">¶</a></h1>
 <p>The Beam Emission Spectroscopy (BES) synthetic diagnostics use a configuration file (e.g. <a class="reference download internal" href="_downloads/bes.in"><tt class="xref download docutils literal"><span class="pre">bes.in</span></tt></a>).
 The only object that should be used for the diagnostics is the class <a class="reference internal" href="FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES" title="FPSDP.Diagnostics.BES.bes.BES"><tt class="xref py py-class docutils literal"><span class="pre">BES</span></tt></a>,
-it creates everything from the config file and with the method <a class="reference internal" href="FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.get_bes" title="FPSDP.Diagnostics.BES.bes.BES.get_bes"><tt class="xref py py-func docutils literal"><span class="pre">get_bes()</span></tt></a> will compute the number of photons captured by each fiber.
+it creates everything from the config file and with the method <a class="reference internal" href="FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.get_bes" title="FPSDP.Diagnostics.BES.bes.BES.get_bes"><tt class="xref py py-func docutils literal"><span class="pre">get_bes()</span></tt></a> will compute the number of photons captured by each fiber (a diagram explaining how the initialization is done and the computation of the diagnostics is inside the documentation of each method).
 <a class="reference download internal" href="_downloads/example.py"><tt class="xref download docutils literal"><span class="pre">example.py</span></tt></a> is an example of how to use the code.</p>
 <p>In the documentation, I tried to specify the unit of each variable, but it is possible that I forgot a few.
 I choose to use the SI system as often as possible (except for the beam energy), therefore it should be the first guess.</p>
-<p>The following graph shows the dependencies between the different classes.
+<p>The following graph shows the dependencies between the different classes and the file where they are written.
 A black arrow shows an attribut dependency and a red one an inheritance.</p>
 <p class="graphviz">
 <img src="_images/graphviz-6a5f2d200e0c61eb10a3b6d1c53cd4e85c94b9df.png" alt="digraph FPSDP{

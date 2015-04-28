@@ -3,14 +3,14 @@ Beam Emission Spectroscopy Documentation
 
 The Beam Emission Spectroscopy (BES) synthetic diagnostics use a configuration file (e.g. :download:`bes.in <../../../../FPSDP/Diagnostics/BES/bes.in>`).
 The only object that should be used for the diagnostics is the class :class:`BES <FPSDP.Diagnostics.BES.bes.BES>`,
-it creates everything from the config file and with the method :func:`get_bes() <FPSDP.Diagnostics.BES.bes.BES.get_bes>` will compute the number of photons captured by each fiber.
+it creates everything from the config file and with the method :func:`get_bes() <FPSDP.Diagnostics.BES.bes.BES.get_bes>` will compute the number of photons captured by each fiber (a diagram explaining how the initialization is done and the computation of the diagnostics is inside the documentation of each method).
 :download:`example.py <../../../../FPSDP/Diagnostics/BES/example.py>` is an example of how to use the code.
 
 In the documentation, I tried to specify the unit of each variable, but it is possible that I forgot a few.
 I choose to use the SI system as often as possible (except for the beam energy), therefore it should be the first guess.   
    
 
-The following graph shows the dependencies between the different classes.
+The following graph shows the dependencies between the different classes and the file where they are written.
 A black arrow shows an attribut dependency and a red one an inheritance.
 
 .. graphviz::

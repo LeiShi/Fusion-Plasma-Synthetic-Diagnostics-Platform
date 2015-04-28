@@ -54,7 +54,7 @@ Nlt = 4
 # t_max*lifetime = upper value of the integrale for the lifetime effect
 # cutoff value
 # if t_max = 0, the lifetime will not be used
-t_max = 2.0
+t_max = 6.0
 # true for using the equilibrium data for the attenation
 # and false for the other case
 # Using the non-equilibrium data increase the size of the mesh
@@ -123,9 +123,9 @@ rad_ring = 0.01
 # standard deviation of the beam
 # we are assuming that the focus point are
 # inside the beam
-int = 1.5
+int = 3.75
 # number of intervals for the integration
-Nint = 4
+Nint = 5
 # number of section for the integral of the solid angle
 Nsol = 10
 

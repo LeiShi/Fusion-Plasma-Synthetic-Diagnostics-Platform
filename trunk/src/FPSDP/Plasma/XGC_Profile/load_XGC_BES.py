@@ -137,7 +137,7 @@ class XGC_Loader_BES():
         self.refprevplane,self.refnextplane = get_interp_planes_BES(self,phi)
         print 'interpolation planes obtained.'
         
-        self.load_eq_2D3D()
+        self.load_eq_3D()
         print 'equlibrium loaded.'
 
         self.load_next_time_step(False)
@@ -162,7 +162,7 @@ class XGC_Loader_BES():
         self.load_fluctuations_3D_all()        
         print 'fluctuations loaded.'
         
-        self.calc_total_ne_2D3D()
+        self.calc_total_ne_3D()
         print 'total ne calculated.'
 
         self.compute_interpolant()
@@ -283,7 +283,7 @@ class XGC_Loader_BES():
             
         return 0
 
-    def load_eq_2D3D(self):
+    def load_eq_3D(self):
         """Load equilibrium profiles and compute the interpolant
         """
         eqf = self.xgc_path + 'xgc.oneddiag.h5'
@@ -335,7 +335,7 @@ class XGC_Loader_BES():
         self.ne0_sp = interp1d(psi_ne,ne,bounds_error = False,fill_value = 0)
         
 
-    def calc_total_ne_2D3D(self):
+    def calc_total_ne_3D(self):
         """calculate the total electron and ion density in raw XGC grid points
         """
         # temperature and density (equilibrium) on the psi mesh

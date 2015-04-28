@@ -75,7 +75,6 @@ class BES:
     :var float self.Zmax: Upper limit of the Z coordinate
     :var float self.Zmin: Lower limit of the Z coordinate
     :var np.array[3,2] self.limits: Limits of the mesh (first index for X,Y,Z and second for max,min)
-
     The following graph shows the most important call during the initialization of the BES class.
     The red arrows show the call order and the black ones show what is inside the function.
 
@@ -733,7 +732,7 @@ class BES:
         :rtype: float
         """
         # first define the quadrature formula
-        quad = integ.integration_points(1,'GL5') # Gauss-Legendre order 5
+        quad = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
         I = 0.0
         # compute the distance from the origin of the beam
         dist = np.dot(self.pos_foc[fiber_nber,:] - self.beam.pos,self.beam.direc)
@@ -986,8 +985,8 @@ class BES:
         
         # limits (in angle) considered for the integration
         theta = np.linspace(0,2*np.pi,self.Nsol)
-        quadr = integ.integration_points(1,'GL5') # Gauss-Legendre order 5
-        quadt = integ.integration_points(1,'GL5') # Gauss-Legendre order 5
+        quadr = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
+        quadt = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
 
         # mid point of the limits in theta
         av = 0.5*(theta[:-1] + theta[1:])

@@ -6,19 +6,19 @@ def integration_points(dim, meth, obj='', size=-1):
 
     :param int dim: Dimension of the integration
     :param str obj: Type of domain of integration (for dim>1, e.g. 'disk' )
-    :param str meth: Method of integration (e.g 'GL3' for Gauss-Legendre order 3)
+    :param str meth: Method of integration (e.g 'GL4' for Gauss-Legendre accuracy order 2)
     :param size: Object describing the geometry of the problem (e.g. radius for a disk)
 
     :returns: Points and weights of the quadrature formula
     :rtype: Named tuple (.pts and .w)
     """
     if dim == 1:
-        if meth == 'GL3': # gauss legendre order 3
+        if meth == 'GL4': # gauss legendre with accuracy order 4, exactness 3 and 2 points.
             w = np.array([1.0,1.0])
             temp = np.sqrt(1.0/3.0)
             points = np.array([-temp,temp])
 
-        elif meth == 'GL5':
+        elif meth == 'GL6':
             points = np.zeros(3)
             w = np.zeros(3)
             w[0] = 8.0/9.0
@@ -29,7 +29,7 @@ def integration_points(dim, meth, obj='', size=-1):
             points[1] = np.sqrt(3.0/5.0)
             points[2] = -points[1]
             
-        elif meth == 'GL7':
+        elif meth == 'GL8':
             temp = (2.0/7.0)*np.sqrt(6.0/5.0)
             points = np.zeros(4)
             w = np.zeros(4)
@@ -44,7 +44,7 @@ def integration_points(dim, meth, obj='', size=-1):
             w[2] = (18.0-temp)/36.0
             w[3] = w[2]
 
-        elif meth == 'GL19':
+        elif meth == 'GL20':
             w = np.zeros(10)
             points = np.zeros(10)
             # from http://pomax.github.io/bezierinfo/legendre-gauss.html

@@ -14,7 +14,7 @@ import FPSDP.Diagnostics.Beam.beam as be
 import FPSDP.Geometry.Grid as Grid
 # data loader
 import FPSDP.Plasma.XGC_Profile.load_XGC_BES as xgc
-# quadrature formula
+# quadrature formula and utility functions
 import FPSDP.Maths.Integration as integ
 from FPSDP.GeneralSettings.UnitSystem import SI
 from FPSDP.Maths.Funcs import heuman, solid_angle_disk
@@ -109,6 +109,7 @@ class BES:
         self.pos_foc[:,1] = Y
         self.pos_foc[:,2] = Z
         self.op_direc = self.pos_foc-self.pos_lens                           #!
+        
         norm_ = np.sqrt(np.sum(self.op_direc**2,axis=1))
         if isinstance(self.rad_ring,float):
             self.rad_ring = self.rad_ring*np.ones(self.pos_foc.shape[0])
@@ -146,7 +147,7 @@ class BES:
 
         # set the data inside the beam (2nd part of the initialization)
         self.beam.set_data(xgc_)
-        print 'no check of division by zero'
+        
         # compute the two others basis vector
         self.perp1 = np.zeros(self.pos_foc.shape)
         # put the first variable to 1
@@ -193,7 +194,7 @@ class BES:
         return tck
         
         
-    def compute_limits(self, eps=0.05, dxmin = 0.1, dymin = 0.1, dzmin = 0.1):
+    def compute_limits(self, eps=0.1, dxmin = 0.1, dymin = 0.1, dzmin = 0.1):
         r""" Compute the limits of the mesh that should be loaded
 
         The only limitations comes from the sampling volume and the lifetime of the excited state.
@@ -301,6 +302,15 @@ class BES:
         self.Zmin = min([self.Zmin, self.Zmin - be_dir[2]*l])
 
 
+        # check if use equilibrium data for the attenuation
+        if not self.beam.eq:
+            self.Xmax = max([self.Xmax,self.beam.pos[0]])
+            self.Xmin = min([self.Xmin,self.beam.pos[0]])
+            self.Ymax = max([self.Ymax,self.beam.pos[1]])
+            self.Ymin = min([self.Ymin,self.beam.pos[1]])
+            self.Zmax = max([self.Zmax,self.beam.pos[2]])
+            self.Zmin = min([self.Zmin,self.beam.pos[2]])
+
         # try to keep an interval big enough
         dX = self.Xmax-self.Xmin
         dY = self.Ymax-self.Ymin
@@ -345,14 +355,14 @@ class BES:
         """
         print self.time
         nber_fiber = self.pos_foc.shape[0]
-        print 'do not take in account the wavelenght'
-        print 'only the main component is used'
         I = np.zeros((len(self.time),nber_fiber))
         for i,time in enumerate(self.time):
             print('Time step number: ' + str(i+1) + '/' + str(len(self.time)))
             # first time step already loaded
             if i != 0:
                 self.beam.data.load_next_time_step()
+                if ~self.beam.eq:
+                    self.beam.compute_beam_on_mesh()
             if self.para:
                 p = mp.Pool()
                 a = np.array(p.map(self.intensity_para, range(nber_fiber)))

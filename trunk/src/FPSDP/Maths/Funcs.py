@@ -1,6 +1,6 @@
 """simple math functions used for debugging and/or productive runs
 """
-
+import scipy as sp
 import numpy as np
 
 def heuman(phi,m):

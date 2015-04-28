@@ -10,7 +10,7 @@ on the distance to the previous/next plane.
 
 """
 
-from ...IO.IO_funcs import parse_num
+from FPSDP.IO.IO_funcs import parse_num
 
 import numpy as np
 import h5py as h5
@@ -104,8 +104,13 @@ class XGC_Loader_BES():
         self.Zmax = limits[2,1]
 
         # limits in tokamak coordinates
-        self.Rmin = np.sqrt(self.Xmin**2 + self.Ymin**2)
-        self.Rmax = np.sqrt(self.Xmax**2 + self.Ymax**2)
+        xmin = min(abs(self.Xmin),abs(self.Xmax))
+        xmax = max(abs(self.Xmin),abs(self.Xmax))
+        ymin = min(abs(self.Ymin),abs(self.Ymax))
+        ymax = max(abs(self.Ymin),abs(self.Ymax))
+
+        self.Rmin = np.sqrt(xmin**2 + ymin**2)
+        self.Rmax = np.sqrt(xmax**2 + ymax**2)
         phi = np.array([[self.Xmin,self.Ymin],[self.Xmin,self.Ymax],
                         [self.Xmax,self.Ymin],[self.Xmax,self.Ymax]])
 
@@ -172,15 +177,15 @@ class XGC_Loader_BES():
         mesh = h5.File(self.mesh_file,'r')
         RZ = mesh['coordinates']['values']
         Rpts =RZ[:,0]
+
         # remove the points outside the window
         self.ind = (Rpts > self.Rmin) & (Rpts < self.Rmax)
         Zpts = RZ[:,1]
         self.ind = self.ind & (Zpts > self.Zmin) & (Zpts < self.Zmax)
-        self.ind = self.ind
         Rpts = Rpts[self.ind]
         Zpts = Zpts[self.ind]
         self.points = np.array([Zpts,Rpts]).transpose()
-
+        
         print 'Keep: ',str(Rpts.shape[0]),'Points on a total of: '\
             ,str(self.ind.shape[0])
 
@@ -433,11 +438,9 @@ class XGC_Loader_BES():
             dR_FWD = RdPhi_FWD * self.BR_interp(Z_FWD,R_FWD) / BPhi_FWD
             dZ_FWD = RdPhi_FWD * self.BZ_interp(Z_FWD,R_FWD) / BPhi_FWD
             
-            ind = np.where(dR_FWD == np.inf)[0]
             #when the point gets outside of the XGC mesh, set BR,BZ to zero.
-            dR_FWD[ind] = 0.0
-            ind = np.where(dZ_FWD == np.inf)[0]
-            dZ_FWD[ind] = 0.0
+            dR_FWD[dR_FWD == np.inf] = 0.0
+            dZ_FWD[dZ_FWD == np.inf] = 0.0
             
             s_FWD += np.sqrt(RdPhi_FWD**2 + dR_FWD**2 + dZ_FWD**2)
             R_FWD += dR_FWD
@@ -450,10 +453,8 @@ class XGC_Loader_BES():
             dR_BWD = RdPhi_BWD * self.BR_interp(Z_BWD,R_BWD) / BPhi_BWD
             dZ_BWD = RdPhi_BWD * self.BZ_interp(Z_BWD,R_BWD) / BPhi_BWD
             
-            ind = np.where(dR_BWD == np.inf)[0]
-            dR_BWD[ind] = 0.0
-            ind = np.where(dZ_BWD == np.inf)[0]
-            dZ_BWD[ind] = 0.0
+            dR_BWD[dR_BWD == np.inf] = 0.0
+            dZ_BWD[dZ_BWD == np.inf] = 0.0
             
             s_BWD += np.sqrt(RdPhi_BWD**2 + dR_BWD**2 + dZ_BWD**2)
             R_BWD += dR_BWD
@@ -471,14 +472,15 @@ class XGC_Loader_BES():
         return interp_positions
 
 
-    def interpolate_data(self,pos,timestep,quant,eq):
+    def interpolate_data(self,pos,timestep,quant,eq,check=True):
         """ Interpolate the data to the position wanted
         
         :param np.array[N,3] pos: Position (in cartesian system)
         :param int timestep: Time step wanted (used to check if an error is not made)
         :param list[str] quant: Desired quantities (can be 'ni', 'ne', 'Ti', 'Te')
         :param bool eq: Choice between equilibrium or exact quantities
-        
+        :param bool check: Print message if outside the mesh
+
         :returns: Quantities asked in the right order
         :rtype: tuple(np.array[N],...)
         """
@@ -549,7 +551,7 @@ class XGC_Loader_BES():
                 # of the tokamak
                 ne[np.isnan(ne) & (r < self.Rmax) & (r > self.Rmin) &
                    (z < self.Zmax) & (z > self.Zmin)] = 0.0
-                if np.isnan(ne).any():
+                if check & np.isnan(ne).any():
                     print 'r',r
                     print 'z',z
                     print 'phi',phi
@@ -557,7 +559,6 @@ class XGC_Loader_BES():
                     print 'next',nextn
                     print interp_positions
                     print 'inside',ne[np.isnan(ne)]
-                    
             """   NOW WE WORK WITH IONS   """
                     
             if ni_bool:

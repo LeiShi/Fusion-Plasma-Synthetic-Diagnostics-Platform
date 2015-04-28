@@ -14,11 +14,11 @@ from FPSDP.GeneralSettings.UnitSystem import SI
 class Beam1D:
     """ Simulate a 1D beam with the help of datas from simulation.
 
-    Compute the beam density from the equilibrium data on a mesh.
+    Compute the beam density from the equilibrium or the raw data on a mesh.
     The beam density is not very sensitive from the fluctuation, therefore
     only the central line is computed and a gaussian profile is assumed (with a different
     vertical and horizontal width).
-    When computing a beam density outside the mesh, an interpolation is made (cubic).
+    When computing a beam density outside the mesh, an extrapolation is made (cubic).
     Two ways of computing the emission exists, a first one by assuming that
     the lifetime of the excited state is negligible (thus only the datas from the point 
     considered are used) and a second one that compute the expected value
@@ -69,7 +69,8 @@ class Beam1D:
     :var np.array[Ncomp,Nz] self.density_beam: Particle density of each component\
     on the mesh
     :var list[tck_interp] self.nb_tck: Interpolant for each component (use cubic spline)
-
+    :var int self.t_: Current time step
+    :var bool self.eq: Equilibrium data for the attenuation
     """
     
     def __init__(self,config_file):
@@ -127,7 +128,11 @@ class Beam1D:
         # speed of each beam
         self.speed = np.zeros(len(self.beam_comp))                           #!
         self.speed = np.sqrt(2*self.beam_comp*SI['keV']/(1000*SI['amu']*self.mass_b))
-        print self.speed
+
+        # equilibrium data for the attenuation
+        self.eq = json.loads(config.get('Collisions','eq_atte'))                   #!
+        # current time step
+        self.t_ = -1                                                         #!
 
 
     def set_data(self,data):
@@ -214,7 +219,7 @@ class Beam1D:
         
         return self.pos + self.direc*t_[t]*(1-eps)
 
-    def get_quantities(self,pos,t_,quant,eq=False):
+    def get_quantities(self,pos,t_,quant,eq=False, check=True):
         """ Compute the quantities from the datas
         
         Use the list of string quant for taking the good values inside the simulation datas.
@@ -227,13 +232,14 @@ class Beam1D:
         (See :func:`interpolate_data <FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data>`\
         for more information)
         :param bool eq: Equilibrium data or not
+        :param bool check: Print error message if outside the mesh or not
 
         :returns: The interpolated value from the simulation in the same order than quant
         :rtype: tuple[quant]
         """
         if isinstance(t_,list):
             raise NameError('Only one time should be given')
-        return self.data.interpolate_data(pos,t_,quant,eq)
+        return self.data.interpolate_data(pos,t_,quant,eq,check)
         
         
     def compute_beam_on_mesh(self):
@@ -260,9 +266,8 @@ class Beam1D:
         :math:`v = \sqrt{\frac{2E}{m}}` is the velocity of the particles.
 
         """
-        
+        self.t_ += 1
         self.density_beam = np.zeros((len(self.beam_comp),self.Nz))  #!
-        print('If keep attenuation with eq, should remove time loop')
         # density of the beam at the origin
         n0 = np.zeros(len(self.beam_comp))
         n0 = np.sqrt(2*self.mass_b*SI['amu'])*self.power
@@ -287,13 +292,19 @@ class Beam1D:
                     # integration point
                     pt = quad.pts[:,np.newaxis]*diff + av
                     # compute all the values needed for the integral
-                    ne, T = self.get_quantities(pt,None,['ne','Ti'],eq)
+                    ne, T = self.get_quantities(pt,self.t_,['ne','Ti'],self.eq,check=False)
                     
                     # attenuation coefficient from adas
                     S = self.collisions.get_attenutation(
                         self.beam_comp[beam_nber],ne,self.mass_b[beam_nber],
                         T,file_nber)
-                    
+                    # the interpolation for the non equilibrium case
+                    # can be outside the mesh
+                    if not self.eq:
+                        ne[np.isnan(ne)] = 0.0
+                        S[np.isnan(S)] = 0.0
+                        T[np.isnan(T)] = 0.0
+                        
                     # half distance between a & b
                     norm_ = 0.5*np.sqrt(np.sum((b-a)**2))
                     temp1 = np.sum(ne*S*quad.w)
@@ -303,11 +314,12 @@ class Beam1D:
                 self.density_beam[:,j] = self.density_beam[:,j-1] - \
                                                 temp_beam
 
+        self.density_beam = n0[:,np.newaxis]*np.exp(self.density_beam)
         self.nb_tck = []                                                     #!
         # interpolant for the beam
         for i in range(len(self.beam_comp)):
-            self.density_beam[i,:] = n0[i]*np.exp(self.density_beam[i,:])
             self.nb_tck.append(interpolate.splrep(self.dl,self.density_beam[i,:]))
+        np.save('beam_data',self.density_beam)
                 
             
     def get_mesh(self):
@@ -415,7 +427,7 @@ class Beam1D:
         emis = np.zeros((len(self.beam_comp),pos.shape[0]))
         # avoid the computation at each time
         ne_in, Ti_in,Te_in = self.get_quantities(pos,t_,['ne','Ti','Te'])
-        print np.max(ne_in)
+        
         #nb_in = self.get_beam_density(pos)
         for k in self.coll_emis:
             file_nber = k[0]
@@ -463,7 +475,8 @@ class Beam1D:
                                       self.speed[beam_nber]))/self.speed[beam_nber]
 
             if np.isnan(f).any():
-                print np.isnan(f)
+                print 'isnan',np.isnan(f)
+                print 'pos',pos
                 raise NameError('Mesh not well computed')
             
             f = np.einsum('kmn,n->km',f,quad.w)

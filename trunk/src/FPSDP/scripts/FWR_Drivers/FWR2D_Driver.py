@@ -58,7 +58,7 @@ c = Client(profile='pbs')
 desired_engine_num = 128 #Make sure this number is EXACTLY the same as the engine number you initiated with ipengine
 
 waiting=0
-while(len(c) < desired_engine_num and waiting<=60):#check if the engines are ready, if the engines are not ready after 1 min, something might be wrong. Exit and raise an exception.
+while(len(c) < desired_engine_num and waiting<=86400):#check if the engines are ready, if the engines are not ready after 1 min, something might be wrong. Exit and raise an exception.
     time.sleep(10)
     waiting += 10
 

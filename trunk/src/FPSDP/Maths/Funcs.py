@@ -93,6 +93,67 @@ def determinent3d(x1,y1,z1,x2,y2,z2,x3,y3,z3):
     return (x1*y2*z3 + y1*z2*x3 + z1*x2*y3 - x1*z2*y3 - y1*x2*z3 - z1*y2*x3)
 
 
+def low_pass_box(s,nc):
+    """returns the low pass filtered frequency sequence of s, with critical frequency set by location nc. nc must be less than half of the length of s. Assuming s is a frequency domain spectra which obey numpy.fft.fft format.
+    ideal box filter is used, which means the frequencies higher than that set by nc will be erased totally, and the frequencies lower than nc will be untouched.
+    Inputs:
+        s: array_like, frequency spectra that need to be filtered
+	nc: int, the critical frequency index above which the signal will be erased
+    """
+
+    n = len(s)
+    if nc>n/2:
+        print("Warning: critical frequency out of input range, nothing will happen to the input spectra.")
+        return s
+    mask_plus = np.arange(n)<=nc
+    mask_minus = np.arange(n)>= n-nc
+    s_filtered = np.zeros((n),dtype='complex')
+    s_filtered[mask_plus] = s[mask_plus]
+    s_filtered[mask_minus] = s[mask_minus]
+    return s_filtered	
+
+def high_pass_box(s,nc):
+    """returns the high pass filtered frequency sequence of s, with critical frequency set by location nc. nc must be less than half of the length of s. Assuming s is a frequency domain spectra which obey numpy.fft.fft format.
+    ideal box filter is used, which means the frequencies lower than that set by nc will be erased totally, and the frequencies higher than nc will be untouched.
+    Inputs:
+        s: array_like, frequency spectra that need to be filtered
+	nc: int, the critical frequency index below which the signal will be erased
+    """
+
+    n = len(s)
+    if nc>n/2:
+        print("Warning: critical frequency out of input range, the whole input spectra will be erased.")
+        return np.zeros((n))
+    mask_plus = np.arange(n)<=nc
+    mask_minus = np.arange(n)>= n-nc
+    s_filtered = np.copy(s)
+    s_filtered[mask_plus] = 0
+    s_filtered[mask_minus] = 0
+    return s_filtered	
+
+def band_pass_box(s,nl,nh):
+    """A composition of high_pass_box and low_pass_box. nl and nh are lower and higher frequency domain indices respectively, which are in turn passed into low/high_pass_box functions.
+    Inputs:
+        s: array_like, frequency spectra that need to be filtered
+        nl: int, the critical frequency index below which the signal will be erased 
+        nh: int, the critical frequency index above which the signal will be erased
+    """
+    s_low_filtered = high_pass_box(s,nl)
+    return low_pass_box(s_low_filtered,nh)
+
+
+def correlation(s1,s2):
+    """Calculate the correlation between two arrays of data. 
+    s1 and s2 can be multi-dimensional, the average will be taken over all the dimensions. Returns the correlation, which will be a (complex) number between 0 and 1 (in the sense of the modular).  
+    """
+    s1_tilde = s1#-np.average(s1)
+    s2_tilde = s2#-np.average(s2)
+    s = np.average(s1_tilde*np.conj(s2_tilde))
+    s1_mod = np.sqrt(np.average(s1_tilde*np.conj(s1_tilde)))
+    s2_mod = np.sqrt(np.average(s2_tilde*np.conj(s2_tilde)))
+    return s/(s1_mod*s2_mod)
+
+
 def sweeping_correlation(s1,s2,dt=1,nt_min=100):
     """Calculate the correlation of two given time-series signals.
     
@@ -144,5 +205,4 @@ def sweeping_correlation(s1,s2,dt=1,nt_min=100):
             s2_moved = s2[:-delta_t,...]
             SCorrelation[i] = np.average(s1_moved*np.conj(s2_moved),axis=0)/np.sqrt(np.average(s1_moved*np.conj(s1_moved),axis=0) * np.average(s2_moved*np.conj(s2_moved), axis=0))
     return SCorrelation
-        
-    
+

@@ -2,9 +2,16 @@
 
 Contains:
     phase(raw_sig) : processes the raw signal's phase, creates a new phase series such that the phase change in one time step is not larger than PI. In this way, the phase jump across -PI and PI boundary is avoided. The phase curve is more smooth and the range is also extended to (-inf,inf). 
+    magnitude(raw_sig): obtains raw signal's magnitude. Equivalent to np.abs .
+    
+    Self
 """
 
 import numpy as np
+
+###########################################################
+#  Two functions used for analysing the time series of complex reflected signal
+###########################################################
 
 def phase(raw_sig):
     """Calculate the extended phase curve for a given complex signal array.
@@ -31,3 +38,94 @@ def phase(raw_sig):
     new_phase[1:] += new_dph.cumsum() # numpy.ndarray.cumsum method returns the accumulated array, since we are accumulating the whole dph_new array, the phase we got is relative to the initial phase at the start of the experiment.
 
     return (new_phase,new_dph)
+
+def magnitude(raw_sig):
+    """Calculate the magnitude of the raw signal
+    
+    This is simple because the magnitude is single valued on the whole complex plane, so no special treatment is needed.
+    
+    Arguments:
+        raw_sig: array-like, complex, time series of the complex signal
+    Return:
+        magnitude: array-like, float, same shape as raw_sig, the magnitude of the complex signals.
+    """
+    
+    return np.abs(raw_sig)
+    
+
+#####################################################################
+# Coherent Signal and Cross Correlation analysis
+#####################################################################
+
+    
+def Coherent_Signal(sig):
+    """Calculate the coherent signal g for the given series of signal
+
+    coherent signal g is defined as:
+
+    g = <sig>/sqrt(<|sig|^2>)
+
+    where <...> denotes the emsemble average, which in this case, is calculated by averaging over all time steps(whole array). And sig is the signal.
+
+    input: 
+        sig: array-like, complex or real. The time series or whole ensemble of the  signal.
+    """
+    
+    #rename the signal to a shorter form
+    M = sig
+
+    M_bar = np.average(M)
+
+    M2_bar = np.average(M*np.conj(M))
+
+    return M_bar/np.sqrt(M2_bar)
+
+def Cross_Correlation(sig1,sig2):
+    """Calculate the cross correlation between 2 series of signals
+
+    cross correlation function is defined as:
+
+    r = <sig1 * conj(sig2)> / sqrt(<|sig1|^2><|sig2|^2>)
+
+    where conj means complex conjugate, and <...> denotes the average over timesteps (whole array)
+
+    Input:
+        sig1,sig2: array-like, complex or real. The two signals that need to be cross-correlated.
+    Return:
+        the cross-correlation calculated at zero time delay
+    """
+
+    sig1_2_bar = np.average(sig1 * np.conj(sig1))
+    sig2_2_bar = np.average(sig2 * np.conj(sig2))
+    cross_bar = np.average(sig1 * np.conj(sig2))
+
+    r = cross_bar / np.sqrt(sig1_2_bar * sig2_2_bar)       
+    
+    return r
+
+def Cross_Correlation_by_fft(sig1,sig2):
+    """Calculate the cross correlation using fft method. Details can be found in ref.[1] and in Appendix part of ref.[2]
+    
+    The strength of calculating cross_correlation using fft method, is that it can obtain all time delayed correlations automatically, with a very fast calculation.
+    
+    Input:
+        sig1,sig2: array-like, complex or real. The two signals that need to be cross-correlated
+    Return:
+        gamma_t: array-like, the cross-correlation of the two signals, gamma_t[t] will be the t time-delayed correlation, in which sig2 is put t time steps ahead of sig1, and they are both periodically extended to (-inf,inf)
+    
+    [1] Cross-correlation caluclation using Fast Fourier Transform(FFT), FPSDP.Diagnostics.Reflectometry Documentation. 
+    [2] Observation of ion scale fluctuations in the pedestal region during the edge-localized-mode cycle on the National Spherical torus Experiment. A.Diallo, G.J.Kramer, at. el. Phys. Plasmas 20, 012505(2013)
+    """
+    f1 = np.fft.fft(sig1)
+    f2 = np.fft.fft(sig2)
+    norm1 = np.sqrt(np.sum(sig1*np.conj(sig1)))
+    norm2 = np.sqrt(np.sum(sig2 * np.conj(sig2)))
+    
+    cross_f = np.conj(f1) * f2
+    gamma_f = cross_f / (norm1 * norm2)
+    gamma_t = np.fft.ifft(gamma_f)
+    
+    return gamma_t
+    
+    
+    

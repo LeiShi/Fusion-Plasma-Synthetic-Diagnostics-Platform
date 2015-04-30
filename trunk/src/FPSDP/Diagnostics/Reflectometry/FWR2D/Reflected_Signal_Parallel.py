@@ -15,8 +15,8 @@ from IPython.parallel import Client
 import FPSDP.Diagnostics.Reflectometry.FWR2D.Postprocess as pp
 import numpy as np
 
-def dv_initialize(n_engine):
-    c = Client(profile='pbs')
+def dv_initialize(n_engine,profile = 'default'):
+    c = Client(profile=profile)
     
     #the engine needs time to start, so check when all the engines are connected before take a direct view of the cluster.
     
@@ -91,9 +91,11 @@ def full_freq_time(freqs,time_arr,Ref_param,dv):
     parallel_result.wait_interactive()
     print('All signals computed!')
     E_out_scattered = parallel_result.get()
+    print('signals collected.')
     for i in range(Ref_all.NF):
         for j in range(Ref_all.NT):
-            Ref_all.E_out[i,j] = E_out_scattered[i*len(time_arr)+j]
+            Ref_all.E_out[i,j,:] = E_out_scattered[i*len(time_arr)+j][0,0,:]
+            print('freq {0},time {1} stored.'.format(freqs[i],time_arr[j]))
             
     return Ref_all
     

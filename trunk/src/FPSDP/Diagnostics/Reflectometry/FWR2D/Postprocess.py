@@ -106,11 +106,11 @@ class Reflectometer_Output:
             E_out = np.trapz(E_ref*np.conj(E_rec[z_idx,:]),x=y)
             return E_out
         elif(self.dimension == 3):
-            y = f.variables['a_y'][:]
-            z = f.variables['a_z'][:]
+            y = np.copy(f.variables['a_y'][:])
+            z = np.copy(f.variables['a_z'][:])
             
-            E_ref_re_interp = interp2d(z,y,f.variables['a_Er'][1,:,:],kind='cubic',fill_value=0)
-            E_ref_im_interp = interp2d(z,y,f.variables['a_Ei'][1,:,:],kind='cubic',fill_value=0)            
+            E_ref_re_interp = interp2d(y,z,f.variables['a_Er'][1,:,:],kind='cubic',fill_value=0)
+            E_ref_im_interp = interp2d(y,z,f.variables['a_Ei'][1,:,:],kind='cubic',fill_value=0)            
             f.close()
 
             receiver = c5.C5_reader(rec_file)
@@ -122,10 +122,16 @@ class Reflectometer_Output:
             zmax = np.min([z[-1],receiver.Y1D[-1]])
             y_fine = np.linspace(ymin,ymax,200)
             z_fine = np.linspace(zmin,zmax,200)
-            E_ref = E_ref_re_interp(z_fine,y_fine)+ 1j*E_ref_im_interp(z_fine,y_fine)
-            E_rec = receiver.E_re_interp(z_fine,y_fine)+ 1j*receiver.E_im_interp(z_fine,y_fine)
+            self.E_ref = E_ref_re_interp(y_fine,z_fine)+ 1j*E_ref_im_interp(y_fine,z_fine)
+            self.E_rec = receiver.E_re_interp(z_fine,y_fine)+ 1j*receiver.E_im_interp(z_fine,y_fine)
             
-            E_out = np.average(E_ref*np.conj(E_rec))*(ymax-ymin)*(zmax-zmin)
+            E_conv = self.E_ref*np.conj(self.E_rec)
+
+            dy = y_fine[1]-y_fine[0]
+            dz = z_fine[1]-z_fine[0]
+            
+            SEy = np.sum(E_conv[:,:-1]+E_conv[:,1:],axis = 1)/2*dy #integration over y direction
+            E_out = np.sum(SEy[:-1]+SEy[1:])/2*dz #integration over z direction
             return E_out
 
     def save_E_out(self,filename = 'E_out.sav'):
@@ -281,6 +287,9 @@ def fitting_cross_correlation(cross_cor_arr,dx_arr,fitting_type = 'gaussian'):
 
     return (a,np.sqrt(sigma_a2))
     
+### Debug Codes ###
+
+
 
     
     

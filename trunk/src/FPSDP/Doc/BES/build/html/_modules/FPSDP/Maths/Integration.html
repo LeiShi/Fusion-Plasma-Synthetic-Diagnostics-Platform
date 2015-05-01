@@ -56,19 +56,19 @@
 
 <span class="sd">    :param int dim: Dimension of the integration</span>
 <span class="sd">    :param str obj: Type of domain of integration (for dim&gt;1, e.g. &#39;disk&#39; )</span>
-<span class="sd">    :param str meth: Method of integration (e.g &#39;GL3&#39; for Gauss-Legendre order 3)</span>
+<span class="sd">    :param str meth: Method of integration (e.g &#39;GL4&#39; for Gauss-Legendre accuracy order 2)</span>
 <span class="sd">    :param size: Object describing the geometry of the problem (e.g. radius for a disk)</span>
 
 <span class="sd">    :returns: Points and weights of the quadrature formula</span>
 <span class="sd">    :rtype: Named tuple (.pts and .w)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">dim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">meth</span> <span class="o">==</span> <span class="s">&#39;GL3&#39;</span><span class="p">:</span> <span class="c"># gauss legendre order 3</span>
+        <span class="k">if</span> <span class="n">meth</span> <span class="o">==</span> <span class="s">&#39;GL4&#39;</span><span class="p">:</span> <span class="c"># gauss legendre with accuracy order 4, exactness 3 and 2 points.</span>
             <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span><span class="mf">1.0</span><span class="p">])</span>
             <span class="n">temp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span><span class="o">/</span><span class="mf">3.0</span><span class="p">)</span>
             <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="n">temp</span><span class="p">,</span><span class="n">temp</span><span class="p">])</span>
 
-        <span class="k">elif</span> <span class="n">meth</span> <span class="o">==</span> <span class="s">&#39;GL5&#39;</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">meth</span> <span class="o">==</span> <span class="s">&#39;GL6&#39;</span><span class="p">:</span>
             <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
             <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
             <span class="n">w</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">8.0</span><span class="o">/</span><span class="mf">9.0</span>
@@ -79,7 +79,7 @@
             <span class="n">points</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">3.0</span><span class="o">/</span><span class="mf">5.0</span><span class="p">)</span>
             <span class="n">points</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">points</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
             
-        <span class="k">elif</span> <span class="n">meth</span> <span class="o">==</span> <span class="s">&#39;GL7&#39;</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">meth</span> <span class="o">==</span> <span class="s">&#39;GL8&#39;</span><span class="p">:</span>
             <span class="n">temp</span> <span class="o">=</span> <span class="p">(</span><span class="mf">2.0</span><span class="o">/</span><span class="mf">7.0</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">6.0</span><span class="o">/</span><span class="mf">5.0</span><span class="p">)</span>
             <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
             <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
@@ -94,7 +94,7 @@
             <span class="n">w</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">18.0</span><span class="o">-</span><span class="n">temp</span><span class="p">)</span><span class="o">/</span><span class="mf">36.0</span>
             <span class="n">w</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">w</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
 
-        <span class="k">elif</span> <span class="n">meth</span> <span class="o">==</span> <span class="s">&#39;GL19&#39;</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">meth</span> <span class="o">==</span> <span class="s">&#39;GL20&#39;</span><span class="p">:</span>
             <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
             <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
             <span class="c"># from http://pomax.github.io/bezierinfo/legendre-gauss.html</span>

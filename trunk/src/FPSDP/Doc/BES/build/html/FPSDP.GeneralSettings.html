@@ -1,0 +1,175 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>General Settings Directory &mdash; BES 0.8 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="BES 0.8 documentation" href="index.html" />
+    <link rel="prev" title="XGC1 Loader" href="FPSDP.Plasma.XGC_Profile.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="FPSDP.Plasma.XGC_Profile.html" title="XGC1 Loader"
+             accesskey="P">previous</a> |</li>
+        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="general-settings-directory">
+<span id="general"></span><h1>General Settings Directory<a class="headerlink" href="#general-settings-directory" title="Permalink to this headline">¶</a></h1>
+<p>The only file used in the BES synthetic diagnostics is <tt class="file docutils literal"><span class="pre">UnitSystem.py</span></tt> that defines a few constant (e.g. the speed of light or the eV in J).
+The file defines two variables, one for the CGS system and one for the SI system.</p>
+<div class="section" id="module-FPSDP.GeneralSettings.UnitSystem">
+<span id="unitsystem-module"></span><h2>UnitSystem module<a class="headerlink" href="#module-FPSDP.GeneralSettings.UnitSystem" title="Permalink to this headline">¶</a></h2>
+<p>Unit Systems defined in this module</p>
+<dl class="exception">
+<dt id="FPSDP.GeneralSettings.UnitSystem.UnitError">
+<em class="property">exception </em><tt class="descclassname">FPSDP.GeneralSettings.UnitSystem.</tt><tt class="descname">UnitError</tt><big>(</big><em>this</em>, <em>*a</em><big>)</big><a class="reference internal" href="_modules/FPSDP/GeneralSettings/UnitSystem.html#UnitError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.GeneralSettings.UnitSystem.UnitError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Unit related Exception class.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="FPSDP.GeneralSettings.UnitSystem.UnitSystem">
+<em class="property">class </em><tt class="descclassname">FPSDP.GeneralSettings.UnitSystem.</tt><tt class="descname">UnitSystem</tt><big>(</big><em>this</em>, <em>name</em>, <em>**CD</em><big>)</big><a class="reference internal" href="_modules/FPSDP/GeneralSettings/UnitSystem.html#UnitSystem"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.GeneralSettings.UnitSystem.UnitSystem" title="Permalink to this definition">¶</a></dt>
+<dd><p>Base class for unit systems</p>
+<dl class="docutils">
+<dt>Attributes:</dt>
+<dd>_ConstDic: dictionary contains all the useful physical constants.
+list_const: returns the _ConstDic dictionary.
+add_const: add new const into the _ConstDic.
+del_const: remove existing const from _ConstDic.
+rename_const: change the key for a const to obey user defined synbol rules.</dd>
+</dl>
+<dl class="method">
+<dt id="FPSDP.GeneralSettings.UnitSystem.UnitSystem.add_const">
+<tt class="descname">add_const</tt><big>(</big><em>this</em>, <em>**C</em><big>)</big><a class="reference internal" href="_modules/FPSDP/GeneralSettings/UnitSystem.html#UnitSystem.add_const"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.GeneralSettings.UnitSystem.UnitSystem.add_const" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add one or more constants using a keyword argument list.</p>
+<p>If no argument is passed, a UnitError exception is raised.
+If one of the passed keys already exists, the value passes will be conpared with the value
+stored. If the relative difference is less than 10e-4, the value will be CHANGED to the new
+value. However, if the difference is larger than that, a UnitError exception will be raised.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.GeneralSettings.UnitSystem.UnitSystem.del_const">
+<tt class="descname">del_const</tt><big>(</big><em>this</em>, <em>*names</em><big>)</big><a class="reference internal" href="_modules/FPSDP/GeneralSettings/UnitSystem.html#UnitSystem.del_const"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.GeneralSettings.UnitSystem.UnitSystem.del_const" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete the consts for given names.</p>
+<p>If no name is given, a UnitError exception will be raised.
+If a given name doesn&#8217;t exist, a UnitError exception will be raised.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.GeneralSettings.UnitSystem.UnitSystem.list_const">
+<tt class="descname">list_const</tt><big>(</big><em>this</em><big>)</big><a class="reference internal" href="_modules/FPSDP/GeneralSettings/UnitSystem.html#UnitSystem.list_const"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.GeneralSettings.UnitSystem.UnitSystem.list_const" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns the dictionary contains all the (name,value) pairs of the consts</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.GeneralSettings.UnitSystem.UnitSystem.rename_const">
+<tt class="descname">rename_const</tt><big>(</big><em>this</em>, <em>**NameDic</em><big>)</big><a class="reference internal" href="_modules/FPSDP/GeneralSettings/UnitSystem.html#UnitSystem.rename_const"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.GeneralSettings.UnitSystem.UnitSystem.rename_const" title="Permalink to this definition">¶</a></dt>
+<dd><p>Change the name of a exsiting constant.</p>
+<p>Keyword arguments are accepted with the key being the EXISTING name and the value being the
+new name
+If no argument is passed, nothing will happen.
+If keywords contain non-existing names, a UnitError exception will be raised.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="FPSDP.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">General Settings Directory</a><ul>
+<li><a class="reference internal" href="#module-FPSDP.GeneralSettings.UnitSystem">UnitSystem module</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="FPSDP.Plasma.XGC_Profile.html"
+                        title="previous chapter">XGC1 Loader</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/FPSDP.GeneralSettings.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="FPSDP.Plasma.XGC_Profile.html" title="XGC1 Loader"
+             >previous</a> |</li>
+        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Loic Hausammann.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

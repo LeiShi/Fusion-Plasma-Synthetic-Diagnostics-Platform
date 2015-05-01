@@ -1,0 +1,4 @@
+<map id="inheritancee8ec198f16" name="inheritancee8ec198f16">
+<area shape="rect" id="node1" href="#FPSDP.Plasma.Collisions.ADAS_file.ADAS21" title="Class containing all the data from one ADAS file (adf21)" alt="" coords="361,5,660,31"/>
+<area shape="rect" id="node2" href="#FPSDP.Plasma.Collisions.ADAS_file.ADAS_file" title="Parent class for defining the different kind of database readers." alt="" coords="5,5,313,31"/>
+</map>

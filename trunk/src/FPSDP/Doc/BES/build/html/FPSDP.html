@@ -52,8 +52,8 @@
   <div class="section" id="beam-emission-spectroscopy-documentation">
 <h1>Beam Emission Spectroscopy Documentation<a class="headerlink" href="#beam-emission-spectroscopy-documentation" title="Permalink to this headline">¶</a></h1>
 <p>The Beam Emission Spectroscopy (BES) synthetic diagnostics use a configuration file (e.g. <a class="reference download internal" href="_downloads/bes.in"><tt class="xref download docutils literal"><span class="pre">bes.in</span></tt></a>).
-The only object that should be used for the diagnostics is the class <a class="reference internal" href="FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES" title="FPSDP.Diagnostics.BES.bes.BES"><tt class="xref py py-class docutils literal"><span class="pre">BES</span></tt></a>,
-it creates everything from the config file and with the method <a class="reference internal" href="FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.get_bes" title="FPSDP.Diagnostics.BES.bes.BES.get_bes"><tt class="xref py py-func docutils literal"><span class="pre">get_bes()</span></tt></a> will compute the number of photons captured by each fiber (a diagram explaining how the initialization is done and the computation of the diagnostics is inside the documentation of each method).
+The only object that should be used for the diagnostics is the class <tt class="xref py py-class docutils literal"><span class="pre">BES</span></tt>,
+it creates everything from the config file and with the method <tt class="xref py py-func docutils literal"><span class="pre">get_bes()</span></tt> will compute the number of photons captured by each fiber (a diagram explaining how the initialization is done and the computation of the diagnostics is inside the documentation of each method).
 <a class="reference download internal" href="_downloads/example.py"><tt class="xref download docutils literal"><span class="pre">example.py</span></tt></a> is an example of how to use the code.</p>
 <p>In the documentation, I tried to specify the unit of each variable, but it is possible that I forgot a few.
 I choose to use the SI system as often as possible (except for the beam energy), therefore it should be the first guess.</p>
@@ -84,7 +84,7 @@ subgraph cluster_collisions { label=&quot;FPSDP/Plasma/Collisions/collisions.py&
 <ul class="simple">
 <li><a class="reference internal" href="FPSDP.Diagnostics.html#diag-dir"><em>Diagnostics Directory</em></a> contains the files for the beam and the BES optics.</li>
 <li><a class="reference internal" href="FPSDP.IO.html#io"><em>Input and Output Directory</em></a> contains a function for parsing a string.</li>
-<li><a class="reference internal" href="FPSDP.Maths.html#maths"><em>Maths Directory</em></a> contains the quadratures points and weights.</li>
+<li><a class="reference internal" href="FPSDP.Maths.html#maths"><em>Maths Directory</em></a> contains some numerical methods and some analytical formulas.</li>
 <li><a class="reference internal" href="FPSDP.Plasma.html#plasma"><em>Collisions and Plasma Simulations Directory</em></a> contains the files about the collisions and the output of the simulations.</li>
 <li><a class="reference internal" href="FPSDP.GeneralSettings.html#general"><em>General Settings Directory</em></a> contains the definition of a few constants.</li>
 </ul>
@@ -106,6 +106,7 @@ subgraph cluster_collisions { label=&quot;FPSDP/Plasma/Collisions/collisions.py&
 <li class="toctree-l1"><a class="reference internal" href="FPSDP.Maths.html">Maths Directory</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="FPSDP.Maths.html#module-FPSDP.Maths.Integration">Integration Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="FPSDP.Maths.html#module-FPSDP.Maths.Funcs">Funcs Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="FPSDP.Maths.html#runge-kutta-module">Runge-Kutta Module</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="FPSDP.Plasma.html">Collisions and Plasma Simulations Directory</a><ul>

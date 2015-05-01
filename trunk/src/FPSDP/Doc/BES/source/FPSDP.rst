@@ -40,7 +40,7 @@ The main directory of the library contains the following directory:
 
 * :ref:`diag_dir` contains the files for the beam and the BES optics.
 * :ref:`IO` contains a function for parsing a string.
-* :ref:`Maths` contains the quadratures points and weights.
+* :ref:`Maths` contains some numerical methods and some analytical formulas.
 * :ref:`Plasma` contains the files about the collisions and the output of the simulations.
 * :ref:`General` contains the definition of a few constants.
 

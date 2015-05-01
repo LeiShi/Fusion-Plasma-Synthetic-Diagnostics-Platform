@@ -62,7 +62,7 @@ class BES:
     :var bool self.lifetime: Choice between using the lifetime effect or not
     :var float self.tau_max: Upper limit for the lifetime of the excited particles.\
     It does not need to be exact, it is only for computing the limits of the mesh.
-    :var int self.N_field: Number of interval for the field line interpolation
+    :var int self.dphi: Size of a time step for the field line interpolation (in radians)
     :var str self.data_path: Path to the data
     :var self.beam: (:class:`Beam1D <FPSDP.Diagnostics.Beam.beam.Beam1D>`) Beam used for the diagnostic
     :var np.array[Ntime] self.time: Time steps used for the simulation
@@ -199,7 +199,7 @@ class BES:
         
         # Data part
         self.tau_max = json.loads(config.get('Data','tau_max'))              #!
-        self.N_field = json.loads(config.get('Data','N_field'))              #!
+        self.dphi = json.loads(config.get('Data','dphi'))                    #!
         self.data_path = config.get('Data','data_path')                      #!
         start = json.loads(config.get('Data','timestart'))
         end = json.loads(config.get('Data','timeend'))
@@ -211,7 +211,7 @@ class BES:
         #grid3D = Grid.Cartesian3D(Xmin=self.Xmin, Xmax=self.Xmax, Ymin=self.Zmin, Ymax=self.Zmax,
         #                          Zmin=self.Ymin, Zmax=self.Ymax, NX=self.N[0], NY=self.N[2], NZ=self.N[1])
         xgc_ = xgc.XGC_Loader_BES(self.data_path, start, end, timestep,
-                                  self.limits, self.N_field)
+                                  self.limits, self.dphi)
         self.time = xgc_.time_steps                                          #!
 
         # set the data inside the beam (2nd part of the initialization)
@@ -1093,7 +1093,7 @@ class BES_ideal:
         self.pos_foc[:,2] = Z
 
         # Data part
-        self.N_field = json.loads(config.get('Data','N_field'))              #!
+        self.dphi = json.loads(config.get('Data','dphi'))              #!
         self.data_path = config.get('Data','data_path')                      #!
         start = json.loads(config.get('Data','timestart'))
         end = json.loads(config.get('Data','timeend'))
@@ -1101,7 +1101,7 @@ class BES_ideal:
         self.compute_limits()      # compute the limits of the mesh
 
         xgc_ = xgc.XGC_Loader_BES(self.data_path, start, end, timestep,
-                                  self.limits, self.N_field)
+                                  self.limits, self.dphi)
         self.time = xgc_.time_steps                                          #!
 
         self.data = xgc_

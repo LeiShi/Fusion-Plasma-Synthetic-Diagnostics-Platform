@@ -23,3 +23,11 @@ Funcs Module
     :members: heuman, solid_angle_disk
     :undoc-members:
     :show-inheritance:
+
+Runge-Kutta Module
+------------------
+
+.. automodule:: FPSDP.Maths.RungeKutta
+    :members:
+    :undoc-members:
+    :show-inheritance:

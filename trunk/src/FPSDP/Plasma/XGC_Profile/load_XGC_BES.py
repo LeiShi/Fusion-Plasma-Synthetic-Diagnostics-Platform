@@ -18,6 +18,8 @@ from scipy.interpolate import griddata, interp1d
 from scipy.interpolate import CloughTocher2DInterpolator
 from scipy.interpolate import RectBivariateSpline
 from load_XGC_profile import load_m, XGC_Loader_Error
+from FPSDP.Maths.RungeKutta import runge_kutta_explicit
+
 import scipy.io.netcdf as nc
 import pickle
 
@@ -62,21 +64,12 @@ class XGC_Loader_BES():
     :param int t_end: Time step at which stoping the diagnostics
     :param int dt: Interval between two time step that the diagnostics should compute
     :param list[list[]] limits: Mesh limits for the diagnostics (first index is for X,Y,Z and second for min/max)
-    :param int N_field: Number of step for the interpolation along the field line
+    :param float dphi: Size of the step for the field line integration (in radian)
     """
 
-    def __init__(self,xgc_path,t_start,t_end,dt,limits,N_field):
+    def __init__(self,xgc_path,t_start,t_end,dt,limits,dphi):
         """The main caller of all functions to prepare a loaded XGC 
            profile for the BES diagnostics.
-
-        Inputs:
-            xgc_path       -- string, the directory of all the XGC output files
-            tstart,tend,dt -- int, the timesteps used for loading, 
-                              NOTE: the time series created here MUST be a subseries
-                              of the original file numbers.
-            limits         -- array containing the limits of the value computed [[Xmin,
-                              Xmax],[Ymin,Ymax],[Zmin,Zmax]]
-            N_field        -- number of step for the field line interpolation
         """
 
         print 'Loading XGC output data'
@@ -122,7 +115,7 @@ class XGC_Loader_BES():
         self.Phimin = np.min(phi)
         self.Phimax = np.max(phi)
 
-        self.N_step = N_field
+        self.dphi = dphi
         self.load_mesh_psi_3D()
         print 'mesh and psi loaded.'
         
@@ -181,7 +174,16 @@ class XGC_Loader_BES():
         # remove the points outside the window
         self.ind = (Rpts > self.Rmin) & (Rpts < self.Rmax)
         Zpts = RZ[:,1]
+
+        self.psi = mesh['psi']
+        # psi interpolant
+        self.psi_interp = CloughTocher2DInterpolator(
+            np.array([Zpts,Rpts]).T, self.psi, fill_value=np.max(self.psi))
+        
+
         self.ind = self.ind & (Zpts > self.Zmin) & (Zpts < self.Zmax)
+
+        self.psi = self.psi[self.ind]
         Rpts = Rpts[self.ind]
         Zpts = Zpts[self.ind]
         self.points = np.array([Zpts,Rpts]).transpose()
@@ -189,10 +191,6 @@ class XGC_Loader_BES():
         print 'Keep: ',str(Rpts.shape[0]),'Points on a total of: '\
             ,str(self.ind.shape[0])
 
-        self.psi = mesh['psi'][self.ind]
-        # psi interpolant
-        self.psi_interp = CloughTocher2DInterpolator(
-            self.points, self.psi, fill_value=np.max(self.psi))
 
         mesh.close()
 
@@ -414,16 +412,10 @@ class XGC_Loader_BES():
             phiFWD = np.where(nextplane == 0,np.pi*2 - phi, phi_planes[nextplane]-phi)
             phiBWD = phi_planes[prevplane]-phi
         else:
-            phiFWD = phi_planes[nextplane]-phi
-            phiBWD = np.where(prevplane ==0,np.pi*2 - phi, phi_planes[prevplane]-phi)
-
-        # number of step for each direction
-        N_FWD = int(np.max(np.abs(phiFWD*self.N_step/dPhi)))
-        N_BWD = int(np.max(np.abs(phiBWD*self.N_step/dPhi)))
+            phiFWD = np.abs(phi_planes[nextplane]-phi)
+            phiBWD = np.abs(np.where(prevplane ==0,np.pi*2 - phi, phi_planes[prevplane]-phi))
 
         # angle between two steps
-        dphi_FWD = phiFWD/N_FWD
-        dphi_BWD = phiBWD/N_BWD
         R_FWD = np.copy(r)
         R_BWD = np.copy(r)
         Z_FWD = np.copy(z)
@@ -431,35 +423,83 @@ class XGC_Loader_BES():
         s_FWD = np.zeros(r.shape)
         s_BWD = np.zeros(r.shape)
 
+        # check which index need to be integrated
+        ind = np.ones(r.shape,dtype=bool)
+        # Coefficient of the Runge-Kutta method
+        a,b,c = runge_kutta_explicit(3)
+        # Number of stage for the method
+        Nstage = b.shape[0]
         # forward step
-        for i in range(N_FWD):
-            RdPhi_FWD = R_FWD*dphi_FWD
-            BPhi_FWD = self.BPhi_interp(Z_FWD,R_FWD)
-            dR_FWD = RdPhi_FWD * self.BR_interp(Z_FWD,R_FWD) / BPhi_FWD
-            dZ_FWD = RdPhi_FWD * self.BZ_interp(Z_FWD,R_FWD) / BPhi_FWD
+        while ind.any():
+            # size of the next step for each position
+            step = np.min(phiFWD[ind],self.dphi)
+            # update the position of the next iteration
+            phiFWD[ind] -= step
+            K = np.zeros((r[ind].shape[0],3,Nstage))
+            for i in range(Nstage):
+                # compute the coordinates of this stage
+                Rtemp = R_FWD[ind] + step*np.sum(a[i,:i]*K[:,0,:i],axis=1)
+                Ztemp = Z_FWD[ind] + step*np.sum(a[i,:i]*K[:,1,:i],axis=1)
+                Phitemp = self.BPhi_interp(Ztemp,Rtemp)
+
+                # evaluate the function
+                K[:,0,i] = Rtemp * self.BR_interp(Ztemp,Rtemp) / Phitemp
+                K[:,1,i] = Ztemp * self.BZ_interp(Ztemp,Rtemp) / Phitemp
+                K[:,2,i] = Rtemp
+
+            # compute the final value of this step
+            dR_FWD = step*np.sum(b[np.newaxis,:]*K[:,0,:],axis=1)
+            dZ_FWD = step*np.sum(b[np.newaxis,:]*K[:,1,:],axis=1)
+            RdPhi_FWD = step*np.sum(b[np.newaxis,:]*K[:,2,:],axis=1)
             
             #when the point gets outside of the XGC mesh, set BR,BZ to zero.
             dR_FWD[dR_FWD == np.inf] = 0.0
             dZ_FWD[dZ_FWD == np.inf] = 0.0
-            
-            s_FWD += np.sqrt(RdPhi_FWD**2 + dR_FWD**2 + dZ_FWD**2)
-            R_FWD += dR_FWD
-            Z_FWD += dZ_FWD
+            RdPhi_FWD[RdPhi_FWD == np.inf] = 0.0
 
+            # update the global value
+            s_FWD += np.sqrt(RdPhi_FWD**2 + dR_FWD**2 + dZ_FWD**2)
+            Z_FWD += dZ_FWD
+            R_FWD += dR_FWD
+            ind = (phiFWD != 0)
+
+        # check which index need to be integrated
+        ind = np.ones(r.shape,dtype=bool)
         # backward step
-        for i in range(N_BWD):
-            RdPhi_BWD = R_BWD*dphi_BWD
-            BPhi_BWD = self.BPhi_interp(Z_BWD,R_BWD)
-            dR_BWD = RdPhi_BWD * self.BR_interp(Z_BWD,R_BWD) / BPhi_BWD
-            dZ_BWD = RdPhi_BWD * self.BZ_interp(Z_BWD,R_BWD) / BPhi_BWD
+        while ind.any():
+            # size of the next step for each position
+            step = np.min(self.dphi,phiBWD[ind])
+            # update the position of the next iteration
+            phiBWD[ind] -= step
+            K = np.zeros((r[ind].shape[0],3,Nstage))
+            for i in range(Nstage):
+                # compute the coordinates of this stage
+                Rtemp = R_BWD[ind] + step*np.sum(a[i,:i]*K[:,0,:i],axis=1)
+                Ztemp = Z_BWD[ind] + step*np.sum(a[i,:i]*K[:,1,:i],axis=1)
+                Phitemp = self.BPhi_interp(Ztemp,Rtemp)
+
+                # evaluate the function
+                K[:,0,i] = Rtemp * self.BR_interp(Ztemp,Rtemp) / Phitemp
+                K[:,1,i] = Ztemp * self.BZ_interp(Ztemp,Rtemp) / Phitemp
+                K[:,2,i] = Rtemp
+
+            # compute the final value of this step
+            dR_BWD = step*np.sum(b[np.newaxis,:]*K[:,0,:],axis=1)
+            dZ_BWD = step*np.sum(b[np.newaxis,:]*K[:,1,:],axis=1)
+            RdPhi_BWD = step*np.sum(b[np.newaxis,:]*K[:,2,:],axis=1)
             
+            #when the point gets outside of the XGC mesh, set BR,BZ to zero.
             dR_BWD[dR_BWD == np.inf] = 0.0
             dZ_BWD[dZ_BWD == np.inf] = 0.0
-            
+            RdPhi_BWD[RdPhi_BWD == np.inf] = 0.0
+
+            # update the global value
             s_BWD += np.sqrt(RdPhi_BWD**2 + dR_BWD**2 + dZ_BWD**2)
-            R_BWD += dR_BWD
             Z_BWD += dZ_BWD
-            
+            R_BWD += dR_BWD
+            ind = (phiBWD == 0)
+
+
         interp_positions = np.zeros((2,3,r.shape[0]))
         
         interp_positions[0,0,...] = Z_BWD

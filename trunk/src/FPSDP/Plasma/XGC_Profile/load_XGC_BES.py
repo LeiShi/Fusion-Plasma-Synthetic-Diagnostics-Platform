@@ -122,10 +122,7 @@ class XGC_Loader_BES():
         self.load_B_3D()
         print 'B loaded.'
 
-        # BES use only a small area, so it should be less
-        # than 2-3 different planes, therefore 10 should
-        # be enough
-        phi = np.linspace(tempmin,tempmax,10)
+        phi = np.linspace(tempmin,tempmax,100)
         phi[phi<0] += 2*np.pi
         self.refprevplane,self.refnextplane = get_interp_planes_BES(self,phi)
         print 'interpolation planes obtained.'
@@ -432,7 +429,8 @@ class XGC_Loader_BES():
         # forward step
         while ind.any():
             # size of the next step for each position
-            step = np.min(phiFWD[ind],self.dphi)
+            step = phiFWD[ind]
+            step[step > self.dphi] = self.dphi
             # update the position of the next iteration
             phiFWD[ind] -= step
             K = np.zeros((r[ind].shape[0],3,Nstage))
@@ -458,9 +456,9 @@ class XGC_Loader_BES():
             RdPhi_FWD[RdPhi_FWD == np.inf] = 0.0
 
             # update the global value
-            s_FWD += np.sqrt(RdPhi_FWD**2 + dR_FWD**2 + dZ_FWD**2)
-            Z_FWD += dZ_FWD
-            R_FWD += dR_FWD
+            s_FWD[ind] += np.sqrt(RdPhi_FWD**2 + dR_FWD**2 + dZ_FWD**2)
+            Z_FWD[ind] += dZ_FWD
+            R_FWD[ind] += dR_FWD
             ind = (phiFWD != 0)
 
         # check which index need to be integrated
@@ -468,7 +466,8 @@ class XGC_Loader_BES():
         # backward step
         while ind.any():
             # size of the next step for each position
-            step = np.min(self.dphi,phiBWD[ind])
+            step = phiBWD[ind]
+            step[step > self.dphi] = self.dphi
             # update the position of the next iteration
             phiBWD[ind] -= step
             K = np.zeros((r[ind].shape[0],3,Nstage))
@@ -494,10 +493,10 @@ class XGC_Loader_BES():
             RdPhi_BWD[RdPhi_BWD == np.inf] = 0.0
 
             # update the global value
-            s_BWD += np.sqrt(RdPhi_BWD**2 + dR_BWD**2 + dZ_BWD**2)
-            Z_BWD += dZ_BWD
-            R_BWD += dR_BWD
-            ind = (phiBWD == 0)
+            s_BWD[ind] += np.sqrt(RdPhi_BWD**2 + dR_BWD**2 + dZ_BWD**2)
+            Z_BWD[ind] += dZ_BWD
+            R_BWD[ind] += dR_BWD
+            ind = (phiBWD != 0)
 
 
         interp_positions = np.zeros((2,3,r.shape[0]))
@@ -615,7 +614,7 @@ class XGC_Loader_BES():
                     nextn[next_idx[j]] = self.ni_interp[j](
                         interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]])
                 # interpolation along the field line
-                ni = prevni * interp_positions[1,2,...] + nextni * interp_positions[0,2,...]
+                ni = prevn * interp_positions[1,2,...] + nextn * interp_positions[0,2,...]
 
         ret = ()
         # put the data in the good order

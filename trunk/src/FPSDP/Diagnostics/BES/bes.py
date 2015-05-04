@@ -14,6 +14,8 @@ import FPSDP.Diagnostics.Beam.beam as be
 import FPSDP.Geometry.Grid as Grid
 # data loader
 import FPSDP.Plasma.XGC_Profile.load_XGC_BES as xgc
+# hdf5
+import h5py as h5
 # quadrature formula and utility functions
 import FPSDP.Maths.Integration as integ
 from FPSDP.GeneralSettings.UnitSystem import SI
@@ -156,7 +158,8 @@ class BES:
         # variable for knowing if works in parallel or serie
         # only the computation of the bes intensity is done in parallel
         self.para = parallel                                                 #!
-        
+        self.data_path = config.get('Data','data_path')                      #!
+        start = json.loads(config.get('Data','timestart'))
         # the example input file is well commented, look there for more
         # information
         
@@ -169,13 +172,21 @@ class BES:
         self.Nint = json.loads(config.get('Optics','Nint'))                  #!
         self.Nsol = json.loads(config.get('Optics','Nsol'))                  #!
     
-        X = json.loads(config.get('Optics','X'))
-        Y = json.loads(config.get('Optics','Y'))
+        R = json.loads(config.get('Optics','R'))
+        R = np.array(R)
+        phi = json.loads(config.get('Optics','phi'))
         Z = json.loads(config.get('Optics','Z'))
+        # compute the value of phi in radian
+        print 'should be changed if use another code than xgc'
+        name = self.data_path + 'xgc.3d.' + str(start).zfill(5)+'.h5'
+        nber_plane = h5.File(name,'r')
+        nphi = nber_plane['nphi'][:]
+        phi = 2*np.pi*phi/nphi[0]
 
+        
         self.pos_foc = np.zeros((len(Z),3))                                  #!
-        self.pos_foc[:,0] = X
-        self.pos_foc[:,1] = Y
+        self.pos_foc[:,0] = R*np.cos(phi)
+        self.pos_foc[:,1] = R*np.sin(phi)
         self.pos_foc[:,2] = Z
         self.op_direc = self.pos_foc-self.pos_lens                           #!
         
@@ -200,8 +211,6 @@ class BES:
         # Data part
         self.tau_max = json.loads(config.get('Data','tau_max'))              #!
         self.dphi = json.loads(config.get('Data','dphi'))                    #!
-        self.data_path = config.get('Data','data_path')                      #!
-        start = json.loads(config.get('Data','timestart'))
         end = json.loads(config.get('Data','timeend'))
         timestep = json.loads(config.get('Data','timestep'))
         filter_name = config.get('Data','filter')

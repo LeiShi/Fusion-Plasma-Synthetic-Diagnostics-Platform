@@ -64,6 +64,8 @@
 <span class="kn">import</span> <span class="nn">FPSDP.Geometry.Grid</span> <span class="kn">as</span> <span class="nn">Grid</span>
 <span class="c"># data loader</span>
 <span class="kn">import</span> <span class="nn">FPSDP.Plasma.XGC_Profile.load_XGC_BES</span> <span class="kn">as</span> <span class="nn">xgc</span>
+<span class="c"># hdf5</span>
+<span class="kn">import</span> <span class="nn">h5py</span> <span class="kn">as</span> <span class="nn">h5</span>
 <span class="c"># quadrature formula and utility functions</span>
 <span class="kn">import</span> <span class="nn">FPSDP.Maths.Integration</span> <span class="kn">as</span> <span class="nn">integ</span>
 <span class="kn">from</span> <span class="nn">FPSDP.GeneralSettings.UnitSystem</span> <span class="kn">import</span> <span class="n">SI</span>
@@ -112,7 +114,7 @@
 <span class="sd">    :var bool self.lifetime: Choice between using the lifetime effect or not</span>
 <span class="sd">    :var float self.tau_max: Upper limit for the lifetime of the excited particles.\</span>
 <span class="sd">    It does not need to be exact, it is only for computing the limits of the mesh.</span>
-<span class="sd">    :var int self.N_field: Number of interval for the field line interpolation</span>
+<span class="sd">    :var int self.dphi: Size of a time step for the field line interpolation (in radians)</span>
 <span class="sd">    :var str self.data_path: Path to the data</span>
 <span class="sd">    :var self.beam: (:class:`Beam1D &lt;FPSDP.Diagnostics.Beam.beam.Beam1D&gt;`) Beam used for the diagnostic</span>
 <span class="sd">    :var np.array[Ntime] self.time: Time steps used for the simulation</span>
@@ -125,7 +127,6 @@
 <span class="sd">    :var float self.Zmax: Upper limit of the Z coordinate</span>
 <span class="sd">    :var float self.Zmin: Lower limit of the Z coordinate</span>
 <span class="sd">    :var np.array[3,2] self.limits: Limits of the mesh (first index for X,Y,Z and second for max,min)</span>
-
 <span class="sd">    The following graph shows the most important call during the initialization of the BES class.</span>
 <span class="sd">    The red arrows show the call order and the black ones show what is inside the function.</span>
 
@@ -207,7 +208,8 @@
         <span class="c"># variable for knowing if works in parallel or serie</span>
         <span class="c"># only the computation of the bes intensity is done in parallel</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">para</span> <span class="o">=</span> <span class="n">parallel</span>                                                 <span class="c">#!</span>
-        
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_path</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Data&#39;</span><span class="p">,</span><span class="s">&#39;data_path&#39;</span><span class="p">)</span>                      <span class="c">#!</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Data&#39;</span><span class="p">,</span><span class="s">&#39;timestart&#39;</span><span class="p">))</span>
         <span class="c"># the example input file is well commented, look there for more</span>
         <span class="c"># information</span>
         
@@ -220,13 +222,21 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">Nint</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Optics&#39;</span><span class="p">,</span><span class="s">&#39;Nint&#39;</span><span class="p">))</span>                  <span class="c">#!</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">Nsol</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Optics&#39;</span><span class="p">,</span><span class="s">&#39;Nsol&#39;</span><span class="p">))</span>                  <span class="c">#!</span>
     
-        <span class="n">X</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Optics&#39;</span><span class="p">,</span><span class="s">&#39;X&#39;</span><span class="p">))</span>
-        <span class="n">Y</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Optics&#39;</span><span class="p">,</span><span class="s">&#39;Y&#39;</span><span class="p">))</span>
+        <span class="n">R</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Optics&#39;</span><span class="p">,</span><span class="s">&#39;R&#39;</span><span class="p">))</span>
+        <span class="n">R</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">R</span><span class="p">)</span>
+        <span class="n">phi</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Optics&#39;</span><span class="p">,</span><span class="s">&#39;phi&#39;</span><span class="p">))</span>
         <span class="n">Z</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Optics&#39;</span><span class="p">,</span><span class="s">&#39;Z&#39;</span><span class="p">))</span>
+        <span class="c"># compute the value of phi in radian</span>
+        <span class="k">print</span> <span class="s">&#39;should be changed if use another code than xgc&#39;</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_path</span> <span class="o">+</span> <span class="s">&#39;xgc.3d.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">start</span><span class="p">)</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.h5&#39;</span>
+        <span class="n">nber_plane</span> <span class="o">=</span> <span class="n">h5</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="s">&#39;r&#39;</span><span class="p">)</span>
+        <span class="n">nphi</span> <span class="o">=</span> <span class="n">nber_plane</span><span class="p">[</span><span class="s">&#39;nphi&#39;</span><span class="p">][:]</span>
+        <span class="n">phi</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">phi</span><span class="o">/</span><span class="n">nphi</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
+        
         <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">Z</span><span class="p">),</span><span class="mi">3</span><span class="p">))</span>                                  <span class="c">#!</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">X</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">Y</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">R</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">R</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">Z</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">op_direc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_lens</span>                           <span class="c">#!</span>
         
@@ -250,9 +260,7 @@
         
         <span class="c"># Data part</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tau_max</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Data&#39;</span><span class="p">,</span><span class="s">&#39;tau_max&#39;</span><span class="p">))</span>              <span class="c">#!</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">N_field</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Data&#39;</span><span class="p">,</span><span class="s">&#39;N_field&#39;</span><span class="p">))</span>              <span class="c">#!</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">data_path</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Data&#39;</span><span class="p">,</span><span class="s">&#39;data_path&#39;</span><span class="p">)</span>                      <span class="c">#!</span>
-        <span class="n">start</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Data&#39;</span><span class="p">,</span><span class="s">&#39;timestart&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dphi</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Data&#39;</span><span class="p">,</span><span class="s">&#39;dphi&#39;</span><span class="p">))</span>                    <span class="c">#!</span>
         <span class="n">end</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Data&#39;</span><span class="p">,</span><span class="s">&#39;timeend&#39;</span><span class="p">))</span>
         <span class="n">timestep</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Data&#39;</span><span class="p">,</span><span class="s">&#39;timestep&#39;</span><span class="p">))</span>
         <span class="n">filter_name</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Data&#39;</span><span class="p">,</span><span class="s">&#39;filter&#39;</span><span class="p">)</span>
@@ -262,7 +270,7 @@
         <span class="c">#grid3D = Grid.Cartesian3D(Xmin=self.Xmin, Xmax=self.Xmax, Ymin=self.Zmin, Ymax=self.Zmax,</span>
         <span class="c">#                          Zmin=self.Ymin, Zmax=self.Ymax, NX=self.N[0], NY=self.N[2], NZ=self.N[1])</span>
         <span class="n">xgc_</span> <span class="o">=</span> <span class="n">xgc</span><span class="o">.</span><span class="n">XGC_Loader_BES</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_path</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span>
-                                  <span class="bp">self</span><span class="o">.</span><span class="n">limits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">N_field</span><span class="p">)</span>
+                                  <span class="bp">self</span><span class="o">.</span><span class="n">limits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dphi</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="n">xgc_</span><span class="o">.</span><span class="n">time_steps</span>                                          <span class="c">#!</span>
 
         <span class="c"># set the data inside the beam (2nd part of the initialization)</span>
@@ -783,7 +791,7 @@
 <span class="sd">        :rtype: float</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># first define the quadrature formula</span>
-        <span class="n">quad</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL5&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 5</span>
+        <span class="n">quad</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL4&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 5</span>
         <span class="n">I</span> <span class="o">=</span> <span class="mf">0.0</span>
         <span class="c"># compute the distance from the origin of the beam</span>
         <span class="n">dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">,:]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">pos</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">direc</span><span class="p">)</span>
@@ -1036,8 +1044,8 @@
         
         <span class="c"># limits (in angle) considered for the integration</span>
         <span class="n">theta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">Nsol</span><span class="p">)</span>
-        <span class="n">quadr</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL5&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 5</span>
-        <span class="n">quadt</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL5&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 5</span>
+        <span class="n">quadr</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL4&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 5</span>
+        <span class="n">quadt</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL4&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 5</span>
 
         <span class="c"># mid point of the limits in theta</span>
         <span class="n">av</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">theta</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">theta</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
@@ -1144,7 +1152,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">Z</span>
 
         <span class="c"># Data part</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">N_field</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Data&#39;</span><span class="p">,</span><span class="s">&#39;N_field&#39;</span><span class="p">))</span>              <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dphi</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Data&#39;</span><span class="p">,</span><span class="s">&#39;dphi&#39;</span><span class="p">))</span>              <span class="c">#!</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data_path</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Data&#39;</span><span class="p">,</span><span class="s">&#39;data_path&#39;</span><span class="p">)</span>                      <span class="c">#!</span>
         <span class="n">start</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Data&#39;</span><span class="p">,</span><span class="s">&#39;timestart&#39;</span><span class="p">))</span>
         <span class="n">end</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Data&#39;</span><span class="p">,</span><span class="s">&#39;timeend&#39;</span><span class="p">))</span>
@@ -1152,7 +1160,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">compute_limits</span><span class="p">()</span>      <span class="c"># compute the limits of the mesh</span>
 
         <span class="n">xgc_</span> <span class="o">=</span> <span class="n">xgc</span><span class="o">.</span><span class="n">XGC_Loader_BES</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_path</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span>
-                                  <span class="bp">self</span><span class="o">.</span><span class="n">limits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">N_field</span><span class="p">)</span>
+                                  <span class="bp">self</span><span class="o">.</span><span class="n">limits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dphi</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="n">xgc_</span><span class="o">.</span><span class="n">time_steps</span>                                          <span class="c">#!</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">xgc_</span>

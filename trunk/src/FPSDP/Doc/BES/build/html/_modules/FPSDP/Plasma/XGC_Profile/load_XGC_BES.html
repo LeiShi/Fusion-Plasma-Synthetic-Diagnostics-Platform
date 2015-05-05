@@ -68,6 +68,8 @@
 <span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="kn">import</span> <span class="n">CloughTocher2DInterpolator</span>
 <span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="kn">import</span> <span class="n">RectBivariateSpline</span>
 <span class="kn">from</span> <span class="nn">load_XGC_profile</span> <span class="kn">import</span> <span class="n">load_m</span><span class="p">,</span> <span class="n">XGC_Loader_Error</span>
+<span class="kn">from</span> <span class="nn">FPSDP.Maths.RungeKutta</span> <span class="kn">import</span> <span class="n">runge_kutta_explicit</span>
+
 <span class="kn">import</span> <span class="nn">scipy.io.netcdf</span> <span class="kn">as</span> <span class="nn">nc</span>
 <span class="kn">import</span> <span class="nn">pickle</span>
 
@@ -112,21 +114,12 @@
 <span class="sd">    :param int t_end: Time step at which stoping the diagnostics</span>
 <span class="sd">    :param int dt: Interval between two time step that the diagnostics should compute</span>
 <span class="sd">    :param list[list[]] limits: Mesh limits for the diagnostics (first index is for X,Y,Z and second for min/max)</span>
-<span class="sd">    :param int N_field: Number of step for the interpolation along the field line</span>
+<span class="sd">    :param float dphi: Size of the step for the field line integration (in radian)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">xgc_path</span><span class="p">,</span><span class="n">t_start</span><span class="p">,</span><span class="n">t_end</span><span class="p">,</span><span class="n">dt</span><span class="p">,</span><span class="n">limits</span><span class="p">,</span><span class="n">N_field</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">xgc_path</span><span class="p">,</span><span class="n">t_start</span><span class="p">,</span><span class="n">t_end</span><span class="p">,</span><span class="n">dt</span><span class="p">,</span><span class="n">limits</span><span class="p">,</span><span class="n">dphi</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;The main caller of all functions to prepare a loaded XGC </span>
 <span class="sd">           profile for the BES diagnostics.</span>
-
-<span class="sd">        Inputs:</span>
-<span class="sd">            xgc_path       -- string, the directory of all the XGC output files</span>
-<span class="sd">            tstart,tend,dt -- int, the timesteps used for loading, </span>
-<span class="sd">                              NOTE: the time series created here MUST be a subseries</span>
-<span class="sd">                              of the original file numbers.</span>
-<span class="sd">            limits         -- array containing the limits of the value computed [[Xmin,</span>
-<span class="sd">                              Xmax],[Ymin,Ymax],[Zmin,Zmax]]</span>
-<span class="sd">            N_field        -- number of step for the field line interpolation</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="k">print</span> <span class="s">&#39;Loading XGC output data&#39;</span>
@@ -172,22 +165,19 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">Phimin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">Phimax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">N_step</span> <span class="o">=</span> <span class="n">N_field</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dphi</span> <span class="o">=</span> <span class="n">dphi</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">load_mesh_psi_3D</span><span class="p">()</span>
         <span class="k">print</span> <span class="s">&#39;mesh and psi loaded.&#39;</span>
         
         <span class="bp">self</span><span class="o">.</span><span class="n">load_B_3D</span><span class="p">()</span>
         <span class="k">print</span> <span class="s">&#39;B loaded.&#39;</span>
 
-        <span class="c"># BES use only a small area, so it should be less</span>
-        <span class="c"># than 2-3 different planes, therefore 10 should</span>
-        <span class="c"># be enough</span>
-        <span class="n">phi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">tempmin</span><span class="p">,</span><span class="n">tempmax</span><span class="p">,</span><span class="mi">10</span><span class="p">)</span>
+        <span class="n">phi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">tempmin</span><span class="p">,</span><span class="n">tempmax</span><span class="p">,</span><span class="mi">100</span><span class="p">)</span>
         <span class="n">phi</span><span class="p">[</span><span class="n">phi</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">refprevplane</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">refnextplane</span> <span class="o">=</span> <span class="n">get_interp_planes_BES</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">phi</span><span class="p">)</span>
         <span class="k">print</span> <span class="s">&#39;interpolation planes obtained.&#39;</span>
         
-        <span class="bp">self</span><span class="o">.</span><span class="n">load_eq_2D3D</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_eq_3D</span><span class="p">()</span>
         <span class="k">print</span> <span class="s">&#39;equlibrium loaded.&#39;</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">load_next_time_step</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
@@ -212,7 +202,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">load_fluctuations_3D_all</span><span class="p">()</span>        
         <span class="k">print</span> <span class="s">&#39;fluctuations loaded.&#39;</span>
         
-        <span class="bp">self</span><span class="o">.</span><span class="n">calc_total_ne_2D3D</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">calc_total_ne_3D</span><span class="p">()</span>
         <span class="k">print</span> <span class="s">&#39;total ne calculated.&#39;</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">compute_interpolant</span><span class="p">()</span>
@@ -231,7 +221,16 @@
         <span class="c"># remove the points outside the window</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ind</span> <span class="o">=</span> <span class="p">(</span><span class="n">Rpts</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">Rmin</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">Rpts</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">Rmax</span><span class="p">)</span>
         <span class="n">Zpts</span> <span class="o">=</span> <span class="n">RZ</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">psi</span> <span class="o">=</span> <span class="n">mesh</span><span class="p">[</span><span class="s">&#39;psi&#39;</span><span class="p">]</span>
+        <span class="c"># psi interpolant</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">psi_interp</span> <span class="o">=</span> <span class="n">CloughTocher2DInterpolator</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">Zpts</span><span class="p">,</span><span class="n">Rpts</span><span class="p">])</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">psi</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">psi</span><span class="p">))</span>
+        
+
         <span class="bp">self</span><span class="o">.</span><span class="n">ind</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ind</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">Zpts</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">Zmin</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">Zpts</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">Zmax</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">psi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">psi</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ind</span><span class="p">]</span>
         <span class="n">Rpts</span> <span class="o">=</span> <span class="n">Rpts</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ind</span><span class="p">]</span>
         <span class="n">Zpts</span> <span class="o">=</span> <span class="n">Zpts</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ind</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">Zpts</span><span class="p">,</span><span class="n">Rpts</span><span class="p">])</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
@@ -239,10 +238,6 @@
         <span class="k">print</span> <span class="s">&#39;Keep: &#39;</span><span class="p">,</span><span class="nb">str</span><span class="p">(</span><span class="n">Rpts</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span><span class="s">&#39;Points on a total of: &#39;</span>\
             <span class="p">,</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ind</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">psi</span> <span class="o">=</span> <span class="n">mesh</span><span class="p">[</span><span class="s">&#39;psi&#39;</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">ind</span><span class="p">]</span>
-        <span class="c"># psi interpolant</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">psi_interp</span> <span class="o">=</span> <span class="n">CloughTocher2DInterpolator</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">psi</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">psi</span><span class="p">))</span>
 
         <span class="n">mesh</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
@@ -333,7 +328,7 @@
             
         <span class="k">return</span> <span class="mi">0</span>
 </div>
-<div class="viewcode-block" id="XGC_Loader_BES.load_eq_2D3D"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_eq_2D3D">[docs]</a>    <span class="k">def</span> <span class="nf">load_eq_2D3D</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="XGC_Loader_BES.load_eq_3D"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_eq_3D">[docs]</a>    <span class="k">def</span> <span class="nf">load_eq_3D</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Load equilibrium profiles and compute the interpolant</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">eqf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">xgc_path</span> <span class="o">+</span> <span class="s">&#39;xgc.oneddiag.h5&#39;</span>
@@ -385,7 +380,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">ne0_sp</span> <span class="o">=</span> <span class="n">interp1d</span><span class="p">(</span><span class="n">psi_ne</span><span class="p">,</span><span class="n">ne</span><span class="p">,</span><span class="n">bounds_error</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span><span class="n">fill_value</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span>
         
 </div>
-<div class="viewcode-block" id="XGC_Loader_BES.calc_total_ne_2D3D"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.calc_total_ne_2D3D">[docs]</a>    <span class="k">def</span> <span class="nf">calc_total_ne_2D3D</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="XGC_Loader_BES.calc_total_ne_3D"><a class="viewcode-back" href="../../../../FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.calc_total_ne_3D">[docs]</a>    <span class="k">def</span> <span class="nf">calc_total_ne_3D</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;calculate the total electron and ion density in raw XGC grid points</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># temperature and density (equilibrium) on the psi mesh</span>
@@ -464,16 +459,10 @@
             <span class="n">phiFWD</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">nextplane</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="mi">2</span> <span class="o">-</span> <span class="n">phi</span><span class="p">,</span> <span class="n">phi_planes</span><span class="p">[</span><span class="n">nextplane</span><span class="p">]</span><span class="o">-</span><span class="n">phi</span><span class="p">)</span>
             <span class="n">phiBWD</span> <span class="o">=</span> <span class="n">phi_planes</span><span class="p">[</span><span class="n">prevplane</span><span class="p">]</span><span class="o">-</span><span class="n">phi</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">phiFWD</span> <span class="o">=</span> <span class="n">phi_planes</span><span class="p">[</span><span class="n">nextplane</span><span class="p">]</span><span class="o">-</span><span class="n">phi</span>
-            <span class="n">phiBWD</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">prevplane</span> <span class="o">==</span><span class="mi">0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="mi">2</span> <span class="o">-</span> <span class="n">phi</span><span class="p">,</span> <span class="n">phi_planes</span><span class="p">[</span><span class="n">prevplane</span><span class="p">]</span><span class="o">-</span><span class="n">phi</span><span class="p">)</span>
-
-        <span class="c"># number of step for each direction</span>
-        <span class="n">N_FWD</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">phiFWD</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">N_step</span><span class="o">/</span><span class="n">dPhi</span><span class="p">)))</span>
-        <span class="n">N_BWD</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">phiBWD</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">N_step</span><span class="o">/</span><span class="n">dPhi</span><span class="p">)))</span>
+            <span class="n">phiFWD</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">phi_planes</span><span class="p">[</span><span class="n">nextplane</span><span class="p">]</span><span class="o">-</span><span class="n">phi</span><span class="p">)</span>
+            <span class="n">phiBWD</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">prevplane</span> <span class="o">==</span><span class="mi">0</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="mi">2</span> <span class="o">-</span> <span class="n">phi</span><span class="p">,</span> <span class="n">phi_planes</span><span class="p">[</span><span class="n">prevplane</span><span class="p">]</span><span class="o">-</span><span class="n">phi</span><span class="p">))</span>
 
         <span class="c"># angle between two steps</span>
-        <span class="n">dphi_FWD</span> <span class="o">=</span> <span class="n">phiFWD</span><span class="o">/</span><span class="n">N_FWD</span>
-        <span class="n">dphi_BWD</span> <span class="o">=</span> <span class="n">phiBWD</span><span class="o">/</span><span class="n">N_BWD</span>
         <span class="n">R_FWD</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
         <span class="n">R_BWD</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
         <span class="n">Z_FWD</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
@@ -481,35 +470,85 @@
         <span class="n">s_FWD</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
         <span class="n">s_BWD</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 
+        <span class="c"># check which index need to be integrated</span>
+        <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="c"># Coefficient of the Runge-Kutta method</span>
+        <span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">c</span> <span class="o">=</span> <span class="n">runge_kutta_explicit</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+        <span class="c"># Number of stage for the method</span>
+        <span class="n">Nstage</span> <span class="o">=</span> <span class="n">b</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="c"># forward step</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N_FWD</span><span class="p">):</span>
-            <span class="n">RdPhi_FWD</span> <span class="o">=</span> <span class="n">R_FWD</span><span class="o">*</span><span class="n">dphi_FWD</span>
-            <span class="n">BPhi_FWD</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">BPhi_interp</span><span class="p">(</span><span class="n">Z_FWD</span><span class="p">,</span><span class="n">R_FWD</span><span class="p">)</span>
-            <span class="n">dR_FWD</span> <span class="o">=</span> <span class="n">RdPhi_FWD</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">BR_interp</span><span class="p">(</span><span class="n">Z_FWD</span><span class="p">,</span><span class="n">R_FWD</span><span class="p">)</span> <span class="o">/</span> <span class="n">BPhi_FWD</span>
-            <span class="n">dZ_FWD</span> <span class="o">=</span> <span class="n">RdPhi_FWD</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">BZ_interp</span><span class="p">(</span><span class="n">Z_FWD</span><span class="p">,</span><span class="n">R_FWD</span><span class="p">)</span> <span class="o">/</span> <span class="n">BPhi_FWD</span>
+        <span class="k">while</span> <span class="n">ind</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="c"># size of the next step for each position</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="n">phiFWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span>
+            <span class="n">step</span><span class="p">[</span><span class="n">step</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">dphi</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dphi</span>
+            <span class="c"># update the position of the next iteration</span>
+            <span class="n">phiFWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">-=</span> <span class="n">step</span>
+            <span class="n">K</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">r</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="mi">3</span><span class="p">,</span><span class="n">Nstage</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">Nstage</span><span class="p">):</span>
+                <span class="c"># compute the coordinates of this stage</span>
+                <span class="n">Rtemp</span> <span class="o">=</span> <span class="n">R_FWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">+</span> <span class="n">step</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">,:</span><span class="n">i</span><span class="p">]</span><span class="o">*</span><span class="n">K</span><span class="p">[:,</span><span class="mi">0</span><span class="p">,:</span><span class="n">i</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">Ztemp</span> <span class="o">=</span> <span class="n">Z_FWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">+</span> <span class="n">step</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">,:</span><span class="n">i</span><span class="p">]</span><span class="o">*</span><span class="n">K</span><span class="p">[:,</span><span class="mi">1</span><span class="p">,:</span><span class="n">i</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">Phitemp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">BPhi_interp</span><span class="p">(</span><span class="n">Ztemp</span><span class="p">,</span><span class="n">Rtemp</span><span class="p">)</span>
+
+                <span class="c"># evaluate the function</span>
+                <span class="n">K</span><span class="p">[:,</span><span class="mi">0</span><span class="p">,</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">Rtemp</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">BR_interp</span><span class="p">(</span><span class="n">Ztemp</span><span class="p">,</span><span class="n">Rtemp</span><span class="p">)</span> <span class="o">/</span> <span class="n">Phitemp</span>
+                <span class="n">K</span><span class="p">[:,</span><span class="mi">1</span><span class="p">,</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">Ztemp</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">BZ_interp</span><span class="p">(</span><span class="n">Ztemp</span><span class="p">,</span><span class="n">Rtemp</span><span class="p">)</span> <span class="o">/</span> <span class="n">Phitemp</span>
+                <span class="n">K</span><span class="p">[:,</span><span class="mi">2</span><span class="p">,</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">Rtemp</span>
+
+            <span class="c"># compute the final value of this step</span>
+            <span class="n">dR_FWD</span> <span class="o">=</span> <span class="n">step</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">b</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span><span class="o">*</span><span class="n">K</span><span class="p">[:,</span><span class="mi">0</span><span class="p">,:],</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">dZ_FWD</span> <span class="o">=</span> <span class="n">step</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">b</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span><span class="o">*</span><span class="n">K</span><span class="p">[:,</span><span class="mi">1</span><span class="p">,:],</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">RdPhi_FWD</span> <span class="o">=</span> <span class="n">step</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">b</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span><span class="o">*</span><span class="n">K</span><span class="p">[:,</span><span class="mi">2</span><span class="p">,:],</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
             
             <span class="c">#when the point gets outside of the XGC mesh, set BR,BZ to zero.</span>
             <span class="n">dR_FWD</span><span class="p">[</span><span class="n">dR_FWD</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
             <span class="n">dZ_FWD</span><span class="p">[</span><span class="n">dZ_FWD</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
-            
-            <span class="n">s_FWD</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">RdPhi_FWD</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dR_FWD</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dZ_FWD</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-            <span class="n">R_FWD</span> <span class="o">+=</span> <span class="n">dR_FWD</span>
-            <span class="n">Z_FWD</span> <span class="o">+=</span> <span class="n">dZ_FWD</span>
+            <span class="n">RdPhi_FWD</span><span class="p">[</span><span class="n">RdPhi_FWD</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
 
+            <span class="c"># update the global value</span>
+            <span class="n">s_FWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">RdPhi_FWD</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dR_FWD</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dZ_FWD</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">Z_FWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">+=</span> <span class="n">dZ_FWD</span>
+            <span class="n">R_FWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">+=</span> <span class="n">dR_FWD</span>
+            <span class="n">ind</span> <span class="o">=</span> <span class="p">(</span><span class="n">phiFWD</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c"># check which index need to be integrated</span>
+        <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
         <span class="c"># backward step</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N_BWD</span><span class="p">):</span>
-            <span class="n">RdPhi_BWD</span> <span class="o">=</span> <span class="n">R_BWD</span><span class="o">*</span><span class="n">dphi_BWD</span>
-            <span class="n">BPhi_BWD</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">BPhi_interp</span><span class="p">(</span><span class="n">Z_BWD</span><span class="p">,</span><span class="n">R_BWD</span><span class="p">)</span>
-            <span class="n">dR_BWD</span> <span class="o">=</span> <span class="n">RdPhi_BWD</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">BR_interp</span><span class="p">(</span><span class="n">Z_BWD</span><span class="p">,</span><span class="n">R_BWD</span><span class="p">)</span> <span class="o">/</span> <span class="n">BPhi_BWD</span>
-            <span class="n">dZ_BWD</span> <span class="o">=</span> <span class="n">RdPhi_BWD</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">BZ_interp</span><span class="p">(</span><span class="n">Z_BWD</span><span class="p">,</span><span class="n">R_BWD</span><span class="p">)</span> <span class="o">/</span> <span class="n">BPhi_BWD</span>
+        <span class="k">while</span> <span class="n">ind</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="c"># size of the next step for each position</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="n">phiBWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span>
+            <span class="n">step</span><span class="p">[</span><span class="n">step</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">dphi</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dphi</span>
+            <span class="c"># update the position of the next iteration</span>
+            <span class="n">phiBWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">-=</span> <span class="n">step</span>
+            <span class="n">K</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">r</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="mi">3</span><span class="p">,</span><span class="n">Nstage</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">Nstage</span><span class="p">):</span>
+                <span class="c"># compute the coordinates of this stage</span>
+                <span class="n">Rtemp</span> <span class="o">=</span> <span class="n">R_BWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">+</span> <span class="n">step</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">,:</span><span class="n">i</span><span class="p">]</span><span class="o">*</span><span class="n">K</span><span class="p">[:,</span><span class="mi">0</span><span class="p">,:</span><span class="n">i</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">Ztemp</span> <span class="o">=</span> <span class="n">Z_BWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">+</span> <span class="n">step</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">,:</span><span class="n">i</span><span class="p">]</span><span class="o">*</span><span class="n">K</span><span class="p">[:,</span><span class="mi">1</span><span class="p">,:</span><span class="n">i</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">Phitemp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">BPhi_interp</span><span class="p">(</span><span class="n">Ztemp</span><span class="p">,</span><span class="n">Rtemp</span><span class="p">)</span>
+
+                <span class="c"># evaluate the function</span>
+                <span class="n">K</span><span class="p">[:,</span><span class="mi">0</span><span class="p">,</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">Rtemp</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">BR_interp</span><span class="p">(</span><span class="n">Ztemp</span><span class="p">,</span><span class="n">Rtemp</span><span class="p">)</span> <span class="o">/</span> <span class="n">Phitemp</span>
+                <span class="n">K</span><span class="p">[:,</span><span class="mi">1</span><span class="p">,</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">Ztemp</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">BZ_interp</span><span class="p">(</span><span class="n">Ztemp</span><span class="p">,</span><span class="n">Rtemp</span><span class="p">)</span> <span class="o">/</span> <span class="n">Phitemp</span>
+                <span class="n">K</span><span class="p">[:,</span><span class="mi">2</span><span class="p">,</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">Rtemp</span>
+
+            <span class="c"># compute the final value of this step</span>
+            <span class="n">dR_BWD</span> <span class="o">=</span> <span class="n">step</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">b</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span><span class="o">*</span><span class="n">K</span><span class="p">[:,</span><span class="mi">0</span><span class="p">,:],</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">dZ_BWD</span> <span class="o">=</span> <span class="n">step</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">b</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span><span class="o">*</span><span class="n">K</span><span class="p">[:,</span><span class="mi">1</span><span class="p">,:],</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">RdPhi_BWD</span> <span class="o">=</span> <span class="n">step</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">b</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span><span class="o">*</span><span class="n">K</span><span class="p">[:,</span><span class="mi">2</span><span class="p">,:],</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
             
+            <span class="c">#when the point gets outside of the XGC mesh, set BR,BZ to zero.</span>
             <span class="n">dR_BWD</span><span class="p">[</span><span class="n">dR_BWD</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
             <span class="n">dZ_BWD</span><span class="p">[</span><span class="n">dZ_BWD</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
-            
-            <span class="n">s_BWD</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">RdPhi_BWD</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dR_BWD</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dZ_BWD</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-            <span class="n">R_BWD</span> <span class="o">+=</span> <span class="n">dR_BWD</span>
-            <span class="n">Z_BWD</span> <span class="o">+=</span> <span class="n">dZ_BWD</span>
-            
+            <span class="n">RdPhi_BWD</span><span class="p">[</span><span class="n">RdPhi_BWD</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+            <span class="c"># update the global value</span>
+            <span class="n">s_BWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">RdPhi_BWD</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dR_BWD</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dZ_BWD</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">Z_BWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">+=</span> <span class="n">dZ_BWD</span>
+            <span class="n">R_BWD</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">+=</span> <span class="n">dR_BWD</span>
+            <span class="n">ind</span> <span class="o">=</span> <span class="p">(</span><span class="n">phiBWD</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+
+
         <span class="n">interp_positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="n">r</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
         
         <span class="n">interp_positions</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">Z_BWD</span>
@@ -625,7 +664,7 @@
                     <span class="n">nextn</span><span class="p">[</span><span class="n">next_idx</span><span class="p">[</span><span class="n">j</span><span class="p">]]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ni_interp</span><span class="p">[</span><span class="n">j</span><span class="p">](</span>
                         <span class="n">interp_positions</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">][</span><span class="n">next_idx</span><span class="p">[</span><span class="n">j</span><span class="p">]],</span> <span class="n">interp_positions</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">][</span><span class="n">next_idx</span><span class="p">[</span><span class="n">j</span><span class="p">]])</span>
                 <span class="c"># interpolation along the field line</span>
-                <span class="n">ni</span> <span class="o">=</span> <span class="n">prevni</span> <span class="o">*</span> <span class="n">interp_positions</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="o">...</span><span class="p">]</span> <span class="o">+</span> <span class="n">nextni</span> <span class="o">*</span> <span class="n">interp_positions</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="o">...</span><span class="p">]</span>
+                <span class="n">ni</span> <span class="o">=</span> <span class="n">prevn</span> <span class="o">*</span> <span class="n">interp_positions</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="o">...</span><span class="p">]</span> <span class="o">+</span> <span class="n">nextn</span> <span class="o">*</span> <span class="n">interp_positions</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="o">...</span><span class="p">]</span>
 
         <span class="n">ret</span> <span class="o">=</span> <span class="p">()</span>
         <span class="c"># put the data in the good order</span>

@@ -148,7 +148,7 @@ class Beam1D:
         self.data = data                                                     #!
         print 'Creating mesh'
         self.create_mesh()
-        print 'Computing density of the beam'
+        print 'Computing beam density'
         self.compute_beam_on_mesh()
 
     def get_width(self,dist):
@@ -237,6 +237,7 @@ class Beam1D:
         :returns: The interpolated value from the simulation in the same order than quant
         :rtype: tuple[quant]
         """
+        check = True
         if isinstance(t_,list):
             raise NameError('Only one time should be given')
         return self.data.interpolate_data(pos,t_,quant,eq,check)
@@ -294,17 +295,16 @@ class Beam1D:
                     # compute all the values needed for the integral
                     ne, T = self.get_quantities(pt,self.t_,['ne','Ti'],self.eq,check=False)
                     
+                    # the interpolation for the equilibrium case
+                    # can be outside the mesh                        
+                    if self.eq:
+                        ne[np.isnan(ne)] = self.data.ne_min
+                        T[np.isnan(T)] = self.data.ti_min
                     # attenuation coefficient from adas
                     S = self.collisions.get_attenutation(
                         self.beam_comp[beam_nber],ne,self.mass_b[beam_nber],
                         T,file_nber)
-                    # the interpolation for the non equilibrium case
-                    # can be outside the mesh
-                    if not self.eq:
-                        ne[np.isnan(ne)] = 0.0
-                        S[np.isnan(S)] = 0.0
-                        T[np.isnan(T)] = 0.0
-                        
+
                     # half distance between a & b
                     norm_ = 0.5*np.sqrt(np.sum((b-a)**2))
                     temp1 = np.sum(ne*S*quad.w)
@@ -472,7 +472,7 @@ class Beam1D:
             
             f = n_b*f*n_e*np.exp(-pt/(l[...,np.newaxis,np.newaxis]*
                                       self.speed[beam_nber]))/self.speed[beam_nber]
-
+            
             if np.isnan(f).any():
                 print 'isnan',np.isnan(f)
                 print 'pos',pos

@@ -6,7 +6,7 @@
 # Z is for the height
 position = [2.34,-0.0452,0.0]
 # direction of the beam, it will be normalized in the code
-direction = [0.53215,-1.0,0.0]
+direction = [-0.53215,1.0,0.0]
 # beam width (FWHM in meter)
 # horizontal
 beam_width_h = 0.13
@@ -129,7 +129,7 @@ filter = FPSDP/Diagnostics/BES/filter.dat
 # path to the simulation data
 data_path = /global/project/projectdirs/m499/jlang/particle_pinch/
 # size of a step for the field line interpolation
-dphi = 0.2
+dphi = 0.06
 # max of the lifetime of the excited particles
 # (used for computing the limits of the mesh)
 tau_max = 1e-8

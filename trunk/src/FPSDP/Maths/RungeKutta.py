@@ -25,8 +25,8 @@ def runge_kutta_explicit(order,alpha=None):
         c = np.array([0,alpha])
     elif order == 1:
         # Euler explicit
-        a = np.array(0)
-        b = np.array(1)
-        c = np.array(0)
+        a = np.array([[0]])
+        b = np.array([1])
+        c = np.array([0])
 
     return a,b,c

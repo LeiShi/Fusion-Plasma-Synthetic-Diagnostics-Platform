@@ -61,8 +61,8 @@ class Collisions:
         self.emis_tck_temp = []                                              #!
         for i in range(len(self.beam_atte)):
             # get data
-            ldensities = self.get_list_density('atte',i)
-            lbeams = self.get_list_beams('atte',i)
+            ldensities = np.log(self.get_list_density('atte',i))
+            lbeams = np.log(self.get_list_beams('atte',i))
             coef_dens = self.get_coef_density('atte',i)
             lbeams, ldens = np.meshgrid(lbeams, ldensities)
             
@@ -71,9 +71,9 @@ class Collisions:
                 lbeams,ldens,coef_dens))
             
             # get data for the interpolation in temperature
-            T = self.get_list_temperature('atte',i)
+            T = np.log(self.get_list_temperature('atte',i))
             coef_T = self.get_coef_T('atte',i)
-            Tref = self.get_Tref('atte',i)
+            Tref = np.log(self.get_Tref('atte',i))
             index = abs((Tref-T)/Tref) < 1e-4
             
             #interpolation over the temperature
@@ -82,8 +82,8 @@ class Collisions:
 
         for i in range(len(self.beam_emis)):
             # get data
-            ldensities = self.get_list_density('emis',i)
-            lbeams = self.get_list_beams('emis',i)
+            ldensities = np.log(self.get_list_density('emis',i))
+            lbeams = np.log(self.get_list_beams('emis',i))
             coef_dens = self.get_coef_density('emis',i)
             lbeams, ldens = np.meshgrid(lbeams, ldensities)
             
@@ -92,9 +92,9 @@ class Collisions:
                 lbeams,ldens,coef_dens))
 
             # Get data for the interpolation in temperature
-            T = self.get_list_temperature('emis',i)
+            T = np.log(self.get_list_temperature('emis',i))
             coef_T = self.get_coef_T('emis',i)
-            Tref = self.get_Tref('emis',i)
+            Tref = np.log(self.get_Tref('emis',i))
             index = abs((Tref-T)/Tref) < 1e-4
             
             #interpolation over the temperature
@@ -126,7 +126,9 @@ class Collisions:
         :returns: Beam stopping coefficient
         :rtype: np.array[ne.shape]
         """
-        beam /= mass_b
+        beam = np.log(beam/mass_b)
+        ne = np.log(ne)
+        Ti = np.log(Ti)
         if len(ne.shape) == 1:
             coef = np.zeros(ne.shape)
             for i,n in enumerate(ne):
@@ -154,7 +156,9 @@ class Collisions:
         :rtype: np.array[ne.shape]
         """
 
-        beam /= mass_b
+        beam = np.log(beam/mass_b)
+        ne = np.log(ne)
+        Ti = np.log(Ti)
         if not isinstance(ne,float):
             coef = np.zeros(len(ne))
             for i in range(len(ne)):
@@ -306,3 +310,42 @@ class Collisions:
         """
         E = -self.E0*(1.0/self.n_low**2 - 1.0/self.n_high**2)
         return SI['hc']*1e12/(E*SI['keV'])
+
+
+if __name__ == '__main__':
+    'small test and example'
+    import matplotlib.pyplot as plt
+
+    # check the computation of the lifetime
+    path = 'FPSDP/Diagnostics/BES/'
+    col = Collisions([path+'bms10#h_h1.dat'],[path+'bme10#h_h1.dat'],[2, 3])
+    Ebeam = col.beam_atte[0].E_ref
+    dens = col.beam_atte[0].densities
+    T = col.beam_atte[0].temperature
+    lifetime = np.zeros((T.shape[0],dens.shape[0]))
+    for i,t in enumerate(T):
+        lifetime[i,:] = col.get_lifetime(dens,t,t,Ebeam,1.0,0)
+    plt.figure()
+    plt.contourf(dens,T,lifetime)
+    plt.colorbar()
+    plt.show()
+
+
+    'small check for the emission and the beam stopping coefficient'
+    ne = np.linspace(np.min(dens),np.max(dens),1000)
+    t_ref = T[4]
+    at = col.get_attenutation(Ebeam,ne,1.0,t_ref,0)
+    em = col.get_emission(Ebeam,ne,1.0,t_ref,0)
+    if ((at < 0) | (em < 0)).any():
+        print np.sum(at<0),at[at<0]
+        print np.sum(em<0),em[em<0]
+        plt.figure()
+        plt.semilogx(ne,em<0,label='emission')
+        plt.semilogx(ne,at<0,label='attenuation')
+        plt.semilogx(dens,dens>0,'x')
+        plt.legend()
+        
+        plt.figure()
+        plt.semilogx(ne,em)
+        plt.show()
+        raise NameError('Error in the interpolation or in the ADAS file')

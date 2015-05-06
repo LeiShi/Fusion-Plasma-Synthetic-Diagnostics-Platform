@@ -14,14 +14,13 @@ from FPSDP.IO.IO_funcs import parse_num
 
 import numpy as np
 import h5py as h5
-from scipy.interpolate import griddata, interp1d
+from scipy.interpolate import interp1d
 from scipy.interpolate import CloughTocher2DInterpolator
-from scipy.interpolate import RectBivariateSpline
 from load_XGC_profile import load_m, XGC_Loader_Error
 from FPSDP.Maths.RungeKutta import runge_kutta_explicit
 
 import scipy.io.netcdf as nc
-import pickle
+
 
 def get_interp_planes_BES(my_xgc,phi3D):
     """Get the plane numbers used for the interpolation of each point.
@@ -152,9 +151,6 @@ class XGC_Loader_BES():
         self.load_fluctuations_3D_all()        
         print 'fluctuations loaded.'
         
-        self.calc_total_ne_3D()
-        print 'total ne calculated.'
-
         self.compute_interpolant()
         print 'interpolant computed'
         
@@ -256,9 +252,6 @@ class XGC_Loader_BES():
         self.nane = np.zeros( (len(self.planes),
                                len(self.points[:,0])) )
         
-        self.nani = np.zeros( (len(self.planes),
-                               len(self.points[:,0])) )
-
         self.phi = np.zeros( (len(self.planes),
                               len(self.points[:,0])) )
         
@@ -271,9 +264,6 @@ class XGC_Loader_BES():
         self.nane += np.swapaxes(
             fluc_mesh['eden'][self.ind,:][:,(self.planes)%self.n_plane],0,1)
         
-        self.nani += np.swapaxes(
-            fluc_mesh['iden'][self.ind,:][:,(self.planes)%self.n_plane],0,1)
-        
         fluc_mesh.close()
             
         return 0
@@ -284,7 +274,7 @@ class XGC_Loader_BES():
         eqf = self.xgc_path + 'xgc.oneddiag.h5'
         eq_mesh = h5.File(eqf,'r')
         eq_psi = eq_mesh['psi_mks'][:]
-
+        self.psi_x = load_m(self.xgc_path + 'units.m')['psi_x']
         #sometimes eq_psi is stored as 2D array, which has time series infomation.
         # For now, just use the time step 1 psi array as the unchanged array.
         # NEED TO BE CHANGED if equilibrium psi mesh is changing over time.
@@ -293,19 +283,20 @@ class XGC_Loader_BES():
 
         eq_ti = eq_mesh['i_perp_temperature_1d'][0,:]
         eq_ni = eq_mesh['i_gc_density_1d'][0,:]
-        ni_min = np.min(eq_ni)
+        self.ni_min = np.min(eq_ni)
+        self.ti_min = np.min(eq_ti)
 
         # interpolant for the equilibrium of the ions
-        self.ti0_sp = interp1d(eq_psi,eq_ti,bounds_error = False,fill_value = 0)
-        self.ni0_sp = interp1d(eq_psi,eq_ni,bounds_error = False,fill_value = ni_min/10)
+        self.ti0_sp = interp1d(eq_psi,eq_ti,bounds_error = False,fill_value = self.ti_min/2)
+        self.ni0_sp = interp1d(eq_psi,eq_ni,bounds_error = False,fill_value = self.ni_min/10)
         if('e_perp_temperature_1d' in eq_mesh.keys() ):
             #simulation has electron dynamics
             eq_te = eq_mesh['e_perp_temperature_1d'][0,:]
             eq_ne = eq_mesh['e_gc_density_1d'][0,:]
-            te_min = np.min(eq_te)
-            ne_min = np.min(eq_ne)
-            self.te0_sp = interp1d(eq_psi,eq_te,bounds_error = False,fill_value = te_min/2)
-            self.ne0_sp = interp1d(eq_psi,eq_ne,bounds_error = False,fill_value = ne_min/10)
+            self.te_min = np.min(eq_te)
+            self.ne_min = np.min(eq_ne)
+            self.te0_sp = interp1d(eq_psi,eq_te,bounds_error = False,fill_value = self.te_min/2)
+            self.ne0_sp = interp1d(eq_psi,eq_ne,bounds_error = False,fill_value = self.ne_min/10)
 
         else:
             self.load_eq_tene_nonElectronRun() 
@@ -321,66 +312,50 @@ class XGC_Loader_BES():
         psi_te, te = np.genfromtxt(te_fname,skip_header = 1,skip_footer = 1,unpack = True)
         psi_ne, ne = np.genfromtxt(ne_fname,skip_header = 1,skip_footer = 1,unpack = True)
 
-        psi_x = load_m(self.xgc_path + 'units.m')['psi_x']
-
-        psi_te *= psi_x
-        psi_ne *= psi_x
+        psi_te *= self.psi_x
+        psi_ne *= self.psi_x
 
         self.te0_sp = interp1d(psi_te,te,bounds_error = False,fill_value = 0)
         self.ne0_sp = interp1d(psi_ne,ne,bounds_error = False,fill_value = 0)
         
 
-    def calc_total_ne_3D(self):
-        """calculate the total electron and ion density in raw XGC grid points
+    def calc_total_ne_3D(self,psi,nane,pot):
+        """Calculate the total electron at the wanted points.
+
+        :param np.array[N] psi: Psi in mks unit
+        :param np.array[N] nane: Fluctuation of the density
+        :param np.array[N] pot: Potential 
+
+        :returns: Total density
+        :rtype: np.array[N]
+        
         """
         # temperature and density (equilibrium) on the psi mesh
-        te0 = self.te0_sp(self.psi)
-        ne0 = self.ne0_sp(self.psi)
+        te0 = self.te0_sp(psi)
+        ne0 = self.ne0_sp(psi)
+        inner_idx = te0>0
+        dne_ad = np.zeros(pot.shape)
+        dne_ad[...,inner_idx] += ne0[inner_idx]*pot[...,inner_idx]/te0[inner_idx]
+        ad_valid_idx = np.absolute(dne_ad)<= np.absolute(ne0)
 
-        ti0 = self.ti0_sp(self.psi)
-        ni0 = self.ni0_sp(self.psi)
+        ne = np.zeros(pot.shape)
+        ne += ne0[:]
+        ne[ad_valid_idx] += dne_ad[ad_valid_idx]
+        na_valid_idx = np.absolute(nane)<= np.absolute(ne)
+        ne[na_valid_idx] += nane[na_valid_idx]
 
-        inner_idx = np.where(te0>0)[0]
-        self.dne_ad = np.zeros(self.phi.shape)
-        self.dne_ad[...,inner_idx] += ne0[inner_idx]*self.phi[...,inner_idx]/te0[inner_idx]
-        ad_valid_idx = np.where(np.absolute(self.dne_ad)<= np.absolute(ne0))
-
-        self.ne = np.zeros(self.dne_ad.shape)
-        self.ne += ne0[:]
-        self.ne[ad_valid_idx] += self.dne_ad[ad_valid_idx]
-        na_valid_idx = np.where(np.absolute(self.nane)<= np.absolute(self.ne))
-        self.ne[na_valid_idx] += self.nane[na_valid_idx]
-
-        inner_idx = np.where(ti0>0)[0]
-        self.dni_ad = np.zeros(self.phi.shape)
-        self.dni_ad[...,inner_idx] += ni0[inner_idx]*self.phi[...,inner_idx]/ti0[inner_idx]
-        ad_valid_idx = np.where(np.absolute(self.dni_ad)<= np.absolute(ni0))
-
-
-        self.ni = np.zeros(self.dni_ad.shape)
-        self.ni += ni0[:]
-        self.ni[ad_valid_idx] += self.dni_ad[ad_valid_idx]
-        
-        na_valid_idx = np.where(np.absolute(self.nani)<= np.absolute(self.ni))
-        self.ni[na_valid_idx] += self.nani[na_valid_idx]
-
-        # clear some space
-        del self.nani,self.dni_ad,self.nane,self.dne_ad
-
+        return ne
+    
     def compute_interpolant(self):
         """ Compute the interpolant for the ion and electron
             density
         """
         # list of interpolant
-        self.ni_interp = []
-        self.ne_interp = []
+        self.interpfluc = []
         for j in range(len(self.planes)):
             # computation of interpolant
-            self.ni_interp.append(
-                CloughTocher2DInterpolator(self.points,self.ni[j,:],fill_value=0.0))
-            
-            self.ne_interp.append(
-                CloughTocher2DInterpolator(self.points,self.ne[j,:],fill_value=0.0))
+            self.interpfluc.append(
+                CloughTocher2DInterpolator(self.points,np.array([self.phi[j,:],self.nane[j,:]]).T,fill_value=0.0))
 
 
     def find_interp_positions(self,r,z,phi,prev_,next_):
@@ -443,20 +418,20 @@ class XGC_Loader_BES():
                 # evaluate the function
                 K[:,0,i] = Rtemp * self.BR_interp(Ztemp,Rtemp) / Phitemp
                 K[:,1,i] = Ztemp * self.BZ_interp(Ztemp,Rtemp) / Phitemp
-                K[:,2,i] = Rtemp
+                K[:,2,i] = np.sqrt(Rtemp**2 * (1.0 + Phitemp**2) + Ztemp**2)
 
             # compute the final value of this step
             dR_FWD = step*np.sum(b[np.newaxis,:]*K[:,0,:],axis=1)
             dZ_FWD = step*np.sum(b[np.newaxis,:]*K[:,1,:],axis=1)
-            RdPhi_FWD = step*np.sum(b[np.newaxis,:]*K[:,2,:],axis=1)
+            ds_FWD = step*np.sum(b[np.newaxis,:]*K[:,2,:],axis=1)
             
             #when the point gets outside of the XGC mesh, set BR,BZ to zero.
-            dR_FWD[dR_FWD == np.inf] = 0.0
-            dZ_FWD[dZ_FWD == np.inf] = 0.0
-            RdPhi_FWD[RdPhi_FWD == np.inf] = 0.0
+            dR_FWD[~np.isfinite(dR_FWD)] = 0.0
+            dZ_FWD[~np.isfinite(dZ_FWD)] = 0.0
+            ds_FWD[~np.isfinite(ds_FWD)] = 0.0
 
             # update the global value
-            s_FWD[ind] += np.sqrt(RdPhi_FWD**2 + dR_FWD**2 + dZ_FWD**2)
+            s_FWD[ind] += ds_FWD
             Z_FWD[ind] += dZ_FWD
             R_FWD[ind] += dR_FWD
             ind = (phiFWD != 0)
@@ -480,34 +455,34 @@ class XGC_Loader_BES():
                 # evaluate the function
                 K[:,0,i] = Rtemp * self.BR_interp(Ztemp,Rtemp) / Phitemp
                 K[:,1,i] = Ztemp * self.BZ_interp(Ztemp,Rtemp) / Phitemp
-                K[:,2,i] = Rtemp
+                K[:,2,i] = np.sqrt(Rtemp**2 * (1.0 + Phitemp**2) + Ztemp**2)
 
             # compute the final value of this step
             dR_BWD = step*np.sum(b[np.newaxis,:]*K[:,0,:],axis=1)
             dZ_BWD = step*np.sum(b[np.newaxis,:]*K[:,1,:],axis=1)
-            RdPhi_BWD = step*np.sum(b[np.newaxis,:]*K[:,2,:],axis=1)
+            ds_BWD = step*np.sum(b[np.newaxis,:]*K[:,2,:],axis=1)
             
             #when the point gets outside of the XGC mesh, set BR,BZ to zero.
-            dR_BWD[dR_BWD == np.inf] = 0.0
-            dZ_BWD[dZ_BWD == np.inf] = 0.0
-            RdPhi_BWD[RdPhi_BWD == np.inf] = 0.0
+            dR_BWD[~np.isfinite(dR_BWD)] = 0.0
+            dZ_BWD[~np.isfinite(dZ_BWD)] = 0.0
+            ds_BWD[~np.isfinite(ds_BWD)] = 0.0
 
             # update the global value
-            s_BWD[ind] += np.sqrt(RdPhi_BWD**2 + dR_BWD**2 + dZ_BWD**2)
+            s_BWD[ind] += ds_BWD
             Z_BWD[ind] += dZ_BWD
             R_BWD[ind] += dR_BWD
             ind = (phiBWD != 0)
-
 
         interp_positions = np.zeros((2,3,r.shape[0]))
         
         interp_positions[0,0,...] = Z_BWD
         interp_positions[0,1,...] = R_BWD
-        interp_positions[0,2,...] = (s_BWD/(s_BWD+s_FWD))
+        tot = (s_BWD+s_FWD)
+        ind = tot != 0.0
+        interp_positions[0,2,ind] = (s_BWD[ind]/tot[ind])
         interp_positions[1,0,...] = Z_FWD
         interp_positions[1,1,...] = R_FWD
         interp_positions[1,2,...] = 1-interp_positions[0,2,...]
-
         return interp_positions
 
 
@@ -537,7 +512,6 @@ class XGC_Loader_BES():
         prevplane,nextplane = get_interp_planes_BES(self,phi)
 
         # check if asking for densities
-        ni_bool = 'ni' in quant
         ne_bool = 'ne' in quant
 
         #psi on grid
@@ -547,8 +521,6 @@ class XGC_Loader_BES():
             #ne0 on grid
             if ne_bool:
                 ne = self.ne0_sp(psi)
-            if ni_bool:
-                ni = self.ni0_sp(psi)
         #Te and Ti on grid
         if 'Te' in quant:
             Te = self.te0_sp(psi)
@@ -559,70 +531,53 @@ class XGC_Loader_BES():
         if not eq:
             if ne_bool:
                 ne = np.zeros(r.shape[0])
-            if ni_bool:
-                ni = np.zeros(r.shape[0])
-            interp_positions = self.find_interp_positions(r,z,phi,prevplane,nextplane)
+                interp_positions = self.find_interp_positions(r,z,phi,prevplane,nextplane)
+                    
+                #create index dictionary, for each key as plane number and
+                # value the corresponding indices where the plane is used as previous or next plane.
+                prev_idx = {}
+                next_idx = {}
+                for j in range(len(self.planes)):
+                    prev_idx[j] = np.where(prevplane == self.planes[j] )
+                    next_idx[j] = np.where(nextplane == self.planes[j] )
 
-            #create index dictionary, for each key as plane number and
-            # value the corresponding indices where the plane is used as previous or next plane.
-            prev_idx = {}
-            next_idx = {}
-            for j in range(len(self.planes)):
-                prev_idx[j] = np.where(prevplane == self.planes[j] )
-                next_idx[j] = np.where(nextplane == self.planes[j] )
-
-            if ne_bool:
                 #for each time step, first create the 2 arrays of quantities for interpolation
-                prevn = np.zeros(r.shape)
-                nextn = np.zeros(prevn.shape)
-                                    
+                prevn = np.zeros((r.shape[0],2))
+                nextn = np.zeros((prevn.shape[0],2))
+                
                 for j in range(len(self.planes)):
                     # interpolation on the poloidal planes
-                    prevn[prev_idx[j]] = self.ne_interp[j](
+                    prevn[prev_idx[j]] = self.interpfluc[j](
                         interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]])
                     
-                    nextn[next_idx[j]] = self.ne_interp[j](
+                    nextn[next_idx[j]] = self.interpfluc[j](
                         interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]])
                 # interpolation along the field line
-                
-                ne = prevn * interp_positions[1,2,...] + nextn * interp_positions[0,2,...]
+                phi_pot = prevn[:,0] * interp_positions[1,2,...] + nextn[:,0] * interp_positions[0,2,...]
+                ne = prevn[:,1] * interp_positions[1,2,...] + nextn[:,1] * interp_positions[0,2,...]
+                psi = self.psi_interp(interp_positions[0,0,...],interp_positions[0,1,...])
+                psin= self.psi_interp(interp_positions[1,0,...],interp_positions[1,1,...])
+                psi = psin * interp_positions[1,2,...] + psi * interp_positions[0,2,...]
+
+                ne = self.calc_total_ne_3D(psi,ne,phi_pot)
                 # if ne is in the box and nan => outside the simulation data => outside
                 # of the tokamak
                 ne[np.isnan(ne) & (r < self.Rmax) & (r > self.Rmin) &
-                   (z < self.Zmax) & (z > self.Zmin)] = 0.0
-                if check & np.isnan(ne).any():
+                   (z < self.Zmax) & (z > self.Zmin)] = self.ne_min/10
+                if check & (np.isnan(ne).any() | (ne<0).any()):
                     print 'r',r
                     print 'z',z
                     print 'phi',phi
                     print 'prev',prevn
                     print 'next',nextn
                     print interp_positions
-                    print 'inside',ne[np.isnan(ne)]
             """   NOW WE WORK WITH IONS   """
                     
-            if ni_bool:
-                #for each time step, first create the 2 arrays of quantities for interpolation
-                prevn = np.zeros(r.shape)
-                nextn = np.zeros(prevn.shape)
-                
-                
-                for j in range(len(self.planes)):
-                    # interpolation on the poloidal planes
-                    prevn[prev_idx[j]] = self.ni_interp[j](
-                        interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]])
-                    
-                    nextn[next_idx[j]] = self.ni_interp[j](
-                        interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]])
-                # interpolation along the field line
-                ni = prevn * interp_positions[1,2,...] + nextn * interp_positions[0,2,...]
-
         ret = ()
         # put the data in the good order
         for i in quant:
             if i is 'ne':
                 ret += (ne,)
-            elif i is 'ni':
-                ret += (ni,)
             elif i is 'Ti':
                 ret += (Ti,)
             elif i is 'Te':

@@ -10,8 +10,6 @@ import copy_reg
 import types
 # beam
 import FPSDP.Diagnostics.Beam.beam as be
-# grid for data
-import FPSDP.Geometry.Grid as Grid
 # data loader
 import FPSDP.Plasma.XGC_Profile.load_XGC_BES as xgc
 # hdf5
@@ -23,7 +21,6 @@ from FPSDP.Maths.Funcs import heuman, solid_angle_disk
 
 from os.path import exists # used for checking if the input file exists
 # it is not clear with configparser error
-
 
 def _pickle_method(m):
     """ stuff for parallelisation"""
@@ -225,7 +222,7 @@ class BES:
 
         # set the data inside the beam (2nd part of the initialization)
         self.beam.set_data(xgc_)
-        
+
         # compute the two others basis vector
         self.perp1 = np.zeros(self.pos_foc.shape)
         # put the first variable to 1
@@ -549,7 +546,8 @@ class BES:
                 for j in range(nber_fiber):
                     # compute the light received by each fiber
                     I[i,j] = self.intensity(i,j)
-        return I
+        psi = self.beam.data.psi_interp(self.pos_foc[:,2],np.sqrt(np.sum(self.pos_foc[:,0:2]**2,axis=1)))/xgc_.psi_x
+        return I, psi
         
     def intensity_para(self,i):
         """ Same as :func:`intensity <FPSDP.Diagnostics.BES.bes.BES.intensity>`, but have only one argument.
@@ -1189,6 +1187,7 @@ class BES_ideal:
                 # compute the light received by each fiber
                 t_ = self.data.current
                 I[i,j] = self.intensity(i,j)
+        psi = self.data.psi_interp(self.pos_foc[:,2],np.sqrt(np.sum(self.pos_foc[:,0:2]**2,axis=1)))/xgc_.psi_x
         return I
 
 

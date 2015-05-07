@@ -273,7 +273,7 @@ where <span class="math">\(v\)</span> is the velocity of the beam particles (<sp
 <tt class="descname">get_quantities</tt><big>(</big><em>pos</em>, <em>t_</em>, <em>quant</em>, <em>eq=False</em>, <em>check=True</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.get_quantities"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.get_quantities" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the quantities from the datas</p>
 <p>Use the list of string quant for taking the good values inside the simulation datas.
-See <tt class="xref py py-func docutils literal"><span class="pre">interpolate_data</span></tt></p>
+See <a class="reference internal" href="FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data" title="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data"><tt class="xref py py-func docutils literal"><span class="pre">interpolate_data</span></tt></a></p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -281,7 +281,7 @@ See <tt class="xref py py-func docutils literal"><span class="pre">interpolate_d
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>pos</strong> (<em>np.array[N,3]</em>) &#8211; List of position where to take the quantities (in cartesian system)</li>
 <li><strong>t</strong> (<em>int</em>) &#8211; Time step considered</li>
-<li><strong>quant</strong> (<em>list[str]</em>) &#8211; List containing the wanted quantities         (See <tt class="xref py py-func docutils literal"><span class="pre">interpolate_data</span></tt>        for more information)</li>
+<li><strong>quant</strong> (<em>list[str]</em>) &#8211; List containing the wanted quantities         (See <a class="reference internal" href="FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data" title="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.interpolate_data"><tt class="xref py py-func docutils literal"><span class="pre">interpolate_data</span></tt></a>        for more information)</li>
 <li><strong>eq</strong> (<em>bool</em>) &#8211; Equilibrium data or not</li>
 <li><strong>check</strong> (<em>bool</em>) &#8211; Print error message if outside the mesh or not</li>
 </ul>
@@ -320,14 +320,14 @@ See <tt class="xref py py-func docutils literal"><span class="pre">interpolate_d
 <dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.set_data">
 <tt class="descname">set_data</tt><big>(</big><em>data</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.set_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.set_data" title="Permalink to this definition">¶</a></dt>
 <dd><p>Second part of the initialization (should be called manually!).</p>
-<p>Due to the computation of the limits (<tt class="xref py py-func docutils literal"><span class="pre">compute_limits</span></tt>),
+<p>Due to the computation of the limits (<a class="reference internal" href="FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.compute_limits" title="FPSDP.Diagnostics.BES.bes.BES.compute_limits"><tt class="xref py py-func docutils literal"><span class="pre">compute_limits</span></tt></a>),
 the data are loaded after the initialization.
 This method save the data inside the instance and compute the beam density on the mesh</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>data</strong> (e.g. <tt class="xref py py-class docutils literal"><span class="pre">XGC_Loader_BES</span></tt>) &#8211; Loader of the simulation data</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>data</strong> (e.g. <a class="reference internal" href="FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES" title="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES"><tt class="xref py py-class docutils literal"><span class="pre">XGC_Loader_BES</span></tt></a>) &#8211; Loader of the simulation data</td>
 </tr>
 </tbody>
 </table>

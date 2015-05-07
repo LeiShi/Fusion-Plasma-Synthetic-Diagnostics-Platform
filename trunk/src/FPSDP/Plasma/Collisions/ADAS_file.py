@@ -100,6 +100,7 @@ class ADAS21(ADAS_file):
         # open the file and store all the text in data
         f = open(self.name,'r')
         data = f.read().split('\n')
+        f.close()
         
         temp = data[2].split()
         # number of different beams in the ADAS file
@@ -195,6 +196,7 @@ class ADAS22(ADAS_file):
         # open the file and store all the text in data
         f = open(self.name,'r')
         data = f.read().split('\n')
+        f.close()
         
         temp = data[2].split()
         # number of different beams in the ADAS file

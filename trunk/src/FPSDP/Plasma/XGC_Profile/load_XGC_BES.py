@@ -344,6 +344,8 @@ class XGC_Loader_BES():
         na_valid_idx = np.absolute(nane)<= np.absolute(ne)
         ne[na_valid_idx] += nane[na_valid_idx]
 
+        if ((ne < 0) | np.isnan(ne)).any():
+            print ne, psi
         return ne
     
     def compute_interpolant(self):

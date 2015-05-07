@@ -22,6 +22,8 @@ from FPSDP.Maths.Funcs import heuman, solid_angle_disk
 from os.path import exists # used for checking if the input file exists
 # it is not clear with configparser error
 
+from sys import exc_info
+
 def _pickle_method(m):
     """ stuff for parallelisation"""
     if m.im_self is None:
@@ -540,14 +542,24 @@ class BES:
             if self.para:
                 p = mp.Pool()
                 a = np.array(p.map(self.intensity_para, range(nber_fiber)))
-                I[i,:] = a
                 p.close()
+                I[i,:] = a
             else:
                 for j in range(nber_fiber):
                     # compute the light received by each fiber
                     I[i,j] = self.intensity(i,j)
-        psi = self.beam.data.psi_interp(self.pos_foc[:,2],np.sqrt(np.sum(self.pos_foc[:,0:2]**2,axis=1)))/xgc_.psi_x
-        return I, psi
+        return I
+
+    def get_psin(self,pt):
+        """ Compute the psin value. 
+        
+        Psin is equal to 0 on the magnetic axis and to 1 on the separatrix.
+        :param np.array[N,3] pt: Positions in the cartesian system
+        :return: Psin
+        :rtype: np.array[N]
+        """
+        R = np.sqrt(np.sum(self.pos_foc[:,0:2]**2,axis=1))
+        return self.beam.data.psi_interp(self.pos_foc[:,2],R)/self.beam.data.psi_x
         
     def intensity_para(self,i):
         """ Same as :func:`intensity <FPSDP.Diagnostics.BES.bes.BES.intensity>`, but have only one argument.
@@ -755,7 +767,11 @@ class BES:
         for z in Z:
             # distance of the plane from the lense
             pt = z + ba2*quad.pts + self.dist[fiber_nber]
-            light = self.light_from_plane(pt,t_,fiber_nber)
+            try:
+                light = self.light_from_plane(pt,t_,fiber_nber)
+            except:
+                e = exc_info()[0]
+                print "<p>Error: %s</p>" % e
             # sum the weight with the appropriate pts
             I += np.sum(quad.w*light)
         # multiply by the weigth of each interval
@@ -870,13 +886,14 @@ class BES:
             print pos[~test,:]
             raise NameError('pos[:,0] == 0 gives a division by 0')
         # ratio between the point P and the distance ring-lens
-        ratio = np.abs(pos[~test,2]/self.dist[fib])
+        avoid = ~test & (pos[:,0] != 0)
+        ratio = np.abs(pos[avoid,2]/self.dist[fib])
         f = 1.0/(1.0-ratio)
-        A = 0.5*((np.sum(pos[~test,0:2]**2,axis=1)-(self.rad_lens/f)**2)/ratio + ratio*self.rad_ring[fib]**2)/pos[~test,0]
-        B = -pos[~test,1]/pos[~test,0]
+        A = 0.5*((np.sum(pos[avoid,0:2]**2,axis=1)-(self.rad_lens/f)**2)/ratio + ratio*self.rad_ring[fib]**2)/pos[avoid,0]
+        B = -pos[avoid,1]/pos[avoid,0]
         delta = 4*B**2*A**2 - 4*(A**2-self.rad_ring[fib]**2)*(B**2+1)
-        ind = (delta > 0) & (~np.isnan(delta)) & (~np.isinf(delta))
-        temp = np.zeros(np.sum(~test))
+        ind = delta > 0
+        temp = np.zeros(np.sum(avoid))
         if ind.any():
             # x1 = plus sign
             delta = np.sqrt(delta[ind])
@@ -888,17 +905,19 @@ class BES:
             x2[:,1] = (-2*B[ind]*A[ind] - delta)/(2*(B[ind]**2+1))
             x2[:,0] = A[ind] + B[ind]*x2[:,1]
 
-            y1 = ((pos[~test,:][ind,0:2].T-x1.T*ratio[ind])*f[ind]).T
-            y2 = ((pos[~test,:][ind,0:2].T-x2.T*ratio[ind])*f[ind]).T
+            y1 = ((pos[avoid,:][ind,0:2].T-x1.T*ratio[ind])*f[ind]).T
+            y2 = ((pos[avoid,:][ind,0:2].T-x2.T*ratio[ind])*f[ind]).T
 
-            temp[ind] = self.solid_angle_mix_case(pos[~test,:][ind,:],[x1, x2],[y1, y2],fib)
+            temp[ind] = self.solid_angle_mix_case(pos[avoid,:][ind,:],[x1, x2],[y1, y2],fib)
+        solid[avoid] = temp
         # second case
-        ind = ~ind
+        avoid[ind] = False
+        ind = ~test & (pos[:,0] == 0)
+        ind = ind | avoid
         if ind.any():
-            q = pos[~test,:][ind,:]
+            q = pos[ind,:]
             q[:,2] -= self.dist[fib]
-            temp[ind] = solid_angle_disk(q,self.rad_ring[fib])
-        solid[~test] = temp
+            solid[ind] = solid_angle_disk(q,self.rad_ring[fib])
         if (solid < 0).any() or (solid > 4*np.pi).any():
             print('solid angle',solid)
             print('check_in',test)
@@ -1187,9 +1206,18 @@ class BES_ideal:
                 # compute the light received by each fiber
                 t_ = self.data.current
                 I[i,j] = self.intensity(i,j)
-        psi = self.data.psi_interp(self.pos_foc[:,2],np.sqrt(np.sum(self.pos_foc[:,0:2]**2,axis=1)))/xgc_.psi_x
         return I
 
+    def get_psin(self,pt):
+        """ Compute the psin value. 
+        
+        Psin is equal to 0 on the magnetic axis and to 1 on the separatrix.
+        :param np.array[N,3] pt: Positions in the cartesian system
+        :return: Psin
+        :rtype: np.array[N]
+        """
+        R = np.sqrt(np.sum(self.pos_foc[:,0:2]**2,axis=1))
+        return self.data.psi_interp(self.pos_foc[:,2],R)/self.beam.data.psi_x
 
     def intensity(self,t_,fiber_nber):
         """ Compute the light received by the fiber

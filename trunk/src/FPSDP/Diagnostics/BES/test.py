@@ -12,16 +12,18 @@ if profiler:
     import cProfile, pstats, StringIO
     pr = cProfile.Profile()
 
+name = 'FPSDP/Diagnostics/BES/bes.in'
+bes_ = bes.BES_ideal(name,parallel)
 
-bes_ = bes.BES('FPSDP/Diagnostics/BES/bes.in',parallel)
 
+f = open(name,'r')
+input_ = f.read()
+f.close()
 
-#b1d1 = bes_.beam
-#dl1 = np.sqrt(np.sum((b1d1.get_mesh()-b1d1.get_origin())**2,axis = 1))
 if profiler:
     pr.enable()
 
-netilde = bes_.get_bes()
+I = bes_.get_bes()
 
 if profiler:
     pr.disable()
@@ -37,7 +39,8 @@ if profiler:
     ps.print_stats()
     print s.getvalue()
 
+psin = bes_.get_psin(foc)
 
-np.savez('data/test',netilde,foc)
+np.savez('data/full_end_ideal',I,psin,foc,input_)
 
 

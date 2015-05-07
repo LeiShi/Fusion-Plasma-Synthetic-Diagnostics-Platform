@@ -1106,33 +1106,42 @@ class BES_ideal:
             raise NameError('Config file not found')
         config = psr.ConfigParser()
         config.read(self.cfg_file)
-
         self.mesh = mesh
 
-        X = json.loads(config.get('Optics','X'))
-        Y = json.loads(config.get('Optics','Y'))
-        Z = json.loads(config.get('Optics','Z'))
-
-        self.pos_foc = np.zeros((len(Z),3))                                  #!
-        self.pos_foc[:,0] = X
-        self.pos_foc[:,1] = Y
-        self.pos_foc[:,2] = Z
-
-        # Data part
-        self.dphi = json.loads(config.get('Data','dphi'))              #!
         self.data_path = config.get('Data','data_path')                      #!
         start = json.loads(config.get('Data','timestart'))
+    
+        R = json.loads(config.get('Optics','R'))
+        R = np.array(R)
+        phi = json.loads(config.get('Optics','phi'))
+        Z = json.loads(config.get('Optics','Z'))
+        # compute the value of phi in radian
+        print 'should be changed if use another code than xgc'
+        name = self.data_path + 'xgc.3d.' + str(start).zfill(5)+'.h5'
+        nber_plane = h5.File(name,'r')
+        nphi = nber_plane['nphi'][:]
+        phi = 2*np.pi*phi/nphi[0]
+
+        
+        self.pos_foc = np.zeros((len(Z),3))                                  #!
+        self.pos_foc[:,0] = R*np.cos(phi)
+        self.pos_foc[:,1] = R*np.sin(phi)
+        self.pos_foc[:,2] = Z
+        
+        # Data part
+        self.dphi = json.loads(config.get('Data','dphi'))                    #!
         end = json.loads(config.get('Data','timeend'))
         timestep = json.loads(config.get('Data','timestep'))
         self.compute_limits()      # compute the limits of the mesh
-
+        # position swap due to a difference in the axis        
+        #grid3D = Grid.Cartesian3D(Xmin=self.Xmin, Xmax=self.Xmax, Ymin=self.Zmin, Ymax=self.Zmax,
+        #                          Zmin=self.Ymin, Zmax=self.Ymax, NX=self.N[0], NY=self.N[2], NZ=self.N[1])
         xgc_ = xgc.XGC_Loader_BES(self.data_path, start, end, timestep,
                                   self.limits, self.dphi)
         self.time = xgc_.time_steps                                          #!
 
+
         self.data = xgc_
-        if (self.time != xgc_.time_steps).any():
-            raise NameError('Time steps wrong')
         
 
     def compute_limits(self, eps=1, dxmin = 0.1, dymin = 0.1, dzmin = 0.5):
@@ -1217,7 +1226,7 @@ class BES_ideal:
         :rtype: np.array[N]
         """
         R = np.sqrt(np.sum(self.pos_foc[:,0:2]**2,axis=1))
-        return self.data.psi_interp(self.pos_foc[:,2],R)/self.beam.data.psi_x
+        return self.data.psi_interp(self.pos_foc[:,2],R)/self.data.psi_x
 
     def intensity(self,t_,fiber_nber):
         """ Compute the light received by the fiber

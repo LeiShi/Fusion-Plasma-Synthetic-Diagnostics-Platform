@@ -13,7 +13,7 @@ if profiler:
     pr = cProfile.Profile()
 
 name = 'FPSDP/Diagnostics/BES/bes.in'
-bes_ = bes.BES_ideal(name,parallel)
+bes_ = bes.BES(name,parallel)
 
 
 f = open(name,'r')
@@ -29,7 +29,7 @@ if profiler:
     pr.disable()
 
 
-print netilde
+print I
 foc = bes_.pos_foc
 
 if profiler:
@@ -41,6 +41,6 @@ if profiler:
 
 psin = bes_.get_psin(foc)
 
-np.savez('data/full_end_ideal',I,psin,foc,input_)
+np.savez('data/test',I,psin,foc,input_)
 
 

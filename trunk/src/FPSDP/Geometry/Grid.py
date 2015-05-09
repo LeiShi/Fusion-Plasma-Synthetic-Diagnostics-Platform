@@ -63,7 +63,7 @@ class Cartesian2D(Grid):
                 else:
                     raise GridError('NZ and ResZ missing or conflicting, make sure you specify exactly one of them.')
             else:
-                raise GridError("Initializing Grid fails: UpLeft or DownRight not set.")
+                raise GridError("Initializing Grid fails: DownLeft or UpRight not set.")
         except GridError:
             #save for further upgrades, may handle GridError here
             raise

@@ -94,7 +94,14 @@ def Cross_Correlation(sig1,sig2):
     Return:
         the cross-correlation calculated at zero time delay
     """
-
+    
+    assert(sig1.shape == sig2.shape)
+    
+    #remove the mean value to get the fluctuating part of the two signal
+    sig1 = sig1-np.mean(sig1)
+    sig2 = sig2-np.mean(sig2)    
+    
+        
     sig1_2_bar = np.average(sig1 * np.conj(sig1))
     sig2_2_bar = np.average(sig2 * np.conj(sig2))
     cross_bar = np.average(sig1 * np.conj(sig2))
@@ -116,6 +123,13 @@ def Cross_Correlation_by_fft(sig1,sig2):
     [1] Cross-correlation caluclation using Fast Fourier Transform(FFT), FPSDP.Diagnostics.Reflectometry Documentation. 
     [2] Observation of ion scale fluctuations in the pedestal region during the edge-localized-mode cycle on the National Spherical torus Experiment. A.Diallo, G.J.Kramer, at. el. Phys. Plasmas 20, 012505(2013)
     """
+    assert(sig1.shape == sig2.shape)    
+    
+    #remove mean value of the two signals
+    sig1 = sig1-np.mean(sig1)
+    sig2 = sig2-np.mean(sig2)    
+        
+    
     f1 = np.fft.fft(sig1)
     f2 = np.fft.fft(sig2)
     norm1 = np.sqrt(np.sum(sig1*np.conj(sig1)))

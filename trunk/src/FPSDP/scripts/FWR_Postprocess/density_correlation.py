@@ -10,11 +10,12 @@ data files are saving files from XGC_Loader class.
 """
 
 from FPSDP.Maths.Funcs import sweeping_correlation
+from FPSDP.Diagnostics.Reflectometry.analysis import Cross_Correlation
 import numpy as np
 
 work_dir = '/p/gkp/lshi/XGC1_NSTX_Case/FullF_XGC_ti191_output/'
 
-time_arr = np.arange(100,200,20)
+time_arr = np.arange(100,201,20)
 
 def make_filename(t):
     return 'xgc_prof2D_all_time{0}.sav.npz'.format(t)
@@ -23,7 +24,7 @@ class density_data:
     """Collect all time series density data from multiple time files
     """
     
-    def __init__(self,time_arr,work_dir=work_dir):
+    def __init__(self,time_arr=time_arr,work_dir=work_dir):
         """initialize with a time array.
         argument:
             time_arr: array of ints, should be created by range(start,end,step) or equivalent form.
@@ -44,7 +45,26 @@ class density_data:
             self.dne_ad = np.concatenate([self.dne_ad,loader_file['dne_ad']],axis=1)
             self.nane = np.concatenate([self.nane,loader_file['nane']],axis=1)            
         
-        
+   
+
+def Cross_Correlation_in_time(dne):
+
+    nc,nt,ny,nx = dne.shape
+
+    cs = np.empty((nc,nt,nt),dtype = 'complex')
+    
+    for i in range(nc):
+        for j in range(nt):
+            for k in range(nt):
+                if (k<j):
+                    cs[i,j,k] = np.conj(cs[i,k,j])
+                elif(k==j):
+                    cs[i,j,k] = 1+0j
+                else:
+                    cs[i,j,k] = Cross_Correlation(dne[i,j,...].flatten(),dne[i,k,...].flatten())
+    
+    return cs
+            
 
 
         

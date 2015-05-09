@@ -186,7 +186,7 @@ def sweeping_correlation(s1,s2,dt=1,nt_min=100):
     
     n_sweep = n_wing*2 + 1 #total sweep correlation numbers
     
-    SCorrelation = np.empty((n_sweep,)+spatial_shape) #concatenate last dimension to spatial dimensions
+    SCorrelation = np.empty((n_sweep,)+spatial_shape,dtype = 'complex128') #concatenate last dimension to spatial dimensions
     
     #first get rid of the mean signal
     s1 = s1 - np.mean(s1,axis=0)

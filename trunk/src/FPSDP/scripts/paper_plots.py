@@ -11,11 +11,19 @@ import numpy as np
 import scipy.io.netcdf as nc
 import matplotlib.pyplot as plt
 from math import sqrt
+from scipy.signal import hilbert
 
 import FPSDP.scripts.nstx_reflectometry.load_nstx_exp_ref as nstx_exp
 import FPSDP.scripts.FWR_Postprocess.FWR2D_NSTX_139047_Postprocess as fwr_pp
-from FPSDP.Diagnostics.Reflectometry.analysis import phase,magnitude,Coherent_Signal,Cross_Correlation,Cross_Correlation_by_fft
-from FPSDP.Maths.Funcs import band_pass_box
+from FPSDP.Diagnostics.Reflectometry.analysis import phase, magnitude, Coherent_Signal, Cross_Correlation, Cross_Correlation_by_fft
+from FPSDP.Diagnostics.Reflectometry.NSTX.nstx import band_pass_filter
+from FPSDP.Maths.Funcs import band_pass_box, sweeping_correlation
+from FPSDP.Diagnostics.Reflectometry.FWR2D.Postprocess import fitting_cross_correlation,gaussian_fit,exponential_fit
+
+import pickle
+
+with open('/p/gkp/lshi/XGC1_NSTX_Case/FullF_XGC_ti191_output/ref_pos.pck','r') as f:
+    ref_pos = pickle.load(f)
 
 class Picture:
     """base class for paper pictures, contains abstract methods and components' names
@@ -42,14 +50,15 @@ class Picture:
 class Plot1(Picture):
     """Plot1: 55GHz phase/dphase plot showing chosen time period (0.632-0.633s), overall time is chosen to be 0.4-0.8s
     """
-    def __init__(self):
+    def __init__(self,channel = 11):
         Picture.__init__(self,'Fulltime Phase/dPhase Plot','Plot1: 55GHz phase/dphase plot showing chosen time period (0.632-0.633s), overall time is chosen to be 0.4-0.8s')
+        self.channel = channel
     def prepare(self):   
         """prepare the data for Plot1
         """
         self.tstart = 0.4
         self.tend = 0.8
-        self.channel = 8 # channel 8 is 55GHz
+
         self.t_on = 0.632
         self.t_off = 0.633
         
@@ -84,7 +93,8 @@ class Plot1(Picture):
 class Plot2(Plot1):
     """Plot2: 55GHz zoomed in for 0.632-0.633s
     """
-    def __init__(self):
+    def __init__(self,channel = 11):
+        Plot1.__init__(self,channel)
         Picture.__init__(self,'Zoomed Phase/dPhase Plot','Plot2:55GHz zoomed in for 0.632-0.633s')
 
     def show(self):
@@ -108,26 +118,28 @@ class Plot2(Plot1):
     
     def zoom(self):
         self.subfig1.set_xlim(0.632,0.633)
-        self.subfig1.set_ylim(2510,2560)
+        self.subfig1.set_ylim(3550,3600)
         
         self.fig.canvas.draw()
         
 class Plot3(Picture):
-    """Plot3: 55GHz I component frequency domain compared with corresponding FWR result, non-relevant frequencies shaden.
+    """Plot3: 55GHz phase signal frequency domain compared with corresponding FWR result, non-relevant frequencies shaden.
     """
-    def __init__(self,black_white=False):
-        Picture.__init__(self,'Frequency domain comparison','Plot3: 55GHz I component frequency domain compared with corresponding FWR result, non-relevant frequencies shaden.')
-        self.black_white = black_white
+    def __init__(self,channel = 11,channel_freq = 62.5):
+        Picture.__init__(self,'Frequency domain comparison','Plot3: 55GHz phase signal frequency domain compared with corresponding FWR result, non-relevant frequencies shaden.')
+        self.channel = channel
+        self.channel_freq = channel_freq
         
     def prepare(self):
         self.tstart = 0.632
         self.tend = 0.633
         self.f_low_norm = 1e4 #lower frequency cutoff for normalization set to be 100 kHz
         self.f_high_norm = 5e5 #high frequency cutoff for normalization set to 500 kHz
-        self.f_low_show = 5e4 # lower frequency shown for shading
-        self.f_high_show = 4e5# higher frequency shown for shading
+        self.f_low_show = 4e4 # lower frequency shown for shading
+        self.f_high_show = 5e5# higher frequency shown for shading
         
-        loader = nstx_exp.loaders[8]        
+        
+        loader = nstx_exp.loaders[self.channel]        
         sig,time = loader.signal(self.tstart,self.tend)
         ph,dph = phase(sig)
         n = len(time)
@@ -137,7 +149,7 @@ class Plot3(Picture):
         self.freqs_nstx = np.fft.fftfreq(n,dt)[:n/2+1]
         idx_low,idx_high = np.searchsorted(self.freqs_nstx,[self.f_low_norm,self.f_high_norm]) #note that only first half of the frequency array is holding positive frequencies. The rest are negative ones.
         
-        #get the spectra of the In-phase component, since it's real, only positive frequencies are needed
+        #get the spectra of the phase signal, since it's real, only positive frequencies are needed
         spectrum_nstx = np.fft.rfft(ph)
         self.power_density_nstx = np.real(spectrum_nstx*np.conj(spectrum_nstx))
         pd_in_range = self.power_density_nstx[idx_low:idx_high]
@@ -148,7 +160,7 @@ class Plot3(Picture):
         self.power_density_nstx /= total_power_in_range
         print('Experimental data ready.')
         
-        ref2d = fwr_pp.load_2d([55],np.arange(100,220,1))
+        ref2d = fwr_pp.load_2d([self.channel_freq],np.arange(100,220,1))
         sig_fwr = ref2d.E_out[0,:,0] #note that in reflectometer_output object, E_out is saved in shape (NF,NT,NC). Here we only need the time dimension for the chosen frequency and cross-section.
         ph_fwr,dph_fwr = phase(sig_fwr)        
         dt_fwr = 1e-6
@@ -167,8 +179,8 @@ class Plot3(Picture):
         self.power_density_fwr /= total_power_in_range
         print('FWR data ready.')
         
-    def show(self):
-        if(self.black_white):
+    def show(self,black_white = False):
+        if(black_white):
             ls_nstx = 'k.'
             ls_fwr = 'k-'
             
@@ -197,17 +209,17 @@ class Plot3(Picture):
 class Plot4(Picture):
     """Plot 4: Comparison between filtered and original signals. From experimental data, 55GHz channel.
     """
-    def __init__(self,black_white = False):
+    def __init__(self,channel=11,channel_freq = 62.5):
         Picture.__init__(self,'Comparison of filtered signals','Plot 4: Comparison between filtered and original signals. From both experimental and simulation')
-        self.black_white = black_white
-        
+        self.channel = channel
+        self.channel_freq = channel_freq
     def prepare(self):
         self.tstart = 0.632
         self.tend = 0.633
-        self.f_low = 5e4 #lower frequency set to be 50 kHz
+        self.f_low = 4e4 #lower frequency set to be 40 kHz
         self.f_high = 5e5 #high end set to 500 kHz
         
-        loader = nstx_exp.loaders[8]        
+        loader = nstx_exp.loaders[self.channel]        
         self.sig_nstx,self.time = loader.signal(self.tstart,self.tend)
         self.phase_nstx,self.dph_nstx = phase(self.sig_nstx)
         self.magnitude_nstx = magnitude(self.sig_nstx)
@@ -231,8 +243,8 @@ class Plot4(Picture):
         
         self.filtered_sig_nstx = self.filtered_mag_nstx * np.exp(1j * self.filtered_phase_nstx)
         
-    def show(self):
-        if(self.black_white):
+    def show(self,black_white = False):
+        if(black_white):
             ls_orig = 'k.'
             ls_filt = 'k-'
             
@@ -247,15 +259,16 @@ class Plot4(Picture):
         mag_low,mag_high = self.subfig3.get_ybound()        
         self.subfig4.set_ybound(mag_low,mag_high)        
         #self.line_fwr = self.subfig.loglog(self.freqs_fwr,self.power_density_fwr,ls_fwr,label = 'FWR')
-        self.subfig1.legend(loc = 'upper left',prop = {'size':12})
-        self.subfig2.legend(loc = 'upper left',prop = {'size':12})
-        self.subfig3.legend(loc = 'upper left',prop = {'size':12})
-        self.subfig4.legend(loc = 'upper left',prop = {'size':12})
+        self.subfig1.legend(loc = 'best',prop = {'size':10})
+        self.subfig2.legend(loc = 'best',prop = {'size':10})
+        self.subfig3.legend(loc = 'best',prop = {'size':10})
+        self.subfig4.legend(loc = 'best',prop = {'size':10})
         self.subfig4.set_xlabel('time (s)')
         self.subfig1.set_ylabel('$\phi$ (rad)')
         self.subfig2.set_ylabel('$\phi$ (rad)')
         self.subfig3.set_ylabel('magnitude (a.u.)')
         self.subfig4.set_ylabel('magnitude (a.u.)')
+        self.subfig4.set_xbound(self.tstart,self.tend)
         
         
 class Plot5(Plot4):
@@ -263,28 +276,31 @@ class Plot5(Plot4):
     
     """
     
-    def __init__(self,black_white=False):
+    def __init__(self,channel=11,channel_freq=62.5):
+        Plot4.__init__(self,channel,channel_freq)
         Picture.__init__(self,'Plot5:g factor VS window widths','Plot 5: Experimental g factor as a function of window width, show that filtered signal has indeed a stable g factor')
-        self.black_white = black_white
+        
     def prepare(self):
         Plot4.prepare(self)
         
         t_total = self.tend - self.tstart
         self.avg_windows = np.logspace(-5,np.log10(t_total),50)
         
-        t_upper = self.time[0]+self.avg_windows
+        t_lower = self.time[0]+1e-5
+        idx_lower = np.searchsorted(self.time,t_lower)
+        t_upper = self.time[idx_lower]+self.avg_windows
         idx_upper = np.searchsorted(self.time,t_upper)
         self.g_orig = np.zeros_like(self.avg_windows)
         self.g_filt = np.zeros_like(self.avg_windows)
         for i in range(len(self.avg_windows)) :
-            idx = idx_upper[i]
-            sig = self.sig_nstx[:idx]
-            sig_filt = self.filtered_sig_nstx[:idx]
+            idx = idx_lower + idx_upper[i]
+            sig = self.sig_nstx[idx_lower:idx]
+            sig_filt = self.filtered_sig_nstx[idx_lower:idx]
             self.g_orig[i] = np.abs(Coherent_Signal(sig))
             self.g_filt[i] = np.abs(Coherent_Signal(sig_filt))
             
-    def show(self):
-        if(self.black_white):
+    def show(self,black_white = False):
+        if(black_white):
             ls_orig = 'k--'
             ls_filt = 'k-'
             
@@ -297,12 +313,320 @@ class Plot5(Plot4):
         self.g_orig_line = self.subfig.semilogx(self.avg_windows,self.g_orig,ls_orig,linewidth = 1,label = 'ORIGINAL')
         self.g_filt_line = self.subfig.semilogx(self.avg_windows,self.g_filt,ls_filt,linewidth = 1,label = 'FILTERED')
         
-        self.subfig.legend(loc = 'middle right', prop = {'size':14})
+        self.subfig.legend(loc = 'best', prop = {'size':14})
         
         self.subfig.set_xlabel('average time window(s)')
         self.subfig.set_ylabel('$|g|$')
         
         self.fig.canvas.draw()
+        
+class Plot6(Picture):
+    """ Plot 6: Four channel g factor plot. 55GHz, 57.5GHz, 60GHz and 62.5 GHz. 
+    """
+    def __init__(self):
+        Picture.__init__(self,'Plot6:g factors for 4 channels', 'Plot 6: Four channel g factor plot. 55GHz, 57.5GHz, 60GHz and 62.5 GHz.')
+    
+    def prepare(self):
+        
+        #prepare the cut-off locations on the mid-plane
+        self.x55 = ref_pos[8]
+        self.x575 = ref_pos[9]
+        self.x60 = ref_pos[10]
+        self.x625 = ref_pos[11]
+        self.x675 = ref_pos[12]
+        self.x = [self.x55,self.x575,self.x60,self.x625,self.x675]
+        
+        #First, we get experimental g factors ready
+        
+        self.tstart = 0.632
+        self.tend = 0.633        
+        
+        self.f_low = 4e4
+        self.f_high = 5e5 #frequency filter range set to 40kHz-500kHz
+        
+        l55 = nstx_exp.loaders[8]
+        l575 = nstx_exp.loaders[9]
+        l60 = nstx_exp.loaders[10]
+        l625 = nstx_exp.loaders[11]
+        l675 = nstx_exp.loaders[12]
+        
+        sig55 ,time = l55.signal(self.tstart,self.tend)
+        sig575 ,time = l575.signal(self.tstart,self.tend)                
+        sig60 ,time = l60.signal(self.tstart,self.tend)
+        sig625 ,time = l625.signal(self.tstart,self.tend)
+        sig675, time = l675.signal(self.tstart,self.tend)
+        dt = time[1]-time[0]        
+        
+        # Use band passing filter to filter the signal, so only mid range frequnecy perturbations are kept        
+        sig55_filt = band_pass_filter(sig55,dt,self.f_low,self.f_high)
+        sig575_filt = band_pass_filter(sig575,dt,self.f_low,self.f_high)
+        sig60_filt = band_pass_filter(sig60,dt,self.f_low,self.f_high)
+        sig625_filt = band_pass_filter(sig625,dt,self.f_low,self.f_high)
+        sig675_filt = band_pass_filter(sig675,dt,self.f_low,self.f_high)
+        
+        #prepare the g-factors,keep them complex until we draw them
+        self.g55 = Coherent_Signal(sig55_filt)
+        self.g575 = Coherent_Signal(sig575_filt)
+        self.g60 = Coherent_Signal(sig60_filt)
+        self.g625 = Coherent_Signal(sig625_filt)
+        self.g675 = Coherent_Signal(sig675_filt)
+        self.g_exp = [self.g55,self.g575,self.g60,self.g625,self.g675]
+        
+        # Now, we prepare the g factors from FWR2D
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC/E_out_55.sav.npy'
+        E55_2d = np.load(E_file)
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC/E_out_57.5.sav.npy'
+        E575_2d = np.load(E_file)
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC/E_out_60.sav.npy'
+        E60_2d = np.load(E_file)
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC/E_out_62.5.sav.npy'
+        E625_2d = np.load(E_file)
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC/E_out_67.5.sav.npy'
+        E675_2d = np.load(E_file)
+        
+        self.g55_2d = Coherent_Signal(E55_2d.flatten())
+        self.g575_2d = Coherent_Signal(E575_2d.flatten())
+        self.g60_2d = Coherent_Signal(E60_2d.flatten())
+        self.g625_2d = Coherent_Signal(E625_2d.flatten())
+        self.g675_2d = Coherent_Signal(E675_2d.flatten())
+        self.g_2d = [self.g55_2d,self.g575_2d,self.g60_2d,self.g625_2d,self.g675_2d]
+        
+        # And g-factors from FWR3D
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/3DRUNS/RUN_NEWAll_16_cross_16_time_55GHz/E_out.sav.npy'
+        E55_3d = np.load(E_file)
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/3DRUNS/RUN_NEWAll_16_cross_16_time_57.5GHz/E_out.sav.npy'
+        E575_3d = np.load(E_file)
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/3DRUNS/RUN_NEWAll_16_cross_16_time_60GHz/E_out.sav.npy'
+        E60_3d = np.load(E_file)
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/3DRUNS/RUN_NEWAll_16_cross_16_time_62.5GHz/E_out.sav.npy'
+        E625_3d = np.load(E_file)
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/3DRUNS/RUN_NEWAll_16_cross_16_time_67.5GHz/E_out.sav.npy'
+        E675_3d = np.load(E_file)
+        
+        self.g55_3d = Coherent_Signal(E55_3d.flatten())
+        self.g575_3d = Coherent_Signal(E575_3d.flatten())
+        self.g60_3d = Coherent_Signal(E60_3d.flatten())
+        self.g625_3d = Coherent_Signal(E625_3d.flatten())
+        self.g675_3d = Coherent_Signal(E675_3d.flatten())
+        self.g_3d = [self.g55_3d,self.g575_3d,self.g60_3d,self.g625_3d,self.g675_3d]
+        
+    def show(self,black_white = False):
+        if(black_white):
+            ls_exp = 'k-'
+            marker_exp = 's'
+            ls_2d = 'k--'
+            marker_2d = 'o'
+            ls_3d = 'k-.'
+            marker_3d = '^'
+            
+        else:
+            ls_exp = 'b-'
+            marker_exp = 's'
+            ls_2d = 'g-'
+            marker_2d = 'o'
+            ls_3d = 'r-'
+            marker_3d = '^'
+            
+        self.fig = plt.figure()
+        self.subfig = self.fig.add_subplot(111)
+        self.g_exp_line = self.subfig.plot(self.x ,np.abs(self.g_exp),ls_exp,linewidth = 1,marker = marker_exp,label = 'EXP')
+        self.g_2d_line = self.subfig.plot(self.x,np.abs(self.g_2d),ls_2d,marker = marker_2d,linewidth = 1,label = 'FWR2D')
+        self.g_3d_line = self.subfig.plot(self.x,np.abs(self.g_3d),ls_3d,marker = marker_3d,linewidth = 1,label = 'FWR3D')        
+        
+        self.subfig.legend(loc = 'best', prop = {'size':14})
+        
+        self.subfig.set_xlabel('R(m)')
+        self.subfig.set_ylabel('$|g|$')
+        
+        self.subfig.set_ylim(0,1)
+        xticks = self.subfig.get_xticks()[::2]
+        xticklabels = [str(x) for x in xticks]
+        self.subfig.set_xticks(xticks)
+        self.subfig.set_xticklabels(xticklabels)
+        
+        self.fig.canvas.draw()
+                
+        
+        
+class Plot7(Picture):
+    """ Plot 7: Cross-Correlation between 55GHz,57.5GHz, 60GHz, 62.5GHz and 67.5GHz channels. Center channel chosen to be 67.5GHz
+    """  
+    def __init__(self):
+        Picture.__init__(self,'Plot7:Multi channel cross-section plots','Plot 7: Cross-Correlation between 55GHz,57.5GHz, 60GHz, 62.5GHz and 67.5GHz channels.')
+    def prepare(self): 
+        #prepare the cut-off locations on the mid-plane
+        self.x55 = np.abs(ref_pos[8]-ref_pos[12])
+        self.x575 = np.abs(ref_pos[9]-ref_pos[12])
+        self.x60 = np.abs(ref_pos[10]-ref_pos[12])
+        self.x625 = np.abs(ref_pos[11]-ref_pos[12])
+        self.x675 = np.abs(ref_pos[12]-ref_pos[12])
+        self.x = [self.x55,self.x575,self.x60,self.x625,self.x675]
+        
+        #First, we get experimental g factors ready
+        
+        self.tstart = 0.632
+        self.tend = 0.633        
+        
+        self.f_low = 4e4
+        self.f_high = 5e5 #frequency filter range set to 40kHz-500kHz
+        
+        l55 = nstx_exp.loaders[8]
+        l575 = nstx_exp.loaders[9]
+        l60 = nstx_exp.loaders[10]
+        l625 = nstx_exp.loaders[11]
+        l675 = nstx_exp.loaders[12]
+        
+        sig55 ,time = l55.signal(self.tstart,self.tend)
+        sig575 ,time = l575.signal(self.tstart,self.tend)                
+        sig60 ,time = l60.signal(self.tstart,self.tend)
+        sig625 ,time = l625.signal(self.tstart,self.tend)
+        sig675,time = l675.signal(self.tstart,self.tend)
+        dt = time[1]-time[0]        
+        
+        # Use band passing filter to filter the signal, so only mid range frequnecy perturbations are kept        
+        sig55_filt = band_pass_filter(sig55,dt,self.f_low,self.f_high)
+        sig575_filt = band_pass_filter(sig575,dt,self.f_low,self.f_high)
+        sig60_filt = band_pass_filter(sig60,dt,self.f_low,self.f_high)
+        sig625_filt = band_pass_filter(sig625,dt,self.f_low,self.f_high)
+        sig675_filt = band_pass_filter(sig675,dt,self.f_low,self.f_high)
+        
+        #prepare the g-factors,keep them complex until we draw them
+        self.c55 = Cross_Correlation(sig675_filt,sig55_filt)
+        self.c575 = Cross_Correlation(sig675_filt,sig575_filt)
+        self.c60 = Cross_Correlation(sig675_filt,sig60_filt)
+        self.c625 = Cross_Correlation(sig675_filt,sig625_filt)
+        self.c675 = Cross_Correlation(sig675_filt,sig675_filt)
+        self.c_exp = [self.c55,self.c575,self.c60,self.c625,self.c675]
+        
+        # Now, we prepare the g factors from FWR2D
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC/E_out_55.sav.npy'
+        E55_2d = np.load(E_file).flatten()
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC/E_out_57.5.sav.npy'
+        E575_2d = np.load(E_file).flatten()
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC/E_out_60.sav.npy'
+        E60_2d = np.load(E_file).flatten()
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC/E_out_62.5.sav.npy'
+        E625_2d = np.load(E_file).flatten()
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC/E_out_67.5.sav.npy'
+        E675_2d = np.load(E_file).flatten()
+        
+        E2d = [E55_2d,E575_2d,E60_2d,E625_2d,E675_2d]
+        
+        self.c_2d = []
+        self.c_2d.append(Cross_Correlation(E2d[-1],E2d[0]))
+        self.c_2d.append(Cross_Correlation(E2d[-1],E2d[1]))
+        self.c_2d.append(Cross_Correlation(E2d[-1],E2d[2]))
+        self.c_2d.append(Cross_Correlation(E2d[-1],E2d[3]))
+        self.c_2d.append(Cross_Correlation(E2d[-1],E2d[4]))
+        
+        
+        # And g-factors from FWR3D
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/3DRUNS/RUN_NEWAll_16_cross_16_time_55GHz/E_out.sav.npy'
+        E55_3d = np.load(E_file).flatten()
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/3DRUNS/RUN_NEWAll_16_cross_16_time_57.5GHz/E_out.sav.npy'
+        E575_3d = np.load(E_file).flatten()
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/3DRUNS/RUN_NEWAll_16_cross_16_time_60GHz/E_out.sav.npy'
+        E60_3d = np.load(E_file).flatten()
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/3DRUNS/RUN_NEWAll_16_cross_16_time_62.5GHz/E_out.sav.npy'
+        E625_3d = np.load(E_file).flatten()
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/3DRUNS/RUN_NEWAll_16_cross_16_time_67.5GHz/E_out.sav.npy'
+        E675_3d = np.load(E_file).flatten()
+        
+        E3d = [E55_3d,E575_3d,E60_3d,E625_3d,E675_3d]
+        
+        self.c_3d = []
+        self.c_3d.append(Cross_Correlation(E3d[-1],E3d[0]))
+        self.c_3d.append(Cross_Correlation(E3d[-1],E3d[1]))
+        self.c_3d.append(Cross_Correlation(E3d[-1],E3d[2]))
+        self.c_3d.append(Cross_Correlation(E3d[-1],E3d[3]))
+        self.c_3d.append(Cross_Correlation(E3d[-1],E3d[4]))
+        
+               
+        # Gaussian fit of the cross-correlations 
+        self.a_exp,sa_exp = fitting_cross_correlation(np.abs(self.c_exp),self.x,'gaussian')
+        self.a_2d,sa_2d = fitting_cross_correlation(np.abs(self.c_2d),self.x,'gaussian')
+        self.a_3d,sa_3d = fitting_cross_correlation(np.abs(self.c_3d),self.x,'gaussian')
+        
+        self.xmax = 2*np.sqrt(np.max((np.abs(self.a_exp),np.abs(self.a_2d),np.abs(self.a_3d))))
+        self.x_fit = np.linspace(0,self.xmax,500)
+        self.fit_exp = gaussian_fit(self.x_fit,self.a_exp)
+        self.fit_2d = gaussian_fit(self.x_fit,self.a_2d)
+        self.fit_3d = gaussian_fit(self.x_fit,self.a_3d)
+        
+        #Exponential fit of the cross-correlations
+        self.e_exp,se_exp = fitting_cross_correlation(np.abs(self.c_exp),self.x,'exponential')
+        self.e_2d,se_2d = fitting_cross_correlation(np.abs(self.c_2d),self.x,'exponential')
+        self.e_3d,se_3d = fitting_cross_correlation(np.abs(self.c_3d),self.x,'exponential')
+        
+        self.xmax_e = 2*np.max((np.abs(self.e_exp),np.abs(self.e_2d),np.abs(self.e_3d)))
+        self.x_fit_e = np.linspace(0,self.xmax_e,500)
+        self.fit_exp_e = exponential_fit(self.x_fit_e,self.e_exp)
+        self.fit_2d_e = exponential_fit(self.x_fit_e,self.e_2d)
+        self.fit_3d_e = exponential_fit(self.x_fit_e,self.e_3d)        
+        
+        
+        
+    def show(self,black_white = False,Gaussian_fit = True):
+        if(black_white):
+            ls_exp = 'k-'
+            c_exp = 'k'
+            marker_exp = 's'
+            ls_2d = 'k--'
+            c_2d = 'k'
+            marker_2d = 'o'
+            ls_3d = 'k-.'
+            c_3d = 'k'
+            marker_3d = '^'
+            
+        else:
+            ls_exp = 'b-'
+            c_exp = 'b'
+            marker_exp = 's'
+            ls_2d = 'g-'
+            c_2d = 'g'
+            marker_2d = 'o'
+            ls_3d = 'r-'
+            c_3d = 'r'
+            marker_3d = '^'
+            
+        self.fig = plt.figure()
+        self.subfig = self.fig.add_subplot(111)
+        self.c_exp_dots = self.subfig.scatter(self.x ,np.abs(self.c_exp),c = c_exp,marker = marker_exp,label = 'EXP')
+        self.c_2d_dots = self.subfig.scatter(self.x,np.abs(self.c_2d),c=c_2d, marker = marker_2d,label = 'FWR2D')
+        self.c_3d_dots = self.subfig.scatter(self.x,np.abs(self.c_3d),c = c_3d, marker = marker_3d,label = 'FWR3D')        
+        
+        if(Gaussian_fit):
+            self.c_exp_fit_line = self.subfig.plot(self.x_fit,self.fit_exp,ls_exp,label = 'EXP FIT')
+            self.c_2d_fit_line = self.subfig.plot(self.x_fit,self.fit_2d,ls_2d,label = 'FWR2D FIT')       
+            self.c_3d_fit_line = self.subfig.plot(self.x_fit,self.fit_3d,ls_3d,label = 'FWR3D FIT')
+            self.subfig.hlines(1/np.e,0,self.xmax)
+            self.subfig.set_xlim(0,self.xmax) 
+        else:
+            self.c_exp_fit_line = self.subfig.plot(self.x_fit_e,self.fit_exp_e,ls_exp,label = 'EXP FIT')
+            self.c_2d_fit_line = self.subfig.plot(self.x_fit_e,self.fit_2d_e,ls_2d,label = 'FWR2D FIT')       
+            self.c_3d_fit_line = self.subfig.plot(self.x_fit_e,self.fit_3d_e,ls_3d,label = 'FWR3D FIT')
+            self.subfig.hlines(1/np.e,0,self.xmax_e)
+            self.subfig.set_xlim(0,self.xmax_e) 
+                
+        
+        self.subfig.legend(loc = 'best', prop = {'size':14})
+        
+        self.subfig.set_xlabel('\Delta R(m)')
+        self.subfig.set_ylabel('$|g|$')
+        self.subfig.set_ylim(0,1.1)
+               
+        
+        self.fig.canvas.draw()
+class Plot8(Picture):
+    """Plot 8: Cross-Correlation of density perturbations between different cross-sections (try hilbert transform)
+    Note: The 
+    """
+    def __init__(self):
+        Picture.__init__(self,'Plot8: Density Cross-Correlation','Plot 8: Cross-Correlation of density perturbations between different cross-sections')
+        
+    def prepare(self):
+        pass
+    
         
             
                     

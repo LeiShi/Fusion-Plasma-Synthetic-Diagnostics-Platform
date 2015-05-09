@@ -9,6 +9,10 @@ import h5py as h5
 import numpy as np
 from scipy.interpolate import interp1d
 
+from ....Maths.Funcs import band_pass_box
+from ..analysis import phase, magnitude
+
+
 class NSTX_Error(Exception):
     def __init__(self,value):
         self.value = value
@@ -430,7 +434,48 @@ class Analyser:
 
 
 
-  #  def 
+
+
+
+def band_pass_filter(sig,dt,freq_low,freq_high):
+    """ Band passing filter for NSTX reflectometry time series signals
+    This function is dedicated to filter the time series of complex signals read from NSTX datafiles
+    The raw signal is passed through an ideal band pass filter, realised by chopping low and high frequency components from FFT array, and then inversely FFT back to time domain. In order to obtain the most relavant information, the phase signal (obtained by accumulating 'phase shifts' over time, see description of function 'phase' in FPSDP.Diagnostics.Reflectometry.analysis) is filtered as well as the magnitude signal of the given complex signal. The logic here is that to the first order, density flucutations cause phase shifts in reflected signals, magnitude modulations are somewhat higher order effects (or due to other more complicated interactions). We keep the magnitude modulations in the same frequency band for more complete assessment. The averaged magnitude is used as the unperturbed magnitude.  
+
+    Inputs:
+        sig: array-like, complex, the time series of the raw reflected signal
+        dt: float, sampling time step, using this to compute the frequency in proper unit
+        freq_low: float, in Hz, lower limit of the passing band, any component in lower frequency will be erased in filtered signal.
+        freq_high: float, in Hz, higher limit of the passing band.
+
+    Return:
+        filtered_sig: array-like, complex, same shape as sig. The reconstructed filtered signal. Notice that phase and magnitude are filtered and reconstructed separately, and then combined to get the complex signal. It is NOT the same as directly filter the complex input signal with a given frequency band.
+    
+    """
+    #get the phase and magnitude series.
+    pha = phase(sig)[0]
+    mag = magnitude(sig)
+    #averaged magnitude will be used for reconstruction of the signal
+    mean_mag = np.mean(mag)
+
+    #get the fft frequency array         
+    n = len(sig)
+    freqs = np.fft.fftfreq(n,dt)
+    idx_low,idx_high = np.searchsorted(freqs[:n/2+1],[freq_low,freq_high]) #note that only first half of the frequency array is holding positive frequencies. The rest are negative ones.
+    
+    #get the fft result for pahse and magnitude
+    pha_spect = np.fft.fft(pha) #Full fft is used here for filtering and inverse fft
+    filtered_pha_spect = band_pass_box(pha_spect,idx_low,idx_high)
+    
+    mag_spect = np.fft.fft(mag)
+    filtered_mag_spect= band_pass_box(mag_spect,idx_low,idx_high)
+
+    #reconstruct filtered phase and magnitude time sequence
+    filtered_pha = np.fft.ifft(filtered_pha_spect)
+    filtered_mag = np.fft.ifft(filtered_mag_spect) + mean_mag # We want to stack the magnitude fluctuation on top of the averaged magnitude
+    
+    return filtered_mag * np.exp(1j * filtered_pha) # sig = mag* exp(i*phi)
+    
             
             
 

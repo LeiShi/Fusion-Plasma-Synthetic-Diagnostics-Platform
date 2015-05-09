@@ -19,31 +19,34 @@ def load(dimension,tstart,tend,tstep,full_load,fluc_only,eq_only):
         
     return xgc_nstx_139047
 
-client_started = False
-while(not client_started):
-    try:
-        c = Client(profile = 'pbs')
-        client_started = True
-        print 'Client connected!'
-    except:
-        pass
-
-desired_engine_num = 16 #Make sure this number is EXACTLY the same as the engine number you initiated with ipcluster
-
-waiting=0
-while(len(c) < desired_engine_num and waiting<=86400):#check if the engines are ready, if the engines are not ready after 1 min, something might be wrong. Exit and raise an exception.
-    time.sleep(10)
-    waiting += 10
-
-if(len(c) != desired_engine_num):
-    raise Exception('usable engine number is not the same as the desired engine number! usable:{0}, desired:{1}.\nCheck your cluster status and the desired number set in the Driver script.'.format(len(c),desired_engine_num))
-
-print 'engine number checked:{0}'.format(desired_engine_num)
-dv = c[:]
-print('Multiprocess FWR2D run started: using {} processes.'.format(len(c.ids)))
-
-dv.push(dict(xgc_path = xgc_path,
-             output_path = output_path))
+def cluster_initialize(profile = 'default'):
+    client_started = False
+    while(not client_started):
+        try:
+            c = Client(profile = profile)
+            client_started = True
+            print 'Client connected!'
+        except:
+            pass
+    
+    desired_engine_num = 16 #Make sure this number is EXACTLY the same as the engine number you initiated with ipcluster
+    
+    waiting=0
+    while(len(c) < desired_engine_num and waiting<=86400):#check if the engines are ready, if the engines are not ready after 1 min, something might be wrong. Exit and raise an exception.
+        time.sleep(10)
+        waiting += 10
+    
+    if(len(c) != desired_engine_num):
+        raise Exception('usable engine number is not the same as the desired engine number! usable:{0}, desired:{1}.\nCheck your cluster status and the desired number set in the Driver script.'.format(len(c),desired_engine_num))
+    
+    print 'engine number checked:{0}'.format(desired_engine_num)
+    dv = c[:]
+    print('Multiprocess FWR2D run started: using {} processes.'.format(len(c.ids)))
+    
+    dv.push(dict(xgc_path = xgc_path,
+                 output_path = output_path))
+                 
+    return dv
 
 def single_load(t):
     try:
@@ -60,7 +63,7 @@ def single_load(t):
     
     
 
-def launch(t_arr):
+def launch(t_arr, dv):
     print t_arr
     param_list = [t for t in t_arr]
     print param_list

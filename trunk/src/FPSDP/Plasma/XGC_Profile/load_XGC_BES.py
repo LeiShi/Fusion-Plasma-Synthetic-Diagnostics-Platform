@@ -209,14 +209,10 @@ class XGC_Loader_BES():
         # interpolant of each direction of the field
         # use np.inf as a flag for outside points,
         # deal with them later in interpolation function
-        self.BR_interp = CloughTocher2DInterpolator(
-            self.points, BR, fill_value = np.inf)
+        self.B_interp = CloughTocher2DInterpolator(
+            self.points, np.array([BR,BZ,BPhi]).T, fill_value = np.inf)
 
-        self.BZ_interp = CloughTocher2DInterpolator(
-            self.points, BZ, fill_value = np.inf)
-
-        self.BPhi_interp = CloughTocher2DInterpolator(
-            self.points, BPhi, fill_value = np.sign(BPhi[0])*np.min(np.absolute(BPhi)))
+        self.fill_Bphi = np.sign(BPhi[0])*np.min(np.absolute(BPhi))
 
         
         B_mesh.close()
@@ -372,6 +368,7 @@ class XGC_Loader_BES():
         :returns: Positions on the the previous plane and the next one
         :rtype: np.array[2,3,N] (2 for the previous/next plane, 3 for R,Z,L where L is the distance between plane and points)
         """
+
         prevplane,nextplane = prev_.flatten(),next_.flatten()
 
         # angle between two planes of the simulation
@@ -386,8 +383,8 @@ class XGC_Loader_BES():
             phiFWD = np.where(nextplane == 0,np.pi*2 - phi, phi_planes[nextplane]-phi)
             phiBWD = phi_planes[prevplane]-phi
         else:
-            phiFWD = np.abs(phi_planes[nextplane]-phi)
-            phiBWD = np.abs(np.where(prevplane ==0,np.pi*2 - phi, phi_planes[prevplane]-phi))
+            phiFWD = phi_planes[nextplane]-phi
+            phiBWD = np.where(prevplane ==0,np.pi*2 - phi, phi_planes[prevplane]-phi)
 
         # angle between two steps
         R_FWD = np.copy(r)
@@ -403,29 +400,40 @@ class XGC_Loader_BES():
         a,b,c = runge_kutta_explicit(3)
         # Number of stage for the method
         Nstage = b.shape[0]
+        sign = 1.0
+        # use any because all the angle are of the same sign
+        if (phiFWD < 0).any():
+            sign = -1.0
         # forward step
+        j = 0
         while ind.any():
+            j += 1
+            print 'i',j
             # size of the next step for each position
             step = phiFWD[ind]
-            step[step > self.dphi] = self.dphi
+            step[np.abs(step) > self.dphi] = sign*self.dphi
             # update the position of the next iteration
             phiFWD[ind] -= step
             K = np.zeros((r[ind].shape[0],3,Nstage))
             for i in range(Nstage):
                 # compute the coordinates of this stage
-                Rtemp = R_FWD[ind] + step*np.sum(a[i,:i]*K[:,0,:i],axis=1)
-                Ztemp = Z_FWD[ind] + step*np.sum(a[i,:i]*K[:,1,:i],axis=1)
-                Phitemp = self.BPhi_interp(Ztemp,Rtemp)
-
+                dRtemp = step*np.sum(a[i,:i]*K[:,0,:i],axis=1)
+                Rtemp = R_FWD[ind] + dRtemp
+                dZtemp = step*np.sum(a[i,:i]*K[:,1,:i],axis=1)
+                Ztemp = Z_FWD[ind] + dZtemp
+                dPhitemp = step*np.sum(a[i,:i])
+                Btemp = self.B_interp(Ztemp,Rtemp)
+                Btemp[np.isinf(Btemp[:,2]),2] = self.fill_Bphi
+                
                 # evaluate the function
-                K[:,0,i] = Rtemp * self.BR_interp(Ztemp,Rtemp) / Phitemp
-                K[:,1,i] = Ztemp * self.BZ_interp(Ztemp,Rtemp) / Phitemp
-                K[:,2,i] = np.sqrt(Rtemp**2 * (1.0 + Phitemp**2) + Ztemp**2)
+                K[:,0,i] = Rtemp * Btemp[:,0] / Btemp[:,2]
+                K[:,1,i] = Ztemp * Btemp[:,1] / Btemp[:,2]
+                K[:,2,i] = np.sqrt(dRtemp**2 + (Rtemp*dPhitemp)**2 + Ztemp**2)
 
             # compute the final value of this step
             dR_FWD = step*np.sum(b[np.newaxis,:]*K[:,0,:],axis=1)
             dZ_FWD = step*np.sum(b[np.newaxis,:]*K[:,1,:],axis=1)
-            ds_FWD = step*np.sum(b[np.newaxis,:]*K[:,2,:],axis=1)
+            ds_FWD = np.abs(step)*np.sum(b[np.newaxis,:]*K[:,2,:],axis=1)
             
             #when the point gets outside of the XGC mesh, set BR,BZ to zero.
             dR_FWD[~np.isfinite(dR_FWD)] = 0.0
@@ -440,29 +448,39 @@ class XGC_Loader_BES():
 
         # check which index need to be integrated
         ind = np.ones(r.shape,dtype=bool)
+        sign = 1.0
+        if (phiBWD < 0).any():
+            sign = -1.0
         # backward step
+        j = 0
         while ind.any():
+            j += 1
+            print 'j',j
             # size of the next step for each position
             step = phiBWD[ind]
-            step[step > self.dphi] = self.dphi
+            step[np.abs(step) > self.dphi] = sign*self.dphi
             # update the position of the next iteration
             phiBWD[ind] -= step
             K = np.zeros((r[ind].shape[0],3,Nstage))
             for i in range(Nstage):
                 # compute the coordinates of this stage
-                Rtemp = R_BWD[ind] + step*np.sum(a[i,:i]*K[:,0,:i],axis=1)
-                Ztemp = Z_BWD[ind] + step*np.sum(a[i,:i]*K[:,1,:i],axis=1)
-                Phitemp = self.BPhi_interp(Ztemp,Rtemp)
+                dRtemp = step*np.sum(a[i,:i]*K[:,0,:i],axis=1)
+                Rtemp = R_BWD[ind] + dRtemp
+                dZtemp = step*np.sum(a[i,:i]*K[:,1,:i],axis=1)
+                Ztemp = Z_BWD[ind] + dZtemp
+                dPhitemp = step*np.sum(a[i,:i])
+                Btemp = self.B_interp(Ztemp,Rtemp)
 
+                Btemp[np.isinf(Btemp[:,2]),2] = self.fill_Bphi
                 # evaluate the function
-                K[:,0,i] = Rtemp * self.BR_interp(Ztemp,Rtemp) / Phitemp
-                K[:,1,i] = Ztemp * self.BZ_interp(Ztemp,Rtemp) / Phitemp
-                K[:,2,i] = np.sqrt(Rtemp**2 * (1.0 + Phitemp**2) + Ztemp**2)
+                K[:,0,i] = Rtemp * Btemp[:,0] / Btemp[:,2]
+                K[:,1,i] = Ztemp * Btemp[:,1] / Btemp[:,2]
+                K[:,2,i] = np.sqrt(dRtemp**2 * + (Rtemp*dPhitemp)**2 + Ztemp**2)
 
             # compute the final value of this step
             dR_BWD = step*np.sum(b[np.newaxis,:]*K[:,0,:],axis=1)
             dZ_BWD = step*np.sum(b[np.newaxis,:]*K[:,1,:],axis=1)
-            ds_BWD = step*np.sum(b[np.newaxis,:]*K[:,2,:],axis=1)
+            ds_BWD = np.abs(step)*np.sum(b[np.newaxis,:]*K[:,2,:],axis=1)
             
             #when the point gets outside of the XGC mesh, set BR,BZ to zero.
             dR_BWD[~np.isfinite(dR_BWD)] = 0.0
@@ -485,6 +503,7 @@ class XGC_Loader_BES():
         interp_positions[1,0,...] = Z_FWD
         interp_positions[1,1,...] = R_FWD
         interp_positions[1,2,...] = 1-interp_positions[0,2,...]
+
         return interp_positions
 
 
@@ -588,248 +607,6 @@ class XGC_Loader_BES():
                 raise XGC_Loader_Error('{} is not a valid value in the evaluation of XGC data'.format(i))
         return ret
 
-        
-    def save(self,fname = 'xgc_profile.sav'):
-        """
-        :todo: Not modified for this class, therefore should not work
-
-        save the original and interpolated electron density fluctuations 
-           and useful equilibrium quantities to a local .npz file
-
-        for 2D instances,The arrays saved are:
-            X1D: the 1D array of coordinates along R direction (major radius)
-            Y1D: the 1D array of coordinates along Z direction (vertical)
-            X_origin: major radius coordinates on original scattered grid
-            Y_origin: vertical coordinates on original scattered grid
-           
-            dne_ad: the adiabatic electron density perturbation, in shape (NY,NX), where NX,NY are the dimensions of X1D, Y1D respectively
-            nane: (if non-adiabatic electron is on in XGC simulation)the non-adiabatic electron density perturbation. same shape as dne_ad
-
-            dne_ad_org: the adiabatic electron density perturbation on original grid
-            nane_org: the non-adiabatic electron density perturbation on original grid
-            
-            ne0: the equilibrium electron density.
-            Te0: equilibrium electron temperature
-            Ti0: equilibrium ion temperature
-            B0: equilibrium magnetic field (toroidal)
-            
-        for 3D instances, in addition to the arrays above, one coordinate is also saved:
-            Z1D: 1D coordinates along R cross Z direction.
-
-            BX: radial magnetic field
-            BY: vertical magnetic field
-        """
-        raise NameError('Has not been updated for the BES loader')
-        file_name = self.xgc_path + fname
-        saving_dic = {
-            'dne_ad':self.dne_ad_on_grid,
-            'ne0':self.ne0_on_grid,
-            'dne_ad_org':self.dne_ad,
-            'X_origin':self.mesh['R'],
-            'Y_origin':self.mesh['Z'],
-            'Te0':self.te_on_grid,
-            'Ti0':self.ti_on_grid,
-            'psi':self.psi_on_grid
-            }
-        if (self.HaveElectron):
-            saving_dic['nane'] = self.nane_on_grid
-            saving_dic['nane_org'] = self.nane
-        if (self.dimension == 2):
-            saving_dic['X1D'] = self.grid.R1D
-            saving_dic['Y1D'] = self.grid.Z1D
-            saving_dic['B0'] = self.B_on_grid
-        else:
-            saving_dic['X1D'] = self.grid.X1D
-            saving_dic['Y1D'] = self.grid.Y1D
-            saving_dic['Z1D'] = self.grid.Z1D
-            saving_dic['B0'] = self.BZ_on_grid
-            saving_dic['BX'] = self.BX_on_grid
-            saving_dic['BY'] =  self.BY_on_grid
-        np.savez(file_name,**saving_dic)
-
-    def load(self, filename = 'dne_file.sav'):
-        """
-        :todo: Not modified for this class, therefore should not work
-
-        load the previously saved xgc profile data file.
-        The geometry information needs to be the same, otherwise an error will be raised.
-        WARNING: Currently no serious checking is performed. The user is responsible to make sure the XGC_Loader object is initialized properly to load the corresponding saving file. 
-        """
-        raise NameError('Has not been updated for the BES loader')
-
-        if 'npz' not in filename:
-            filename += '.npz'
-        nefile = np.load(filename)
-        if 'Z1D' in nefile.files:
-            dimension = 3
-        else:
-            dimension = 2
-        if(dimension != self.dimension):
-            raise XGC_Loader_Error('Geometry incompatible! Trying to load {0}d data onto {1}d grid.\nMake sure the geometry setup is the same as the data file.'.format(dimension,self.dimension))
-
-        #======== NEED MORE DETAILED GEOMETRY CHECKING HERE! CURRENT VERSION DOESN'T GUARANTEE SAME GRID. ERRORS WILL OCCUR WHEN READ SAVED FILE WITH A DIFFERENT GRID.
-        #=============================================#
-
-        self.mesh = {'R':nefile['X_origin'],'Z':nefile['Y_origin']}
-        self.dne_ad = nefile['dne_ad_org']
-        self.ne0_on_grid = nefile['ne0']
-        self.dne_ad_on_grid = nefile['dne_ad']
-
-        self.ne_on_grid = self.ne0_on_grid[np.newaxis,np.newaxis,:,:] + self.dne_ad_on_grid
-
-        if 'nane' in nefile.files:
-            self.HaveElectrons = True
-            self.nane = nefile['nane_org']
-            self.nane_on_grid = nefile['nane']
-            self.ne_on_grid += self.nane_on_grid
-
-        self.psi_on_grid = nefile['psi']
-        self.te_on_grid = nefile['Te0']
-        self.ti_on_grid = nefile['Ti0']
-
-        if dimension == 2:
-            self.B_on_grid = nefile['B0']
-        else:
-            self.BZ_on_grid = nefile['B0']
-            self.BX_on_grid = nefile['BX']
-            self.BY_on_grid = nefile['BY']
-            self.B_on_grid = np.sqrt(self.BX_on_grid**2 + self.BY_on_grid**2 + self.BZ_on_grid**2) 
-
-
-    def cdf_output(self,output_path,eq_file = 'equilibrium.cdf',filehead = 'fluctuation',WithBp=True):
-        """
-
-        :todo: Not modified for this class, therefore should not work
-
-        Wrapper for cdf_output_2D and cdf_output_3D.
-        Determining 2D/3D by checking the grid property.
-            
-        """
-        raise NameError('Has not been updated for the BES loader')
-
-    
-        self.cdf_output_3D(output_path,eq_file,filehead,WithBp)
-        
-
-
-    def cdf_output_3D(self,output_path = './',eq_filename = 'equilibrium3D.cdf',flucfilehead='fluctuation',WithBp=True):
-        """
-        :todo: Not modified for this class, therefore should not work
-
-        write out cdf files for FWR3D code to use
-
-        Arguments:
-        output_path: string, the full path to put the output files
-        eq_filename: string, the file name for the 2D equilibrium output
-        flucfilehead: string, the starting string of all 3D fluctuation filenames
-
-        CDF file format:
-
-        Equilibrium file:
-        
-        Dimensions:
-        nr: int, number of grid points in radial direction.
-        nz: int, number of grid points in vetical direction
-        
-        Variables:
-        rr: 1D array, coordinates in radial direction, in m
-        zz: 1D array, coordinates in vertical direction, in m
-        bb: 2D array, total magnetic field on grids, in Tesla, shape in (nz,nr)
-        bpol: 2D array, poloidal magnetic field on grids, in Tesla
-        ne: 2D array, total electron density on grids, in cm^-3
-        ti: 2D array, total ion temperature, in keV
-        te: 2D array, total electron temperature, in keV
-
-        Fluctuation files:
-
-        Dimensions:
-        nx: number of grid points in radial direction
-        ny: number of grid points in vertical direction
-        nz: number of grid points in horizontal direction
-
-        Variables:
-        xx: 1D array, coordinates in radial direction
-        yy: 1D array, coordinates in vertical direction 
-        zz: 1D array, coordinates in horizontal direction
-        dne: 3D array, (nz,ny,nx), adiabatic electron density perturbation, real value 
-        """
-        raise NameError('Has not been updated for the BES loader')
-
-        eqfname = output_path + eq_filename
-        f = nc.netcdf_file(eqfname,'w')
-        f.createDimension('nz',self.grid.NY)
-        f.createDimension('nr',self.grid.NX)
-        
-        rr = f.createVariable('rr','d',('nr',))
-        rr[:] = self.grid.X1D[:]
-        zz = f.createVariable('zz','d',('nz',))
-        zz[:] = self.grid.Y1D[:]
-        rr.units = zz.units = 'm'
-
-        bp = np.sqrt(self.BX_on_grid[:,:]**2 + self.BY_on_grid[:,:]**2)
-        
-        bb = f.createVariable('bb','d',('nz','nr'))
-        bb[:,:] = np.sqrt(bp**2 + self.BZ_on_grid[:,:]**2)
-        bb.units = 'Tesla'
-
-        bpol = f.createVariable('bpol','d',('nz','nr'))
-        if(WithBp):        
-            bpol[:,:] = bp[:,:]
-        else:
-            bpol[:,:] = np.zeros_like(bp)
-        bpol.units = 'Tesla'  
-        
-        b_r = f.createVariable('b_r','d',('nz','nr'))
-        b_r[:,:] = self.BX_on_grid[:,:]
-        
-        b_phi = f.createVariable('b_phi','d',('nz','nr'))
-        b_phi[:,:] = -self.BZ_on_grid[:,:]
-        
-        b_z = f.createVariable('b_z','d',('nz','nr'))
-        b_z[:,:] = self.BY_on_grid[:,:]
-        
-        
-        
-        ne = f.createVariable('ne','d',('nz','nr'))
-        ne[:,:] = self.ne0_on_grid[:,:]
-        ne.units = 'm^-3'
-        
-        te = f.createVariable('te','d',('nz','nr'))
-        te[:,:] = self.te_on_grid[:,:]/1000
-        te.units = 'keV'
-        
-        ti = f.createVariable('ti','d',('nz','nr'))
-        ti[:,:] = self.ti_on_grid[:,:]/1000
-        ti.units = 'keV'
-        
-        f.close()
-
-        if(not self.Equilibrium_Only):
-            file_start = output_path + flucfilehead
-            for j in range(self.n_cross_section):
-                for i in range(len(self.time_steps)):
-                    fname = file_start + str(self.time_steps[i]) +'_'+ str(j)+ '.cdf'
-                    f = nc.netcdf_file(fname,'w')
-                    f.createDimension('nx',self.grid.NX)
-                    f.createDimension('ny',self.grid.NY)
-                    f.createDimension('nz',self.grid.NZ)
-    
-                    xx = f.createVariable('xx','d',('nx',))
-                    xx[:] = self.grid.X1D[:]
-                    yy = f.createVariable('yy','d',('ny',))
-                    yy[:] = self.grid.Y1D[:]
-                    zz = f.createVariable('zz','d',('nz',))
-                    zz[:] = self.grid.Z1D[:]            
-                    xx.units = yy.units = zz.units = 'm'
-                
-                    dne = f.createVariable('dne','d',('nz','ny','nx'))
-                    dne.units = 'm^-3'
-                    if(not self.HaveElectron):
-                        dne[:,:,:] = self.dne_ad_on_grid[j,i,:,:,:]
-                    else:
-                        dne[:,:,:] = (self.dne_ad_on_grid[j,i,:,:,:] + self.nane_on_grid[j,i,:,:,:])
-                    f.close()
-    
         
 
 

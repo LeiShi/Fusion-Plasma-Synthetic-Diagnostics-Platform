@@ -11,7 +11,7 @@ I choose to use the SI system as often as possible (except for the beam energy),
    
 
 The following graph shows the dependencies between the different classes and the file where they are written.
-A black arrow shows an attribut dependency and a red one an inheritance.
+A black arrow shows an attribute dependency and a red one an inheritance.
 
 .. graphviz::
    

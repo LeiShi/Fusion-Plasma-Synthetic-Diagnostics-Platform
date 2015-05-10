@@ -4,10 +4,10 @@ import numpy as np
 import FPSDP.Diagnostics.BES.bes as bes
 
 
-# choose if between the serial and the parallel code (only the shared memory case is done)
-parallel = False
+# choose if between the serial and the multiprocessing code (only the shared memory case is done)
+mutliprocessing = False
 # print the choice betweem parallel or not
-print 'Parallel: ', parallel
+print 'Parallel code: ', parallel
 
 # initialize the diagnostic by taking the config file bes.in
 # the initialization consist to compute the beam density,

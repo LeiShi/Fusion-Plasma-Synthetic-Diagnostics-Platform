@@ -38,20 +38,23 @@ copy_reg.pickle(types.MethodType, _pickle_method)
 class BES:
     """ Class computing the image of all the fibers.
     
-    Load the parameter from a config file and create everything from it.
+    Load the parameter from a config file (example in :download:`bes.in <../../../../FPSDP/Diagnostics/BES/bes.in>`
+    with a lot of comments for explaining all the parameters) and create everything from it.
     The function :func:`get_bes()` is used for computing the intensity received by
     each fiber (number of photons per second).
 
     :param str input_file: Name of the config file
     :param bool parallel: Choice between the serial code or the parallel one
     :var str self.cfg_fil: Name of the config file
-    :var bool self.para: Choice between the serial code and the parallel one
+    :var bool self.multiprocessing: Choice between the serial code and the parallel one
     :var np.array[3] self.pos_lens: Position of the lens (in the cartesian system)
-    :var np.array[Nfib] self.rad_ring: Radius of the focus point for each fiber
+    :var np.array[Nfib] self.rad_foc: Radius of the focus point for each fiber
     :var float self.rad_lens: Radius of the lens
-    :var float self.inter: Cutoff distance from the focus point (in unit of the beam width)
+    :var float self.inter: Cutoff distance from the focus point (in unit of the beam width).\
+    Look at the figure in :func:`compute_limits <FPSDP.Diagnostics.BES.bes.BES.compute_limits>`, the two outer red lines for the limit. 
     :var int self.Nint: Number of point for splitting the integral over the optical direction
-    :var int self.Nsol: Number of interval for the evaluation of the solid angle in the mixed case
+    :var int self.Nsolid: Number of interval for the evaluation of the solid angle in the mixed case\
+    Look at the figure in :func:`get_solid_angle  <FPSDP.Diagnostics.BES.bes.BES.get_solid_angle>`.
     :var np.array[Nfib,3] self.pos_foc: Position of the focus points (in the cartesian system)
     :var np.array[Nfib,3] self.op_direc: Direction of the optical line (for each fiber)
     :var np.array[Nfib] self.dist: Distance between the focus point and the lens
@@ -63,18 +66,18 @@ class BES:
     :var bool self.lifetime: Choice between using the lifetime effect or not
     :var float self.tau_max: Upper limit for the lifetime of the excited particles.\
     It does not need to be exact, it is only for computing the limits of the mesh.
-    :var int self.dphi: Size of a time step for the field line interpolation (in radians)
-    :var str self.data_path: Path to the data
+    :var int self.dphi: Toroidal step for the field line interpolation (in radians)
+    :var str self.data_path: Directory path to the data
     :var self.beam: (:class:`Beam1D <FPSDP.Diagnostics.Beam.beam.Beam1D>`) Beam used for the diagnostic
     :var np.array[Ntime] self.time: Time steps used for the simulation
     :var tck_interp self.filter_: Interpolant of the filter
-    :var float self.wl0: Wavelength of the de-excitation photons
-    :var float self.Xmax: Upper limit of the X coordinate
-    :var float self.Xmin: Lower limit of the X coordinate
-    :var float self.Ymax: Upper limit of the Y coordinate
-    :var float self.Ymin: Lower limit of the Y coordinate
-    :var float self.Zmax: Upper limit of the Z coordinate
-    :var float self.Zmin: Lower limit of the Z coordinate
+    :var float self.lambda0: Wavelength of the de-excitation photons
+    :var float self.Xmax: Upper limit of the X coordinate of the mesh
+    :var float self.Xmin: Lower limit of the X coordinate of the mesh
+    :var float self.Ymax: Upper limit of the Y coordinate of the mesh
+    :var float self.Ymin: Lower limit of the Y coordinate of the mesh
+    :var float self.Zmax: Upper limit of the Z coordinate of the mesh
+    :var float self.Zmin: Lower limit of the Z coordinate of the mesh
     :var np.array[3,2] self.limits: Limits of the mesh (first index for X,Y,Z and second for max,min)
     The following graph shows the most important call during the initialization of the BES class.
     The red arrows show the call order and the black ones show what is inside the function.
@@ -147,7 +150,7 @@ class BES:
 
     """
 
-    def __init__(self,input_file, parallel=False):
+    def __init__(self,input_file, multiprocessing=False):
         """ load all the data from the input file"""
         self.cfg_file = input_file                                           #!
         if not exists(self.cfg_file):
@@ -156,7 +159,7 @@ class BES:
         config.read(self.cfg_file)
         # variable for knowing if works in parallel or serie
         # only the computation of the bes intensity is done in parallel
-        self.para = parallel                                                 #!
+        self.multiprocessing = multiprocessing                               #!
         self.data_path = config.get('Data','data_path')                      #!
         start = json.loads(config.get('Data','timestart'))
         # the example input file is well commented, look there for more
@@ -165,11 +168,11 @@ class BES:
         # Optics part
         self.pos_lens = json.loads(config.get('Optics','pos_lens'))          #!
         self.pos_lens = np.array(self.pos_lens)
-        self.rad_ring = json.loads(config.get('Optics','rad_ring'))          #!
+        self.rad_foc = json.loads(config.get('Optics','rad_foc'))            #!
         self.rad_lens = json.loads(config.get('Optics','rad_lens'))          #!
         self.inter = json.loads(config.get('Optics','int'))                  #!
         self.Nint = json.loads(config.get('Optics','Nint'))                  #!
-        self.Nsol = json.loads(config.get('Optics','Nsol'))                  #!
+        self.Nsolid = json.loads(config.get('Optics','Nsolid'))              #!
     
         R = json.loads(config.get('Optics','R'))
         R = np.array(R)
@@ -190,8 +193,8 @@ class BES:
         self.op_direc = self.pos_foc-self.pos_lens                           #!
         
         norm_ = np.sqrt(np.sum(self.op_direc**2,axis=1))
-        if isinstance(self.rad_ring,float):
-            self.rad_ring = self.rad_ring*np.ones(self.pos_foc.shape[0])
+        if isinstance(self.rad_foc,float):
+            self.rad_foc = self.rad_foc*np.ones(self.pos_foc.shape[0])
         
         # normalize the vector
         self.op_direc[:,0] /= norm_
@@ -275,7 +278,7 @@ class BES:
         r""" Compute the limits of the mesh that should be loaded
 
         The only limitations comes from the sampling volume and the lifetime of the excited state.
-        In the figure below, blue is for the beam and the lifetime effect, red for the ring and the cutoff values,
+        In the figure below, blue is for the beam and the lifetime effect, red for the ring and the cutoff values (:var:`self.inter`),
         straight black lines are for the sampling volume, and, the dashed one are the box.
 
 
@@ -424,10 +427,10 @@ class BES:
 
 
     def get_bes(self):
-        """ Compute the image of the density turbulence.
+        """ Compute the synthetic image from the diagnostics.
         This function should be the only one used outside the class.
         
-        :returns: Intensity collected by each fiber (number of photons)
+        :returns: Intensity collected by each fiber (number of photons by seconds and by square meters)
         :rtype: np.array[Ntime, Nfib]
 
         The following graph shows the most important call during the computation of the intensity collected by the fibers.
@@ -529,6 +532,8 @@ class BES:
 
            }
         """
+        if self.multiprocessing:
+            p = mp.Pool(maxtasksperchild=5)
         print self.time
         nber_fiber = self.pos_foc.shape[0]
         I = np.zeros((len(self.time),nber_fiber))
@@ -537,12 +542,10 @@ class BES:
             # first time step already loaded
             if i != 0:
                 self.beam.data.load_next_time_step()
-                if ~self.beam.eq:
+                if not self.beam.eq:
                     self.beam.compute_beam_on_mesh()
-            if self.para:
-                p = mp.Pool()
+            if self.multiprocessing:
                 a = np.array(p.map(self.intensity_para, range(nber_fiber)))
-                p.close()
                 I[i,:] = a
             else:
                 for j in range(nber_fiber):
@@ -632,8 +635,8 @@ class BES:
 
         # distance from the ring
         a = abs(pos[:,2]-self.dist[fiber_nber])
-        a *= (self.rad_lens-self.rad_ring[fiber_nber])/self.dist[fiber_nber]
-        return a + self.rad_ring[fiber_nber]
+        a *= (self.rad_lens-self.rad_foc[fiber_nber])/self.dist[fiber_nber]
+        return a + self.rad_foc[fiber_nber]
     
     def check_in(self,pos,fib):
         r""" Check if the position (optical coordinate) is inside the first cone (blue area)
@@ -661,7 +664,7 @@ class BES:
         # distance from the focus point along the z-axis
         a = pos[~ind,2]-self.dist[fib]
         # size of the 'ring' scaled to this position
-        a = a*(self.rad_ring[fib]-self.rad_lens)/self.dist[fib] + self.rad_ring[fib]
+        a = a*(self.rad_foc[fib]-self.rad_lens)/self.dist[fib] + self.rad_foc[fib]
         # distance from the axis
         R = np.sqrt(np.sum(pos[~ind,0:2]**2, axis=1))
         ind1 = a > R
@@ -767,11 +770,7 @@ class BES:
         for z in Z:
             # distance of the plane from the lense
             pt = z + ba2*quad.pts + self.dist[fiber_nber]
-            try:
-                light = self.light_from_plane(pt,t_,fiber_nber)
-            except:
-                e = exc_info()[0]
-                print "<p>Error: %s</p>" % e
+            light = self.light_from_plane(pt,t_,fiber_nber)
             # sum the weight with the appropriate pts
             I += np.sum(quad.w*light)
         # multiply by the weigth of each interval
@@ -870,15 +869,15 @@ class BES:
         :returns: Solid angle
         :rtype: np.array[N]
         """
+        # check for first case
         test = self.check_in(pos,fib)
-        #ind2 = np.where(~test)[0]
         solid = np.zeros(pos.shape[0])
 
         # first case (look at the report about this code)
         solid[test] = solid_angle_disk(pos[test,:],self.rad_lens)
         # second case
         # first find the position of the 'intersection' between the lens and the ring
-        # define a few constant (look my report for the detail, too much computation and
+        # define a few constant (look my report or the doc for the detail, too much computation and
         # need some drawing to write them in the comments)
 
         if ((pos[~test,0] == 0) & (pos[~test,1] != 0)).any():
@@ -886,25 +885,35 @@ class BES:
             print pos[~test,:]
             raise NameError('pos[:,0] == 0 gives a division by 0')
         # ratio between the point P and the distance ring-lens
-        avoid = ~test & (pos[:,0] != 0)
+        avoid = ~test & (pos[:,0] != 0) & (pos[:,1] != 0)
+        # ratio between distance lens-focus point and lens-pos
         ratio = np.abs(pos[avoid,2]/self.dist[fib])
         f = 1.0/(1.0-ratio)
-        A = 0.5*((np.sum(pos[avoid,0:2]**2,axis=1)-(self.rad_lens/f)**2)/ratio + ratio*self.rad_ring[fib]**2)/pos[avoid,0]
+        # look report for the exact definition
+        A = 0.5*((np.sum(pos[avoid,0:2]**2,axis=1)-(self.rad_lens/f)**2)/ratio + ratio*self.rad_foc[fib]**2)/pos[avoid,0]
+        # look report for the exact definition
         B = -pos[avoid,1]/pos[avoid,0]
-        delta = 4*B**2*A**2 - 4*(A**2-self.rad_ring[fib]**2)*(B**2+1)
+        # element inside the sqrt of the solution of a quadratic equation
+        delta = 4*B**2*A**2 - 4*(A**2-self.rad_foc[fib]**2)*(B**2+1)
+        # find real value
         ind = delta > 0
         temp = np.zeros(np.sum(avoid))
+        # mixed case
         if ind.any():
             # x1 = plus sign
             delta = np.sqrt(delta[ind])
+            # compute the two intersection points on the focus point
+            # First one
             x1 = np.zeros((sum(ind),2))
             x1[:,1] = (-2*B[ind]*A[ind] + delta)/(2*(B[ind]**2+1))
             x1[:,0] = A[ind] + B[ind]*x1[:,1]
 
+            # second one
             x2 = np.zeros((sum(ind),2))
             x2[:,1] = (-2*B[ind]*A[ind] - delta)/(2*(B[ind]**2+1))
             x2[:,0] = A[ind] + B[ind]*x2[:,1]
 
+            # and now on the lens
             y1 = ((pos[avoid,:][ind,0:2].T-x1.T*ratio[ind])*f[ind]).T
             y2 = ((pos[avoid,:][ind,0:2].T-x2.T*ratio[ind])*f[ind]).T
 
@@ -917,7 +926,7 @@ class BES:
         if ind.any():
             q = pos[ind,:]
             q[:,2] -= self.dist[fib]
-            solid[ind] = solid_angle_disk(q,self.rad_ring[fib])
+            solid[ind] = solid_angle_disk(q,self.rad_foc[fib])
         if (solid < 0).any() or (solid > 4*np.pi).any():
             print('solid angle',solid)
             print('check_in',test)
@@ -953,7 +962,7 @@ class BES:
         """
         # first the contribution of the ring
         omega = self.solid_angle_seg(pos-np.array([0,0,self.dist[fib]]),x,
-                                     self.rad_ring[fib],0)
+                                     self.rad_foc[fib],0)
         # second the contribution of the lens
         omega +=self.solid_angle_seg(pos,y,self.rad_lens,1)
         return omega
@@ -1010,7 +1019,7 @@ class BES:
         x2 = x[1]
         
         # limits (in angle) considered for the integration
-        theta = np.linspace(0,2*np.pi,self.Nsol)
+        theta = np.linspace(0,2*np.pi,self.Nsolid)
         quadr = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
         quadt = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
 
@@ -1034,7 +1043,7 @@ class BES:
         # unit vector for each angle
         delta = np.array([np.cos(th),np.sin(th)])
         delta = np.rollaxis(delta,0,3)
-        # now detla[Nsol-1,quadt,dim]
+        # now detla[Nsolid-1,quadt,dim]
 
         # compute the scalar product (=> the cos)
         cospsi = np.einsum('ak,ijk->aij',perp,delta)
@@ -1055,7 +1064,7 @@ class BES:
         rmax = np.minimum(r,rmax)
 
         # array containing the evaluation of the function that will be integrated
-        R = np.zeros((pos.shape[0],self.Nsol-1,quadt.pts.shape[0],
+        R = np.zeros((pos.shape[0],self.Nsolid-1,quadt.pts.shape[0],
                       quadr.pts.shape[0],3))
         # radius that will be computed
         temp = (0.5*rmax[...,np.newaxis]*(quadr.pts+1.0))
@@ -1092,14 +1101,21 @@ class BES:
 
 class BES_ideal:
     """ Take the output of the simulation and just 
-        compute the fluctuation
-        A lot of copy and paste from the BES class, therefore look there for
-        the comments
+    compute the density fluctuation at the focus points.
+    
+    A lot of copy and paste from the BES class, therefore look there for
+    the comments
+
+    :param str input_file: name of the BES config file
+    :param bool mesh: Use a mesh done from min/max of the focus points (True)\
+    or the focus points (False)
     """
     def __init__(self,input_file,mesh=False):
-        """ load all the data from the input file mesh is used for knowing
-            if the focus points are used or if a mesh is created one the max/min
-            value of the focus points
+        """ load all the data from the input file.
+
+        mesh is used for knowing
+        if the focus points are used or if a mesh is created one the max/min
+        value of the focus points
         """
         self.cfg_file = input_file                                           #!
         if not exists(self.cfg_file):
@@ -1145,7 +1161,7 @@ class BES_ideal:
         
 
     def compute_limits(self, eps=1, dxmin = 0.1, dymin = 0.1, dzmin = 0.5):
-        """ find min/max of the focus points """
+        """ find min/max coordinates of the focus points """
         # first in X
         self.Xmax = np.max(self.pos_foc[:,0])
 
@@ -1190,7 +1206,8 @@ class BES_ideal:
 
 
     def get_bes(self):
-        """ Compute the image of the turbulence in density
+        """ Compute the image of the density turbulence at the focus points.
+
             This function should be the only one used outside the class
         """
         if self.mesh:

@@ -736,8 +736,8 @@ class BES:
                 eps = self.get_emis_from(pos,t_,fiber_nber)
                 
                 # now compute the solid angle
-                if (solid[fiber_nber,zind,i,:] == 0).any():
-                    solid[fiber_nber,zind,i,:] = self.get_solid_angle(pos,fiber_nber)
+                if (self.solid[fiber_nber,zind,i,:] == 0).any():
+                    self.solid[fiber_nber,zind,i,:] = self.get_solid_angle(pos,fiber_nber)
                 # compute the filter
                 filt = self.get_filter(pos)
                 
@@ -746,7 +746,7 @@ class BES:
 
                 # sum the emission of all the points with the appropriate
                 # weight (quadrature formula and solid angle)
-                wsol = quad.w*solid[fiber_nber,zind,i,:]
+                wsol = quad.w*self.solid[fiber_nber,zind,i,:]
                 I[i] = np.sum(wsol*eps)/np.sum(wsol)
         elif self.type_int == '1D':
             # just use the point on the central line

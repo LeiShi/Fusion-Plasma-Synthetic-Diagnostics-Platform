@@ -116,7 +116,7 @@ rad_foc = 0.01
 # (more detail in the code)
 # we are assuming that the focus point are
 # on the central line of the beam
-int = 3.75
+int = 2.5
 # number of points for the integration along the
 # sightline
 Nint = 7
@@ -140,6 +140,6 @@ dphi = 0.06
 # (used for computing the limits of the mesh)
 tau_max = 1e-8
 # simulation time steps wanted
-timestart = 180
+timestart = 1
 timeend = 182
 timestep = 1

@@ -1,5 +1,21 @@
 import collections
 import numpy as np
+from scipy.special import ndtri, ndtr
+
+def get_interval_gaussian(cutoff,sigma,N):
+    """ Create a mesh for doing a quadrature formula on a function close to
+    a gaussian.
+
+    .. :math:
+       
+       x_i = F^{-1}(\frac{i}{N})
+    
+    """
+    if cutoff/sigma < 2.5:
+        print 'Cutoff value small: only {} % of the integral is taken in account'.format(100*(ndtr(cutoff/sigma)-ndtr(-cutoff/sigma)))
+    x = np.linspace(0,1,N)
+    x = x*(ndtr(cutoff/sigma)-ndtr(-cutoff/sigma))+ndtr(-cutoff/sigma)
+    return ndtri(x)*sigma
 
 def integration_points(dim, meth, obj='', size=-1):
     """ Defines a few quadrature formula (in any number of dimension)

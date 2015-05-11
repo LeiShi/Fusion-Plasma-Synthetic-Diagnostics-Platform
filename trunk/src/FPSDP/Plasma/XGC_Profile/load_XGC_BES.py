@@ -35,7 +35,7 @@ def get_interp_planes_BES(my_xgc,phi3D):
     # angle between two planes
     dPHI = 2 * np.pi / my_xgc.n_plane
     # angle of each planes
-    phi_planes = np.arange(my_xgc.n_plane)*dPHI
+    phi_planes = np.arange(my_xgc.n_plane)*dPHI+my_xgc.shift
     # previous/next plane depends on the direction of the field
     if(my_xgc.CO_DIR):
         # find next plane and previous plane
@@ -64,9 +64,10 @@ class XGC_Loader_BES():
     :param int dt: Interval between two time step that the diagnostics should compute
     :param list[list[]] limits: Mesh limits for the diagnostics (first index is for X,Y,Z and second for min/max)
     :param float dphi: Size of the step for the field line integration (in radian)
+    :param float shift: Shift for phi (default value assumed that plane number 0 is at phi=0)
     """
 
-    def __init__(self,xgc_path,t_start,t_end,dt,limits,dphi):
+    def __init__(self,xgc_path,t_start,t_end,dt,limits,dphi,shift=0):
         """The main caller of all functions to prepare a loaded XGC 
            profile for the BES diagnostics.
         """
@@ -80,6 +81,7 @@ class XGC_Loader_BES():
         self.unit_file = xgc_path+'units.m'
         self.te_input_file = xgc_path+'te_input.in'
         self.ne_input_file = xgc_path+'ne_input.in'
+        self.shift = shift
         
         print 'from directory:'+ self.xgc_path
         self.unit_dic = load_m(self.unit_file)
@@ -375,7 +377,7 @@ class XGC_Loader_BES():
         dPhi = 2*np.pi/self.n_plane
 
         # angle of the planes
-        phi_planes = np.arange(self.n_plane)*dPhi
+        phi_planes = np.arange(self.n_plane)*dPhi+self.shift
 
         # the previous/next planes depend on the direction of the field
         if(self.CO_DIR):
@@ -405,10 +407,7 @@ class XGC_Loader_BES():
         if (phiFWD < 0).any():
             sign = -1.0
         # forward step
-        j = 0
         while ind.any():
-            j += 1
-            print 'i',j
             # size of the next step for each position
             step = phiFWD[ind]
             step[np.abs(step) > self.dphi] = sign*self.dphi
@@ -423,12 +422,14 @@ class XGC_Loader_BES():
                 Ztemp = Z_FWD[ind] + dZtemp
                 dPhitemp = step*np.sum(a[i,:i])
                 Btemp = self.B_interp(Ztemp,Rtemp)
-                Btemp[np.isinf(Btemp[:,2]),2] = self.fill_Bphi
-                
+                # avoid the part outside the mesh
+                indinf = np.isfinite(Btemp[:,2])
                 # evaluate the function
-                K[:,0,i] = Rtemp * Btemp[:,0] / Btemp[:,2]
-                K[:,1,i] = Ztemp * Btemp[:,1] / Btemp[:,2]
-                K[:,2,i] = np.sqrt(dRtemp**2 + (Rtemp*dPhitemp)**2 + Ztemp**2)
+                
+                K[indinf,0,i] = Rtemp[indinf] * Btemp[indinf,0] / Btemp[indinf,2]
+                K[indinf,1,i] = Ztemp[indinf] * Btemp[indinf,1] / Btemp[indinf,2]
+                K[indinf,2,i] = np.sqrt(dRtemp[indinf]**2 * + (Rtemp[indinf]*dPhitemp[indinf])**2 + Ztemp[indinf]**2)
+
 
             # compute the final value of this step
             dR_FWD = step*np.sum(b[np.newaxis,:]*K[:,0,:],axis=1)
@@ -452,10 +453,7 @@ class XGC_Loader_BES():
         if (phiBWD < 0).any():
             sign = -1.0
         # backward step
-        j = 0
         while ind.any():
-            j += 1
-            print 'j',j
             # size of the next step for each position
             step = phiBWD[ind]
             step[np.abs(step) > self.dphi] = sign*self.dphi
@@ -470,12 +468,12 @@ class XGC_Loader_BES():
                 Ztemp = Z_BWD[ind] + dZtemp
                 dPhitemp = step*np.sum(a[i,:i])
                 Btemp = self.B_interp(Ztemp,Rtemp)
-
-                Btemp[np.isinf(Btemp[:,2]),2] = self.fill_Bphi
+                indinf = np.isfinite(Btemp[:,2])
                 # evaluate the function
-                K[:,0,i] = Rtemp * Btemp[:,0] / Btemp[:,2]
-                K[:,1,i] = Ztemp * Btemp[:,1] / Btemp[:,2]
-                K[:,2,i] = np.sqrt(dRtemp**2 * + (Rtemp*dPhitemp)**2 + Ztemp**2)
+                
+                K[indinf,0,i] = Rtemp[indinf] * Btemp[indinf,0] / Btemp[indinf,2]
+                K[indinf,1,i] = Ztemp[indinf] * Btemp[indinf,1] / Btemp[indinf,2]
+                K[indinf,2,i] = np.sqrt(dRtemp[indinf]**2 * + (Rtemp[indinf]*dPhitemp[indinf])**2 + Ztemp[indinf]**2)
 
             # compute the final value of this step
             dR_BWD = step*np.sum(b[np.newaxis,:]*K[:,0,:],axis=1)

@@ -19,6 +19,7 @@ import FPSDP.Maths.Integration as integ
 from FPSDP.GeneralSettings.UnitSystem import SI
 from FPSDP.Maths.Funcs import heuman, solid_angle_disk
 
+
 from os.path import exists # used for checking if the input file exists
 # it is not clear with configparser error
 
@@ -178,12 +179,13 @@ class BES:
         R = np.array(R)
         phi = json.loads(config.get('Optics','phi'))
         Z = json.loads(config.get('Optics','Z'))
+        plane = json.loads(config.get('Optics','plane'))
         # compute the value of phi in radian
         print 'should be changed if use another code than xgc'
         name = self.data_path + 'xgc.3d.' + str(start).zfill(5)+'.h5'
         nber_plane = h5.File(name,'r')
         nphi = nber_plane['nphi'][:]
-        phi = 2*np.pi*phi/nphi[0]
+        shift = np.mean(phi) - 2*np.pi*plane/nphi[0]
 
         
         self.pos_foc = np.zeros((len(Z),3))                                  #!
@@ -222,7 +224,7 @@ class BES:
         #grid3D = Grid.Cartesian3D(Xmin=self.Xmin, Xmax=self.Xmax, Ymin=self.Zmin, Ymax=self.Zmax,
         #                          Zmin=self.Ymin, Zmax=self.Ymax, NX=self.N[0], NY=self.N[2], NZ=self.N[1])
         xgc_ = xgc.XGC_Loader_BES(self.data_path, start, end, timestep,
-                                  self.limits, self.dphi)
+                                  self.limits, self.dphi,shift)
         self.time = xgc_.time_steps                                          #!
 
         # set the data inside the beam (2nd part of the initialization)
@@ -313,7 +315,12 @@ class BES:
         """
         print('need to improve this ')
         # average beam width
-        w = 0.5*(self.beam.stddev_h + self.beam.stddev_v)
+        # assume a configuration where the beam as a width close to a constant
+        # and the focus point are close from each other
+        width = [self.beam.stddev_h, self.beam.stddev_v]
+
+        w = (width[0]*np.sum(self.op_direc[0,0:2]) + width[1]*self.op_direc[0,2])*self.inter
+        w /= np.abs(np.dot(self.beam.direc,self.op_direc[0,:]))
         # size of the integration along the optical axis
         d = self.inter*w
 
@@ -676,12 +683,13 @@ class BES:
         
     def light_from_plane(self,z, t_, fiber_nber):
         r""" Compute the light from one plane using a method of order 10 (see report or
-        Abramowitz and Stegun).
+        Abramowitz and Stegun) or by making the assumption of a constant emission on the plane.
         
         .. math::
-           I_\text{plane} = \iint_D f(x) \mathrm{d}\sigma \approx \sum_i \omega_i f(x_i)
+           I_\text{plane} = \frac{\iint_D f(x) \mathrm{d}\sigma}{\iint_D g(x)\mathrm{d}\sigma}
+           \approx \frac{\sum_i \omega_i f(x_i)}{\sum_i \omega_i g(x_i)}
         
-        where :math:`f(x)` is the value obtained by :func:`get_emis_from <FPSDP.Diagnostics.BES.bes.BES.get_emis_from>`,
+        where :math:`f(x) = \varepsilon(x)\Omega(x)`, :math:`g(x) = \Omega(x)`
         D is the disk representing the plane, and, :math:`\omega_i` and :math:`x_i` are the weights and the points
         of the quadrature formula.
 
@@ -720,9 +728,19 @@ class BES:
                 pos[:,1] = quad.pts[:,1]
                 pos[:,2] = z[i]*np.ones(quad.pts.shape[0])
                 eps = self.get_emis_from(pos,t_,fiber_nber)
+                
+                # now compute the solid angle
+                solid = self.get_solid_angle(pos,fiber_nber)
+                # compute the filter
+                filt = self.get_filter(pos)
+                
+                # sum the intensity of all the components
+                eps = np.sum(eps*filt,axis=0)
+
                 # sum the emission of all the points with the appropriate
-                # weight
-                I[i] = np.sum(quad.w*eps)
+                # weight (quadrature formula and solid angle)
+                wsol = quad.w*solid
+                I[i] = np.sum(wsol*eps)/np.sum(wsol)
         elif self.type_int == '1D':
             # just use the point on the central line
             for i,z_ in enumerate(z):
@@ -732,10 +750,36 @@ class BES:
             raise NameError('This type of integration does not exist')
         return I
 
+    def get_filter(self,pos):
+        """ Compute the wavelenght and the transmittance for each position.
+
+        Use the Doppler effect for the computation of the wavelength
+
+        :param np.array[N,3] pos: Position in the optical system 
+
+        :returns: Transmittance
+        :rtype: np.array[N]
+        
+        """
+        # compute the effect of the filter
+        dist_ = self.pos_lens[np.newaxis,:] - pos
+        dist_ = dist_/np.sqrt(np.sum(dist_**2,axis=-1)[:,np.newaxis])
+
+        # compute the angle between the beam and the optic
+        costh = np.einsum('ij,j->i',dist_,self.beam.direc)
+
+        # compute the wavelength
+        wl = (1.0 - self.beam.speed[:,np.newaxis]*costh/SI['c'])
+        wl *= self.wl0
+        # interpolate
+        return self.filter_(wl)
+        
+        
+
     def intensity(self,t_,fiber_nber):
         r""" Compute the light received by a fiber at one time step.
         
-        Use a Gauss-Legendre quadrature formula of order 5.
+        Use a Gauss-Legendre quadrature formula of order 4.
         
         .. math::
            I = \int_{-d}^d f(z) \mathrm{d}z \approx 
@@ -746,6 +790,9 @@ class BES:
         :math:`d = \text{inter} \cdot w`, inter is the cutoff in unit of the average beam width (w),
         :math:`a_i` and :math:`b_i` are the lower and upper limits for each intervals, :math:`\omega` and :math:`x_i` are
         the weights and points of the quadrature formula. See figure :func:`compute_limits <FPSDP.Diagnostics.BES.bes.BES.compute_limits>` for a view of the situation.
+
+        The computation of the intervals assume that the focus point is exactly at the center of the beam and that :math:`f(x)` is a gaussian.
+        
 
         :param int t_: Time step to compute
         :param int fiber_nber: Index of the fiber
@@ -760,21 +807,21 @@ class BES:
         dist = np.dot(self.pos_foc[fiber_nber,:] - self.beam.pos,self.beam.direc)
         width = self.beam.get_width(dist)
         # compute the average beam width of the beam
-        width = 0.5*(width[0] + width[1])*self.inter
+        width = (width[0]*np.sum(self.op_direc[fiber_nber,0:2]) + width[1]*self.op_direc[fiber_nber,2])*self.inter
+        width /= np.abs(np.dot(self.beam.direc,self.op_direc[fiber_nber,:]))
         # limit of the intervals
-        border = np.linspace(-width,width,self.Nint)
+        border = integ.get_interval_gaussian(width*self.inter,width,self.Nint)
         # value inside the intervals
         Z = 0.5*(border[:-1] + border[1:])
         # half size of one interval
-        ba2 = 0.5*(border[2]-border[1])
-        for z in Z:
+        ba2 = 0.5*(border[1:]-border[:-1])
+        for i,z in enumerate(Z):
             # distance of the plane from the lense
-            pt = z + ba2*quad.pts + self.dist[fiber_nber]
+            pt = z + ba2[i]*quad.pts + self.dist[fiber_nber]
             light = self.light_from_plane(pt,t_,fiber_nber)
             # sum the weight with the appropriate pts
-            I += np.sum(quad.w*light)
+            I += np.sum(quad.w*light*ba2[i])
         # multiply by the weigth of each interval
-        I *= ba2
         return I
         
     def get_emis_from(self,pos,t_,fiber_nber):
@@ -799,22 +846,9 @@ class BES:
             eps = self.beam.get_emis_lifetime(x,t_)/(4.0*np.pi)
         else:
             eps = self.beam.get_emis(x,t_)/(4.0*np.pi)
-        # now compute the solid angle
-        solid = self.get_solid_angle(pos,fiber_nber)
+        return eps
 
-        # compute the effect of the filter
-        dist_ = self.pos_lens[np.newaxis,:] - pos
-        dist_ = dist_/np.sqrt(np.sum(dist_**2,axis=-1)[:,np.newaxis])
-
-        costh = np.einsum('ij,j->i',dist_,self.beam.direc)
-
-        wl = (1.0 - self.beam.speed[:,np.newaxis]*costh/SI['c'])
-        wl *= self.wl0
-        filt = self.filter_(wl)
-        # sum the intensity of all the components
-        eps = np.sum(eps*filt,axis=0)
-        return eps*solid
-
+    
     def get_solid_angle(self,pos,fib):
         r""" Compute the solid angle 
 
@@ -1131,12 +1165,13 @@ class BES_ideal:
         R = np.array(R)
         phi = json.loads(config.get('Optics','phi'))
         Z = json.loads(config.get('Optics','Z'))
+        plane = json.loads(config.get('Optics','plane'))
         # compute the value of phi in radian
         print 'should be changed if use another code than xgc'
         name = self.data_path + 'xgc.3d.' + str(start).zfill(5)+'.h5'
         nber_plane = h5.File(name,'r')
         nphi = nber_plane['nphi'][:]
-        phi = 2*np.pi*phi/nphi[0]
+        shift = np.mean(phi) - 2*np.pi*plane/nphi[0]
 
         
         self.pos_foc = np.zeros((len(Z),3))                                  #!
@@ -1153,7 +1188,7 @@ class BES_ideal:
         #grid3D = Grid.Cartesian3D(Xmin=self.Xmin, Xmax=self.Xmax, Ymin=self.Zmin, Ymax=self.Zmax,
         #                          Zmin=self.Ymin, Zmax=self.Ymax, NX=self.N[0], NY=self.N[2], NZ=self.N[1])
         xgc_ = xgc.XGC_Loader_BES(self.data_path, start, end, timestep,
-                                  self.limits, self.dphi)
+                                  self.limits, self.dphi,shift)
         self.time = xgc_.time_steps                                          #!
 
 

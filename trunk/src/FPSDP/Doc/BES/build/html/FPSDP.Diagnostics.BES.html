@@ -64,10 +64,11 @@ structure of the diagnostics and just take density value at the focus points (<a
 <h2>Beam Emission Spectroscopy<a class="headerlink" href="#beam-emission-spectroscopy" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="FPSDP.Diagnostics.BES.bes.BES">
-<em class="property">class </em><tt class="descclassname">FPSDP.Diagnostics.BES.bes.</tt><tt class="descname">BES</tt><big>(</big><em>input_file</em>, <em>parallel=False</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">FPSDP.Diagnostics.BES.bes.</tt><tt class="descname">BES</tt><big>(</big><em>input_file</em>, <em>multiprocessing=False</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES" title="Permalink to this definition">¶</a></dt>
 <dd><p>Class computing the image of all the fibers.</p>
-<p>Load the parameter from a config file and create everything from it.
-The function <tt class="xref py py-func docutils literal"><span class="pre">get_bes()</span></tt> is used for computing the intensity received by
+<p>Load the parameter from a config file (example in <a class="reference download internal" href="_downloads/bes.in"><tt class="xref download docutils literal"><span class="pre">bes.in</span></tt></a>
+with a lot of comments for explaining all the parameters) and create everything from it.
+The function <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.get_bes" title="FPSDP.Diagnostics.BES.bes.BES.get_bes"><tt class="xref py py-func docutils literal"><span class="pre">get_bes</span></tt></a> is used for computing the intensity received by
 each fiber (number of photons per second).</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -75,40 +76,40 @@ each fiber (number of photons per second).</p>
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>input_file</strong> (<em>str</em>) &#8211; Name of the config file</li>
-<li><strong>parallel</strong> (<em>bool</em>) &#8211; Choice between the serial code or the parallel one</li>
+<li><strong>multiprocessing</strong> (<em>bool</em>) &#8211; Choice between the serial code or the parallel one</li>
 </ul>
 </td>
 </tr>
 <tr class="field-even field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
 <li><strong>self.cfg_fil</strong> (<em>str</em>) &#8211; Name of the config file</li>
-<li><strong>self.para</strong> (<em>bool</em>) &#8211; Choice between the serial code and the parallel one</li>
-<li><strong>self.pos_lens</strong> (<em>np.array[3]</em>) &#8211; Position of the lens (in the cartesian system)</li>
-<li><strong>self.rad_ring</strong> (<em>np.array[Nfib]</em>) &#8211; Radius of the focus point for each fiber</li>
-<li><strong>self.rad_lens</strong> (<em>float</em>) &#8211; Radius of the lens</li>
-<li><strong>self.inter</strong> (<em>float</em>) &#8211; Cutoff distance from the focus point (in unit of the beam width)</li>
+<li><strong>self.multiprocessing</strong> (<em>bool</em>) &#8211; Choice between the serial code and the parallel one</li>
+<li><strong>self.pos_lens</strong> (<em>np.array[3]</em>) &#8211; Position of the lens (in the cartesian system) in meter</li>
+<li><strong>self.rad_foc</strong> (<em>np.array[Nfib]</em>) &#8211; Radius of the focus point for each fiber in meter</li>
+<li><strong>self.rad_lens</strong> (<em>float</em>) &#8211; Radius of the lens in meter</li>
+<li><strong>self.inter</strong> (<em>float</em>) &#8211; Cutoff distance from the focus point (in unit of the beam width).    Look at the figure in <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.compute_limits" title="FPSDP.Diagnostics.BES.bes.BES.compute_limits"><tt class="xref py py-func docutils literal"><span class="pre">compute_limits</span></tt></a>, the two outer red lines for the limit.</li>
 <li><strong>self.Nint</strong> (<em>int</em>) &#8211; Number of point for splitting the integral over the optical direction</li>
-<li><strong>self.Nsol</strong> (<em>int</em>) &#8211; Number of interval for the evaluation of the solid angle in the mixed case</li>
-<li><strong>self.pos_foc</strong> (<em>np.array[Nfib,3]</em>) &#8211; Position of the focus points (in the cartesian system)</li>
+<li><strong>self.Nsolid</strong> (<em>int</em>) &#8211; Number of interval for the evaluation of the solid angle in the mixed case    Look at the figure in <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.get_solid_angle" title="FPSDP.Diagnostics.BES.bes.BES.get_solid_angle"><tt class="xref py py-func docutils literal"><span class="pre">get_solid_angle</span></tt></a>.</li>
+<li><strong>self.pos_foc</strong> (<em>np.array[Nfib,3]</em>) &#8211; Position of the focus points in meter (in the cartesian system)</li>
 <li><strong>self.op_direc</strong> (<em>np.array[Nfib,3]</em>) &#8211; Direction of the optical line (for each fiber)</li>
-<li><strong>self.dist</strong> (<em>np.array[Nfib]</em>) &#8211; Distance between the focus point and the lens</li>
+<li><strong>self.dist</strong> (<em>np.array[Nfib]</em>) &#8211; Distance between the focus point and the lens in meter</li>
 <li><strong>self.perp1</strong> (<em>np.array[Nfib,3]</em>) &#8211; Second basis vector for each fiber coordinates (first is the optical line)</li>
 <li><strong>self.perp2</strong> (<em>np.array[Nfib,3]</em>) &#8211; Third basis vector</li>
 <li><strong>self.type_int</strong> (<em>str</em>) &#8211; choice between the full computation of the intensity or only over the central line (&#8216;1D&#8217; or &#8216;2D&#8217;)</li>
 <li><strong>self.t_max</strong> (<em>float</em>) &#8211; Cutoff time for the lifetime effect (in unit of the lifetime).    If set to 0, the lifetime will not be taken in account</li>
 <li><strong>self.lifetime</strong> (<em>bool</em>) &#8211; Choice between using the lifetime effect or not</li>
 <li><strong>self.tau_max</strong> (<em>float</em>) &#8211; Upper limit for the lifetime of the excited particles.    It does not need to be exact, it is only for computing the limits of the mesh.</li>
-<li><strong>self.dphi</strong> (<em>int</em>) &#8211; Size of a time step for the field line interpolation (in radians)</li>
-<li><strong>self.data_path</strong> (<em>str</em>) &#8211; Path to the data</li>
+<li><strong>self.dphi</strong> (<em>int</em>) &#8211; Toroidal step for the field line interpolation (in radians)</li>
+<li><strong>self.data_path</strong> (<em>str</em>) &#8211; Directory path to the data</li>
 <li><strong>self.beam</strong> &#8211; (<a class="reference internal" href="FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D" title="FPSDP.Diagnostics.Beam.beam.Beam1D"><tt class="xref py py-class docutils literal"><span class="pre">Beam1D</span></tt></a>) Beam used for the diagnostic</li>
 <li><strong>self.time</strong> (<em>np.array[Ntime]</em>) &#8211; Time steps used for the simulation</li>
 <li><strong>self.filter</strong> (<em>tck_interp</em>) &#8211; Interpolant of the filter</li>
-<li><strong>self.wl0</strong> (<em>float</em>) &#8211; Wavelength of the de-excitation photons</li>
-<li><strong>self.Xmax</strong> (<em>float</em>) &#8211; Upper limit of the X coordinate</li>
-<li><strong>self.Xmin</strong> (<em>float</em>) &#8211; Lower limit of the X coordinate</li>
-<li><strong>self.Ymax</strong> (<em>float</em>) &#8211; Upper limit of the Y coordinate</li>
-<li><strong>self.Ymin</strong> (<em>float</em>) &#8211; Lower limit of the Y coordinate</li>
-<li><strong>self.Zmax</strong> (<em>float</em>) &#8211; Upper limit of the Z coordinate</li>
-<li><strong>self.Zmin</strong> (<em>float</em>) &#8211; Lower limit of the Z coordinate</li>
+<li><strong>self.lambda0</strong> (<em>float</em>) &#8211; Wavelength of the de-excitation photons</li>
+<li><strong>self.Xmax</strong> (<em>float</em>) &#8211; Upper limit of the X coordinate of the mesh</li>
+<li><strong>self.Xmin</strong> (<em>float</em>) &#8211; Lower limit of the X coordinate of the mesh</li>
+<li><strong>self.Ymax</strong> (<em>float</em>) &#8211; Upper limit of the Y coordinate of the mesh</li>
+<li><strong>self.Ymin</strong> (<em>float</em>) &#8211; Lower limit of the Y coordinate of the mesh</li>
+<li><strong>self.Zmax</strong> (<em>float</em>) &#8211; Upper limit of the Z coordinate of the mesh</li>
+<li><strong>self.Zmin</strong> (<em>float</em>) &#8211; Lower limit of the Z coordinate of the mesh</li>
 <li><strong>self.limits</strong> (<em>np.array[3,2]</em>) &#8211; Limits of the mesh (first index for X,Y,Z and second for max,min)</li>
 </ul>
 </td>
@@ -220,7 +221,7 @@ The shape of the sampling area is asume to be linear along the z-axis (optic dir
 <tt class="descname">compute_limits</tt><big>(</big><em>eps=0.1</em>, <em>dxmin=0.1</em>, <em>dymin=0.1</em>, <em>dzmin=0.1</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.compute_limits"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.compute_limits" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the limits of the mesh that should be loaded</p>
 <p>The only limitations comes from the sampling volume and the lifetime of the excited state.
-In the figure below, blue is for the beam and the lifetime effect, red for the ring and the cutoff values,
+In the figure below, blue is for the beam and the lifetime effect, red for the ring and the cutoff values (<tt class="xref std std-keyword docutils literal"><span class="pre">self.inter</span></tt>),
 straight black lines are for the sampling volume, and, the dashed one are the box.</p>
 <div class="figure">
 <p><img src="_images/tikz-780c2c8196ce13513b30a547f2466d39f2da7b38.png" alt="% beam
@@ -263,13 +264,13 @@ straight black lines are for the sampling volume, and, the dashed one are the bo
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES.get_bes">
 <tt class="descname">get_bes</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_bes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_bes" title="Permalink to this definition">¶</a></dt>
-<dd><p>Compute the image of the density turbulence.
+<dd><p>Compute the synthetic image from the diagnostics.
 This function should be the only one used outside the class.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Intensity collected by each fiber (number of photons)</td>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Intensity collected by each fiber (number of photons by seconds and by square meters)</td>
 </tr>
 <tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">np.array[Ntime, Nfib]</td>
 </tr>
@@ -406,6 +407,35 @@ keeping all the wavelength until the end).</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES.get_filter">
+<tt class="descname">get_filter</tt><big>(</big><em>pos</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_filter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_filter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the wavelenght and the transmittance for each position.</p>
+<p>Use the Doppler effect for the computation of the wavelength</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>pos</strong> (<em>np.array[N,3]</em>) &#8211; Position in the optical system</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Transmittance</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">np.array[N]</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES.get_psin">
+<tt class="descname">get_psin</tt><big>(</big><em>pt</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_psin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_psin" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the psin value.</p>
+<p>Psin is equal to 0 on the magnetic axis and to 1 on the separatrix.
+:param np.array[N,3] pt: Positions in the cartesian system
+:return: Psin
+:rtype: np.array[N]</p>
+</dd></dl>
+
+<dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES.get_solid_angle">
 <tt class="descname">get_solid_angle</tt><big>(</big><em>pos</em>, <em>fib</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_solid_angle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_solid_angle" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the solid angle</p>
@@ -514,7 +544,7 @@ Assume two cones that meet at the focus disk.</p>
 <dt id="FPSDP.Diagnostics.BES.bes.BES.intensity">
 <tt class="descname">intensity</tt><big>(</big><em>t_</em>, <em>fiber_nber</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.intensity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.intensity" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the light received by a fiber at one time step.</p>
-<p>Use a Gauss-Legendre quadrature formula of order 5.</p>
+<p>Use a Gauss-Legendre quadrature formula of order 4.</p>
 <div class="math">
 \[I = \int_{-d}^d f(z) \mathrm{d}z \approx 
 \sum_i \frac{b_i-a_i}{2} \sum_j \omega_j f\left(\frac{b_i-a_i}{2}x_j + \frac{a_i+b_i}{2}\right)\]</div>
@@ -523,6 +553,7 @@ Assume two cones that meet at the focus disk.</p>
 <span class="math">\(d = \text{inter} \cdot w\)</span>, inter is the cutoff in unit of the average beam width (w),
 <span class="math">\(a_i\)</span> and <span class="math">\(b_i\)</span> are the lower and upper limits for each intervals, <span class="math">\(\omega\)</span> and <span class="math">\(x_i\)</span> are
 the weights and points of the quadrature formula. See figure <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.compute_limits" title="FPSDP.Diagnostics.BES.bes.BES.compute_limits"><tt class="xref py py-func docutils literal"><span class="pre">compute_limits</span></tt></a> for a view of the situation.</p>
+<p>The computation of the intervals assume that the focus point is exactly at the center of the beam and that <span class="math">\(f(x)\)</span> is a gaussian.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -567,10 +598,11 @@ Use the variable current from the data loader.</p>
 <dt id="FPSDP.Diagnostics.BES.bes.BES.light_from_plane">
 <tt class="descname">light_from_plane</tt><big>(</big><em>z</em>, <em>t_</em>, <em>fiber_nber</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.light_from_plane"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.light_from_plane" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the light from one plane using a method of order 10 (see report or
-Abramowitz and Stegun).</p>
+Abramowitz and Stegun) or by making the assumption of a constant emission on the plane.</p>
 <div class="math">
-\[I_\text{plane} = \iint_D f(x) \mathrm{d}\sigma \approx \sum_i \omega_i f(x_i)\]</div>
-<p>where <span class="math">\(f(x)\)</span> is the value obtained by <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.get_emis_from" title="FPSDP.Diagnostics.BES.bes.BES.get_emis_from"><tt class="xref py py-func docutils literal"><span class="pre">get_emis_from</span></tt></a>,
+\[I_\text{plane} = \frac{\iint_D f(x) \mathrm{d}\sigma}{\iint_D g(x)\mathrm{d}\sigma}
+\approx \frac{\sum_i \omega_i f(x_i)}{\sum_i \omega_i g(x_i)}\]</div>
+<p>where <span class="math">\(f(x) = \varepsilon(x)\Omega(x)\)</span>, <span class="math">\(g(x) = \Omega(x)\)</span>
 D is the disk representing the plane, and, <span class="math">\(\omega_i\)</span> and <span class="math">\(x_i\)</span> are the weights and the points
 of the quadrature formula.</p>
 <p>The points are given in the figure below and the weights are <span class="math">\(\frac{1}{9}\)</span> for the center,
@@ -743,20 +775,42 @@ has to be compute.</p>
 <dt id="FPSDP.Diagnostics.BES.bes.BES_ideal">
 <em class="property">class </em><tt class="descclassname">FPSDP.Diagnostics.BES.bes.</tt><tt class="descname">BES_ideal</tt><big>(</big><em>input_file</em>, <em>mesh=False</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES_ideal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES_ideal" title="Permalink to this definition">¶</a></dt>
 <dd><p>Take the output of the simulation and just 
-compute the fluctuation
-A lot of copy and paste from the BES class, therefore look there for
+compute the density fluctuation at the focus points.</p>
+<p>A lot of copy and paste from the BES class, therefore look there for
 the comments</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>input_file</strong> (<em>str</em>) &#8211; name of the BES config file</li>
+<li><strong>mesh</strong> (<em>bool</em>) &#8211; Use a mesh done from min/max of the focus points (True)    or the focus points (False)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES_ideal.compute_limits">
 <tt class="descname">compute_limits</tt><big>(</big><em>eps=1</em>, <em>dxmin=0.1</em>, <em>dymin=0.1</em>, <em>dzmin=0.5</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES_ideal.compute_limits"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES_ideal.compute_limits" title="Permalink to this definition">¶</a></dt>
-<dd><p>find min/max of the focus points</p>
+<dd><p>find min/max coordinates of the focus points</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES_ideal.get_bes">
 <tt class="descname">get_bes</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES_ideal.get_bes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES_ideal.get_bes" title="Permalink to this definition">¶</a></dt>
-<dd><p>Compute the image of the turbulence in density
-This function should be the only one used outside the class</p>
+<dd><p>Compute the image of the density turbulence at the focus points.</p>
+<p>This function should be the only one used outside the class</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES_ideal.get_psin">
+<tt class="descname">get_psin</tt><big>(</big><em>pt</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES_ideal.get_psin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES_ideal.get_psin" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the psin value.</p>
+<p>Psin is equal to 0 on the magnetic axis and to 1 on the separatrix.
+:param np.array[N,3] pt: Positions in the cartesian system
+:return: Psin
+:rtype: np.array[N]</p>
 </dd></dl>
 
 <dl class="method">

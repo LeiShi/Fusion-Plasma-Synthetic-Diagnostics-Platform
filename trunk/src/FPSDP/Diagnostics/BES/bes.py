@@ -41,24 +41,24 @@ class BES:
     
     Load the parameter from a config file (example in :download:`bes.in <../../../../FPSDP/Diagnostics/BES/bes.in>`
     with a lot of comments for explaining all the parameters) and create everything from it.
-    The function :func:`get_bes()` is used for computing the intensity received by
+    The function :func:`get_bes <FPSDP.Diagnostics.BES.bes.BES.get_bes>` is used for computing the intensity received by
     each fiber (number of photons per second).
 
     :param str input_file: Name of the config file
-    :param bool parallel: Choice between the serial code or the parallel one
+    :param bool multiprocessing: Choice between the serial code or the parallel one
     :var str self.cfg_fil: Name of the config file
     :var bool self.multiprocessing: Choice between the serial code and the parallel one
-    :var np.array[3] self.pos_lens: Position of the lens (in the cartesian system)
-    :var np.array[Nfib] self.rad_foc: Radius of the focus point for each fiber
-    :var float self.rad_lens: Radius of the lens
+    :var np.array[3] self.pos_lens: Position of the lens (in the cartesian system) in meter
+    :var np.array[Nfib] self.rad_foc: Radius of the focus point for each fiber in meter
+    :var float self.rad_lens: Radius of the lens in meter
     :var float self.inter: Cutoff distance from the focus point (in unit of the beam width).\
     Look at the figure in :func:`compute_limits <FPSDP.Diagnostics.BES.bes.BES.compute_limits>`, the two outer red lines for the limit. 
     :var int self.Nint: Number of point for splitting the integral over the optical direction
     :var int self.Nsolid: Number of interval for the evaluation of the solid angle in the mixed case\
     Look at the figure in :func:`get_solid_angle  <FPSDP.Diagnostics.BES.bes.BES.get_solid_angle>`.
-    :var np.array[Nfib,3] self.pos_foc: Position of the focus points (in the cartesian system)
+    :var np.array[Nfib,3] self.pos_foc: Position of the focus points in meter (in the cartesian system)
     :var np.array[Nfib,3] self.op_direc: Direction of the optical line (for each fiber)
-    :var np.array[Nfib] self.dist: Distance between the focus point and the lens
+    :var np.array[Nfib] self.dist: Distance between the focus point and the lens in meter
     :var np.array[Nfib,3] self.perp1: Second basis vector for each fiber coordinates (first is the optical line)
     :var np.array[Nfib,3] self.perp2: Third basis vector
     :var str self.type_int: choice between the full computation of the intensity or only over the central line ('1D' or '2D')
@@ -80,6 +80,7 @@ class BES:
     :var float self.Zmax: Upper limit of the Z coordinate of the mesh
     :var float self.Zmin: Lower limit of the Z coordinate of the mesh
     :var np.array[3,2] self.limits: Limits of the mesh (first index for X,Y,Z and second for max,min)
+
     The following graph shows the most important call during the initialization of the BES class.
     The red arrows show the call order and the black ones show what is inside the function.
 
@@ -280,7 +281,7 @@ class BES:
         r""" Compute the limits of the mesh that should be loaded
 
         The only limitations comes from the sampling volume and the lifetime of the excited state.
-        In the figure below, blue is for the beam and the lifetime effect, red for the ring and the cutoff values (:var:`self.inter`),
+        In the figure below, blue is for the beam and the lifetime effect, red for the ring and the cutoff values (:keyword:`self.inter`),
         straight black lines are for the sampling volume, and, the dashed one are the box.
 
 
@@ -434,7 +435,7 @@ class BES:
 
 
     def get_bes(self):
-        """ Compute the synthetic image from the diagnostics.
+        """ Compute the image from the synthetic diagnostics.
         This function should be the only one used outside the class.
         
         :returns: Intensity collected by each fiber (number of photons by seconds and by square meters)
@@ -543,6 +544,10 @@ class BES:
             p = mp.Pool(maxtasksperchild=5)
         print self.time
         nber_fiber = self.pos_foc.shape[0]
+
+        # solid angle
+        print 'Should be changed if the order of the methods change'
+        self.solid = np.zeros((nber_fiber,self.Nint-1,2,21))
         I = np.zeros((len(self.time),nber_fiber))
         for i,time in enumerate(self.time):
             print('Time step number: ' + str(i+1) + '/' + str(len(self.time)))
@@ -681,7 +686,7 @@ class BES:
 
         return ret
         
-    def light_from_plane(self,z, t_, fiber_nber):
+    def light_from_plane(self,z, t_, fiber_nber,zind):
         r""" Compute the light from one plane using a method of order 10 (see report or
         Abramowitz and Stegun) or by making the assumption of a constant emission on the plane.
         
@@ -708,6 +713,7 @@ class BES:
         :param np.array[N] z: Distance from the fiber along the sightline
         :param int t_: Time step to compute (is not important for the data loader, but is used as a check)
         :param int fiber_nber: Index of the fiber
+        :param int zind: Index of the z integration
 
         :returns: Intensity collected by the fiber from these planes
         :rtype: np.array[N]
@@ -730,7 +736,8 @@ class BES:
                 eps = self.get_emis_from(pos,t_,fiber_nber)
                 
                 # now compute the solid angle
-                solid = self.get_solid_angle(pos,fiber_nber)
+                if (solid[fiber_nber,zind,i,:] == 0).any():
+                    solid[fiber_nber,zind,i,:] = self.get_solid_angle(pos,fiber_nber)
                 # compute the filter
                 filt = self.get_filter(pos)
                 
@@ -739,7 +746,7 @@ class BES:
 
                 # sum the emission of all the points with the appropriate
                 # weight (quadrature formula and solid angle)
-                wsol = quad.w*solid
+                wsol = quad.w*solid[fiber_nber,zind,i,:]
                 I[i] = np.sum(wsol*eps)/np.sum(wsol)
         elif self.type_int == '1D':
             # just use the point on the central line
@@ -801,7 +808,7 @@ class BES:
         :rtype: float
         """
         # first define the quadrature formula
-        quad = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
+        quad = integ.integration_points(1,'GL4') # Gauss-Legendre order 4
         I = 0.0
         # compute the distance from the origin of the beam
         dist = np.dot(self.pos_foc[fiber_nber,:] - self.beam.pos,self.beam.direc)
@@ -818,19 +825,14 @@ class BES:
         for i,z in enumerate(Z):
             # distance of the plane from the lense
             pt = z + ba2[i]*quad.pts + self.dist[fiber_nber]
-            light = self.light_from_plane(pt,t_,fiber_nber)
+            light = self.light_from_plane(pt,t_,fiber_nber,i)
             # sum the weight with the appropriate pts
             I += np.sum(quad.w*light*ba2[i])
         # multiply by the weigth of each interval
         return I
         
     def get_emis_from(self,pos,t_,fiber_nber):
-        """ Compute the total emission received from a position (takes in account the
-        solid angle and the filter).
-        As long as it is possible, the effect of the optic should be written here (a lot more efficient than
-        keeping all the wavelength until the end).
-
-        :todo: Improvement possible: keep in memory the solid angle for different time step
+        """ Compute the total emission received from a position.
 
         :param np.array[N,3] pos: Position in the optical system 
         :param int t_: Time step to compute

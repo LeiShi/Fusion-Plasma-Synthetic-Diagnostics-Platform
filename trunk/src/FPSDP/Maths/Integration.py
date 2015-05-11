@@ -3,13 +3,21 @@ import numpy as np
 from scipy.special import ndtri, ndtr
 
 def get_interval_gaussian(cutoff,sigma,N):
-    """ Create a mesh for doing a quadrature formula on a function close to
+    r""" Create a mesh for doing a quadrature formula on a function close to
     a gaussian.
 
-    .. :math:
-       
-       x_i = F^{-1}(\frac{i}{N})
+    .. math::
+       x_i = F^{-1}\left(\frac{i}{N-1}\right)
+
+    where :math:`x_i` are the points defining the intervals, :math:`F(x) = \int_{-cutoff}^{x} A\exp\left(-\frac{x^2}{2\sigma^2}\right)`
+    and :math:`A = \frac{1}{F(cutoff)}`
+
+    :param float cutoff: Limits of the integral
+    :param float sigma: Standard deviation of the gaussian
+    :param int N: Number of points for the integrals
     
+    :return: Points of the mesh (each one contains 1/(N-1) % of the total integral)
+    :rtype: np.array[N]
     """
     if cutoff/sigma < 2.5:
         print 'Cutoff value small: only {} % of the integral is taken in account'.format(100*(ndtr(cutoff/sigma)-ndtr(-cutoff/sigma)))

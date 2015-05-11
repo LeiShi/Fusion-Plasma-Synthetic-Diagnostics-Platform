@@ -55,11 +55,42 @@
             
   <div class="section" id="maths-directory">
 <span id="maths"></span><h1>Maths Directory<a class="headerlink" href="#maths-directory" title="Permalink to this headline">¶</a></h1>
-<p>Only the integration and Funcs  modules are used for the BES diagnostics.
-The first one contains some useful quadrature formulas and the second one contains some function for the
-computation of the solid angle.</p>
+<p>Only the Integration, Funcs and RungeKutta modules are used for the BES diagnostics.
+The first one contains some useful quadrature formulas and the creation of a mesh for the integral of a gaussian,
+the second one contains some function for the computation of the solid angle, and the last one contains a function
+that give the Butcher table of a few RungeKutta methods.</p>
 <div class="section" id="module-FPSDP.Maths.Integration">
 <span id="integration-module"></span><h2>Integration Module<a class="headerlink" href="#module-FPSDP.Maths.Integration" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="FPSDP.Maths.Integration.get_interval_gaussian">
+<tt class="descclassname">FPSDP.Maths.Integration.</tt><tt class="descname">get_interval_gaussian</tt><big>(</big><em>cutoff</em>, <em>sigma</em>, <em>N</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Maths/Integration.html#get_interval_gaussian"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Maths.Integration.get_interval_gaussian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a mesh for doing a quadrature formula on a function close to
+a gaussian.</p>
+<div class="math">
+\[x_i = F^{-1}\left(\frac{i}{N-1}\right)\]</div>
+<p>where <span class="math">\(x_i\)</span> are the points defining the intervals, <span class="math">\(F(x) = \int_{-cutoff}^{x} A\exp\left(-\frac{x^2}{2\sigma^2}\right)\)</span>
+and <span class="math">\(A = \frac{1}{F(cutoff)}\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>cutoff</strong> (<em>float</em>) &#8211; Limits of the integral</li>
+<li><strong>sigma</strong> (<em>float</em>) &#8211; Standard deviation of the gaussian</li>
+<li><strong>N</strong> (<em>int</em>) &#8211; Number of points for the integrals</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Points of the mesh (each one contains 1/(N-1) % of the total integral)</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 <dl class="function">
 <dt id="FPSDP.Maths.Integration.integration_points">
 <tt class="descclassname">FPSDP.Maths.Integration.</tt><tt class="descname">integration_points</tt><big>(</big><em>dim</em>, <em>meth</em>, <em>obj=''</em>, <em>size=-1</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Maths/Integration.html#integration_points"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Maths.Integration.integration_points" title="Permalink to this definition">¶</a></dt>

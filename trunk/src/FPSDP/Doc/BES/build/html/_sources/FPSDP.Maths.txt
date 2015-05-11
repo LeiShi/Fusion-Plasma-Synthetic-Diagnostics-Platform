@@ -3,9 +3,10 @@
 Maths Directory
 ===============
 
-Only the integration and Funcs  modules are used for the BES diagnostics.
-The first one contains some useful quadrature formulas and the second one contains some function for the
-computation of the solid angle.
+Only the Integration, Funcs and RungeKutta modules are used for the BES diagnostics.
+The first one contains some useful quadrature formulas and the creation of a mesh for the integral of a gaussian,
+the second one contains some function for the computation of the solid angle, and the last one contains a function
+that give the Butcher table of a few RungeKutta methods.
 
 Integration Module
 ------------------

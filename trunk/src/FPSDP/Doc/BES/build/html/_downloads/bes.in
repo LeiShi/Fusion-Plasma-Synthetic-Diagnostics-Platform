@@ -2,19 +2,20 @@
 # a float
 
 [Beam geometry]
-# position of the beam (X,Y,Z) (in meters)
+# position of the beam (X,Y,Z) (in meter)
 # Z is for the height
 position = [2.34,-0.0452,0.0]
-# direction of the beam, it will be normalized in the code
-direction = [0.53215,-1.0,0.0]
+# direction of the beam (X,Y,Z), it will be normalized in the code
+direction = [-0.53215,1.0,0.0]
 # beam width (FWHM in meter)
 # horizontal
 beam_width_h = 0.13
 # vertical
 beam_width_v = 0.27
 # number of points for the discretization along the beam direction
-# the ending point is computed with the window of the scan
-# (the beam line goes from the position until the end of the mesh)
+# the ending point is computed at the edge of the mesh
+# (the beam line goes from 'position' until the farest point used
+# for all the computation)
 Nz = 128
 
 
@@ -31,14 +32,14 @@ mass_b = [1.0,2.0,3.0]
 [Collisions]
 # ADAS files (separated by ,)
 # attenuation
-adas_atte = ["bms10#h_h1.dat"]
+adas_atte = ["FPSDP/Plasma/Collisions/bms10#h_h1.dat"]
 # emission
-adas_emis = ["bme10#h_h1.dat"]
+adas_emis = ["FPSDP/Plasma/Collisions/bme10#h_h1.dat"]
 # collisions considered (index start to 0)
 # first index is for a file (in adas_file) and second is
 # for the beam component
-# not checked in the code, but one file should correspond
-# to one beam component (usually only one file is used for
+# not checked in the code, but one beam component should have
+# only one file (usually only one file is used for
 # all beam components)
 coll_atte = [[0,0], [0,1], [0,2]]
 coll_emis = [[0,0], [0,1], [0,2]]
@@ -47,26 +48,29 @@ coll_emis = [[0,0], [0,1], [0,2]]
 # the code assume an hydrogen atom
 n_low = 2
 n_high = 3
-# number of points for the discretization of the lifetime effect
+# number of points (=> intervals) for the integration of the lifetime effect
 # exponential decay => small distance, so do not need a big number
+# Used in Beam1d.get_emis_lifetime()
 Nlt = 4
 # t_max*lifetime = upper value of the integrale for the lifetime effect
 # cutoff value
 # if t_max = 0, the lifetime will not be used
+# Used in Beam1d.get_emis_lifetime()
 t_max = 6.0
-# true for using the equilibrium data for the attenation
-# and false for the other case
-# Using the non-equilibrium data increase the size of the mesh
-# used for the interpolation, therefore all the computation
+# true for using the equilibrium for the attenation
+# and false for using the equilibrium + fluctuation
+# Using the fluctuation increase the size of the mesh
+# used for the interpolation, therefore all the interpolaion
 # on the data will be a little bit longer
 eq_atte = false
 
 [Optics]
-# position of the lens
+# position of the lens (X,Y,Z) in meter
 pos_lens = [2.255,-0.625,0.0]
-# position of the focus point for each fiber
+# position of the focus point for each fiber (R,Z,phi)
 # Z is assumed to be an array of the good size,
-# X and Y can be a float or an array
+# R and phi  can be a float or an array
+# For the cartesian X = R*cos(phi) and Y = R*sin(phi)
 
 R = [2.22364, 2.23378, 2.24402, 2.25411, 2.26448, 2.27514,
      2.28568, 2.29622, 2.22364, 2.23378, 2.24402, 2.25411,
@@ -93,34 +97,36 @@ Z = [-0.0140560, -0.0145320,  -0.0145320,  -0.0147840,  -0.0152600,  -0.0152600,
       0.0392920,  0.0394200,   0.0512760,   0.0515040,   0.0519560,   0.0521840,
       0.0656800,  0.0662320,   0.0667840,   0.0670400]
 
-# index of the toroidal plane
-# phi_radian = 2*pi*phi/nber_plane
 phi = 0
+
+# index of the simulation toroidal plane
+# will be align to the focus points
+plane = 0
 
 # radius of the lens
 rad_lens = 0.2
-# radius of the ring (size sampling plane at the
+# radius of the focus points (size sampling plane at the
 # focus point)
-# can be an array of the size of X,Y,Z or a float
-rad_ring = 0.01
+# can be an array of the size of Z or a float
+rad_foc = 0.01
 
-# integration of the intensity along
-# the sightline
-# in [foc-int*w, foc+int*w] where w is the
-# average of the horizontal and vertical
-# standard deviation of the beam
+# cut off for the integral along the sightline
+# [pos_foc-int*w, pos_foc+int*w] where w is the
+# width (standard deviation) of the beam in the direction of the optics
+# (more detail in the code)
 # we are assuming that the focus point are
-# inside the beam
-int = 3.75
-# number of intervals for the integration
-Nint = 5
+# on the central line of the beam
+int = 2.5
+# number of points for the integration along the
+# sightline
+Nint = 7
 # number of section for the integral of the solid angle
-Nsol = 10
+Nsolid = 10
 
 # type of integration for the emission
 # 1D for taking into account only the emission
 # of the central line or 2D for doing an integration
-# over a plane
+# over the plane perpendicular to the central line
 type_int = 2D
 
 [Data]
@@ -128,12 +134,12 @@ type_int = 2D
 filter = FPSDP/Diagnostics/BES/filter.dat
 # path to the simulation data
 data_path = /global/project/projectdirs/m499/jlang/particle_pinch/
-# size of a step for the field line interpolation
-dphi = 0.2
+# torroidal step for the field line interpolation (in radians)
+dphi = 0.06
 # max of the lifetime of the excited particles
 # (used for computing the limits of the mesh)
 tau_max = 1e-8
-# timestep wanted
+# simulation time steps wanted
 timestart = 1
 timeend = 182
 timestep = 1

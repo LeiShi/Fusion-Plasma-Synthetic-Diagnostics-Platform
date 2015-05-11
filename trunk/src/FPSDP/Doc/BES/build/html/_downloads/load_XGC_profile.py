@@ -3,6 +3,7 @@
 """
 from ...Geometry.Grid import Cartesian2D,Cartesian3D
 from ...IO.IO_funcs import parse_num
+from ...Maths.RungeKutta import runge_kutta_explicit
 
 import numpy as np
 import h5py as h5
@@ -44,6 +45,156 @@ def get_interp_planes(my_xgc):
 
     return (prevplane,nextplane)
     
+
+def find_interp_positions_v2_upgrade(my_xgc,Nstep = 10):
+    """Upgrade version for finding interpolation position function version 2.
+    Field line tracing is calculated more effeciently. For points at different portion of toroidal sections, forward and backward steps are calculated for a given toroidal proceeding angle, i.e. dphi
+    Additionally, Runge-Kutta method is employed to integrate dR and dZ for each step, thus larger dphi can be used to eventually save some time.
+    """
+    BR = my_xgc.BR_interp
+    BZ = my_xgc.BZ_interp
+    BPhi = my_xgc.BPhi_interp
+
+    r3D = my_xgc.grid.r3D
+    z3D = my_xgc.grid.z3D
+    phi3D = my_xgc.grid.phi3D
+
+    NZ = r3D.shape[0]
+    NY = r3D.shape[1]
+    NX = r3D.shape[2]
+
+    Rwant = r3D.flatten()
+    Zwant = z3D.flatten()
+    Phiwant = phi3D.flatten()
+
+    prevplane,nextplane = my_xgc.prevplane.flatten(),my_xgc.nextplane.flatten()
+
+    dPhi = 2*np.pi/my_xgc.n_plane# DPhi is the toroidal angle between two adjecent cross sections
+    dphi = dPhi/Nstep #dphi is the toroidal step size for tracing the field line between two cross sections
+    
+    phi_planes = np.arange(my_xgc.n_plane)*dPhi
+
+    #Caluclate the toroidal angle difference from nextplane and prevplane. Caution needs to be taken for the points near plane[0], because it's phi value is by default 0, but sometimes, when the wanted phi is close to 2pi, to calculate the difference between them, it's phi value needs to be considered as 2pi.
+    if(my_xgc.CO_DIR):
+        phiFWD = np.where(nextplane == 0,np.pi*2 - Phiwant, phi_planes[nextplane]-Phiwant)
+        phiBWD = phi_planes[prevplane]-Phiwant
+        FWD_sign = 1
+        BWD_sign = -1
+    else:
+        phiFWD = phi_planes[nextplane]-Phiwant
+        phiBWD = np.where(prevplane ==0,np.pi*2 - Phiwant, phi_planes[prevplane]-Phiwant)
+        FWD_sign = -1
+        BWD_sign = 1
+
+    R_FWD = np.copy(Rwant)
+    R_BWD = np.copy(Rwant)
+    Z_FWD = np.copy(Zwant)
+    Z_BWD = np.copy(Zwant)
+    s_FWD = np.zeros(Rwant.shape)
+    s_BWD = np.zeros(Rwant.shape)
+    
+    
+    # check which index need to be integrated
+    ind = np.ones(Rwant.shape,dtype=bool)
+    # Coefficient of the Runge-Kutta method
+    a,b,c = runge_kutta_explicit(3)
+    # Number of stage for the method
+    Nstage = b.shape[0]
+    # forward step
+    while ind.any():
+        # size of the next step for each position
+        step = phiFWD[ind]
+        step[np.abs(step) > dphi] = FWD_sign * dphi
+        # update the position of the next iteration
+        phiFWD[ind] -= step
+        K = np.zeros((Rwant[ind].shape[0],3,Nstage))
+        for i in range(Nstage):
+            # compute the coordinates of this stage
+            Rtemp = R_FWD[ind] + step*np.sum(a[i,:i]*K[:,0,:i],axis=1)
+            Ztemp = Z_FWD[ind] + step*np.sum(a[i,:i]*K[:,1,:i],axis=1)
+            BPhitemp = BPhi(Ztemp,Rtemp)
+            BRtemp = BR(Ztemp,Rtemp)
+            BZtemp = BZ(Ztemp,Rtemp)
+            #clean the outside points for BR and BZ, set all infinite points to be zero
+            BRtemp[~np.isfinite(BRtemp)] = 0            
+            BZtemp[~np.isfinite(BZtemp)] = 0
+            
+            # evaluate the function
+            K[:,0,i] = Rtemp * BRtemp / BPhitemp
+            K[:,1,i] = Rtemp * BZtemp / BPhitemp
+            K[:,2,i] = np.sqrt(1.0 + (BRtemp/BPhitemp)**2 + (BZtemp/BPhitemp)**2)* Rtemp
+
+        # compute the final value of this step
+        dR_FWD = step*np.sum(b[np.newaxis,:]*K[:,0,:],axis=1)
+        dZ_FWD = step*np.sum(b[np.newaxis,:]*K[:,1,:],axis=1)
+        ds_FWD = np.abs(step)*np.sum(b[np.newaxis,:]*K[:,2,:],axis=1)
+        
+        #when the point gets outside of the XGC mesh, set BR,BZ to zero.
+        #dR_FWD[~np.isfinite(dR_FWD)] = 0.0
+        #dZ_FWD[~np.isfinite(dZ_FWD)] = 0.0
+        #ds_FWD[~np.isfinite(ds_FWD)] = 0.0
+
+        # update the global value
+        s_FWD[ind] += ds_FWD
+        Z_FWD[ind] += dZ_FWD
+        R_FWD[ind] += dR_FWD
+        ind = (phiFWD != 0)
+        print('one forward step finished.')
+
+    # check which index need to be integrated
+    ind = np.ones(Rwant.shape,dtype=bool)
+    # backward step
+    while ind.any():
+        # size of the next step for each position
+        step = phiBWD[ind]
+        step[np.abs(step) > dphi] = BWD_sign * dphi
+        # update the position of the next iteration
+        phiBWD[ind] -= step
+        K = np.zeros((Rwant[ind].shape[0],3,Nstage))
+        for i in range(Nstage):
+            # compute the coordinates of this stage
+            Rtemp = R_BWD[ind] + step*np.sum(a[i,:i]*K[:,0,:i],axis=1)
+            Ztemp = Z_BWD[ind] + step*np.sum(a[i,:i]*K[:,1,:i],axis=1)
+            BPhitemp = BPhi(Ztemp,Rtemp)
+            BRtemp = BR(Ztemp,Rtemp)
+            BZtemp = BZ(Ztemp,Rtemp)
+            #clean the outside points for BR and BZ, set all infinite points to be zero
+            BRtemp[~np.isfinite(BRtemp)] = 0            
+            BZtemp[~np.isfinite(BZtemp)] = 0
+            
+            # evaluate the function
+            K[:,0,i] = Rtemp * BRtemp / BPhitemp
+            K[:,1,i] = Rtemp * BZtemp / BPhitemp
+            K[:,2,i] = np.sqrt(1.0 + (BRtemp/BPhitemp)**2 + (BZtemp/BPhitemp)**2)* Rtemp
+
+        # compute the final value of this step
+        dR_BWD = step*np.sum(b[np.newaxis,:]*K[:,0,:],axis=1)
+        dZ_BWD = step*np.sum(b[np.newaxis,:]*K[:,1,:],axis=1)
+        ds_BWD = np.abs(step)*np.sum(b[np.newaxis,:]*K[:,2,:],axis=1)
+        
+        #when the point gets outside of the XGC mesh, set BR,BZ to zero.
+        #dR_BWD[~np.isfinite(dR_BWD)] = 0.0
+        #dZ_BWD[~np.isfinite(dZ_BWD)] = 0.0
+        #ds_BWD[~np.isfinite(ds_BWD)] = 0.0
+
+        # update the global value
+        s_BWD[ind] += ds_BWD
+        Z_BWD[ind] += dZ_BWD
+        R_BWD[ind] += dR_BWD
+        ind = (phiBWD != 0)
+        print('one backward step finished.')
+    
+    interp_positions = np.zeros((2,3,NZ,NY,NX))
+
+    interp_positions[0,0,...] = Z_BWD.reshape((NZ,NY,NX))
+    interp_positions[0,1,...] = R_BWD.reshape((NZ,NY,NX))    
+    interp_positions[0,2,...] = (s_BWD/(s_BWD+s_FWD)).reshape((NZ,NY,NX))
+    interp_positions[1,0,...] = Z_FWD.reshape((NZ,NY,NX))
+    interp_positions[1,1,...] = R_FWD.reshape((NZ,NY,NX))
+    interp_positions[1,2,...] = 1-interp_positions[0,2,...]
+
+    return interp_positions
+
     
 def find_interp_positions_v2(my_xgc):
     """new version to find the interpolation positions. Using B field information and follows the exact field line.
@@ -81,7 +232,7 @@ def find_interp_positions_v2(my_xgc):
         phiFWD = phi_planes[nextplane]-Phiwant
         phiBWD = np.where(prevplane ==0,np.pi*2 - Phiwant, phi_planes[prevplane]-Phiwant)
 
-    N_step = 20
+    N_step = 10
     dphi_FWD = phiFWD/N_step
     dphi_BWD = phiBWD/N_step
     R_FWD = np.copy(Rwant)
@@ -96,14 +247,15 @@ def find_interp_positions_v2(my_xgc):
 
         RdPhi_FWD = R_FWD*dphi_FWD
         BPhi_FWD = BPhi(Z_FWD,R_FWD)
-        dR_FWD = RdPhi_FWD * BR(Z_FWD,R_FWD) / BPhi_FWD
-        dZ_FWD = RdPhi_FWD * BZ(Z_FWD,R_FWD) / BPhi_FWD
+        BR_FWD = BR(Z_FWD,R_FWD)
+        BZ_FWD = BZ(Z_FWD,R_FWD)
         
-        ind = np.where(np.abs(dR_FWD) == np.inf)[0]
-            #when the point gets outside of the XGC mesh, set BR,BZ to zero.
-        dR_FWD[ind] = 0.0
-        ind = np.where(np.abs(dZ_FWD) == np.inf)[0]
-        dZ_FWD[ind] = 0.0
+        #outside points are flaged with np.inf, need to be set to zero before use
+        BR_FWD[~np.isfinite(BR_FWD)] = 0  
+        BZ_FWD[~np.isfinite(BZ_FWD)] = 0
+        
+        dR_FWD = RdPhi_FWD * BR_FWD/ BPhi_FWD
+        dZ_FWD = RdPhi_FWD * BZ_FWD / BPhi_FWD
         
         s_FWD += np.sqrt(RdPhi_FWD**2 + dR_FWD**2 + dZ_FWD**2)
         R_FWD += dR_FWD
@@ -113,8 +265,16 @@ def find_interp_positions_v2(my_xgc):
         
         RdPhi_BWD = R_BWD*dphi_BWD
         BPhi_BWD = BPhi(Z_BWD,R_BWD)
-        dR_BWD = RdPhi_BWD * BR(Z_BWD,R_BWD) / BPhi_BWD
-        dZ_BWD = RdPhi_BWD * BZ(Z_BWD,R_BWD) / BPhi_BWD
+        
+        BR_BWD = BR(Z_BWD,R_BWD)
+        BZ_BWD = BZ(Z_BWD,R_BWD)
+        
+        #outside points are flaged with np.inf, need to be set to zero before use
+        BR_BWD[~np.isfinite(BR_BWD)] = 0  
+        BZ_BWD[~np.isfinite(BZ_BWD)] = 0
+        
+        dR_BWD = RdPhi_BWD * BR_BWD / BPhi_BWD
+        dZ_BWD = RdPhi_BWD * BZ_BWD / BPhi_BWD
         
         ind = np.where(np.abs(dR_BWD) == np.inf)[0]
         dR_BWD[ind] = 0.0
@@ -266,7 +426,7 @@ class XGC_Loader():
     """Loader for a given set of XGC output files
     """
 
-    def __init__(self,xgc_path,grid,t_start,t_end,dt,dn_amplifier = 1.0, n_cross_section = 1,equilibrium_mesh = '2D',Equilibrium_Only = False,Full_Load = True, Fluc_Only = True,
+    def __init__(self,xgc_path,grid,t_start,t_end,dt,dn_amplifier = 1.0, n_cross_section = 1,equilibrium_mesh = '2D',Equilibrium_Only = False,Full_Load = True, Fluc_Only = True,Fluc_Filtering = False,
                  load_ions = False):
         """The main caller of all functions to prepare a loaded XGC profile.
 
@@ -279,7 +439,7 @@ class XGC_Loader():
             equilibrium_mesh: string, a flag to choose from '2D' or '3D' equilibrium output style. Current FWR3D code read '2D' equilibrium data.
             Full_Load: boolean, A flag for debugging, default to be True, i.e. load all data when initializing, if set to be False, then only constants are set, no loading functions will be called during initialization, programmer can call them one by one afterwards.
             Fluc_Only: boolean, A flag determining fluctuation loading method. Default to be True. Fluc_Only == True uses newer loading method to remove equilibrium relaxation effects. Fluc_Only == False uses old version and load all the calculated density deviations from the equilibrium.
-            
+            Fluc_Filtering: Boolean, A flag determining whether filter out the fluctuations that are larger than background equilibrium. If True, fluctuations will be filtered. Default to be False.
         """
 
         print 'Loading XGC output data'
@@ -288,6 +448,7 @@ class XGC_Loader():
         self.mesh_file = xgc_path + 'xgc.mesh.h5'
         self.bfield_file = xgc_path + 'xgc.bfield.h5'
         self.time_steps = np.arange(t_start,t_end+1,dt)
+        self.nt = len(self.time_steps)
         self.grid = grid
         self.dn_amplifier = dn_amplifier #
         self.load_ions = load_ions #
@@ -298,6 +459,7 @@ class XGC_Loader():
         self.equilibrium_mesh = equilibrium_mesh
         self.Equilibrium_Only = Equilibrium_Only
         self.Fluc_Only = Fluc_Only
+        self.Fluc_Filtering = Fluc_Filtering
         
         print 'from directory:'+ self.xgc_path
         self.unit_dic = load_m(self.unit_file)
@@ -329,8 +491,10 @@ class XGC_Loader():
                 else:
                     self.load_fluctuations_2D_all()
                 print 'fluctuations loaded.'
-                self.calc_total_ne_2D3D()
-                print 'total ne calculated.'
+                
+                self.calculate_dne_ad_2D3D()
+                print 'adiabatic electron response calculated.'
+                
                 self.interpolate_all_on_grid_2D()
                 print 'quantities interpolated on grid.\n XGC data sucessfully loaded.'
             
@@ -360,8 +524,8 @@ class XGC_Loader():
            
                 print 'fluctuations loaded.'
 
-                self.calc_total_ne_2D3D()
-                print 'total ne calculated.'
+                self.calculate_dne_ad_2D3D()
+                print 'adiabatic electron response calculated.'
 
             
                 self.interpolate_all_on_grid_3D()
@@ -408,8 +572,8 @@ class XGC_Loader():
                     
                 print 'fluctuations loaded.'
 
-                self.calc_total_ne_2D3D()
-                print 'total ne calculated.'
+                self.calculate_dne_ad_2D3D()
+                print 'adiabatic electron response calculated.'
             
                 self.interpolate_all_on_grid_3D()
                 print 'all quantities interpolated on grid.\n XGC data sucessfully loaded.'
@@ -439,8 +603,8 @@ class XGC_Loader():
                 else:
                     self.load_fluctuations_2D_all()
                 print 'fluctuations loaded.'
-                self.calc_total_ne_2D3D()
-                print 'total ne calculated.'
+                self.calculate_dne_ad_2D3D()
+                print 'adiabatic electron response calculated.'
                 self.interpolate_all_on_grid_2D()
                 print 'quantities interpolated on grid.\n XGC data sucessfully loaded.'
             else:
@@ -554,8 +718,8 @@ class XGC_Loader():
             self.nane = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.mesh['R'])) )
             self.nane_bar = np.zeros((len(self.time_steps)))
         if(self.load_ions):
-            self.nani = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.mesh['R'])) )
-            self.nani_bar = np.zeros((len(self.time_steps)))
+            self.dni = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.mesh['R'])) )
+            self.dni_bar = np.zeros((len(self.time_steps)))
             
         self.phi = np.zeros((self.n_cross_section,len(self.time_steps),len(self.mesh['R'])))
         self.phi_bar = np.zeros((len(self.time_steps)))
@@ -571,7 +735,7 @@ class XGC_Loader():
             if(self.HaveElectron):
                 self.nane_bar[i] = np.mean(fluc_mesh['eden'][...])
             if(self.load_ions):
-                self.nani_bar[i] = np.mean(fluc_mesh['iden'][...])
+                self.dni_bar[i] = np.mean(fluc_mesh['iden'][...])
             for j in range(self.n_cross_section):
                 self.phi[j,i] += np.swapaxes(fluc_mesh['dpot'][...][:,self.planes[j]],0,1)
                 self.phi[j,i] -= self.phi_bar[i]
@@ -580,8 +744,8 @@ class XGC_Loader():
                     self.nane[j,i] += np.swapaxes(fluc_mesh['eden'][...][:,self.planes[j]],0,1)
                     self.nane[j,i] -= self.nane_bar[i]
                 if(self.load_ions):
-                    self.nani[j,i] += np.swapaxes(fluc_mesh['iden'][...][:,self.planes[j]],0,1)
-                    self.nani[j,i] -= self.nani_bar[i]
+                    self.dni[j,i] += np.swapaxes(fluc_mesh['iden'][...][:,self.planes[j]],0,1)
+                    self.dni[j,i] -= self.dni_bar[i]
             fluc_mesh.close()
 
 
@@ -594,8 +758,13 @@ class XGC_Loader():
         """Load non-adiabatic electron density and electrical static potential fluctuations
         the mean value of these two quantities on each time step is also calculated.
 
-        Since XGC-1 has full-f capability, the deviation from input equilibrium is not only fluctuations induced by turbulences, but also relaxation of the equilibrium. Since we are only interested in the former part, we need to screen out the latter effect.[*] The way of doing this is as follows:
-        Since the relaxation of equilibrium should be the same across the whole flux surface, it naturally is the same along toroidal direction. Given that no large n=0 mode exists in the turbulent spectra, the toroidal average of the calculated delta-n will mainly be the equilibrium relaxation. However, this effect might be important, so we keep the time-averaged relaxation effect to add it into the input equilibrium. The final formula for density fluctuation (as well as potential fluctuation) is then:
+        Since XGC-1 has full-f capability, the deviation from input equilibrium is not only fluctuations induced by turbulences, 
+        but also relaxation of the equilibrium. Since we are only interested in the former part, we need to screen out the latter effect.[*] 
+        The way of doing this is as follows:
+        Since the relaxation of equilibrium should be the same across the whole flux surface, it naturally is the same along toroidal direction. 
+        Given that no large n=0 mode exists in the turbulent spectra, the toroidal average of the calculated delta-n will mainly be the equilibrium relaxation. 
+        However, this effect might be important, so we keep the time-averaged relaxation effect to add it into the input equilibrium. 
+        The final formula for density fluctuation (as well as potential fluctuation) is then:
             n_tilde = delta_n - <delta_n>_zeta ,
         where delta_n is the calculated result, and <...>_zeta denotes average in toroidal direction.
         and the effective equilibrium is given by: n0_eff = n0 + <delta_n>_zeta_t ,
@@ -612,8 +781,8 @@ class XGC_Loader():
             self.nane = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.mesh['R'])))
             nane_all = np.zeros( (self.n_plane, len(self.time_steps), len(self.mesh['R']) ) )
         if(self.load_ions):
-            self.nani = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.mesh['R'])))
-            nani_all = np.zeros( (self.n_plane, len(self.time_steps), len(self.mesh['R']) ) )
+            self.dni = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.mesh['R'])))
+            dni_all = np.zeros( (self.n_plane, len(self.time_steps), len(self.mesh['R']) ) )
         self.phi = np.zeros((self.n_cross_section,len(self.time_steps),len(self.mesh['R'])))
         phi_all = np.zeros((self.n_plane,len(self.time_steps),len(self.mesh['R'])))
 
@@ -623,7 +792,7 @@ class XGC_Loader():
             if(self.HaveElectron):
                 nane_all[j,0] += np.swapaxes(fluc_mesh['eden'][...][:,j],0,1)
             if(self.load_ions):
-                nani_all[j,0] += np.swapaxes(fluc_mesh['iden'][...][:,j],0,1)
+                dni_all[j,0] += np.swapaxes(fluc_mesh['iden'][...][:,j],0,1)
         fluc_mesh.close()
         
         for i in range(1,len(self.time_steps)):
@@ -636,7 +805,7 @@ class XGC_Loader():
                 if(self.HaveElectron):
                     nane_all[j,i] += np.swapaxes(fluc_mesh['eden'][...][:,j],0,1)
                 if(self.load_ions):
-                    nani_all[j,i] += np.swapaxes(fluc_mesh['iden'][...][:,j],0,1)
+                    dni_all[j,i] += np.swapaxes(fluc_mesh['iden'][...][:,j],0,1)
             fluc_mesh.close()
 
 
@@ -652,13 +821,13 @@ class XGC_Loader():
         if(self.HaveElectron):
             nane_avg_tor = np.average(nane_all,axis=0)
         if(self.load_ions):
-            nani_avg_tor = np.average(nani_all,axis=0)
+            dni_avg_tor = np.average(dni_all,axis=0)
         for j in range(self.n_cross_section):
             self.phi[j,:,:] = phi_all[self.planes[j],:,:] - phi_avg_tor[:,:]
             if(self.HaveElectron):
                 self.nane[j,:,:] = nane_all[self.planes[j],:,:] - nane_avg_tor[:,:]
             if(self.load_ions):
-                self.nani[j,:,:] = nani_all[self.planes[j],:,:] - nani_avg_tor[:,:]
+                self.dni[j,:,:] = dni_all[self.planes[j],:,:] - dni_avg_tor[:,:]
 
         # then, we add the averaged relaxation modification to the input equilibrium
 
@@ -667,7 +836,7 @@ class XGC_Loader():
             self.ne0[:] += np.average(nane_avg_tor,axis = 0)
         self.ni0[:] += np.average(phi_avg_tor,axis = 0)
         if(self.load_ions):
-            self.ni0[:] += np.average(nani_avg_tor,axis = 0)
+            self.ni0[:] += np.average(dni_avg_tor,axis = 0)
         
         
         return 0
@@ -690,8 +859,8 @@ class XGC_Loader():
             self.nane_bar = np.zeros((len(self.time_steps)))
 
         if(self.load_ions):
-            self.nani = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.planes),len(self.mesh['R'])) )
-            self.nani_bar = np.zeros((len(self.time_steps)))
+            self.dni = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.planes),len(self.mesh['R'])) )
+            self.dni_bar = np.zeros((len(self.time_steps)))
 
         self.phi = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.planes),len(self.mesh['R'])) )
         self.phi_bar = np.zeros((len(self.time_steps)))
@@ -708,7 +877,7 @@ class XGC_Loader():
             if (self.HaveElectron):
                 self.nane_bar[i] = np.mean(fluc_mesh['eden'][...])
             if (self.load_ions):
-                self.nani_bar[i] = np.mean(fluc_mesh['iden'][...])
+                self.dni_bar[i] = np.mean(fluc_mesh['iden'][...])
                 
             for j in range(self.n_cross_section):
                 self.phi[j,i] += np.swapaxes(fluc_mesh['dpot'][...][:,(self.center_planes[j] + self.planes)%self.n_plane],0,1)
@@ -717,8 +886,8 @@ class XGC_Loader():
                     self.nane[j,i] += np.swapaxes(fluc_mesh['eden'][...][:,(self.center_planes[j] + self.planes)%self.n_plane],0,1)
                     self.nane[j,i] -= self.nane_bar[i]
                 if(self.load_ions):
-                    self.nani[j,i] += np.swapaxes(fluc_mesh['iden'][...][:,(self.center_planes[j] + self.planes)%self.n_plane],0,1)
-                    self.nani[j,i] -= self.nani_bar[i]
+                    self.dni[j,i] += np.swapaxes(fluc_mesh['iden'][...][:,(self.center_planes[j] + self.planes)%self.n_plane],0,1)
+                    self.dni[j,i] -= self.dni_bar[i]
             fluc_mesh.close()
             
         return 0
@@ -747,8 +916,8 @@ class XGC_Loader():
             self.nane = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.planes),len(self.mesh['R'])) )
             nane_all = np.zeros((self.n_plane,len(self.time_steps),len(self.mesh['R'])))
         if(self.load_ions):
-            self.nani = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.planes),len(self.mesh['R'])) )
-            nani_all = np.zeros((self.n_plane,len(self.time_steps),len(self.mesh['R'])))
+            self.dni = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.planes),len(self.mesh['R'])) )
+            dni_all = np.zeros((self.n_plane,len(self.time_steps),len(self.mesh['R'])))
         self.phi = np.zeros( (self.n_cross_section,len(self.time_steps),len(self.planes),len(self.mesh['R'])) )
         phi_all = np.zeros((self.n_plane,len(self.time_steps),len(self.mesh['R'])))
 
@@ -761,7 +930,7 @@ class XGC_Loader():
                 if(self.HaveElectron):
                     nane_all[j,i] += np.swapaxes(fluc_mesh['eden'][...][:,j],0,1)
                 if(self.load_ions):
-                    nani_all[j,i] += np.swapaxes(fluc_mesh['iden'][...][:,j],0,1)
+                    dni_all[j,i] += np.swapaxes(fluc_mesh['iden'][...][:,j],0,1)
             fluc_mesh.close()
 
 
@@ -771,21 +940,21 @@ class XGC_Loader():
         if self.HaveElectron:
             nane_avg_tor = np.average(nane_all,axis=0)
         if self.load_ions:
-            nani_avg_tor = np.average(nani_all,axis=0)
+            dni_avg_tor = np.average(dni_all,axis=0)
 
         for j in range(self.n_cross_section):
             self.phi[j,...] = np.swapaxes(phi_all[(self.center_planes[j] + self.planes)%self.n_plane,:,:],0,1) - phi_avg_tor[:,np.newaxis,:]
             if self.HaveElectron:
                 self.nane[j,...] = np.swapaxes(nane_all[(self.center_planes[j] + self.planes)%self.n_plane,:,:],0,1) - nane_avg_tor[:,np.newaxis,:]
             if self.load_ions:
-                self.nani[j,...] = np.swapaxes(nani_all[(self.center_planes[j] + self.planes)%self.n_plane,:,:],0,1) - nani_avg_tor[:,np.newaxis,:]
+                self.dni[j,...] = np.swapaxes(dni_all[(self.center_planes[j] + self.planes)%self.n_plane,:,:],0,1) - dni_avg_tor[:,np.newaxis,:]
 
         self.ne0[:] += np.average(phi_avg_tor,axis=0)
         if self.HaveElectron:
             self.ne0[:] += np.average(nane_avg_tor,axis=0)
         self.ni0[:] += np.average(phi_avg_tor,axis=0)
         if self.load_ions:
-            self.ni0[:] += np.average(nani_avg_tor,axis=0)
+            self.ni0[:] += np.average(dni_avg_tor,axis=0)
             
         return 0
     
@@ -848,37 +1017,29 @@ class XGC_Loader():
         self.ne0_sp = interp1d(psi_ne,ne,bounds_error = False,fill_value = 0)
         
 
-    def calc_total_ne_2D3D(self):
-        """calculate the total electron and ion density in raw XGC grid points
+    def calculate_dne_ad_2D3D(self):
+        """ If Fluc_Filtering is True, in order to avoid negative density, we set all the fluctuations larger than local equilibrium density to zero.
+        Note that this rarely happens, and it only happens at locations very close to the edge where the equilibrium density is vanishing. This treatment should not strongly affect the physical results inside the separatrix.
         """
         ne0 = self.ne0
         te0 = self.te0
+        ni0 = self.ni0
         inner_idx = np.where(te0>0)[0]
         self.dne_ad = np.zeros(self.phi.shape)
         self.dne_ad[...,inner_idx] += ne0[inner_idx] * self.phi[...,inner_idx] /self.te0[inner_idx]
-        ad_valid_idx = np.where(np.absolute(self.dne_ad)<= np.absolute(ne0))
-
-        self.ne = np.zeros(self.dne_ad.shape)
-        self.ne += ne0[:]
-        self.ne[ad_valid_idx] += self.dne_ad[ad_valid_idx]*self.dn_amplifier
-        if(self.HaveElectron):
-            na_valid_idx = np.where(np.absolute(self.nane)<= np.absolute(self.ne))
-            self.ne[na_valid_idx] += self.nane[na_valid_idx]*self.dn_amplifier
-
-        ni0 = self.ni0
-        ti0 = self.ti0
-        inner_idx = np.where(ti0>0)[0]
-        self.dni_ad = np.zeros(self.phi.shape)
-        self.dni_ad[...,inner_idx] += ni0[inner_idx] * self.phi[...,inner_idx] /self.ti0[inner_idx]
-        ad_valid_idx = np.where(np.absolute(self.dni_ad)<= np.absolute(ni0))
-
-
-        self.ni = np.zeros(self.dni_ad.shape)
-        self.ni += ni0[:]
-        self.ni[ad_valid_idx] += self.dni_ad[ad_valid_idx]*self.dn_amplifier
-        if(self.load_ions):
-            na_valid_idx = np.where(np.absolute(self.nani)<= np.absolute(self.ni))
-            self.ni[na_valid_idx] += self.nani[na_valid_idx]*self.dn_amplifier
+        
+        if(self.Fluc_Filtering):
+            ad_invalid_mask = np.absolute(self.dne_ad) > np.absolute(ne0)
+            self.dne_ad[ad_invalid_mask] = 0
+            
+            if(self.HaveElectron):
+                na_invalid_mask = np.absolute(self.nane) > np.absolute(ne0)
+                self.nane[na_invalid_mask] = 0
+    
+            if(self.load_ions):
+                ni_invalid_mask = np.absolute(self.dni) > np.absolute(ni0)
+                self.dni[ni_invalid_mask] = 0
+            print('density fluctuations filtered.')
 
     def interpolate_all_on_grid_2D(self):
         """ create all interpolated quantities on given grid.
@@ -896,34 +1057,26 @@ class XGC_Loader():
         self.te_on_grid = self.te0_sp(self.psi_on_grid)
         self.ti_on_grid = self.ti0_sp(self.psi_on_grid)
         
-        #total ne and fluctuations
-        self.ne_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),R2D.shape[0],R2D.shape[1]))
-        self.ni_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),R2D.shape[0],R2D.shape[1]))
-        
-        self.phi_on_grid = np.zeros(self.ne_on_grid.shape)
-        self.dne_ad_on_grid = np.zeros(self.ne_on_grid.shape)
-        self.dni_ad_on_grid = np.zeros(self.ni_on_grid.shape)
+        #fluctuations 
+        self.phi_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),R2D.shape[0],R2D.shape[1]))
+        self.dne_ad_on_grid = np.zeros_like(self.phi_on_grid)
+        self.dni_ad_on_grid = np.zeros_like(self.phi_on_grid)
         if self.HaveElectron:
-            self.nane_on_grid = np.zeros(self.ne_on_grid.shape)
+            self.nane_on_grid = np.zeros_like(self.phi_on_grid)
         if self.load_ions:
-            self.nani_on_grid = np.zeros(self.ni_on_grid.shape)
+            self.dni_on_grid = np.zeros_like(self.phi_on_grid)
         
         self.ne0_on_grid = griddata(self.points,self.ne0[:],(Z2D,R2D),method = 'linear',fill_value = 0)
         self.ni0_on_grid = griddata(self.points,self.ni0[:],(Z2D,R2D),method = 'linear',fill_value = 0)
 
-        for i in range(self.ne.shape[0]):
-            for j in range(self.ne.shape[1]):
-
-                self.ne_on_grid[i,j,...] += griddata(self.points,self.ne[i,j,:],(Z2D,R2D),method = 'linear', fill_value = 0)
+        for i in range(self.n_cross_section):
+            for j in range(self.nt):
                 self.phi_on_grid[i,j,...] += griddata(self.points,self.phi[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
                 self.dne_ad_on_grid[i,j,...] += griddata(self.points,self.dne_ad[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
                 if(self.HaveElectron):
                     self.nane_on_grid[i,j,...] += griddata(self.points,self.nane[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
-
-                self.ni_on_grid[i,j,...] += griddata(self.points,self.ni[i,j,:],(Z2D,R2D),method = 'linear', fill_value = 0)
-                self.dni_ad_on_grid[i,j,...] += griddata(self.points,self.dni_ad[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
                 if(self.load_ions):
-                    self.nani_on_grid[i,j,...] += griddata(self.points,self.nani[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
+                    self.dni_on_grid[i,j,...] += griddata(self.points,self.dni[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
 
         self.interp_check() # after the interpolation, check if the perturbations are interpolated within a reasonable error
 
@@ -993,16 +1146,12 @@ class XGC_Loader():
         
         if(not self.Equilibrium_Only):
             self.dne_ad_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),r3D.shape[0],r3D.shape[1],r3D.shape[2]))
-            self.dni_ad_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),r3D.shape[0],r3D.shape[1],r3D.shape[2]))
             if self.HaveElectron:
                 self.nane_on_grid = np.zeros(self.dne_ad_on_grid.shape)
-                self.ne_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),r3D.shape[0],r3D.shape[1],r3D.shape[2]))
             if self.load_ions:
-                self.nani_on_grid = np.zeros(self.dni_ad_on_grid.shape)
-                self.ni_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),r3D.shape[0],r3D.shape[1],r3D.shape[2]))    
-            
-            
-            interp_positions = find_interp_positions_v2(self)
+                self.dni_on_grid = np.zeros(self.dni_ad_on_grid.shape)
+          
+            interp_positions = find_interp_positions_v2_upgrade(self)
     
             for k in range(self.n_cross_section):
                 print 'center plane {0}.'.format(self.center_planes[k])
@@ -1011,8 +1160,6 @@ class XGC_Loader():
                     #for each time step, first create the 2 arrays of quantities for interpolation
                     prev = np.zeros( (self.grid.NZ,self.grid.NY,self.grid.NX) )
                     next = np.zeros(prev.shape)
-                    prevne = np.zeros( (self.grid.NZ,self.grid.NY,self.grid.NX) )
-                    nextne = np.zeros(prev.shape)
 
                     #create index dictionary, for each key as plane number and value the corresponding indices where the plane is used as previous or next plane.
                     prev_idx = {}
@@ -1037,10 +1184,8 @@ class XGC_Loader():
                         for j in range(len(self.planes)):
                             prev[prev_idx[j]] = griddata(self.points,self.nane[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
                             next[next_idx[j]] = griddata(self.points,self.nane[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
-                            prevne[prev_idx[j]] = griddata(self.points,self.ne[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
-                            nextne[next_idx[j]] = griddata(self.points,self.ne[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
+
                         self.nane_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
-                        self.ne_on_grid[k,i,...] = prevne * interp_positions[1,2,...] + nextne * interp_positions[0,2,...]
                         
                     """   NOW WE WORK WITH IONS   """
                         
@@ -1048,32 +1193,12 @@ class XGC_Loader():
                         #for each time step, first create the 2 arrays of quantities for interpolation
                         prev = np.zeros( (self.grid.NZ,self.grid.NY,self.grid.NX) )
                         next = np.zeros(prev.shape)
-                        prevni = np.zeros( (self.grid.NZ,self.grid.NY,self.grid.NX) )
-                        nextni = np.zeros(prev.shape)
-
-
-                        #now interpolate adiabatic ni on each toroidal plane for the points using it as previous or next plane.
+  
                         for j in range(len(self.planes)):
-                           if(prev[prev_idx[j]].size != 0):
-                               prev[prev_idx[j]] = griddata(self.points,self.dni_ad[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'linear', fill_value = 0)
-                           if(next[next_idx[j]].size != 0):
-                               next[next_idx[j]] = griddata(self.points,self.dni_ad[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'linear', fill_value = 0)
-                               # on_grid adiabatic ni is then calculated by linearly interpolating values between these two planes
-                
-                        self.dni_ad_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
-
-    
-
-                        #non-adiabatic ni data as well:
-                        for j in range(len(self.planes)):
-                           prev[prev_idx[j]] = griddata(self.points,self.nani[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
-                           next[next_idx[j]] = griddata(self.points,self.nani[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
+                           prev[prev_idx[j]] = griddata(self.points,self.dni[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
+                           next[next_idx[j]] = griddata(self.points,self.dni[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
                            
-                           prevni[prev_idx[j]] = griddata(self.points,self.ni[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
-                           nextni[next_idx[j]] = griddata(self.points,self.ni[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
-                        self.ni_on_grid[k,i,...] = prevni * interp_positions[1,2,...] + nextni * interp_positions[0,2,...]
-
-                        self.nani_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
+                        self.dni_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
 
 
     def interp_check(self, tol = 0.2, toroidal_cross = 0, time = 0):
@@ -1215,7 +1340,7 @@ class XGC_Loader():
             saving_dic['BY'] =  self.BY_on_grid
         np.savez(file_name,**saving_dic)
 
-    def load(self, filename = 'dne_file.sav'):
+    def load(self, filename = 'xgc_profile.sav'):
         """load the previously saved xgc profile data file.
         The geometry information needs to be the same, otherwise an error will be raised.
         WARNING: Currently no serious checking is performed. The user is responsible to make sure the XGC_Loader object is initialized properly to load the corresponding saving file. 
@@ -1315,8 +1440,12 @@ class XGC_Loader():
                 bb[:,:] = self.B_on_grid[:,:]
                 bb.units = 'Tesla'
                 
+                dne = f.createVariable('dne','d',('z_dim','r_dim'))                
+                dne[:,:] = self.dne_ad_on_grid[i,j,:,:] + self.nane_on_grid[i,j,:,:]
+                dne.units = 'per cubic meter'
+                
                 ne = f.createVariable('ne','d',('z_dim','r_dim'))
-                ne[:,:] = self.ne_on_grid[i,j,:,:]
+                ne[:,:] = self.ne0_on_grid[i,j,:,:] + dne[:,:]
                 ne.units = 'per cubic meter'
 
                 te = f.createVariable('te','d',('z_dim','r_dim'))
@@ -1393,13 +1522,15 @@ class XGC_Loader():
         
         b_r = f.createVariable('b_r','d',('nz','nr'))
         b_r[:,:] = self.BX_on_grid[:,:]
+        b_r.units = 'Tesla'
         
         b_phi = f.createVariable('b_phi','d',('nz','nr'))
         b_phi[:,:] = -self.BZ_on_grid[:,:]
+        b_phi.units = 'Tesla'        
         
         b_z = f.createVariable('b_z','d',('nz','nr'))
         b_z[:,:] = self.BY_on_grid[:,:]
-        
+        b_z.units = 'Tesla'
         
         
         ne = f.createVariable('ne','d',('nz','nr'))

@@ -4,21 +4,29 @@ import numpy as np
 import FPSDP.Diagnostics.BES.bes as bes
 
 
-# choose if between the serial and the parallel code (only the shared memory case is done)
-parallel = False
+# choose if between the serial and the multiprocessing code (only the shared memory case is done)
+mutliprocessing = False
 # print the choice betweem parallel or not
-print 'Parallel: ', parallel
+print 'Parallel code: ', parallel
 
 # initialize the diagnostic by taking the config file bes.in
 # the initialization consist to compute the beam density,
 # the geometry, loading a few datas from XGC1, ...
-bes_ = bes.BES('FPSDP/Diagnostics/BES/bes.in',parallel)
+name = 'FPSDP/Diagnostics/BES/bes.in'
+bes_ = bes.BES(name,parallel)
 
+# save the input file in the data
+f = open(name,'r')
+input_ = f.read()
+f.close()
 # compute the intensity (number of photons) received by each fiber
-netilde = bes_.get_bes()
+# and their psi_n value
+I = bes_.get_bes()
 
 # take the position of the focus points
 foc = bes_.pos_foc
 
+# compute the psi_n value of each fiber
+psi_n = bes_.get_psin(foc)
 # save all the datas
-np.savez('data/test',netilde,foc)
+np.savez('data/test',I,psi_n,foc,input_)

@@ -67,7 +67,7 @@ The other difference is in the interpolation along the field line, the code now 
 on the distance to the previous/next plane.</p>
 <dl class="class">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES">
-<em class="property">class </em><tt class="descclassname">FPSDP.Plasma.XGC_Profile.load_XGC_BES.</tt><tt class="descname">XGC_Loader_BES</tt><big>(</big><em>xgc_path</em>, <em>t_start</em>, <em>t_end</em>, <em>dt</em>, <em>limits</em>, <em>dphi</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">FPSDP.Plasma.XGC_Profile.load_XGC_BES.</tt><tt class="descname">XGC_Loader_BES</tt><big>(</big><em>xgc_path</em>, <em>t_start</em>, <em>t_end</em>, <em>dt</em>, <em>limits</em>, <em>dphi</em>, <em>shift=0</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES" title="Permalink to this definition">¶</a></dt>
 <dd><p>Loader classe for the BES diagnostics.</p>
 <p>The idea of this loader is to compute one time step at a time and calling the function 
 <a class="reference internal" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_next_time_step" title="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_next_time_step"><tt class="xref py py-func docutils literal"><span class="pre">load_next_time_step()</span></tt></a> at the end of the time step (no return possible with this implementation).
@@ -83,6 +83,7 @@ The function <a class="reference internal" href="#FPSDP.Plasma.XGC_Profile.load_
 <li><strong>dt</strong> (<em>int</em>) &#8211; Interval between two time step that the diagnostics should compute</li>
 <li><strong>limits</strong> (<em>list[list[]]</em>) &#8211; Mesh limits for the diagnostics (first index is for X,Y,Z and second for min/max)</li>
 <li><strong>dphi</strong> (<em>float</em>) &#8211; Size of the step for the field line integration (in radian)</li>
+<li><strong>shift</strong> (<em>float</em>) &#8211; Shift for phi (default value assumed that plane number 0 is at phi=0)</li>
 </ul>
 </td>
 </tr>
@@ -90,64 +91,27 @@ The function <a class="reference internal" href="#FPSDP.Plasma.XGC_Profile.load_
 </table>
 <dl class="method">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.calc_total_ne_3D">
-<tt class="descname">calc_total_ne_3D</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.calc_total_ne_3D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.calc_total_ne_3D" title="Permalink to this definition">¶</a></dt>
-<dd><p>calculate the total electron and ion density in raw XGC grid points</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.cdf_output">
-<tt class="descname">cdf_output</tt><big>(</big><em>output_path</em>, <em>eq_file='equilibrium.cdf'</em>, <em>filehead='fluctuation'</em>, <em>WithBp=True</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.cdf_output"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.cdf_output" title="Permalink to this definition">¶</a></dt>
-<dd><table class="docutils field-list" frame="void" rules="none">
+<tt class="descname">calc_total_ne_3D</tt><big>(</big><em>psi</em>, <em>nane</em>, <em>pot</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.calc_total_ne_3D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.calc_total_ne_3D" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the total electron at the wanted points.</p>
+<table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body">Not modified for this class, therefore should not work</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>psi</strong> (<em>np.array[N]</em>) &#8211; Psi in mks unit</li>
+<li><strong>nane</strong> (<em>np.array[N]</em>) &#8211; Fluctuation of the density</li>
+<li><strong>pot</strong> (<em>np.array[N]</em>) &#8211; Potential</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Total density</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
+</td>
 </tr>
 </tbody>
 </table>
-<p>Wrapper for cdf_output_2D and cdf_output_3D.
-Determining 2D/3D by checking the grid property.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.cdf_output_3D">
-<tt class="descname">cdf_output_3D</tt><big>(</big><em>output_path='./'</em>, <em>eq_filename='equilibrium3D.cdf'</em>, <em>flucfilehead='fluctuation'</em>, <em>WithBp=True</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.cdf_output_3D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.cdf_output_3D" title="Permalink to this definition">¶</a></dt>
-<dd><table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body">Not modified for this class, therefore should not work</td>
-</tr>
-</tbody>
-</table>
-<p>write out cdf files for FWR3D code to use</p>
-<p>Arguments:
-output_path: string, the full path to put the output files
-eq_filename: string, the file name for the 2D equilibrium output
-flucfilehead: string, the starting string of all 3D fluctuation filenames</p>
-<p>CDF file format:</p>
-<p>Equilibrium file:</p>
-<p>Dimensions:
-nr: int, number of grid points in radial direction.
-nz: int, number of grid points in vetical direction</p>
-<p>Variables:
-rr: 1D array, coordinates in radial direction, in m
-zz: 1D array, coordinates in vertical direction, in m
-bb: 2D array, total magnetic field on grids, in Tesla, shape in (nz,nr)
-bpol: 2D array, poloidal magnetic field on grids, in Tesla
-ne: 2D array, total electron density on grids, in cm^-3
-ti: 2D array, total ion temperature, in keV
-te: 2D array, total electron temperature, in keV</p>
-<p>Fluctuation files:</p>
-<p>Dimensions:
-nx: number of grid points in radial direction
-ny: number of grid points in vertical direction
-nz: number of grid points in horizontal direction</p>
-<p>Variables:
-xx: 1D array, coordinates in radial direction
-yy: 1D array, coordinates in vertical direction 
-zz: 1D array, coordinates in horizontal direction
-dne: 3D array, (nz,ny,nx), adiabatic electron density perturbation, real value</p>
 </dd></dl>
 
 <dl class="method">
@@ -212,22 +176,6 @@ density</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load">
-<tt class="descname">load</tt><big>(</big><em>filename='dne_file.sav'</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.load"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load" title="Permalink to this definition">¶</a></dt>
-<dd><table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body">Not modified for this class, therefore should not work</td>
-</tr>
-</tbody>
-</table>
-<p>load the previously saved xgc profile data file.
-The geometry information needs to be the same, otherwise an error will be raised.
-WARNING: Currently no serious checking is performed. The user is responsible to make sure the XGC_Loader object is initialized properly to load the corresponding saving file.</p>
-</dd></dl>
-
-<dl class="method">
 <dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_B_3D">
 <tt class="descname">load_B_3D</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.load_B_3D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.load_B_3D" title="Permalink to this definition">¶</a></dt>
 <dd><p>Load equilibrium magnetic field data and compute the interpolant</p>
@@ -279,42 +227,6 @@ loading them in order is enough</p>
 </tr>
 </tbody>
 </table>
-</dd></dl>
-
-<dl class="method">
-<dt id="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.save">
-<tt class="descname">save</tt><big>(</big><em>fname='xgc_profile.sav'</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/XGC_Profile/load_XGC_BES.html#XGC_Loader_BES.save"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES.save" title="Permalink to this definition">¶</a></dt>
-<dd><table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body">Not modified for this class, therefore should not work</td>
-</tr>
-</tbody>
-</table>
-<dl class="docutils">
-<dt>save the original and interpolated electron density fluctuations </dt>
-<dd>and useful equilibrium quantities to a local .npz file</dd>
-<dt>for 2D instances,The arrays saved are:</dt>
-<dd><p class="first">X1D: the 1D array of coordinates along R direction (major radius)
-Y1D: the 1D array of coordinates along Z direction (vertical)
-X_origin: major radius coordinates on original scattered grid
-Y_origin: vertical coordinates on original scattered grid</p>
-<p>dne_ad: the adiabatic electron density perturbation, in shape (NY,NX), where NX,NY are the dimensions of X1D, Y1D respectively
-nane: (if non-adiabatic electron is on in XGC simulation)the non-adiabatic electron density perturbation. same shape as dne_ad</p>
-<p>dne_ad_org: the adiabatic electron density perturbation on original grid
-nane_org: the non-adiabatic electron density perturbation on original grid</p>
-<p class="last">ne0: the equilibrium electron density.
-Te0: equilibrium electron temperature
-Ti0: equilibrium ion temperature
-B0: equilibrium magnetic field (toroidal)</p>
-</dd>
-<dt>for 3D instances, in addition to the arrays above, one coordinate is also saved:</dt>
-<dd><p class="first">Z1D: 1D coordinates along R cross Z direction.</p>
-<p class="last">BX: radial magnetic field
-BY: vertical magnetic field</p>
-</dd>
-</dl>
 </dd></dl>
 
 </dd></dl>

@@ -106,6 +106,9 @@
 <span class="sd">    :var int self.Nint: Number of point for splitting the integral over the optical direction</span>
 <span class="sd">    :var int self.Nsolid: Number of interval for the evaluation of the solid angle in the mixed case\</span>
 <span class="sd">    Look at the figure in :func:`get_solid_angle  &lt;FPSDP.Diagnostics.BES.bes.BES.get_solid_angle&gt;`.</span>
+<span class="sd">    :var np.array[Nfib,Nint-1,2,21] self.solid: Solid angle for all the position that are computed.\</span>
+<span class="sd">    The axis number 2 is the number of points used by interval in the integration along the field line and\</span>
+<span class="sd">    the axis number 3 is the number of points used by integral over a disk.</span>
 <span class="sd">    :var np.array[Nfib,3] self.pos_foc: Position of the focus points in meter (in the cartesian system)</span>
 <span class="sd">    :var np.array[Nfib,3] self.op_direc: Direction of the optical line (for each fiber)</span>
 <span class="sd">    :var np.array[Nfib] self.dist: Distance between the focus point and the lens in meter</span>
@@ -309,9 +312,7 @@
 
 
 <div class="viewcode-block" id="BES.load_filter"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.load_filter">[docs]</a>    <span class="k">def</span> <span class="nf">load_filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filter_name</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Load the data from the filter and compute the interpolant.</span>
-
-<span class="sd">        </span>
+        <span class="sd">&quot;&quot;&quot; Load the data from the filter and compute the interpolant.       </span>
 
 <span class="sd">        :param str filter_name: Name of the file containing the filter datas</span>
 
@@ -485,10 +486,10 @@
 
 </div>
 <div class="viewcode-block" id="BES.get_bes"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.get_bes">[docs]</a>    <span class="k">def</span> <span class="nf">get_bes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Compute the synthetic image from the diagnostics.</span>
+        <span class="sd">&quot;&quot;&quot; Compute the image from the synthetic diagnostics.</span>
 <span class="sd">        This function should be the only one used outside the class.</span>
 <span class="sd">        </span>
-<span class="sd">        :returns: Intensity collected by each fiber (number of photons by seconds and by square meters)</span>
+<span class="sd">        :returns: Intensity collected by each fiber (number of photons by seconds, by steradians and by square meters)</span>
 <span class="sd">        :rtype: np.array[Ntime, Nfib]</span>
 
 <span class="sd">        The following graph shows the most important call during the computation of the intensity collected by the fibers.</span>
@@ -594,6 +595,10 @@
             <span class="n">p</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">maxtasksperchild</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
         <span class="k">print</span> <span class="bp">self</span><span class="o">.</span><span class="n">time</span>
         <span class="n">nber_fiber</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c"># solid angle</span>
+        <span class="k">print</span> <span class="s">&#39;Should be changed if the order of the methods change&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">solid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">nber_fiber</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">Nint</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">21</span><span class="p">)</span> <span class="p">)</span>
         <span class="n">I</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="p">),</span><span class="n">nber_fiber</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">time</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="p">):</span>
             <span class="k">print</span><span class="p">(</span><span class="s">&#39;Time step number: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39;/&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="p">)))</span>
@@ -612,11 +617,12 @@
         <span class="k">return</span> <span class="n">I</span>
 </div>
 <div class="viewcode-block" id="BES.get_psin"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.get_psin">[docs]</a>    <span class="k">def</span> <span class="nf">get_psin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pt</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Compute the psin value. </span>
+        <span class="sd">&quot;&quot;&quot; Compute the :math:`\Psi_n`. </span>
 <span class="sd">        </span>
-<span class="sd">        Psin is equal to 0 on the magnetic axis and to 1 on the separatrix.</span>
+<span class="sd">        :math:`\Psi_n` is equal to 0 on the magnetic axis and to 1 on the separatrix.</span>
+
 <span class="sd">        :param np.array[N,3] pt: Positions in the cartesian system</span>
-<span class="sd">        :return: Psin</span>
+<span class="sd">        :return: :math:`\Psi_n`</span>
 <span class="sd">        :rtype: np.array[N]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">R</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
@@ -625,10 +631,10 @@
 <div class="viewcode-block" id="BES.intensity_para"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.intensity_para">[docs]</a>    <span class="k">def</span> <span class="nf">intensity_para</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">i</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Same as :func:`intensity &lt;FPSDP.Diagnostics.BES.bes.BES.intensity&gt;`, but have only one argument.</span>
 <span class="sd">        The only use is for the parallelization that ask only one argument.</span>
-<span class="sd">        Use the variable current from the data loader.</span>
+<span class="sd">        Use the variable :keyword:`self.beam.data.current` from the data loader.</span>
 
 <span class="sd">        :param int i: Index of a fiber</span>
-<span class="sd">        :returns: Intensity received by the fiber (number of photons per second)</span>
+<span class="sd">        :returns: Intensity received by the fiber (number of photons by seconds, by steradians and by square meters)</span>
 <span class="sd">        :rtype: float</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">t_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">current</span>
@@ -732,17 +738,19 @@
 
         <span class="k">return</span> <span class="n">ret</span>
         </div>
-<div class="viewcode-block" id="BES.light_from_plane"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.light_from_plane">[docs]</a>    <span class="k">def</span> <span class="nf">light_from_plane</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">z</span><span class="p">,</span> <span class="n">t_</span><span class="p">,</span> <span class="n">fiber_nber</span><span class="p">):</span>
+<div class="viewcode-block" id="BES.light_from_plane"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.light_from_plane">[docs]</a>    <span class="k">def</span> <span class="nf">light_from_plane</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">z</span><span class="p">,</span> <span class="n">t_</span><span class="p">,</span> <span class="n">fiber_nber</span><span class="p">,</span><span class="n">zind</span><span class="p">):</span>
         <span class="sd">r&quot;&quot;&quot; Compute the light from one plane using a method of order 10 (see report or</span>
 <span class="sd">        Abramowitz and Stegun) or by making the assumption of a constant emission on the plane.</span>
 <span class="sd">        </span>
 <span class="sd">        .. math::</span>
-<span class="sd">           I_\text{plane} = \frac{\iint_D f(x) \mathrm{d}\sigma}{\iint_D g(x)\mathrm{d}\sigma}</span>
-<span class="sd">           \approx \frac{\sum_i \omega_i f(x_i)}{\sum_i \omega_i g(x_i)}</span>
+<span class="sd">           I_\text{plane} = \frac{\iint_D f(x) \mathrm{d}\sigma}{\iint_D \Omega(x)\mathrm{d}\sigma}</span>
+<span class="sd">           \approx \frac{\sum_i \omega_i f(x_i)}{\sum_i \omega_i \Omega(x_i)}</span>
 <span class="sd">        </span>
-<span class="sd">        where :math:`f(x) = \varepsilon(x)\Omega(x)`, :math:`g(x) = \Omega(x)`</span>
+<span class="sd">        where :math:`f(x) = F(\varepsilon(x))\Omega(x)`, :math:`\Omega(x)` is the solid angle, :math:`F(x)` is the filter,</span>
 <span class="sd">        D is the disk representing the plane, and, :math:`\omega_i` and :math:`x_i` are the weights and the points</span>
 <span class="sd">        of the quadrature formula.</span>
+
+<span class="sd">        The filter is computed at this point in order to simplify the code.</span>
 
 <span class="sd">        The points are given in the figure below and the weights are :math:`\frac{1}{9}` for the center,</span>
 <span class="sd">        :math:`\frac{16\pm\sqrt{6}}{360}` for the innermost circle (plus sign) and the outermost circle (minus sign)</span>
@@ -759,6 +767,7 @@
 <span class="sd">        :param np.array[N] z: Distance from the fiber along the sightline</span>
 <span class="sd">        :param int t_: Time step to compute (is not important for the data loader, but is used as a check)</span>
 <span class="sd">        :param int fiber_nber: Index of the fiber</span>
+<span class="sd">        :param int zind: Index of the z integration</span>
 
 <span class="sd">        :returns: Intensity collected by the fiber from these planes</span>
 <span class="sd">        :rtype: np.array[N]</span>
@@ -781,7 +790,10 @@
                 <span class="n">eps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_emis_from</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">,</span><span class="n">fiber_nber</span><span class="p">)</span>
                 
                 <span class="c"># now compute the solid angle</span>
-                <span class="n">solid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_solid_angle</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span><span class="n">fiber_nber</span><span class="p">)</span>
+                <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">solid</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">,</span><span class="n">zind</span><span class="p">,</span><span class="n">i</span><span class="p">,:]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                    <span class="c"># if an error of size is thrown, look at the line that create the array</span>
+                    <span class="c"># the best explaination is that someone as change the order of a method</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">solid</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">,</span><span class="n">zind</span><span class="p">,</span><span class="n">i</span><span class="p">,:]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_solid_angle</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span><span class="n">fiber_nber</span><span class="p">)</span>
                 <span class="c"># compute the filter</span>
                 <span class="n">filt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_filter</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
                 
@@ -790,7 +802,7 @@
 
                 <span class="c"># sum the emission of all the points with the appropriate</span>
                 <span class="c"># weight (quadrature formula and solid angle)</span>
-                <span class="n">wsol</span> <span class="o">=</span> <span class="n">quad</span><span class="o">.</span><span class="n">w</span><span class="o">*</span><span class="n">solid</span>
+                <span class="n">wsol</span> <span class="o">=</span> <span class="n">quad</span><span class="o">.</span><span class="n">w</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">solid</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">,</span><span class="n">zind</span><span class="p">,</span><span class="n">i</span><span class="p">,:]</span>
                 <span class="n">I</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">wsol</span><span class="o">*</span><span class="n">eps</span><span class="p">)</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">wsol</span><span class="p">)</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">type_int</span> <span class="o">==</span> <span class="s">&#39;1D&#39;</span><span class="p">:</span>
             <span class="c"># just use the point on the central line</span>
@@ -804,12 +816,12 @@
 <div class="viewcode-block" id="BES.get_filter"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.get_filter">[docs]</a>    <span class="k">def</span> <span class="nf">get_filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Compute the wavelenght and the transmittance for each position.</span>
 
-<span class="sd">        Use the Doppler effect for the computation of the wavelength</span>
+<span class="sd">        Use the Doppler effect for the computation of the wavelength:</span>
 
 <span class="sd">        :param np.array[N,3] pos: Position in the optical system </span>
 
 <span class="sd">        :returns: Transmittance</span>
-<span class="sd">        :rtype: np.array[N]</span>
+<span class="sd">        :rtype: np.array[Nbeam,N]</span>
 <span class="sd">        </span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># compute the effect of the filter</span>
@@ -837,10 +849,12 @@
 <span class="sd">           \sum_i \frac{b_i-a_i}{2} \sum_j \omega_j f\left(\frac{b_i-a_i}{2}x_j + \frac{a_i+b_i}{2}\right)</span>
 
 <span class="sd">        where the index i is for the splitting in subintervals, j is for the Gauss-Legendre formula,</span>
-<span class="sd">        :math:`f(z) = \frac{I_\text{plane}(z)}{A(z)}` is the light emitted by the planes normalized by its area,</span>
+<span class="sd">        :math:`f(z)` is the function computed by :func:`light_from_plane &lt;FPSDP.Diagnostics.BES.bes.BES.light_from_plane&gt;`,</span>
 <span class="sd">        :math:`d = \text{inter} \cdot w`, inter is the cutoff in unit of the average beam width (w),</span>
-<span class="sd">        :math:`a_i` and :math:`b_i` are the lower and upper limits for each intervals, :math:`\omega` and :math:`x_i` are</span>
-<span class="sd">        the weights and points of the quadrature formula. See figure :func:`compute_limits &lt;FPSDP.Diagnostics.BES.bes.BES.compute_limits&gt;` for a view of the situation.</span>
+<span class="sd">        :math:`a_i` and :math:`b_i` are the lower and upper limits for each intervals (not linear spacing </span>
+<span class="sd">        [look at :func:`get_interval_gaussian &lt;FPSDP.Maths.Integration.get_interval_gaussian&gt;`]),</span>
+<span class="sd">        :math:`\omega_j` and :math:`x_j` are the weights and points of the quadrature formula.</span>
+<span class="sd">        See figure :func:`compute_limits &lt;FPSDP.Diagnostics.BES.bes.BES.compute_limits&gt;` for a view of the situation.</span>
 
 <span class="sd">        The computation of the intervals assume that the focus point is exactly at the center of the beam and that :math:`f(x)` is a gaussian.</span>
 <span class="sd">        </span>
@@ -848,11 +862,11 @@
 <span class="sd">        :param int t_: Time step to compute</span>
 <span class="sd">        :param int fiber_nber: Index of the fiber</span>
 
-<span class="sd">        :returns: Intensity of light collected by the fiber</span>
+<span class="sd">        :returns: Intensity of light collected by the fiber (number of photons by seconds, by steradians and by square meters)</span>
 <span class="sd">        :rtype: float</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># first define the quadrature formula</span>
-        <span class="n">quad</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL4&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 5</span>
+        <span class="n">quad</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL4&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 4</span>
         <span class="n">I</span> <span class="o">=</span> <span class="mf">0.0</span>
         <span class="c"># compute the distance from the origin of the beam</span>
         <span class="n">dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">,:]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">pos</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">direc</span><span class="p">)</span>
@@ -869,19 +883,14 @@
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">z</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">Z</span><span class="p">):</span>
             <span class="c"># distance of the plane from the lense</span>
             <span class="n">pt</span> <span class="o">=</span> <span class="n">z</span> <span class="o">+</span> <span class="n">ba2</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">*</span><span class="n">quad</span><span class="o">.</span><span class="n">pts</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">]</span>
-            <span class="n">light</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">light_from_plane</span><span class="p">(</span><span class="n">pt</span><span class="p">,</span><span class="n">t_</span><span class="p">,</span><span class="n">fiber_nber</span><span class="p">)</span>
+            <span class="n">light</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">light_from_plane</span><span class="p">(</span><span class="n">pt</span><span class="p">,</span><span class="n">t_</span><span class="p">,</span><span class="n">fiber_nber</span><span class="p">,</span><span class="n">i</span><span class="p">)</span>
             <span class="c"># sum the weight with the appropriate pts</span>
             <span class="n">I</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">quad</span><span class="o">.</span><span class="n">w</span><span class="o">*</span><span class="n">light</span><span class="o">*</span><span class="n">ba2</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
         <span class="c"># multiply by the weigth of each interval</span>
         <span class="k">return</span> <span class="n">I</span>
         </div>
 <div class="viewcode-block" id="BES.get_emis_from"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.get_emis_from">[docs]</a>    <span class="k">def</span> <span class="nf">get_emis_from</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">t_</span><span class="p">,</span><span class="n">fiber_nber</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Compute the total emission received from a position (takes in account the</span>
-<span class="sd">        solid angle and the filter).</span>
-<span class="sd">        As long as it is possible, the effect of the optic should be written here (a lot more efficient than</span>
-<span class="sd">        keeping all the wavelength until the end).</span>
-
-<span class="sd">        :todo: Improvement possible: keep in memory the solid angle for different time step</span>
+        <span class="sd">&quot;&quot;&quot; Compute the total emission received from a position.</span>
 
 <span class="sd">        :param np.array[N,3] pos: Position in the optical system </span>
 <span class="sd">        :param int t_: Time step to compute</span>
@@ -909,7 +918,7 @@
 <span class="sd">        * Ring case</span>
 <span class="sd">        * mixed case</span>
 
-<span class="sd">        In the following drawing, the vision from a particle that emits some photons is shown.</span>
+<span class="sd">        In the following drawing, the vision from a particle that emits a photon is shown.</span>
 <span class="sd">        The red circles are for the lens and the black ones are for the ring.</span>
 
 <span class="sd">        .. tikz::</span>
@@ -933,8 +942,8 @@
 <span class="sd">        For finding in which case a point is, in a first time we check the lens case (easily done by geometry [look </span>
 <span class="sd">        :func:`check_in &lt;FPSDP.Diagnostics.BES.bes.BES.check_in&gt;`]), and, in a second time, we look if there is an intersection</span>
 <span class="sd">        as in the mixed case.</span>
-<span class="sd">        For finding if the intersections are seen or not, the following system is solved </span>
-<span class="sd">        [assuming that the coordinate system is the optical one] and if the solution is real, therefore the intersections exist:</span>
+<span class="sd">        For finding if the intersections are present or not, the following system is solved </span>
+<span class="sd">        [assuming that the coordinate system is the optical one] and if the solution is real, the intersections exist:</span>
 <span class="sd">        </span>
 <span class="sd">        .. math::</span>
 <span class="sd">           \left\{ \begin{array}{ccc}</span>
@@ -1041,9 +1050,11 @@
 
 
 <span class="sd">        :param np.array[N,3] pos: Position in the optical system</span>
-<span class="sd">        :param list[np.array[N],..] x: Position of the intersection on the ring (list contains 2 elements) </span>
-<span class="sd">        :param list[np.array[N],..] y: Position of the intersection on the lens (list contains 2 elements)</span>
+<span class="sd">        :param list[x1,x2] x: Position of the intersection on the ring (x1 and x2 are np.array[N]) </span>
+<span class="sd">        :param list[y1,y2] y: Position of the intersection on the lens (y1 and y2 are np.array[N])</span>
 <span class="sd">        :param int fib: Index of the fiber</span>
+<span class="sd">        :return: Solid angle</span>
+<span class="sd">        :rtype: np.array[N]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># first the contribution of the ring</span>
         <span class="n">omega</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">solid_angle_seg</span><span class="p">(</span><span class="n">pos</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="p">[</span><span class="n">fib</span><span class="p">]]),</span><span class="n">x</span><span class="p">,</span>
@@ -1064,7 +1075,7 @@
 <span class="sd">        sector of the same angle and doing a Gauss-Legendre quadrature formula over</span>
 <span class="sd">        each dimension.</span>
 
-<span class="sd">        In a first time, the maximum radius (that will depends on the coordinate :math:`\omega`)</span>
+<span class="sd">        In a first time, the maximum radius (that will depends on the coordinate :math:`\theta`)</span>
 <span class="sd">        has to be compute.</span>
 
 <span class="sd">        In this figure, we want to compute the area between the black line and the blue one</span>

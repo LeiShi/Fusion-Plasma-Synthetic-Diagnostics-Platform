@@ -12,7 +12,7 @@ from FPSDP.GeneralSettings.UnitSystem import SI
 
 
 class Beam1D:
-    """ Simulate a 1D beam with the help of datas from simulation.
+    """ Simulate a 1D beam with the help of data from simulation.
 
     Compute the beam density from the equilibrium or the raw data on a mesh.
     The beam density is not very sensitive from the fluctuation, therefore

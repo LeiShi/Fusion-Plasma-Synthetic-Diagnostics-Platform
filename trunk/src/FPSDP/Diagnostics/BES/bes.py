@@ -56,6 +56,9 @@ class BES:
     :var int self.Nint: Number of point for splitting the integral over the optical direction
     :var int self.Nsolid: Number of interval for the evaluation of the solid angle in the mixed case\
     Look at the figure in :func:`get_solid_angle  <FPSDP.Diagnostics.BES.bes.BES.get_solid_angle>`.
+    :var np.array[Nfib,Nint-1,2,21] self.solid: Solid angle for all the position that are computed.\
+    The axis number 2 is the number of points used by interval in the integration along the field line and\
+    the axis number 3 is the number of points used by integral over a disk.
     :var np.array[Nfib,3] self.pos_foc: Position of the focus points in meter (in the cartesian system)
     :var np.array[Nfib,3] self.op_direc: Direction of the optical line (for each fiber)
     :var np.array[Nfib] self.dist: Distance between the focus point and the lens in meter
@@ -259,9 +262,7 @@ class BES:
 
 
     def load_filter(self,filter_name):
-        """ Load the data from the filter and compute the interpolant.
-
-        
+        """ Load the data from the filter and compute the interpolant.       
 
         :param str filter_name: Name of the file containing the filter datas
 
@@ -438,7 +439,7 @@ class BES:
         """ Compute the image from the synthetic diagnostics.
         This function should be the only one used outside the class.
         
-        :returns: Intensity collected by each fiber (number of photons by seconds and by square meters)
+        :returns: Intensity collected by each fiber (number of photons by seconds, by steradians and by square meters)
         :rtype: np.array[Ntime, Nfib]
 
         The following graph shows the most important call during the computation of the intensity collected by the fibers.
@@ -547,7 +548,7 @@ class BES:
 
         # solid angle
         print 'Should be changed if the order of the methods change'
-        self.solid = np.zeros((nber_fiber,self.Nint-1,2,21))
+        self.solid = np.zeros((nber_fiber,self.Nint-1,2,21) )
         I = np.zeros((len(self.time),nber_fiber))
         for i,time in enumerate(self.time):
             print('Time step number: ' + str(i+1) + '/' + str(len(self.time)))
@@ -566,11 +567,12 @@ class BES:
         return I
 
     def get_psin(self,pt):
-        """ Compute the psin value. 
+        """ Compute the :math:`\Psi_n`. 
         
-        Psin is equal to 0 on the magnetic axis and to 1 on the separatrix.
+        :math:`\Psi_n` is equal to 0 on the magnetic axis and to 1 on the separatrix.
+
         :param np.array[N,3] pt: Positions in the cartesian system
-        :return: Psin
+        :return: :math:`\Psi_n`
         :rtype: np.array[N]
         """
         R = np.sqrt(np.sum(self.pos_foc[:,0:2]**2,axis=1))
@@ -579,10 +581,10 @@ class BES:
     def intensity_para(self,i):
         """ Same as :func:`intensity <FPSDP.Diagnostics.BES.bes.BES.intensity>`, but have only one argument.
         The only use is for the parallelization that ask only one argument.
-        Use the variable current from the data loader.
+        Use the variable :keyword:`self.beam.data.current` from the data loader.
 
         :param int i: Index of a fiber
-        :returns: Intensity received by the fiber (number of photons per second)
+        :returns: Intensity received by the fiber (number of photons by seconds, by steradians and by square meters)
         :rtype: float
         """
         t_ = self.beam.data.current
@@ -691,12 +693,14 @@ class BES:
         Abramowitz and Stegun) or by making the assumption of a constant emission on the plane.
         
         .. math::
-           I_\text{plane} = \frac{\iint_D f(x) \mathrm{d}\sigma}{\iint_D g(x)\mathrm{d}\sigma}
-           \approx \frac{\sum_i \omega_i f(x_i)}{\sum_i \omega_i g(x_i)}
+           I_\text{plane} = \frac{\iint_D f(x) \mathrm{d}\sigma}{\iint_D \Omega(x)\mathrm{d}\sigma}
+           \approx \frac{\sum_i \omega_i f(x_i)}{\sum_i \omega_i \Omega(x_i)}
         
-        where :math:`f(x) = \varepsilon(x)\Omega(x)`, :math:`g(x) = \Omega(x)`
+        where :math:`f(x) = F(\varepsilon(x))\Omega(x)`, :math:`\Omega(x)` is the solid angle, :math:`F(x)` is the filter,
         D is the disk representing the plane, and, :math:`\omega_i` and :math:`x_i` are the weights and the points
         of the quadrature formula.
+
+        The filter is computed at this point in order to simplify the code.
 
         The points are given in the figure below and the weights are :math:`\frac{1}{9}` for the center,
         :math:`\frac{16\pm\sqrt{6}}{360}` for the innermost circle (plus sign) and the outermost circle (minus sign)
@@ -737,6 +741,8 @@ class BES:
                 
                 # now compute the solid angle
                 if (self.solid[fiber_nber,zind,i,:] == 0).any():
+                    # if an error of size is thrown, look at the line that create the array
+                    # the best explaination is that someone as change the order of a method
                     self.solid[fiber_nber,zind,i,:] = self.get_solid_angle(pos,fiber_nber)
                 # compute the filter
                 filt = self.get_filter(pos)
@@ -760,12 +766,12 @@ class BES:
     def get_filter(self,pos):
         """ Compute the wavelenght and the transmittance for each position.
 
-        Use the Doppler effect for the computation of the wavelength
+        Use the Doppler effect for the computation of the wavelength:
 
         :param np.array[N,3] pos: Position in the optical system 
 
         :returns: Transmittance
-        :rtype: np.array[N]
+        :rtype: np.array[Nbeam,N]
         
         """
         # compute the effect of the filter
@@ -793,10 +799,12 @@ class BES:
            \sum_i \frac{b_i-a_i}{2} \sum_j \omega_j f\left(\frac{b_i-a_i}{2}x_j + \frac{a_i+b_i}{2}\right)
 
         where the index i is for the splitting in subintervals, j is for the Gauss-Legendre formula,
-        :math:`f(z) = \frac{I_\text{plane}(z)}{A(z)}` is the light emitted by the planes normalized by its area,
+        :math:`f(z)` is the function computed by :func:`light_from_plane <FPSDP.Diagnostics.BES.bes.BES.light_from_plane>`,
         :math:`d = \text{inter} \cdot w`, inter is the cutoff in unit of the average beam width (w),
-        :math:`a_i` and :math:`b_i` are the lower and upper limits for each intervals, :math:`\omega` and :math:`x_i` are
-        the weights and points of the quadrature formula. See figure :func:`compute_limits <FPSDP.Diagnostics.BES.bes.BES.compute_limits>` for a view of the situation.
+        :math:`a_i` and :math:`b_i` are the lower and upper limits for each intervals (not linear spacing 
+        [look at :func:`get_interval_gaussian <FPSDP.Maths.Integration.get_interval_gaussian>`]),
+        :math:`\omega_j` and :math:`x_j` are the weights and points of the quadrature formula.
+        See figure :func:`compute_limits <FPSDP.Diagnostics.BES.bes.BES.compute_limits>` for a view of the situation.
 
         The computation of the intervals assume that the focus point is exactly at the center of the beam and that :math:`f(x)` is a gaussian.
         
@@ -804,7 +812,7 @@ class BES:
         :param int t_: Time step to compute
         :param int fiber_nber: Index of the fiber
 
-        :returns: Intensity of light collected by the fiber
+        :returns: Intensity of light collected by the fiber (number of photons by seconds, by steradians and by square meters)
         :rtype: float
         """
         # first define the quadrature formula
@@ -860,7 +868,7 @@ class BES:
         * Ring case
         * mixed case
 
-        In the following drawing, the vision from a particle that emits some photons is shown.
+        In the following drawing, the vision from a particle that emits a photon is shown.
         The red circles are for the lens and the black ones are for the ring.
 
         .. tikz::
@@ -884,8 +892,8 @@ class BES:
         For finding in which case a point is, in a first time we check the lens case (easily done by geometry [look 
         :func:`check_in <FPSDP.Diagnostics.BES.bes.BES.check_in>`]), and, in a second time, we look if there is an intersection
         as in the mixed case.
-        For finding if the intersections are seen or not, the following system is solved 
-        [assuming that the coordinate system is the optical one] and if the solution is real, therefore the intersections exist:
+        For finding if the intersections are present or not, the following system is solved 
+        [assuming that the coordinate system is the optical one] and if the solution is real, the intersections exist:
         
         .. math::
            \left\{ \begin{array}{ccc}
@@ -992,9 +1000,11 @@ class BES:
 
 
         :param np.array[N,3] pos: Position in the optical system
-        :param list[np.array[N],..] x: Position of the intersection on the ring (list contains 2 elements) 
-        :param list[np.array[N],..] y: Position of the intersection on the lens (list contains 2 elements)
+        :param list[x1,x2] x: Position of the intersection on the ring (x1 and x2 are np.array[N]) 
+        :param list[y1,y2] y: Position of the intersection on the lens (y1 and y2 are np.array[N])
         :param int fib: Index of the fiber
+        :return: Solid angle
+        :rtype: np.array[N]
         """
         # first the contribution of the ring
         omega = self.solid_angle_seg(pos-np.array([0,0,self.dist[fib]]),x,
@@ -1015,10 +1025,10 @@ class BES:
         sector of the same angle and doing a Gauss-Legendre quadrature formula over
         each dimension.
 
-        In a first time, the maximum radius (that will depends on the coordinate :math:`\omega`)
+        In a first time, the maximum radius (that will depends on the coordinate :math:`\theta`)
         has to be compute.
 
-        In this figure, we want to compute the area between the black line and the blue one
+        In this figure, we want to compute the area between the black line and the blue one.
 
         .. tikz::
            \draw [red,dashed,domain=115:180] plot ({6*cos(\x)}, {6*sin(\x)});

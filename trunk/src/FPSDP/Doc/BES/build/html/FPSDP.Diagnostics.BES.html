@@ -89,6 +89,7 @@ each fiber (number of photons per second).</p>
 <li><strong>self.inter</strong> (<em>float</em>) &#8211; Cutoff distance from the focus point (in unit of the beam width).    Look at the figure in <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.compute_limits" title="FPSDP.Diagnostics.BES.bes.BES.compute_limits"><tt class="xref py py-func docutils literal"><span class="pre">compute_limits</span></tt></a>, the two outer red lines for the limit.</li>
 <li><strong>self.Nint</strong> (<em>int</em>) &#8211; Number of point for splitting the integral over the optical direction</li>
 <li><strong>self.Nsolid</strong> (<em>int</em>) &#8211; Number of interval for the evaluation of the solid angle in the mixed case    Look at the figure in <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.get_solid_angle" title="FPSDP.Diagnostics.BES.bes.BES.get_solid_angle"><tt class="xref py py-func docutils literal"><span class="pre">get_solid_angle</span></tt></a>.</li>
+<li><strong>self.solid</strong> (<em>np.array[Nfib,Nint-1,2,21]</em>) &#8211; Solid angle for all the position that are computed.    The axis number 2 is the number of points used by interval in the integration along the field line and    the axis number 3 is the number of points used by integral over a disk.</li>
 <li><strong>self.pos_foc</strong> (<em>np.array[Nfib,3]</em>) &#8211; Position of the focus points in meter (in the cartesian system)</li>
 <li><strong>self.op_direc</strong> (<em>np.array[Nfib,3]</em>) &#8211; Direction of the optical line (for each fiber)</li>
 <li><strong>self.dist</strong> (<em>np.array[Nfib]</em>) &#8211; Distance between the focus point and the lens in meter</li>
@@ -264,13 +265,13 @@ straight black lines are for the sampling volume, and, the dashed one are the bo
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES.get_bes">
 <tt class="descname">get_bes</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_bes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_bes" title="Permalink to this definition">¶</a></dt>
-<dd><p>Compute the synthetic image from the diagnostics.
+<dd><p>Compute the image from the synthetic diagnostics.
 This function should be the only one used outside the class.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Intensity collected by each fiber (number of photons by seconds and by square meters)</td>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Intensity collected by each fiber (number of photons by seconds, by steradians and by square meters)</td>
 </tr>
 <tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">np.array[Ntime, Nfib]</td>
 </tr>
@@ -378,28 +379,22 @@ subgraph cluster_seg { label=&quot;BES.solid_angle_seg&quot;; Dint}
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES.get_emis_from">
 <tt class="descname">get_emis_from</tt><big>(</big><em>pos</em>, <em>t_</em>, <em>fiber_nber</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_emis_from"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_emis_from" title="Permalink to this definition">¶</a></dt>
-<dd><p>Compute the total emission received from a position (takes in account the
-solid angle and the filter).
-As long as it is possible, the effect of the optic should be written here (a lot more efficient than
-keeping all the wavelength until the end).</p>
+<dd><p>Compute the total emission received from a position.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body"><p class="first">Improvement possible: keep in memory the solid angle for different time step</p>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>pos</strong> (<em>np.array[N,3]</em>) &#8211; Position in the optical system</li>
 <li><strong>t</strong> (<em>int</em>) &#8211; Time step to compute</li>
 <li><strong>fiber_nber</strong> (<em>int</em>) &#8211; Index of the fiber</li>
 </ul>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Intensity collected from each point</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Intensity collected from each point</p>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
 </td>
 </tr>
 </tbody>
@@ -410,7 +405,7 @@ keeping all the wavelength until the end).</p>
 <dt id="FPSDP.Diagnostics.BES.bes.BES.get_filter">
 <tt class="descname">get_filter</tt><big>(</big><em>pos</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_filter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_filter" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the wavelenght and the transmittance for each position.</p>
-<p>Use the Doppler effect for the computation of the wavelength</p>
+<p>Use the Doppler effect for the computation of the wavelength:</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -419,7 +414,7 @@ keeping all the wavelength until the end).</p>
 </tr>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Transmittance</td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">np.array[N]</td>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">np.array[Nbeam,N]</td>
 </tr>
 </tbody>
 </table>
@@ -428,11 +423,20 @@ keeping all the wavelength until the end).</p>
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES.get_psin">
 <tt class="descname">get_psin</tt><big>(</big><em>pt</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_psin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_psin" title="Permalink to this definition">¶</a></dt>
-<dd><p>Compute the psin value.</p>
-<p>Psin is equal to 0 on the magnetic axis and to 1 on the separatrix.
-:param np.array[N,3] pt: Positions in the cartesian system
-:return: Psin
-:rtype: np.array[N]</p>
+<dd><p>Compute the <span class="math">\(\Psi_n\)</span>.</p>
+<p><span class="math">\(\Psi_n\)</span> is equal to 0 on the magnetic axis and to 1 on the separatrix.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>pt</strong> (<em>np.array[N,3]</em>) &#8211; Positions in the cartesian system</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><span class="math">\(\Psi_n\)</span></td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">np.array[N]</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
@@ -445,7 +449,7 @@ keeping all the wavelength until the end).</p>
 <li>Ring case</li>
 <li>mixed case</li>
 </ul>
-<p>In the following drawing, the vision from a particle that emits some photons is shown.
+<p>In the following drawing, the vision from a particle that emits a photon is shown.
 The red circles are for the lens and the black ones are for the ring.</p>
 <div class="figure">
 <p><img src="_images/tikz-a2f4729357b1d8dd56385c5afc728cfbf844b993.png" alt="% lens case
@@ -465,8 +469,8 @@ the last one is solved numerically.</p>
 <p>For finding in which case a point is, in a first time we check the lens case (easily done by geometry [look 
 <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.check_in" title="FPSDP.Diagnostics.BES.bes.BES.check_in"><tt class="xref py py-func docutils literal"><span class="pre">check_in</span></tt></a>]), and, in a second time, we look if there is an intersection
 as in the mixed case.
-For finding if the intersections are seen or not, the following system is solved 
-[assuming that the coordinate system is the optical one] and if the solution is real, therefore the intersections exist:</p>
+For finding if the intersections are present or not, the following system is solved 
+[assuming that the coordinate system is the optical one] and if the solution is real, the intersections exist:</p>
 <div class="math">
 \[\begin{split}\left\{ \begin{array}{ccc}
 x_1^2 + x_2^2 &amp; = &amp; r_r^2 \\
@@ -549,10 +553,12 @@ Assume two cones that meet at the focus disk.</p>
 \[I = \int_{-d}^d f(z) \mathrm{d}z \approx 
 \sum_i \frac{b_i-a_i}{2} \sum_j \omega_j f\left(\frac{b_i-a_i}{2}x_j + \frac{a_i+b_i}{2}\right)\]</div>
 <p>where the index i is for the splitting in subintervals, j is for the Gauss-Legendre formula,
-<span class="math">\(f(z) = \frac{I_\text{plane}(z)}{A(z)}\)</span> is the light emitted by the planes normalized by its area,
+<span class="math">\(f(z)\)</span> is the function computed by <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.light_from_plane" title="FPSDP.Diagnostics.BES.bes.BES.light_from_plane"><tt class="xref py py-func docutils literal"><span class="pre">light_from_plane</span></tt></a>,
 <span class="math">\(d = \text{inter} \cdot w\)</span>, inter is the cutoff in unit of the average beam width (w),
-<span class="math">\(a_i\)</span> and <span class="math">\(b_i\)</span> are the lower and upper limits for each intervals, <span class="math">\(\omega\)</span> and <span class="math">\(x_i\)</span> are
-the weights and points of the quadrature formula. See figure <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.compute_limits" title="FPSDP.Diagnostics.BES.bes.BES.compute_limits"><tt class="xref py py-func docutils literal"><span class="pre">compute_limits</span></tt></a> for a view of the situation.</p>
+<span class="math">\(a_i\)</span> and <span class="math">\(b_i\)</span> are the lower and upper limits for each intervals (not linear spacing 
+[look at <a class="reference internal" href="FPSDP.Maths.html#FPSDP.Maths.Integration.get_interval_gaussian" title="FPSDP.Maths.Integration.get_interval_gaussian"><tt class="xref py py-func docutils literal"><span class="pre">get_interval_gaussian</span></tt></a>]),
+<span class="math">\(\omega_j\)</span> and <span class="math">\(x_j\)</span> are the weights and points of the quadrature formula.
+See figure <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.compute_limits" title="FPSDP.Diagnostics.BES.bes.BES.compute_limits"><tt class="xref py py-func docutils literal"><span class="pre">compute_limits</span></tt></a> for a view of the situation.</p>
 <p>The computation of the intervals assume that the focus point is exactly at the center of the beam and that <span class="math">\(f(x)\)</span> is a gaussian.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -564,7 +570,7 @@ the weights and points of the quadrature formula. See figure <a class="reference
 </ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Intensity of light collected by the fiber</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Intensity of light collected by the fiber (number of photons by seconds, by steradians and by square meters)</p>
 </td>
 </tr>
 <tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">float</p>
@@ -579,14 +585,14 @@ the weights and points of the quadrature formula. See figure <a class="reference
 <tt class="descname">intensity_para</tt><big>(</big><em>i</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.intensity_para"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.intensity_para" title="Permalink to this definition">¶</a></dt>
 <dd><p>Same as <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.intensity" title="FPSDP.Diagnostics.BES.bes.BES.intensity"><tt class="xref py py-func docutils literal"><span class="pre">intensity</span></tt></a>, but have only one argument.
 The only use is for the parallelization that ask only one argument.
-Use the variable current from the data loader.</p>
+Use the variable <tt class="xref std std-keyword docutils literal"><span class="pre">self.beam.data.current</span></tt> from the data loader.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>i</strong> (<em>int</em>) &#8211; Index of a fiber</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Intensity received by the fiber (number of photons per second)</td>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Intensity received by the fiber (number of photons by seconds, by steradians and by square meters)</td>
 </tr>
 <tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">float</td>
 </tr>
@@ -596,15 +602,16 @@ Use the variable current from the data loader.</p>
 
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES.light_from_plane">
-<tt class="descname">light_from_plane</tt><big>(</big><em>z</em>, <em>t_</em>, <em>fiber_nber</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.light_from_plane"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.light_from_plane" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">light_from_plane</tt><big>(</big><em>z</em>, <em>t_</em>, <em>fiber_nber</em>, <em>zind</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.light_from_plane"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.light_from_plane" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the light from one plane using a method of order 10 (see report or
 Abramowitz and Stegun) or by making the assumption of a constant emission on the plane.</p>
 <div class="math">
-\[I_\text{plane} = \frac{\iint_D f(x) \mathrm{d}\sigma}{\iint_D g(x)\mathrm{d}\sigma}
-\approx \frac{\sum_i \omega_i f(x_i)}{\sum_i \omega_i g(x_i)}\]</div>
-<p>where <span class="math">\(f(x) = \varepsilon(x)\Omega(x)\)</span>, <span class="math">\(g(x) = \Omega(x)\)</span>
+\[I_\text{plane} = \frac{\iint_D f(x) \mathrm{d}\sigma}{\iint_D \Omega(x)\mathrm{d}\sigma}
+\approx \frac{\sum_i \omega_i f(x_i)}{\sum_i \omega_i \Omega(x_i)}\]</div>
+<p>where <span class="math">\(f(x) = F(\varepsilon(x))\Omega(x)\)</span>, <span class="math">\(\Omega(x)\)</span> is the solid angle, <span class="math">\(F(x)\)</span> is the filter,
 D is the disk representing the plane, and, <span class="math">\(\omega_i\)</span> and <span class="math">\(x_i\)</span> are the weights and the points
 of the quadrature formula.</p>
+<p>The filter is computed at this point in order to simplify the code.</p>
 <p>The points are given in the figure below and the weights are <span class="math">\(\frac{1}{9}\)</span> for the center,
 <span class="math">\(\frac{16\pm\sqrt{6}}{360}\)</span> for the innermost circle (plus sign) and the outermost circle (minus sign)</p>
 <div class="figure">
@@ -623,6 +630,7 @@ of the quadrature formula.</p>
 <li><strong>z</strong> (<em>np.array[N]</em>) &#8211; Distance from the fiber along the sightline</li>
 <li><strong>t</strong> (<em>int</em>) &#8211; Time step to compute (is not important for the data loader, but is used as a check)</li>
 <li><strong>fiber_nber</strong> (<em>int</em>) &#8211; Index of the fiber</li>
+<li><strong>zind</strong> (<em>int</em>) &#8211; Index of the z integration</li>
 </ul>
 </td>
 </tr>
@@ -677,12 +685,18 @@ The light collected by the fiber is within the continuous lines.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>pos</strong> (<em>np.array[N,3]</em>) &#8211; Position in the optical system</li>
-<li><strong>x</strong> (<em>list[np.array[N],..]</em>) &#8211; Position of the intersection on the ring (list contains 2 elements)</li>
-<li><strong>y</strong> (<em>list[np.array[N],..]</em>) &#8211; Position of the intersection on the lens (list contains 2 elements)</li>
+<li><strong>x</strong> (<em>list[x1,x2]</em>) &#8211; Position of the intersection on the ring (x1 and x2 are np.array[N])</li>
+<li><strong>y</strong> (<em>list[y1,y2]</em>) &#8211; Position of the intersection on the lens (y1 and y2 are np.array[N])</li>
 <li><strong>fib</strong> (<em>int</em>) &#8211; Index of the fiber</li>
 </ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Solid angle</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
 </td>
 </tr>
 </tbody>
@@ -699,7 +713,7 @@ and, in a second time, if necessary, the integral over the full disk is computed
 <p>The idea is to compute numerically the 2D integral by splitting the domain in 
 sector of the same angle and doing a Gauss-Legendre quadrature formula over
 each dimension.</p>
-<p>In a first time, the maximum radius (that will depends on the coordinate <span class="math">\(\omega\)</span>)
+<p>In a first time, the maximum radius (that will depends on the coordinate <span class="math">\(\theta\)</span>)
 has to be compute.</p>
 <p>In this figure, we want to compute the area between the black line and the blue one</p>
 <div class="figure">

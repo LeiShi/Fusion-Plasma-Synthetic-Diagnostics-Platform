@@ -319,7 +319,7 @@ class Beam1D:
         # interpolant for the beam
         for i in range(len(self.beam_comp)):
             self.nb_tck.append(interpolate.splrep(self.dl,self.density_beam[i,:]))
-                
+        
             
     def get_mesh(self):
         """ Acces method to the mesh

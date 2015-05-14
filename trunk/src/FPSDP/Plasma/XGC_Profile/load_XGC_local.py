@@ -2,8 +2,8 @@
 
 It reads the data from the simulation and remove the points not used for the diagnostics (in order to keep the used memory at a low level).
 Do an interpolation along the B-field.
-Consists mainly of a copy from an other :download:`code <../../../../FPSDP/Plasma/XGC_Profile/load_XGC_profile.py>`.
-The orginal code was doing a 3D mesh and interpolation the data from the simulation on this one, now, the code is computing one
+This file is based on an other code written by Lei Shi (:download:`code <../../../../FPSDP/Plasma/XGC_Profile/load_XGC_profile.py>`).
+The orginal code was doing a 3D mesh and interpolate the data from the simulation on this one, now, the code is computing one
 time step at a time and interpolate only the value asked by the user.
 The other difference is in the interpolation along the field line, the code now try to a number of step on each side that depends
 on the distance to the previous/next plane.
@@ -22,7 +22,7 @@ from FPSDP.Maths.RungeKutta import runge_kutta_explicit
 import scipy.io.netcdf as nc
 
 
-def get_interp_planes_BES(my_xgc,phi3D):
+def get_interp_planes_local(my_xgc,phi3D):
     """Get the plane numbers used for the interpolation of each point.
 
     :param my_xgc: (:class:`XGC_Loader_BES`) XGC loader
@@ -51,11 +51,12 @@ def get_interp_planes_BES(my_xgc,phi3D):
     return (prevplane,nextplane)
 
 
-class XGC_Loader_BES():
-    """Loader classe for the BES diagnostics.
+class XGC_Loader_local():
+    """Loader classe for a local diagnostics and without a grid.
 
     The idea of this loader is to compute one time step at a time and calling the function 
-    :func:`load_next_time_step` at the end of the time step (no return possible with this implementation).
+    :func:`load_next_time_step` at the end of the time step (no return possible with this implementation, 
+    very easy to add the choice of the time step, just change the variable self.current).
     The function :func:`interpolate_data` is used to obtain the data from any position.
    
     :param str xgc_path: Name of the directory containing the data
@@ -65,11 +66,13 @@ class XGC_Loader_BES():
     :param list[list[]] limits: Mesh limits for the diagnostics (first index is for X,Y,Z and second for min/max)
     :param float dphi: Size of the step for the field line integration (in radian)
     :param float shift: Shift for phi (default value assumed that plane number 0 is at phi=0)
+
+    For more detail about the shift, look at the code in :func:`get_interp_planes_local <FPSDP.Plasma.XGC_Profile.load_XGC_local.get_interp_planes_local>`
     """
 
     def __init__(self,xgc_path,t_start,t_end,dt,limits,dphi,shift=0):
-        """The main caller of all functions to prepare a loaded XGC 
-           profile for the BES diagnostics.
+        """Copy all the input values and call all the functions that compute the equilibrium and the first
+        time step.
         """
 
         print 'Loading XGC output data'
@@ -125,7 +128,7 @@ class XGC_Loader_BES():
 
         phi = np.linspace(tempmin,tempmax,100)
         phi[phi<0] += 2*np.pi
-        self.refprevplane,self.refnextplane = get_interp_planes_BES(self,phi)
+        self.refprevplane,self.refnextplane = get_interp_planes_local(self,phi)
         print 'interpolation planes obtained.'
         
         self.load_eq_3D()
@@ -528,7 +531,7 @@ class XGC_Loader_BES():
         # goes into the interval [0,2pi]
         phi[phi<0] += 2*np.pi
         # get the planes for theses points
-        prevplane,nextplane = get_interp_planes_BES(self,phi)
+        prevplane,nextplane = get_interp_planes_local(self,phi)
 
         # check if asking for densities
         ne_bool = 'ne' in quant
@@ -590,7 +593,7 @@ class XGC_Loader_BES():
                     print 'prev',prevn
                     print 'next',nextn
                     print interp_positions
-            """   NOW WE WORK WITH IONS   """
+
                     
         ret = ()
         # put the data in the good order

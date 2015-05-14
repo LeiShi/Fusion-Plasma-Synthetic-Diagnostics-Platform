@@ -11,13 +11,13 @@ import types
 # beam
 import FPSDP.Diagnostics.Beam.beam as be
 # data loader
-import FPSDP.Plasma.XGC_Profile.load_XGC_BES as xgc
+import FPSDP.Plasma.XGC_Profile.load_XGC_local as xgc
 # hdf5
 import h5py as h5
 # quadrature formula and utility functions
 import FPSDP.Maths.Integration as integ
 from FPSDP.GeneralSettings.UnitSystem import SI
-from FPSDP.Maths.Funcs import heuman, solid_angle_disk
+from FPSDP.Maths.Funcs import heuman, solid_angle_disk, solid_angle_seg
 
 
 from os.path import exists # used for checking if the input file exists
@@ -62,6 +62,7 @@ class BES:
     :var np.array[Nfib,3] self.pos_foc: Position of the focus points in meter (in the cartesian system)
     :var np.array[Nfib,3] self.op_direc: Direction of the optical line (for each fiber)
     :var np.array[Nfib] self.dist: Distance between the focus point and the lens in meter
+    :var np.array[Nfib] self.lim_op: Distance for switching between different case in the solid angle (see :func:`find_case`).
     :var np.array[Nfib,3] self.perp1: Second basis vector for each fiber coordinates (first is the optical line)
     :var np.array[Nfib,3] self.perp2: Third basis vector
     :var str self.type_int: choice between the full computation of the intensity or only over the central line ('1D' or '2D')
@@ -94,11 +95,11 @@ class BES:
        // BES.__INIT__
 
        subgraph cluster_besinit { label="BES.__init__"; "Beam1D.__init__"->compute_limits->
-         "XGC_Loader_BES.__init__"->"Beam1D.set_data"->"BES.load_filter"->"Collisions.get_wavelength"[color="red"]
+         "XGC_Loader_local.__init__"->"Beam1D.set_data"->"BES.load_filter"->"Collisions.get_wavelength"[color="red"]
        }
     
-       A [label="load_XGC_BES.get_interp_planes_BES"];
-       B [label="load_XGC_BES.get_interp_planes_BES"];
+       A [label="load_XGC_local.get_interp_planes_local"];
+       B [label="load_XGC_local.get_interp_planes_local"];
 
 
        // BEAM1D.__INIT__
@@ -114,17 +115,17 @@ class BES:
        
 
 
-       // XGC_LOADER_BES.__INIT__
-       "XGC_Loader_BES.__init__"->"XGC_Loader_BES.load_mesh_psi_3D" [lhead=cluster_XGC];
+       // XGC_LOADER_local.__INIT__
+       "XGC_Loader_local.__init__"->"XGC_Loader_local.load_mesh_psi_3D" [lhead=cluster_XGC];
 
-       subgraph cluster_XGC { label="XGC_Loader.__init__"; "XGC_Loader_BES.load_mesh_psi_3D"->
-       "XGC_Loader_BES.load_B_3D"->A->"XGC_Loader_BES.load_eq_3D"
-       ->"XGC_Loader_BES.load_next_time_step"[color="red"];}
+       subgraph cluster_XGC { label="XGC_Loader_local.__init__"; "XGC_Loader_local.load_mesh_psi_3D"->
+       "XGC_Loader_local.load_B_3D"->A->"XGC_Loader_local.load_eq_3D"
+       ->"XGC_Loader_local.load_next_time_step"[color="red"];}
        
-       // XGC_LOADER_BES.LOAD_NEXT_TIME_STEP
-       "XGC_Loader_BES.load_next_time_step"->"XGC_Loader_BES.load_fluctuations_3D_all"[lhead=cluster_next];
-       subgraph cluster_next { label="XGC_Loader_BES.load_next_time_step"; "XGC_Loader_BES.load_fluctuations_3D_all"->
-       "XGC_Loader_BES.calc_total_ne_3D"->"XGC_Loader_BES.compute_interpolant"[color="red"];}
+       // XGC_LOADER_local.LOAD_NEXT_TIME_STEP
+       "XGC_Loader_local.load_next_time_step"->"XGC_Loader_local.load_fluctuations_3D_all"[lhead=cluster_next];
+       subgraph cluster_next { label="XGC_Loader_local.load_next_time_step"; "XGC_Loader_local.load_fluctuations_3D_all"->
+       "XGC_Loader_local.calc_total_ne_3D"->"XGC_Loader_local.compute_interpolant"[color="red"];}
 
        // BEAM.SET_DATA
        "Beam1D.set_data"->"Beam1D.create_mesh" [lhead=cluster_set_data];    
@@ -142,13 +143,13 @@ class BES:
        subgraph cluster_compute_beam { label="Beam1D.compute_beam_on_mesh"; "Integration.integration_points"->
        "Beam1D.get_quantities"->"Collisions.get_attenuation"[color="red"]; }
 
-       "Beam1D.get_quantities"->"XGC_Loader_BES.interpolate_data" [lhead=cluster_quantities];
-        subgraph cluster_quantities { label="Beam1D.get_quantities"; "XGC_Loader_BES.interpolate_data"}
+       "Beam1D.get_quantities"->"XGC_Loader_local.interpolate_data" [lhead=cluster_quantities];
+        subgraph cluster_quantities { label="Beam1D.get_quantities"; "XGC_Loader_local.interpolate_data"}
 
-       // XGC_LOADER_BES.INTERPOLATE_DATA
-       "XGC_Loader_BES.interpolate_data"->B [lhead=cluster_interpolate];
-       subgraph cluster_interpolate { label="XGC_Loader_BES.interpolate_data"; B->
-       "XGC_Loader_BES.find_interp_positions"[color="red"];
+       // XGC_LOADER_local.INTERPOLATE_DATA
+       "XGC_Loader_loca.interpolate_data"->B [lhead=cluster_interpolate];
+       subgraph cluster_interpolate { label="XGC_Loader_local.interpolate_data"; B->
+       "XGC_Loader_local.find_interp_positions"[color="red"];
        }
 
        }    
@@ -211,6 +212,7 @@ class BES:
 
         self.type_int = config.get('Optics','type_int')                      #!
 
+        self.lim_op = self.dist*self.rad_lens/(self.rad_lens+self.rad_foc)   #!
 
 
         self.t_max = json.loads(config.get('Collisions','t_max'))            #!
@@ -227,7 +229,7 @@ class BES:
         # position swap due to a difference in the axis        
         #grid3D = Grid.Cartesian3D(Xmin=self.Xmin, Xmax=self.Xmax, Ymin=self.Zmin, Ymax=self.Zmax,
         #                          Zmin=self.Ymin, Zmax=self.Ymax, NX=self.N[0], NY=self.N[2], NZ=self.N[1])
-        xgc_ = xgc.XGC_Loader_BES(self.data_path, start, end, timestep,
+        xgc_ = xgc.XGC_Loader_local(self.data_path, start, end, timestep,
                                   self.limits, self.dphi,shift)
         self.time = xgc_.time_steps                                          #!
 
@@ -355,8 +357,8 @@ class BES:
 
         # compute the width
         for k in range(self.pos_foc.shape[0]):
-            w_min[k] = self.get_width(pos_optical_min[k,:],k)
-            w_max[k] = self.get_width(pos_optical_max[k,:],k)
+            w_min[k] = self.get_width(pos_optical_min[k,2],k)
+            w_max[k] = self.get_width(pos_optical_max[k,2],k)
         # first in X
         self.Xmax = np.max([center_max[:,0] + w_max,
                             center_min[:,0] + w_min])
@@ -470,7 +472,7 @@ class BES:
            Bemis [label="Collisions.get_emission"];
 
            // BES.GET_BES
-           subgraph cluster_get_bes { label="BES.get_bes"; "XGC_Loader_BES.load_next_time_step"->"Beam1D.compute_beam_on_mesh"->
+           subgraph cluster_get_bes { label="BES.get_bes"; "XGC_Loader_local.load_next_time_step"->"Beam1D.compute_beam_on_mesh"->
            "BES.intensity_para"[color="red"];
            "Beam1D.compute_beam_on_mesh"->A[color="red"];
            }
@@ -506,15 +508,15 @@ class BES:
 
 
            // BEAM1D.GET_QUANTITIES
-           Aquant->"XGC_Loader_BES.interpolate_data" [lhead=cluster_quantities];
-           Bquant->"XGC_Loader_BES.interpolate_data" [lhead=cluster_quantities];
-           subgraph cluster_quantities { label="Beam1D.get_quantities"; "XGC_Loader_BES.interpolate_data"}
+           Aquant->"XGC_Loader_local.interpolate_data" [lhead=cluster_quantities];
+           Bquant->"XGC_Loader_local.interpolate_data" [lhead=cluster_quantities];
+           subgraph cluster_quantities { label="Beam1D.get_quantities"; "XGC_Loader_local.interpolate_data"}
 
-           // XGC_LOADER_BES.INTERPOLATE_DATA
-           "XGC_Loader_BES.interpolate_data"-> "load_XGC_BES.get_interp_planes_BES"[lhead=cluster_interpolate];
+           // XGC_LOADER_local.INTERPOLATE_DATA
+           "XGC_Loader_local.interpolate_data"-> "load_XGC_local.get_interp_planes_local"[lhead=cluster_interpolate];
            
-           subgraph cluster_interpolate { label="XGC_Loader_BES.interpolate_data"; 
-           "load_XGC_BES.get_interp_planes_BES"->"XGC_Loader_BES.find_interp_positions"[color="red"];
+           subgraph cluster_interpolate { label="XGC_Loader_local.interpolate_data"; 
+           "load_XGC_local.get_interp_planes_local"->"XGC_Loader_local.find_interp_positions"[color="red"];
            }
 
 
@@ -613,79 +615,51 @@ class BES:
         ret[:,2] += self.perp1[fiber_nber,2]*pos[:,0] + self.perp2[fiber_nber,2]*pos[:,1]
         return ret
 
-    def get_width(self,pos,fiber_nber):
+    def get_width(self,z,fib):
         r""" Compute the radius of the light cone.
-        Assume two cones that meet at the focus disk.
 
-        .. tikz::
-           \draw (3,3) -- (-2.5,0) -- (3,-3);
-           \draw[ultra thick] (3,3) -- (3,-3);
-           \node at (3.5,1.5) {Lens};
-           \draw[ultra thick] (0,1.35) -- (0,-1.35);
-           \node at (0, 1.8) {Ring};
-           \draw[dashed] (-3,3) -- (2.5,0) -- (-3,-3);
-           \draw[-{Triangle[angle=45:5pt 5]}] (3.6,0) to (-3,0);
-           \draw (-1.2,0) -- (-1.2,0.7);
-           %first pos
-           \node at (-1.5,0.3) {$r_1$};
-           \node at (-1.2,-0.5) {x};
-           \node at (-0.6,-0.5) {Pos$_1$};
-           % second pos
-           \draw (1.9,0) -- (1.9,0.33);
-           %\node at (1.9,0.1) {$r_2$};
-           \node at (1.9,0.6) {x};
-           \node at (2.45,0.6) {Pos$_2$};
-           :libs: arrows.meta
+        :todo: add drawing
 
-        :param np.array[N,3] pos: Position where to compute the width in the optical system
-        :param int fiber_nber: Index of the fiber
+        :param np.array[N] z: Position where to compute the width in the optical system
+        :param int fib: Index of the fiber
 
         :returns: Radius of the optical cone
         :rtype: np.array[N]
         """
-        
-        if len(pos.shape) == 1:
-            pos = pos[np.newaxis,:]
-
-        # distance from the ring
-        a = abs(pos[:,2]-self.dist[fiber_nber])
-        a *= (self.rad_lens-self.rad_foc[fiber_nber])/self.dist[fiber_nber]
-        return a + self.rad_foc[fiber_nber]
+        if isinstance(z,float):
+            z = np.atleast_1d(z)
+        r = np.zeros(z.shape)
+        # index before focus point
+        ind = z<=self.dist[fib]
+        # slope of the linear function
+        a = (self.rad_lens-self.rad_foc[fib])/self.dist[fib]
+        # case before the focus point
+        r[ind] = np.abs(self.rad_lens - a*z[ind])
+        # case after it
+        r[~ind] = np.abs(self.rad_foc[fib] + a*(z[~ind]-self.dist[fib]))
+        return r
     
-    def check_in(self,pos,fib):
-        r""" Check if the position (optical coordinate) is inside the first cone (blue area)
-        (if the focus ring matter or not).
-        The shape of the sampling area is asume to be linear along the z-axis (optic direction).
+    def find_case(self,r,z,fib):
+        r""" Compute the case for the solid angle.
 
-        .. tikz::
-           \draw[fill=blue] (-1,0) -- (3,2) -- (3,-2) -- cycle;
-           \draw[ultra thick] (3,2) -- (3,-2);           
-           \draw[thick] (0,0.5) -- (0,-0.5);
-           \draw[dashed] (-3,-2) -- (1,0) -- (-3,2);
-           \node at (3.5, 0) {Lens};
-           \node at (0,0.9) {Ring};
+        :todo: Add drawing of each area
 
-        :param np.array[N,3] pos: Position in the optical system
+        :param np.array[N] r: Distance between the central axis and the point
+        :param np.array[N] z: Distance between the point and the lens
         :param int fib: Index of the fiber
 
-        :returns: True if inside the first cone
-        :rtype: np.array[N] of bool
+        :returns: 0 if inside the first area, 1 if in the second one and 2 in the third
+        :rtype: np.array[N] of int
         """
-        ret = np.zeros(pos.shape[0], dtype=bool)
-        # before the focus point
-        ind = pos[:,2] < self.dist[fib]
-        ret[ind] = True
-        # distance from the focus point along the z-axis
-        a = pos[~ind,2]-self.dist[fib]
-        # size of the 'ring' scaled to this position
-        a = a*(self.rad_foc[fib]-self.rad_lens)/self.dist[fib] + self.rad_foc[fib]
-        # distance from the axis
-        R = np.sqrt(np.sum(pos[~ind,0:2]**2, axis=1))
-        ind1 = a > R
-        temp = np.zeros(np.sum(~ind), dtype=bool)
-        temp[ind1] = True
-        ret[~ind] = temp
+        # create an array with only the first case
+        ret = np.zeros(r.shape[0], dtype=int)
+        # compute the radius of the cone at each position
+        r_cone = self.get_width(z,fib)
 
+        # if the radius is bigger than cone => case 2
+        ret[r>r_cone] = 2
+        # if before intersection => case 1
+        ret[z < self.lim_op[fib]] = 1
         return ret
         
     def light_from_plane(self,z, t_, fiber_nber,zind):
@@ -726,10 +700,7 @@ class BES:
         if self.type_int == '2D':
             # compute the integral with a few points
             # outside the central line
-            center = np.zeros((len(z),3))
-            center[:,2] = z # define the center of the circle
-            # redius of the sampling plane
-            r = self.get_width(center,fiber_nber)
+            r = self.get_width(z,fiber_nber)
             for i,r_ in enumerate(r):
                 # integration points
                 quad = integ.integration_points(2, 'order10', 'disk', r_)
@@ -889,11 +860,9 @@ class BES:
         The two first are solved with the formula of Paxton (:func:`solid_angle_disk <FPSDP.Maths.Funcs.solid_angle_disk>`) and
         the last one is solved numerically.
 
-        For finding in which case a point is, in a first time we check the lens case (easily done by geometry [look 
-        :func:`check_in <FPSDP.Diagnostics.BES.bes.BES.check_in>`]), and, in a second time, we look if there is an intersection
-        as in the mixed case.
-        For finding if the intersections are present or not, the following system is solved 
-        [assuming that the coordinate system is the optical one] and if the solution is real, the intersections exist:
+        For finding in which case a point is, the function :func:`find_case <FPSDP.Diagnostics.BES.bes.BES.find_case>`])is used.
+
+        For finding the intersections, the following system is solved [assuming that the coordinate system is the optical one]:
         
         .. math::
            \left\{ \begin{array}{ccc}
@@ -913,64 +882,55 @@ class BES:
         :returns: Solid angle
         :rtype: np.array[N]
         """
-        # check for first case
-        test = self.check_in(pos,fib)
+        r = np.sqrt(np.sum(pos[:,0:2]**2,axis=1))
+        z = pos[:,2]
+        # check for different case
+        test = self.find_case(r,pos[:,2],fib)
         solid = np.zeros(pos.shape[0])
 
-        # first case (look at the report about this code)
-        solid[test] = solid_angle_disk(pos[test,:],self.rad_lens)
-        # second case
-        # first find the position of the 'intersection' between the lens and the ring
-        # define a few constant (look my report or the doc for the detail, too much computation and
-        # need some drawing to write them in the comments)
+        #---------------------
+        # first case (look in find_case for a drawing)
+        ind = test==0
+        solid[ind] = solid_angle_disk(pos[ind,:],self.rad_lens)
 
-        if ((pos[~test,0] == 0) & (pos[~test,1] != 0)).any():
-            print ~test
-            print pos[~test,:]
-            raise NameError('pos[:,0] == 0 gives a division by 0')
-        # ratio between the point P and the distance ring-lens
-        avoid = ~test & (pos[:,0] != 0) & (pos[:,1] != 0)
-        # ratio between distance lens-focus point and lens-pos
-        ratio = np.abs(pos[avoid,2]/self.dist[fib])
+        #---------------------
+        # second case
+        ind = test==1
+        d = pos[ind,:]
+        # change the origin of the central axis
+        d[:,2] = np.abs(d[:,2]-self.dist[fib])
+        solid[ind] = solid_angle_disk(d,self.rad_foc[fib])
+
+        #--------------------
+        # last case
+        # first computation of the intersection
+        ind = test==2
+        if (pos[ind,0] == 0).any():
+            raise NameError('Should implement the other version (switch pos[ind,0] <-> pos[ind,1])')
+
+        # few values defined in my report
+        ratio = np.abs(z[ind]/self.dist[fib])
         f = 1.0/(1.0-ratio)
-        # look report for the exact definition
-        A = 0.5*((np.sum(pos[avoid,0:2]**2,axis=1)-(self.rad_lens/f)**2)/ratio + ratio*self.rad_foc[fib]**2)/pos[avoid,0]
-        # look report for the exact definition
-        B = -pos[avoid,1]/pos[avoid,0]
-        # element inside the sqrt of the solution of a quadratic equation
-        delta = 4*B**2*A**2 - 4*(A**2-self.rad_foc[fib]**2)*(B**2+1)
-        # find real value
-        ind = delta > 0
-        temp = np.zeros(np.sum(avoid))
-        # mixed case
-        if ind.any():
-            # x1 = plus sign
-            delta = np.sqrt(delta[ind])
-            # compute the two intersection points on the focus point
-            # First one
-            x1 = np.zeros((sum(ind),2))
-            x1[:,1] = (-2*B[ind]*A[ind] + delta)/(2*(B[ind]**2+1))
-            x1[:,0] = A[ind] + B[ind]*x1[:,1]
+        A = 0.5*((r[ind]**2-(self.rad_lens/f)**2)/ratio + ratio*self.rad_foc[fib]**2)/pos[ind,0]
+        B = -pos[ind,1]/pos[ind,0]
 
-            # second one
-            x2 = np.zeros((sum(ind),2))
-            x2[:,1] = (-2*B[ind]*A[ind] - delta)/(2*(B[ind]**2+1))
-            x2[:,0] = A[ind] + B[ind]*x2[:,1]
+        # \Delta when computing the solution of a quadratic function
+        delta = np.sqrt(4*B**2*A**2 - 4*(A**2-self.rad_foc[fib])*(B**2 + 1))
+        # first intersection point on the focus point [Npt,{x,y}]
+        x1 = np.zeros((np.sum(ind),2))
+        # second one
+        x2 = np.zeros((np.sum(ind),2))
+        x1[:,1] = (-2*B*A + delta)/(2*(B**2+1))
+        x2[:,1] = (-2*B*A - delta)/(2*(B**2+1))
+        x1[:,0] = A + B*x1[:,1]
+        x2[:,0] = A + B*x2[:,1]
 
-            # and now on the lens
-            y1 = ((pos[avoid,:][ind,0:2].T-x1.T*ratio[ind])*f[ind]).T
-            y2 = ((pos[avoid,:][ind,0:2].T-x2.T*ratio[ind])*f[ind]).T
+        # same but with the lens
+        y1 = f[:,np.newaxis]*(pos[ind,0:2]-ratio[:,np.newaxis]*x1)
+        y2 = f[:,np.newaxis]*(pos[ind,0:2]-ratio[:,np.newaxis]*x2)
 
-            temp[ind] = self.solid_angle_mix_case(pos[avoid,:][ind,:],[x1, x2],[y1, y2],fib)
-        solid[avoid] = temp
-        # second case
-        avoid[ind] = False
-        ind = ~test & (pos[:,0] == 0)
-        ind = ind | avoid
-        if ind.any():
-            q = pos[ind,:]
-            q[:,2] -= self.dist[fib]
-            solid[ind] = solid_angle_disk(q,self.rad_foc[fib])
+        solid[ind] = self.solid_angle_mix_case(pos[ind,:],[x1,x2],[y1,y2],fib)
+        #--------------------
         if (solid < 0).any() or (solid > 4*np.pi).any():
             print('solid angle',solid)
             print('check_in',test)
@@ -1007,132 +967,11 @@ class BES:
         :rtype: np.array[N]
         """
         # first the contribution of the ring
-        omega = self.solid_angle_seg(pos-np.array([0,0,self.dist[fib]]),x,
-                                     self.rad_foc[fib],0)
+        omega = solid_angle_seg(pos-np.array([0,0,self.dist[fib]]),x,
+                                     self.rad_foc[fib],0,self.Nsolid)
         # second the contribution of the lens
-        omega +=self.solid_angle_seg(pos,y,self.rad_lens,1)
+        omega += solid_angle_seg(pos,y,self.rad_lens,1,self.Nsolid)
         return omega
-
-
-    def solid_angle_seg(self,pos,x,r,islens):
-        r""" Compute the solid angle of a disk where a segment has been removed.
-
-        First, the numerical integration will be carried out over the biggest area of the disk,
-        and, in a second time, if necessary, the integral over the full disk is computed
-        (with the analytical formula) and subtracted by the numerical integral.
-
-        The idea is to compute numerically the 2D integral by splitting the domain in 
-        sector of the same angle and doing a Gauss-Legendre quadrature formula over
-        each dimension.
-
-        In a first time, the maximum radius (that will depends on the coordinate :math:`\theta`)
-        has to be compute.
-
-        In this figure, we want to compute the area between the black line and the blue one.
-
-        .. tikz::
-           \draw [red,dashed,domain=115:180] plot ({6*cos(\x)}, {6*sin(\x)});
-           \draw [red,dashed,domain=360:425] plot ({6*cos(\x)}, {6*sin(\x)});
-           \draw [black,thick,domain=150:390] plot ({3*cos(\x)}, {4+3*sin(\x)});
-           \draw [red,thick,domain=65:115] plot ({6*cos(\x)}, {6*sin(\x)});
-           \draw [black,dashed,domain=30:150] plot ({3*cos(\x)}, {4+3*sin(\x)});
-           \draw [domain=-10:80] plot ({0.8*cos(\x)}, {4+0.8*sin(\x)});
-           \node at (1,4.6) {$\theta$};
-           \node at (-5,0) {Lens};
-           \node at (2.4,1) {Ring};
-           \node at (0,0) {x};
-           \node at (0,4) {x};
-           \draw (0,4) -- (0.51,6.94);
-           \draw (0,4) -- ({3*cos(-10)}, {4+3*sin(-10)});
-           \node at (2.66,5.38) {x};
-           \node at (3.2,5.8) {$x_2$,$y_2$};
-           \node at (-2.66,5.38) {x};
-           \node at (-3.2,5.8) {$x_1$,$y_1$};
-           \draw [blue] (-2.66,5.38) -- (2.66,5.38);
-           \node at (0.25,5.4) {x};
-           \node at (0.8,5.2) {$r_{max}$};
-
-        
-        :todo: improvement: remove useless computation of rmax
-        :param np.array[N,3] pos: Position in the optical system
-        :param list[np.array[N],..] x: Position of the intersection on the ring (list contains 2 elements) 
-        :param float r: Radius of the disk (should be centered at (0,0,0) and the perpendicular should be along the z-axis)
-        :param bool islens: True if the computation is for the lens (change of sign if it is the case)
-        """
-
-        # split the two intersections in two variables
-        x1 = x[0]
-        x2 = x[1]
-        
-        # limits (in angle) considered for the integration
-        theta = np.linspace(0,2*np.pi,self.Nsolid)
-        quadr = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
-        quadt = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
-
-        # mid point of the limits in theta
-        av = 0.5*(theta[:-1] + theta[1:])
-        # half size of the intervals in theta
-        diff = 0.5*np.diff(theta)
-        # array containing all the value of theta that will be computed
-        th = ((diff[:,np.newaxis]*quadt.pts).T + av).T
-
-        # perpendicular vector to x1->x2
-        perp = -pos[:,0:2]
-
-        # indices where we want to compute the big part
-        ind = np.einsum('ij,ij->i',perp,x1) > 0
-        if islens:
-            ind = ~ind
-        perp[~ind] = -perp[~ind]
-        perp = (perp.T/np.sqrt(np.sum(perp**2,axis=1))).T
-
-        # unit vector for each angle
-        delta = np.array([np.cos(th),np.sin(th)])
-        delta = np.rollaxis(delta,0,3)
-        # now detla[Nsolid-1,quadt,dim]
-
-        # compute the scalar product (=> the cos)
-        cospsi = np.einsum('ak,ijk->aij',perp,delta)
-        # index where the line can cross the segment
-        ind2 = cospsi > 0
-
-        # distance between line
-        d = np.abs(x1[:,0]*x2[:,1]-x2[:,0]*x1[:,1])/np.sqrt(np.sum((x2-x1)**2,axis=1))
-
-        #print('useless computations')
-        #:todo: This can be improved
-        # compute the distance along theta where the segment is crossed
-        rmax = ((1.0/cospsi).T*d).T
-        # if the line cannot be cross, therefore the computation can raise some trouble
-        # => set it manually to the good value
-        rmax[~ind2] = r
-        # take the min between the intersection with the segment and the circle
-        rmax = np.minimum(r,rmax)
-
-        # array containing the evaluation of the function that will be integrated
-        R = np.zeros((pos.shape[0],self.Nsolid-1,quadt.pts.shape[0],
-                      quadr.pts.shape[0],3))
-        # radius that will be computed
-        temp = (0.5*rmax[...,np.newaxis]*(quadr.pts+1.0))
-        R[...,0] = pos[:,np.newaxis,np.newaxis,np.newaxis,0]\
-                   + temp*delta[...,np.newaxis,0]
-        R[...,1] = pos[:,np.newaxis,np.newaxis,np.newaxis,1]\
-                   + temp*delta[...,np.newaxis,1]
-        R[...,2] = pos[:,np.newaxis,np.newaxis,np.newaxis,2]
-
-        # compute the norm of the vector
-        R = np.sum(R**2,axis=4)**(-1.5)
-        # sum over all the index (theta and r quadrature formula, and, sector)
-        omega = np.sum(0.5*diff*np.sum(rmax*np.sum(temp*R*quadr.w,axis=3)*quadt.w,axis=2),axis=1)
-
-        # multiply by the scalar product between the position and the normal (to the disk) vector 
-        omega *= np.abs(pos[:,2])
-
-        # change the area that we want to compute
-        omega[~ind] = solid_angle_disk(pos[~ind,:],r)-omega[~ind]
-        return omega
-
-
 
 
 
@@ -1199,7 +1038,7 @@ class BES_ideal:
         # position swap due to a difference in the axis        
         #grid3D = Grid.Cartesian3D(Xmin=self.Xmin, Xmax=self.Xmax, Ymin=self.Zmin, Ymax=self.Zmax,
         #                          Zmin=self.Ymin, Zmax=self.Ymax, NX=self.N[0], NY=self.N[2], NZ=self.N[1])
-        xgc_ = xgc.XGC_Loader_BES(self.data_path, start, end, timestep,
+        xgc_ = xgc.XGC_Loader_local(self.data_path, start, end, timestep,
                                   self.limits, self.dphi,shift)
         self.time = xgc_.time_steps                                          #!
 

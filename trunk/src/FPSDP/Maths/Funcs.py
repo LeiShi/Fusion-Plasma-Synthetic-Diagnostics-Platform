@@ -2,6 +2,8 @@
 """
 import scipy as sp
 import numpy as np
+import FPSDP.Maths.Integration as integ
+
 
 def heuman(phi,m):
     r""" Compute the Heuman's lambda function
@@ -74,6 +76,135 @@ def solid_angle_disk(pos,r):
         print('Position:', pos)
         raise NameError('Solid angle smaller than 0')
     return solid
+
+
+def solid_angle_seg(pos,x,r,islens,N):
+    r""" Compute the solid angle of a disk where a segment has been removed.
+    
+    First, the numerical integration will be carried out over the biggest area of the disk,
+    and, in a second time, if necessary, the integral over the full disk is computed
+    (with the analytical formula) and subtracted by the numerical integral.
+    
+    The idea is to compute numerically the 2D integral by splitting the domain in 
+    sector of the same angle and doing a Gauss-Legendre quadrature formula over
+    each dimension.
+    
+    In a first time, the maximum radius (that will depends on the coordinate :math:`\theta`)
+    has to be compute.
+    
+    This function assumed that all the point are on the same size of the focus point.
+
+    In this figure, we want to compute the area between the black line and the blue one.
+    
+    .. tikz::
+       \draw [red,dashed,domain=115:180] plot ({6*cos(\x)}, {6*sin(\x)});
+       \draw [red,dashed,domain=360:425] plot ({6*cos(\x)}, {6*sin(\x)});
+       \draw [black,thick,domain=150:390] plot ({3*cos(\x)}, {4+3*sin(\x)});
+       \draw [red,thick,domain=65:115] plot ({6*cos(\x)}, {6*sin(\x)});
+       \draw [black,dashed,domain=30:150] plot ({3*cos(\x)}, {4+3*sin(\x)});
+       \draw [domain=-10:80] plot ({0.8*cos(\x)}, {4+0.8*sin(\x)});
+       \node at (1,4.6) {$\theta$};
+       \node at (-5,0) {Lens};
+       \node at (2.4,1) {Ring};
+       \node at (0,0) {x};
+       \node at (0,4) {x};
+       \draw (0,4) -- (0.51,6.94);
+       \draw (0,4) -- ({3*cos(-10)}, {4+3*sin(-10)});
+       \node at (2.66,5.38) {x};
+       \node at (3.2,5.8) {$x_2$,$y_2$};
+       \node at (-2.66,5.38) {x};
+       \node at (-3.2,5.8) {$x_1$,$y_1$};
+       \draw [blue] (-2.66,5.38) -- (2.66,5.38);
+       \node at (0.25,5.4) {x};
+       \node at (0.8,5.2) {$r_{max}$};
+
+        
+    :todo: improvement: remove useless computation of rmax
+    :param np.array[N,3] pos: Position in the optical system
+    :param list[np.array[N],..] x: Position of the intersection on the ring (list contains 2 elements) 
+    :param float r: Radius of the disk (should be centered at (0,0,0) and the perpendicular should be along the z-axis)
+    :param bool islens: True if the computation is for the lens (change of sign if it is the case)
+    :param int N: Number of sections for the quadrature formula
+
+    :return: Solid angle
+    :rtype: np.array[N]
+    """
+    
+    # split the two intersections in two variables
+    x1 = x[0]
+    x2 = x[1]
+    
+    # limits (in angle) considered for the integration
+    theta = np.linspace(0,2*np.pi,N)
+    quadr = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
+    quadt = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
+    
+    # mid point of the limits in theta
+    av = 0.5*(theta[:-1] + theta[1:])
+    # half size of the intervals in theta
+    diff = 0.5*np.diff(theta)
+    # array containing all the value of theta that will be computed
+    th = ((diff[:,np.newaxis]*quadt.pts).T + av).T
+    
+    # perpendicular vector to x1->x2
+    perp = -pos[:,0:2]
+    
+    # indices where we want to compute the big part
+    ind = np.einsum('ij,ij->i',perp,x1) > 0
+    # assume that all pos is on the same size of the focus point
+    if (islens & (pos[:,2]>0).any()) or ((not islens) & (pos[:,2]<0).any()):
+        ind = ~ind
+    perp[~ind] = -perp[~ind]
+    perp = (perp.T/np.sqrt(np.sum(perp**2,axis=1))).T
+    
+    # unit vector for each angle
+    delta = np.array([np.cos(th),np.sin(th)])
+    delta = np.rollaxis(delta,0,3)
+    # now detla[Nsolid-1,quadt,dim]
+    
+    # compute the scalar product (=> the cos)
+    cospsi = np.einsum('ak,ijk->aij',perp,delta)
+    # index where the line can cross the segment
+    ind2 = cospsi > 0
+    
+    # distance between line
+    d = np.abs(x1[:,0]*x2[:,1]-x2[:,0]*x1[:,1])/np.sqrt(np.sum((x2-x1)**2,axis=1))
+    
+    #print('useless computations')
+    #:todo: This can be improved
+    # compute the distance along theta where the segment is crossed
+    rmax = ((1.0/cospsi).T*d).T
+    # if the line cannot be cross, therefore the computation can raise some trouble
+    # => set it manually to the good value
+    rmax[~ind2] = r
+    # take the min between the intersection with the segment and the circle
+    rmax = np.minimum(r,rmax)
+    
+    # array containing the evaluation of the function that will be integrated
+    R = np.zeros((pos.shape[0],N-1,quadt.pts.shape[0],
+                  quadr.pts.shape[0],3))
+    # radius that will be computed
+    temp = (0.5*rmax[...,np.newaxis]*(quadr.pts+1.0))
+    R[...,0] = pos[:,np.newaxis,np.newaxis,np.newaxis,0]\
+               + temp*delta[...,np.newaxis,0]
+    R[...,1] = pos[:,np.newaxis,np.newaxis,np.newaxis,1]\
+               + temp*delta[...,np.newaxis,1]
+    R[...,2] = pos[:,np.newaxis,np.newaxis,np.newaxis,2]
+
+    # compute the norm of the vector
+    R = np.sum(R**2,axis=4)**(-1.5)
+    # sum over all the index (theta and r quadrature formula, and, sector)
+    omega = np.sum(0.5*diff*np.sum(rmax*np.sum(temp*R*quadr.w,axis=3)*quadt.w,axis=2),axis=1)
+    
+    # multiply by the scalar product between the position and the normal (to the disk) vector 
+    omega *= np.abs(pos[:,2])
+    
+    # change the area that we want to compute
+    omega[~ind] = solid_angle_disk(pos[~ind,:],r)-omega[~ind]
+    return omega
+
+
+
 
 
 def my_quad(y,x):

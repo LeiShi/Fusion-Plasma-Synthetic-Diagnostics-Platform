@@ -16,7 +16,7 @@ beam_width_v = 0.27
 # the ending point is computed at the edge of the mesh
 # (the beam line goes from 'position' until the farest point used
 # for all the computation)
-Nz = 128
+Nz = 64
 
 
 [Beam energy]
@@ -62,7 +62,7 @@ t_max = 6.0
 # Using the fluctuation increase the size of the mesh
 # used for the interpolation, therefore all the interpolaion
 # on the data will be a little bit longer
-eq_atte = false
+eq_atte = true
 
 [Optics]
 # position of the lens (X,Y,Z) in meter
@@ -140,6 +140,6 @@ dphi = 0.06
 # (used for computing the limits of the mesh)
 tau_max = 1e-8
 # simulation time steps wanted
-timestart = 1
+timestart = 180
 timeend = 182
 timestep = 1

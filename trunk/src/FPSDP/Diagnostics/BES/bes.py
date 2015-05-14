@@ -521,9 +521,9 @@ class BES:
 
 
            // BES.GET_SOLID_ANGLE
-           "BES.get_solid_angle"->"BES.check_in"[lhead=cluster_solid_angle];
+           "BES.get_solid_angle"->"BES.find_case"[lhead=cluster_solid_angle];
            subgraph cluster_solid_angle { label="BES.get_solid_angle";
-           "BES.check_in"->"Funcs.solid_angle_disk"->"BES.solid_angle_mix_case"[color="red"]; 
+           "BES.find_case"->"Funcs.solid_angle_disk"->"BES.solid_angle_mix_case"[color="red"]; 
            }
         
            "Funcs.solid_angle_disk"->"Funcs.heuman"[lhead=cluster_heuman];
@@ -933,7 +933,7 @@ class BES:
         #--------------------
         if (solid < 0).any() or (solid > 4*np.pi).any():
             print('solid angle',solid)
-            print('check_in',test)
+            print('find_case',test)
             print('ind',ind)
             raise NameError('solid angle smaller than 0 or bigger than 4pi')
         return solid

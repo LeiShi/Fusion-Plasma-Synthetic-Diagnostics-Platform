@@ -631,6 +631,28 @@ class BES:
         r = np.zeros(z.shape)
         # index before focus point
         ind = z<=self.dist[fib]
+        # case before the focus point
+        r[ind] = self.rad_lens + (self.rad_foc[fib]-self.rad_lens)*z[ind]/self.dist[fib]
+        # case after it
+        r[~ind] = -self.rad_foc[fib] + (self.rad_foc[fib] + self.rad_lens)*z[~ind]/self.dist[fib]
+        return r
+
+    def get_width_cases(self,z,fib):
+        r""" Compute the radius of the limits between all the cases.
+
+        :todo: add drawing
+
+        :param np.array[N] z: Position where to compute the width in the optical system
+        :param int fib: Index of the fiber
+
+        :returns: Radius of the optical cone
+        :rtype: np.array[N]
+        """
+        if isinstance(z,float):
+            z = np.atleast_1d(z)
+        r = np.zeros(z.shape)
+        # index before focus point
+        ind = z<=self.dist[fib]
         # slope of the linear function
         a = (self.rad_lens-self.rad_foc[fib])/self.dist[fib]
         # case before the focus point
@@ -638,7 +660,7 @@ class BES:
         # case after it
         r[~ind] = np.abs(self.rad_foc[fib] + a*(z[~ind]-self.dist[fib]))
         return r
-    
+
     def find_case(self,r,z,fib):
         r""" Compute the case for the solid angle.
 
@@ -654,7 +676,7 @@ class BES:
         # create an array with only the first case
         ret = np.zeros(r.shape[0], dtype=int)
         # compute the radius of the cone at each position
-        r_cone = self.get_width(z,fib)
+        r_cone = self.get_width_cases(z,fib)
 
         # if the radius is bigger than cone => case 2
         ret[r>r_cone] = 2

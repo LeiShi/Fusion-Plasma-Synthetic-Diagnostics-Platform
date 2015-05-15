@@ -618,8 +618,33 @@ class BES:
     def get_width(self,z,fib):
         r""" Compute the radius of the light cone.
 
-        :todo: add drawing
+        The following figure shows two cases of the computation of the radius (:math:`R_1` and :math:`R_2`).
 
+        .. tikz:: [line cap=round,line join=round,x=1.0cm,y=1.0cm]
+           \clip(-2.95,-3.88) rectangle (12.16,4.13);
+           \draw [domain=-2.95:12.16] plot(\x,{(-0-0*\x)/8});
+           \draw [line width=1.5pt] (0,1.12)-- (0,0);
+           \draw [line width=1.5pt] (2.6,3.14)-- (2.6,-3.14);
+           \draw [line width=1.5pt] (0,0)-- (0,-1.12);
+           \draw (0,-1.12)-- (2.6,-3.14);
+           \draw (2.6,-3.14)-- (7.4,-1.08);
+           \draw (2.6,3.14)-- (7.4,1.08);
+           \draw (2.6,3.14)-- (0,1.12);
+           \draw [line width=1.5pt] (7.4,1.08)-- (7.4,-1.08);
+           \draw [dash pattern=on 3pt off 3pt] (2.6,-3.14)-- (7.4,1.08);
+           \draw [dash pattern=on 3pt off 3pt] (2.6,3.14)-- (7.4,-1.08);
+           \draw [domain=7.4:12.156934491978609] plot(\x,{(--30.13-4.88*\x)/5.55});
+           \draw [domain=7.4:12.156934491978609] plot(\x,{(-28.55--4.63*\x)/5.26});
+           \draw [color=blue] (5.3,1.98)-- (5.3,0);
+           \draw [color=blue] (9.19,2.65)-- (9.19,0);
+           \draw (-1.2,0.53) node[anchor=north west] {Fiber};
+           \draw (1.4,1.6) node[anchor=north west] {Lens};
+           \draw (7.3,-0.6) node[anchor=north west] {Focus point};
+           \begin{scriptsize}
+           \draw[color=blue] (5.51,1.21) node {$R_2$};
+           \draw[color=blue] (9,1.41) node {$R_1$};
+           \end{scriptsize}
+        
         :param np.array[N] z: Position where to compute the width in the optical system
         :param int fib: Index of the fiber
 
@@ -640,7 +665,37 @@ class BES:
     def get_width_cases(self,z,fib):
         r""" Compute the radius of the limits between all the cases.
 
-        :todo: add drawing
+        The four different cases are shown in the following figure (:math:`R_i`).
+
+        .. tikz:: [line cap=round,line join=round,x=0.75cm,y=0.75cm]
+           \clip (-2,-8.14) rectangle (20,6.3);
+           \draw [domain=-4.3:18] plot(\x,{(-0-0*\x)/12});
+           \draw (0.34,1)-- (4.82,4.14);
+           \draw (4.82,4.14)-- (10.62,1.76);
+           \draw (10.62,-1.76)-- (4.82,-4.14);
+           \draw (4.82,-4.14)-- (0.34,-1);
+           \draw [line width=1.6pt] (0.34,-1)-- (0.34,1);
+           \draw [line width=1.6pt] (4.82,4.14)-- (4.82,-4.14);
+           \draw [line width=1.6pt] (10.62,-1.76)-- (10.62,1.76);
+           \draw [dash pattern=on 5pt off 5pt] (4.82,4.14)-- (10.62,-1.76);
+           \draw [domain=10.62:18] plot(\x,{(--53.52-6.02*\x)/5.92});
+           \draw [domain=10.62:18] plot(\x,{(-31.28--3.52*\x)/3.46});
+           \draw [dash pattern=on 5pt off 5pt] (10.62,1.76)-- (4.82,-4.14);
+           \draw [color=blue] (6.38,2.56)-- (6.38,0);
+           \draw [dash pattern=on 5pt off 5pt,domain=10.62:18] plot(\x,{(--26.24-1.76*\x)/4.29});
+           \draw [dash pattern=on 5pt off 5pt,domain=10.62:18] plot(\x,{(-26.24--1.76*\x)/4.29});
+           \draw [color=blue] (9.67,0.8)-- (9.67,0);
+           \draw [color=blue] (12.26,1.09)-- (12.26,0);
+           \draw [color=blue] (17.36,1)-- (17.36,0);
+           \draw (-1.1,0.86) node[anchor=north west] {Fiber};
+           \draw (3.5,1.62) node[anchor=north west] {Lens};
+           \draw (10.5,-0.1) node[anchor=north west] {Focus point};
+           \begin{scriptsize}
+           \draw[color=blue] (6.1,1.42) node {$R_1$};
+           \draw[color=blue] (10,0.54) node {$R_2$};
+           \draw[color=blue] (12,0.7) node {$R_3$};
+           \draw[color=blue] (17,0.66) node {$R_4$};
+           \end{scriptsize}
 
         :param np.array[N] z: Position where to compute the width in the optical system
         :param int fib: Index of the fiber
@@ -664,7 +719,36 @@ class BES:
     def find_case(self,r,z,fib):
         r""" Compute the case for the solid angle.
 
-        :todo: Add drawing of each area
+        In the following figure, the three different cases are shown.
+        In red, it the ring point case, in blue, the mixed case and, in green, the lens case (see :func:`get_solid_angle <FPSDP.Diagnostics.BES.bes.BES.get_solid_angle>` for more a drawing of the different cases).
+
+        .. tikz:: [line cap=round,line join=round,x=0.75cm,y=0.75cm]
+           \clip(-2,-5.71) rectangle (32,5.71);
+           \fill[line width=0pt,color=blue,fill=blue,fill opacity=0.1] (4.82,4.14) -- (10.62,1.76) -- (8.89,0) -- cycle;
+           \fill[line width=0pt,color=blue,fill=blue,fill opacity=0.1] (8.89,0) -- (4.82,-4.14) -- (10.62,-1.76) -- cycle;
+           \fill[line width=0pt,color=blue,fill=blue,fill opacity=0.1] (20.98,12.3) -- (10.62,1.76) -- (14.91,0) -- (20.98,2.49) -- cycle;
+           \fill[line width=0pt,color=blue,fill=blue,fill opacity=0.1] (14.91,0) -- (10.62,-1.76) -- (20.98,-12.3) -- (20.98,-2.49) -- cycle;
+           \fill[line width=0pt,color=red,fill=red,fill opacity=0.1] (4.82,4.14) -- (8.89,0) -- (4.82,-4.14) -- cycle;
+           \fill[line width=0pt,color=red,fill=red,fill opacity=0.1] (20.98,2.49) -- (14.91,0) -- (20.98,-2.49) -- cycle;
+           \fill[line width=0pt,color=green,fill=green,fill opacity=0.1] (10.62,1.76) -- (8.89,0) -- (10.62,-1.76) -- (14.91,0) -- cycle;
+           \draw [domain=-2.61:28.08] plot(\x,{(-0-0*\x)/12});
+           \draw (0.34,1)-- (4.82,4.14);
+           \draw (4.82,4.14)-- (10.62,1.76);
+           \draw (10.62,-1.76)-- (4.82,-4.14);
+           \draw (4.82,-4.14)-- (0.34,-1);
+           \draw [line width=1.6pt] (0.34,-1)-- (0.34,1);
+           \draw [line width=1.6pt] (4.82,4.14)-- (4.82,-4.14);
+           \draw [line width=1.6pt] (10.62,-1.76)-- (10.62,1.76);
+           \draw [dash pattern=on 5pt off 5pt] (4.82,4.14)-- (10.62,-1.76);
+           \draw [domain=10.62:28.075140428510473] plot(\x,{(--53.52-6.02*\x)/5.92});
+           \draw [domain=10.62:28.075140428510473] plot(\x,{(-31.28--3.52*\x)/3.46});
+           \draw [dash pattern=on 5pt off 5pt] (10.62,1.76)-- (4.82,-4.14);
+           \draw [dash pattern=on 5pt off 5pt,domain=10.62:28.075140428510473] plot(\x,{(--26.24-1.76*\x)/4.29});
+           \draw [dash pattern=on 5pt off 5pt,domain=10.62:28.075140428510473] plot(\x,{(-26.24--1.76*\x)/4.29});
+           \draw (-1.2,0.9) node[anchor=north west] {Fiber};
+           \draw (3.3,1.64) node[anchor=north west] {Lens};
+           \draw (10.5,-0.05) node[anchor=north west] {Focus point};
+           \draw (20.98,-5.71) -- (20.98,10.58);           
 
         :param np.array[N] r: Distance between the central axis and the point
         :param np.array[N] z: Distance between the point and the lens

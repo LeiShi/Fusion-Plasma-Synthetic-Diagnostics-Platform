@@ -197,6 +197,7 @@ latex_elements = {
 # Additional stuff for the LaTeX preamble.
 #'preamble': '',
 'preamble': '''
+\usepackage[rgb,usenames,dvipsnames]{xcolor}
 \usepackage{tikz}
 \usepackage{pgfplots}
 %\usetikzlibrary{arrows}

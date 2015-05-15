@@ -180,6 +180,67 @@ Circular Disk&#8221; in 1959 for the exact computation.</p>
 </table>
 </dd></dl>
 
+<dl class="function">
+<dt id="FPSDP.Maths.Funcs.solid_angle_seg">
+<tt class="descclassname">FPSDP.Maths.Funcs.</tt><tt class="descname">solid_angle_seg</tt><big>(</big><em>pos</em>, <em>x</em>, <em>r</em>, <em>islens</em>, <em>N</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Maths/Funcs.html#solid_angle_seg"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Maths.Funcs.solid_angle_seg" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the solid angle of a disk where a segment has been removed.</p>
+<p>First, the numerical integration will be carried out over the biggest area of the disk,
+and, in a second time, if necessary, the integral over the full disk is computed
+(with the analytical formula) and subtracted by the numerical integral.</p>
+<p>The idea is to compute numerically the 2D integral by splitting the domain in 
+sector of the same angle and doing a Gauss-Legendre quadrature formula over
+each dimension.</p>
+<p>In a first time, the maximum radius (that will depends on the coordinate <span class="math">\(\theta\)</span>)
+has to be compute.</p>
+<p>This function assumed that all the point are on the same size of the focus point.</p>
+<p>In this figure, we want to compute the area between the black line and the blue one.</p>
+<div class="figure">
+<p><img src="_images/tikz-26474fc0c8cf31bb4059adec29c3e7665698ae47.png" alt="\draw [red,dashed,domain=115:180] plot ({6*cos(\x)}, {6*sin(\x)});
+\draw [red,dashed,domain=360:425] plot ({6*cos(\x)}, {6*sin(\x)});
+\draw [black,thick,domain=150:390] plot ({3*cos(\x)}, {4+3*sin(\x)});
+\draw [red,thick,domain=65:115] plot ({6*cos(\x)}, {6*sin(\x)});
+\draw [black,dashed,domain=30:150] plot ({3*cos(\x)}, {4+3*sin(\x)});
+\draw [domain=-10:80] plot ({0.8*cos(\x)}, {4+0.8*sin(\x)});
+\node at (1,4.6) {$\theta$};
+\node at (-5,0) {Lens};
+\node at (2.4,1) {Ring};
+\node at (0,0) {x};
+\node at (0,4) {x};
+\draw (0,4) -- (0.51,6.94);
+\draw (0,4) -- ({3*cos(-10)}, {4+3*sin(-10)});
+\node at (2.66,5.38) {x};
+\node at (3.2,5.8) {$x_2$,$y_2$};
+\node at (-2.66,5.38) {x};
+\node at (-3.2,5.8) {$x_1$,$y_1$};
+\draw [blue] (-2.66,5.38) -- (2.66,5.38);
+\node at (0.25,5.4) {x};
+\node at (0.8,5.2) {$r_{max}$};" /></p>
+</div><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body"><p class="first">improvement: remove useless computation of rmax</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>pos</strong> (<em>np.array[N,3]</em>) &#8211; Position in the optical system</li>
+<li><strong>x</strong> (<em>list[np.array[N],..]</em>) &#8211; Position of the intersection on the ring (list contains 2 elements)</li>
+<li><strong>r</strong> (<em>float</em>) &#8211; Radius of the disk (should be centered at (0,0,0) and the perpendicular should be along the z-axis)</li>
+<li><strong>islens</strong> (<em>bool</em>) &#8211; True if the computation is for the lens (change of sign if it is the case)</li>
+<li><strong>N</strong> (<em>int</em>) &#8211; Number of sections for the quadrature formula</li>
+</ul>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Solid angle</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </div>
 <div class="section" id="module-FPSDP.Maths.RungeKutta">
 <span id="runge-kutta-module"></span><h2>Runge-Kutta Module<a class="headerlink" href="#module-FPSDP.Maths.RungeKutta" title="Permalink to this headline">¶</a></h2>

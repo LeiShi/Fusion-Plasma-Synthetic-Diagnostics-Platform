@@ -21,7 +21,7 @@ Funcs Module
 ------------
 
 .. automodule:: FPSDP.Maths.Funcs
-    :members: heuman, solid_angle_disk
+    :members: heuman, solid_angle_disk, solid_angle_seg
     :undoc-members:
     :show-inheritance:
 

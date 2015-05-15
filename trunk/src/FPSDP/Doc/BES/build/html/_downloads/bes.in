@@ -62,7 +62,7 @@ t_max = 6.0
 # Using the fluctuation increase the size of the mesh
 # used for the interpolation, therefore all the interpolaion
 # on the data will be a little bit longer
-eq_atte = false
+eq_atte = true
 
 [Optics]
 # position of the lens (X,Y,Z) in meter

@@ -62,7 +62,7 @@
 
 
 <div class="viewcode-block" id="Beam1D"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D">[docs]</a><span class="k">class</span> <span class="nc">Beam1D</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot; Simulate a 1D beam with the help of datas from simulation.</span>
+    <span class="sd">&quot;&quot;&quot; Simulate a 1D beam with the help of data from simulation.</span>
 
 <span class="sd">    Compute the beam density from the equilibrium or the raw data on a mesh.</span>
 <span class="sd">    The beam density is not very sensitive from the fluctuation, therefore</span>
@@ -369,7 +369,7 @@
         <span class="c"># interpolant for the beam</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_comp</span><span class="p">)):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">nb_tck</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">splrep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dl</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">density_beam</span><span class="p">[</span><span class="n">i</span><span class="p">,:]))</span>
-                
+        
             </div>
 <div class="viewcode-block" id="Beam1D.get_mesh"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.Beam.html#FPSDP.Diagnostics.Beam.beam.Beam1D.get_mesh">[docs]</a>    <span class="k">def</span> <span class="nf">get_mesh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Acces method to the mesh</span>

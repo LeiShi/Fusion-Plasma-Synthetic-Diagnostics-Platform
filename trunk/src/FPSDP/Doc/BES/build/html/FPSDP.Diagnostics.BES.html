@@ -93,6 +93,7 @@ each fiber (number of photons per second).</p>
 <li><strong>self.pos_foc</strong> (<em>np.array[Nfib,3]</em>) &#8211; Position of the focus points in meter (in the cartesian system)</li>
 <li><strong>self.op_direc</strong> (<em>np.array[Nfib,3]</em>) &#8211; Direction of the optical line (for each fiber)</li>
 <li><strong>self.dist</strong> (<em>np.array[Nfib]</em>) &#8211; Distance between the focus point and the lens in meter</li>
+<li><strong>self.lim_op</strong> (<em>np.array[Nfib]</em>) &#8211; Distance for switching between different case in the solid angle (see <tt class="xref py py-func docutils literal"><span class="pre">find_case()</span></tt>).</li>
 <li><strong>self.perp1</strong> (<em>np.array[Nfib,3]</em>) &#8211; Second basis vector for each fiber coordinates (first is the optical line)</li>
 <li><strong>self.perp2</strong> (<em>np.array[Nfib,3]</em>) &#8211; Third basis vector</li>
 <li><strong>self.type_int</strong> (<em>str</em>) &#8211; choice between the full computation of the intensity or only over the central line (&#8216;1D&#8217; or &#8216;2D&#8217;)</li>
@@ -120,16 +121,16 @@ each fiber (number of photons per second).</p>
 <p>The following graph shows the most important call during the initialization of the BES class.
 The red arrows show the call order and the black ones show what is inside the function.</p>
 <p class="graphviz">
-<img src="_images/graphviz-7fb09dd4351255953e32f71b5723afe44e5af998.png" alt="digraph bes_init{
+<img src="_images/graphviz-3a23746d1e3a05f44bd03ca00ba7b108fc4881dd.png" alt="digraph bes_init{
 compound=true;
 // BES.__INIT__
 
 subgraph cluster_besinit { label=&quot;BES.__init__&quot;; &quot;Beam1D.__init__&quot;-&gt;compute_limits-&gt;
-  &quot;XGC_Loader_BES.__init__&quot;-&gt;&quot;Beam1D.set_data&quot;-&gt;&quot;BES.load_filter&quot;-&gt;&quot;Collisions.get_wavelength&quot;[color=&quot;red&quot;]
+  &quot;XGC_Loader_local.__init__&quot;-&gt;&quot;Beam1D.set_data&quot;-&gt;&quot;BES.load_filter&quot;-&gt;&quot;Collisions.get_wavelength&quot;[color=&quot;red&quot;]
 }
 
-A [label=&quot;load_XGC_BES.get_interp_planes_BES&quot;];
-B [label=&quot;load_XGC_BES.get_interp_planes_BES&quot;];
+A [label=&quot;load_XGC_local.get_interp_planes_local&quot;];
+B [label=&quot;load_XGC_local.get_interp_planes_local&quot;];
 
 
 // BEAM1D.__INIT__
@@ -145,17 +146,17 @@ subgraph cluster_read_adas { label=&quot;Collisions.read_adas&quot;; &quot;ADAS_
 
 
 
-// XGC_LOADER_BES.__INIT__
-&quot;XGC_Loader_BES.__init__&quot;-&gt;&quot;XGC_Loader_BES.load_mesh_psi_3D&quot; [lhead=cluster_XGC];
+// XGC_LOADER_local.__INIT__
+&quot;XGC_Loader_local.__init__&quot;-&gt;&quot;XGC_Loader_local.load_mesh_psi_3D&quot; [lhead=cluster_XGC];
 
-subgraph cluster_XGC { label=&quot;XGC_Loader.__init__&quot;; &quot;XGC_Loader_BES.load_mesh_psi_3D&quot;-&gt;
-&quot;XGC_Loader_BES.load_B_3D&quot;-&gt;A-&gt;&quot;XGC_Loader_BES.load_eq_3D&quot;
--&gt;&quot;XGC_Loader_BES.load_next_time_step&quot;[color=&quot;red&quot;];}
+subgraph cluster_XGC { label=&quot;XGC_Loader_local.__init__&quot;; &quot;XGC_Loader_local.load_mesh_psi_3D&quot;-&gt;
+&quot;XGC_Loader_local.load_B_3D&quot;-&gt;A-&gt;&quot;XGC_Loader_local.load_eq_3D&quot;
+-&gt;&quot;XGC_Loader_local.load_next_time_step&quot;[color=&quot;red&quot;];}
 
-// XGC_LOADER_BES.LOAD_NEXT_TIME_STEP
-&quot;XGC_Loader_BES.load_next_time_step&quot;-&gt;&quot;XGC_Loader_BES.load_fluctuations_3D_all&quot;[lhead=cluster_next];
-subgraph cluster_next { label=&quot;XGC_Loader_BES.load_next_time_step&quot;; &quot;XGC_Loader_BES.load_fluctuations_3D_all&quot;-&gt;
-&quot;XGC_Loader_BES.calc_total_ne_3D&quot;-&gt;&quot;XGC_Loader_BES.compute_interpolant&quot;[color=&quot;red&quot;];}
+// XGC_LOADER_local.LOAD_NEXT_TIME_STEP
+&quot;XGC_Loader_local.load_next_time_step&quot;-&gt;&quot;XGC_Loader_local.load_fluctuations_3D_all&quot;[lhead=cluster_next];
+subgraph cluster_next { label=&quot;XGC_Loader_local.load_next_time_step&quot;; &quot;XGC_Loader_local.load_fluctuations_3D_all&quot;-&gt;
+&quot;XGC_Loader_local.calc_total_ne_3D&quot;-&gt;&quot;XGC_Loader_local.compute_interpolant&quot;[color=&quot;red&quot;];}
 
 // BEAM.SET_DATA
 &quot;Beam1D.set_data&quot;-&gt;&quot;Beam1D.create_mesh&quot; [lhead=cluster_set_data];    
@@ -173,50 +174,17 @@ subgraph cluster_create_mesh { label=&quot;Beam1D.create_mesh&quot;; &quot;Beam1
 subgraph cluster_compute_beam { label=&quot;Beam1D.compute_beam_on_mesh&quot;; &quot;Integration.integration_points&quot;-&gt;
 &quot;Beam1D.get_quantities&quot;-&gt;&quot;Collisions.get_attenuation&quot;[color=&quot;red&quot;]; }
 
-&quot;Beam1D.get_quantities&quot;-&gt;&quot;XGC_Loader_BES.interpolate_data&quot; [lhead=cluster_quantities];
- subgraph cluster_quantities { label=&quot;Beam1D.get_quantities&quot;; &quot;XGC_Loader_BES.interpolate_data&quot;}
+&quot;Beam1D.get_quantities&quot;-&gt;&quot;XGC_Loader_local.interpolate_data&quot; [lhead=cluster_quantities];
+ subgraph cluster_quantities { label=&quot;Beam1D.get_quantities&quot;; &quot;XGC_Loader_local.interpolate_data&quot;}
 
-// XGC_LOADER_BES.INTERPOLATE_DATA
-&quot;XGC_Loader_BES.interpolate_data&quot;-&gt;B [lhead=cluster_interpolate];
-subgraph cluster_interpolate { label=&quot;XGC_Loader_BES.interpolate_data&quot;; B-&gt;
-&quot;XGC_Loader_BES.find_interp_positions&quot;[color=&quot;red&quot;];
+// XGC_LOADER_local.INTERPOLATE_DATA
+&quot;XGC_Loader_loca.interpolate_data&quot;-&gt;B [lhead=cluster_interpolate];
+subgraph cluster_interpolate { label=&quot;XGC_Loader_local.interpolate_data&quot;; B-&gt;
+&quot;XGC_Loader_local.find_interp_positions&quot;[color=&quot;red&quot;];
 }
 
 }" />
 </p>
-<dl class="method">
-<dt id="FPSDP.Diagnostics.BES.bes.BES.check_in">
-<tt class="descname">check_in</tt><big>(</big><em>pos</em>, <em>fib</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.check_in"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.check_in" title="Permalink to this definition">¶</a></dt>
-<dd><p>Check if the position (optical coordinate) is inside the first cone (blue area)
-(if the focus ring matter or not).
-The shape of the sampling area is asume to be linear along the z-axis (optic direction).</p>
-<div class="figure">
-<p><img src="_images/tikz-a9618f77893940248d8923402e582d711e241386.png" alt="\draw[fill=blue] (-1,0) -- (3,2) -- (3,-2) -- cycle;
-\draw[ultra thick] (3,2) -- (3,-2);           
-\draw[thick] (0,0.5) -- (0,-0.5);
-\draw[dashed] (-3,-2) -- (1,0) -- (-3,2);
-\node at (3.5, 0) {Lens};
-\node at (0,0.9) {Ring};" /></p>
-</div><table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>pos</strong> (<em>np.array[N,3]</em>) &#8211; Position in the optical system</li>
-<li><strong>fib</strong> (<em>int</em>) &#8211; Index of the fiber</li>
-</ul>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">True if inside the first cone</p>
-</td>
-</tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N] of bool</p>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES.compute_limits">
 <tt class="descname">compute_limits</tt><big>(</big><em>eps=0.1</em>, <em>dxmin=0.1</em>, <em>dymin=0.1</em>, <em>dzmin=0.1</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.compute_limits"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.compute_limits" title="Permalink to this definition">¶</a></dt>
@@ -263,6 +231,61 @@ straight black lines are for the sampling volume, and, the dashed one are the bo
 </dd></dl>
 
 <dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES.find_case">
+<tt class="descname">find_case</tt><big>(</big><em>r</em>, <em>z</em>, <em>fib</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.find_case"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.find_case" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the case for the solid angle.</p>
+<p>In the following figure, the three different cases are shown.
+In red, it the ring point case, in blue, the mixed case and, in green, the lens case (see <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.get_solid_angle" title="FPSDP.Diagnostics.BES.bes.BES.get_solid_angle"><tt class="xref py py-func docutils literal"><span class="pre">get_solid_angle</span></tt></a> for more a drawing of the different cases).</p>
+<div class="figure">
+<p><img src="_images/tikz-59c9c800cc765c5dcf41466f957a2d887545dd3c.png" alt="[line cap=round,line join=round,x=0.75cm,y=0.75cm]
+\clip(-2,-5.71) rectangle (32,5.71);
+\fill[line width=0pt,color=blue,fill=blue,fill opacity=0.1] (4.82,4.14) -- (10.62,1.76) -- (8.89,0) -- cycle;
+\fill[line width=0pt,color=blue,fill=blue,fill opacity=0.1] (8.89,0) -- (4.82,-4.14) -- (10.62,-1.76) -- cycle;
+\fill[line width=0pt,color=blue,fill=blue,fill opacity=0.1] (20.98,12.3) -- (10.62,1.76) -- (14.91,0) -- (20.98,2.49) -- cycle;
+\fill[line width=0pt,color=blue,fill=blue,fill opacity=0.1] (14.91,0) -- (10.62,-1.76) -- (20.98,-12.3) -- (20.98,-2.49) -- cycle;
+\fill[line width=0pt,color=red,fill=red,fill opacity=0.1] (4.82,4.14) -- (8.89,0) -- (4.82,-4.14) -- cycle;
+\fill[line width=0pt,color=red,fill=red,fill opacity=0.1] (20.98,2.49) -- (14.91,0) -- (20.98,-2.49) -- cycle;
+\fill[line width=0pt,color=green,fill=green,fill opacity=0.1] (10.62,1.76) -- (8.89,0) -- (10.62,-1.76) -- (14.91,0) -- cycle;
+\draw [domain=-2.61:28.08] plot(\x,{(-0-0*\x)/12});
+\draw (0.34,1)-- (4.82,4.14);
+\draw (4.82,4.14)-- (10.62,1.76);
+\draw (10.62,-1.76)-- (4.82,-4.14);
+\draw (4.82,-4.14)-- (0.34,-1);
+\draw [line width=1.6pt] (0.34,-1)-- (0.34,1);
+\draw [line width=1.6pt] (4.82,4.14)-- (4.82,-4.14);
+\draw [line width=1.6pt] (10.62,-1.76)-- (10.62,1.76);
+\draw [dash pattern=on 5pt off 5pt] (4.82,4.14)-- (10.62,-1.76);
+\draw [domain=10.62:28.075140428510473] plot(\x,{(--53.52-6.02*\x)/5.92});
+\draw [domain=10.62:28.075140428510473] plot(\x,{(-31.28--3.52*\x)/3.46});
+\draw [dash pattern=on 5pt off 5pt] (10.62,1.76)-- (4.82,-4.14);
+\draw [dash pattern=on 5pt off 5pt,domain=10.62:28.075140428510473] plot(\x,{(--26.24-1.76*\x)/4.29});
+\draw [dash pattern=on 5pt off 5pt,domain=10.62:28.075140428510473] plot(\x,{(-26.24--1.76*\x)/4.29});
+\draw (-1.2,0.9) node[anchor=north west] {Fiber};
+\draw (3.3,1.64) node[anchor=north west] {Lens};
+\draw (10.5,-0.05) node[anchor=north west] {Focus point};
+\draw (20.98,-5.71) -- (20.98,10.58);" /></p>
+</div><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>r</strong> (<em>np.array[N]</em>) &#8211; Distance between the central axis and the point</li>
+<li><strong>z</strong> (<em>np.array[N]</em>) &#8211; Distance between the point and the lens</li>
+<li><strong>fib</strong> (<em>int</em>) &#8211; Index of the fiber</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">0 if inside the first area, 1 if in the second one and 2 in the third</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N] of int</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES.get_bes">
 <tt class="descname">get_bes</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_bes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_bes" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the image from the synthetic diagnostics.
@@ -281,7 +304,7 @@ This function should be the only one used outside the class.</p>
 The red arrows show the call order and the black ones show what is inside the function.
 When two red arrows comes from the same point, it means that a if condition is present.</p>
 <p class="graphviz">
-<img src="_images/graphviz-acfad427542f14cf6319a95562bbfbd7be382b66.png" alt="digraph get_bes{
+<img src="_images/graphviz-a8ced46aa36ed71ffa834b3531bc9418ed58f3f6.png" alt="digraph get_bes{
 compound=true;
 
 // list of variable that will be present at least twice
@@ -303,7 +326,7 @@ Aemis [label=&quot;Collisions.get_emission&quot;];
 Bemis [label=&quot;Collisions.get_emission&quot;];
 
 // BES.GET_BES
-subgraph cluster_get_bes { label=&quot;BES.get_bes&quot;; &quot;XGC_Loader_BES.load_next_time_step&quot;-&gt;&quot;Beam1D.compute_beam_on_mesh&quot;-&gt;
+subgraph cluster_get_bes { label=&quot;BES.get_bes&quot;; &quot;XGC_Loader_local.load_next_time_step&quot;-&gt;&quot;Beam1D.compute_beam_on_mesh&quot;-&gt;
 &quot;BES.intensity_para&quot;[color=&quot;red&quot;];
 &quot;Beam1D.compute_beam_on_mesh&quot;-&gt;A[color=&quot;red&quot;];
 }
@@ -339,22 +362,22 @@ Bemis[color=&quot;red&quot;]}
 
 
 // BEAM1D.GET_QUANTITIES
-Aquant-&gt;&quot;XGC_Loader_BES.interpolate_data&quot; [lhead=cluster_quantities];
-Bquant-&gt;&quot;XGC_Loader_BES.interpolate_data&quot; [lhead=cluster_quantities];
-subgraph cluster_quantities { label=&quot;Beam1D.get_quantities&quot;; &quot;XGC_Loader_BES.interpolate_data&quot;}
+Aquant-&gt;&quot;XGC_Loader_local.interpolate_data&quot; [lhead=cluster_quantities];
+Bquant-&gt;&quot;XGC_Loader_local.interpolate_data&quot; [lhead=cluster_quantities];
+subgraph cluster_quantities { label=&quot;Beam1D.get_quantities&quot;; &quot;XGC_Loader_local.interpolate_data&quot;}
 
-// XGC_LOADER_BES.INTERPOLATE_DATA
-&quot;XGC_Loader_BES.interpolate_data&quot;-&gt; &quot;load_XGC_BES.get_interp_planes_BES&quot;[lhead=cluster_interpolate];
+// XGC_LOADER_local.INTERPOLATE_DATA
+&quot;XGC_Loader_local.interpolate_data&quot;-&gt; &quot;load_XGC_local.get_interp_planes_local&quot;[lhead=cluster_interpolate];
 
-subgraph cluster_interpolate { label=&quot;XGC_Loader_BES.interpolate_data&quot;; 
-&quot;load_XGC_BES.get_interp_planes_BES&quot;-&gt;&quot;XGC_Loader_BES.find_interp_positions&quot;[color=&quot;red&quot;];
+subgraph cluster_interpolate { label=&quot;XGC_Loader_local.interpolate_data&quot;; 
+&quot;load_XGC_local.get_interp_planes_local&quot;-&gt;&quot;XGC_Loader_local.find_interp_positions&quot;[color=&quot;red&quot;];
 }
 
 
 // BES.GET_SOLID_ANGLE
-&quot;BES.get_solid_angle&quot;-&gt;&quot;BES.check_in&quot;[lhead=cluster_solid_angle];
+&quot;BES.get_solid_angle&quot;-&gt;&quot;BES.find_case&quot;[lhead=cluster_solid_angle];
 subgraph cluster_solid_angle { label=&quot;BES.get_solid_angle&quot;;
-&quot;BES.check_in&quot;-&gt;&quot;Funcs.solid_angle_disk&quot;-&gt;&quot;BES.solid_angle_mix_case&quot;[color=&quot;red&quot;]; 
+&quot;BES.find_case&quot;-&gt;&quot;Funcs.solid_angle_disk&quot;-&gt;&quot;BES.solid_angle_mix_case&quot;[color=&quot;red&quot;]; 
 }
 
 &quot;Funcs.solid_angle_disk&quot;-&gt;&quot;Funcs.heuman&quot;[lhead=cluster_heuman];
@@ -466,11 +489,8 @@ The red circles are for the lens and the black ones are for the ring.</p>
 \node at (5,2.5) {Mixed Case};" /></p>
 </div><p>The two first are solved with the formula of Paxton (<a class="reference internal" href="FPSDP.Maths.html#FPSDP.Maths.Funcs.solid_angle_disk" title="FPSDP.Maths.Funcs.solid_angle_disk"><tt class="xref py py-func docutils literal"><span class="pre">solid_angle_disk</span></tt></a>) and
 the last one is solved numerically.</p>
-<p>For finding in which case a point is, in a first time we check the lens case (easily done by geometry [look 
-<a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.check_in" title="FPSDP.Diagnostics.BES.bes.BES.check_in"><tt class="xref py py-func docutils literal"><span class="pre">check_in</span></tt></a>]), and, in a second time, we look if there is an intersection
-as in the mixed case.
-For finding if the intersections are present or not, the following system is solved 
-[assuming that the coordinate system is the optical one] and if the solution is real, the intersections exist:</p>
+<p>For finding in which case a point is, the function <a class="reference internal" href="#FPSDP.Diagnostics.BES.bes.BES.find_case" title="FPSDP.Diagnostics.BES.bes.BES.find_case"><tt class="xref py py-func docutils literal"><span class="pre">find_case</span></tt></a>])is used.</p>
+<p>For finding the intersections, the following system is solved [assuming that the coordinate system is the optical one]:</p>
 <div class="math">
 \[\begin{split}\left\{ \begin{array}{ccc}
 x_1^2 + x_2^2 &amp; = &amp; r_r^2 \\
@@ -503,34 +523,96 @@ is the radius of the ring (lens), <span class="math">\(z\)</span> is the last co
 
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.bes.BES.get_width">
-<tt class="descname">get_width</tt><big>(</big><em>pos</em>, <em>fiber_nber</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_width"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_width" title="Permalink to this definition">¶</a></dt>
-<dd><p>Compute the radius of the light cone.
-Assume two cones that meet at the focus disk.</p>
+<tt class="descname">get_width</tt><big>(</big><em>z</em>, <em>fib</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_width"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_width" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the radius of the light cone.</p>
+<p>The following figure shows two cases of the computation of the radius (<span class="math">\(R_1\)</span> and <span class="math">\(R_2\)</span>).</p>
 <div class="figure">
-<p><img src="_images/tikz-a949d4e44eb73d34f7734848739e97b1f4b34fe1.png" alt="\draw (3,3) -- (-2.5,0) -- (3,-3);
-\draw[ultra thick] (3,3) -- (3,-3);
-\node at (3.5,1.5) {Lens};
-\draw[ultra thick] (0,1.35) -- (0,-1.35);
-\node at (0, 1.8) {Ring};
-\draw[dashed] (-3,3) -- (2.5,0) -- (-3,-3);
-\draw[-{Triangle[angle=45:5pt 5]}] (3.6,0) to (-3,0);
-\draw (-1.2,0) -- (-1.2,0.7);
-%first pos
-\node at (-1.5,0.3) {$r_1$};
-\node at (-1.2,-0.5) {x};
-\node at (-0.6,-0.5) {Pos$_1$};
-% second pos
-\draw (1.9,0) -- (1.9,0.33);
-%\node at (1.9,0.1) {$r_2$};
-\node at (1.9,0.6) {x};
-\node at (2.45,0.6) {Pos$_2$};" /></p>
+<p><img src="_images/tikz-db23d23fb1bf0f4d05965a177c45245c78a00a33.png" alt="[line cap=round,line join=round,x=1.0cm,y=1.0cm]
+\clip(-2.95,-3.88) rectangle (12.16,4.13);
+\draw [domain=-2.95:12.16] plot(\x,{(-0-0*\x)/8});
+\draw [line width=1.5pt] (0,1.12)-- (0,0);
+\draw [line width=1.5pt] (2.6,3.14)-- (2.6,-3.14);
+\draw [line width=1.5pt] (0,0)-- (0,-1.12);
+\draw (0,-1.12)-- (2.6,-3.14);
+\draw (2.6,-3.14)-- (7.4,-1.08);
+\draw (2.6,3.14)-- (7.4,1.08);
+\draw (2.6,3.14)-- (0,1.12);
+\draw [line width=1.5pt] (7.4,1.08)-- (7.4,-1.08);
+\draw [dash pattern=on 3pt off 3pt] (2.6,-3.14)-- (7.4,1.08);
+\draw [dash pattern=on 3pt off 3pt] (2.6,3.14)-- (7.4,-1.08);
+\draw [domain=7.4:12.156934491978609] plot(\x,{(--30.13-4.88*\x)/5.55});
+\draw [domain=7.4:12.156934491978609] plot(\x,{(-28.55--4.63*\x)/5.26});
+\draw [color=blue] (5.3,1.98)-- (5.3,0);
+\draw [color=blue] (9.19,2.65)-- (9.19,0);
+\draw (-1.2,0.53) node[anchor=north west] {Fiber};
+\draw (1.4,1.6) node[anchor=north west] {Lens};
+\draw (7.3,-0.6) node[anchor=north west] {Focus point};
+\begin{scriptsize}
+\draw[color=blue] (5.51,1.21) node {$R_2$};
+\draw[color=blue] (9,1.41) node {$R_1$};
+\end{scriptsize}" /></p>
 </div><table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>pos</strong> (<em>np.array[N,3]</em>) &#8211; Position where to compute the width in the optical system</li>
-<li><strong>fiber_nber</strong> (<em>int</em>) &#8211; Index of the fiber</li>
+<li><strong>z</strong> (<em>np.array[N]</em>) &#8211; Position where to compute the width in the optical system</li>
+<li><strong>fib</strong> (<em>int</em>) &#8211; Index of the fiber</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Radius of the optical cone</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.bes.BES.get_width_cases">
+<tt class="descname">get_width_cases</tt><big>(</big><em>z</em>, <em>fib</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.get_width_cases"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.get_width_cases" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the radius of the limits between all the cases.</p>
+<p>The four different cases are shown in the following figure (<span class="math">\(R_i\)</span>).</p>
+<div class="figure">
+<p><img src="_images/tikz-336f2d5332a9a3ec671ccb1a8e773c491f176591.png" alt="[line cap=round,line join=round,x=0.75cm,y=0.75cm]
+\clip (-2,-8.14) rectangle (20,6.3);
+\draw [domain=-4.3:18] plot(\x,{(-0-0*\x)/12});
+\draw (0.34,1)-- (4.82,4.14);
+\draw (4.82,4.14)-- (10.62,1.76);
+\draw (10.62,-1.76)-- (4.82,-4.14);
+\draw (4.82,-4.14)-- (0.34,-1);
+\draw [line width=1.6pt] (0.34,-1)-- (0.34,1);
+\draw [line width=1.6pt] (4.82,4.14)-- (4.82,-4.14);
+\draw [line width=1.6pt] (10.62,-1.76)-- (10.62,1.76);
+\draw [dash pattern=on 5pt off 5pt] (4.82,4.14)-- (10.62,-1.76);
+\draw [domain=10.62:18] plot(\x,{(--53.52-6.02*\x)/5.92});
+\draw [domain=10.62:18] plot(\x,{(-31.28--3.52*\x)/3.46});
+\draw [dash pattern=on 5pt off 5pt] (10.62,1.76)-- (4.82,-4.14);
+\draw [color=blue] (6.38,2.56)-- (6.38,0);
+\draw [dash pattern=on 5pt off 5pt,domain=10.62:18] plot(\x,{(--26.24-1.76*\x)/4.29});
+\draw [dash pattern=on 5pt off 5pt,domain=10.62:18] plot(\x,{(-26.24--1.76*\x)/4.29});
+\draw [color=blue] (9.67,0.8)-- (9.67,0);
+\draw [color=blue] (12.26,1.09)-- (12.26,0);
+\draw [color=blue] (17.36,1)-- (17.36,0);
+\draw (-1.1,0.86) node[anchor=north west] {Fiber};
+\draw (3.5,1.62) node[anchor=north west] {Lens};
+\draw (10.5,-0.1) node[anchor=north west] {Focus point};
+\begin{scriptsize}
+\draw[color=blue] (6.1,1.42) node {$R_1$};
+\draw[color=blue] (10,0.54) node {$R_2$};
+\draw[color=blue] (12,0.7) node {$R_3$};
+\draw[color=blue] (17,0.66) node {$R_4$};
+\end{scriptsize}" /></p>
+</div><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>z</strong> (<em>np.array[N]</em>) &#8211; Position where to compute the width in the optical system</li>
+<li><strong>fib</strong> (<em>int</em>) &#8211; Index of the fiber</li>
 </ul>
 </td>
 </tr>
@@ -697,59 +779,6 @@ The light collected by the fiber is within the continuous lines.</p>
 </td>
 </tr>
 <tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="FPSDP.Diagnostics.BES.bes.BES.solid_angle_seg">
-<tt class="descname">solid_angle_seg</tt><big>(</big><em>pos</em>, <em>x</em>, <em>r</em>, <em>islens</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.solid_angle_seg"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.solid_angle_seg" title="Permalink to this definition">¶</a></dt>
-<dd><p>Compute the solid angle of a disk where a segment has been removed.</p>
-<p>First, the numerical integration will be carried out over the biggest area of the disk,
-and, in a second time, if necessary, the integral over the full disk is computed
-(with the analytical formula) and subtracted by the numerical integral.</p>
-<p>The idea is to compute numerically the 2D integral by splitting the domain in 
-sector of the same angle and doing a Gauss-Legendre quadrature formula over
-each dimension.</p>
-<p>In a first time, the maximum radius (that will depends on the coordinate <span class="math">\(\theta\)</span>)
-has to be compute.</p>
-<p>In this figure, we want to compute the area between the black line and the blue one</p>
-<div class="figure">
-<p><img src="_images/tikz-26474fc0c8cf31bb4059adec29c3e7665698ae47.png" alt="\draw [red,dashed,domain=115:180] plot ({6*cos(\x)}, {6*sin(\x)});
-\draw [red,dashed,domain=360:425] plot ({6*cos(\x)}, {6*sin(\x)});
-\draw [black,thick,domain=150:390] plot ({3*cos(\x)}, {4+3*sin(\x)});
-\draw [red,thick,domain=65:115] plot ({6*cos(\x)}, {6*sin(\x)});
-\draw [black,dashed,domain=30:150] plot ({3*cos(\x)}, {4+3*sin(\x)});
-\draw [domain=-10:80] plot ({0.8*cos(\x)}, {4+0.8*sin(\x)});
-\node at (1,4.6) {$\theta$};
-\node at (-5,0) {Lens};
-\node at (2.4,1) {Ring};
-\node at (0,0) {x};
-\node at (0,4) {x};
-\draw (0,4) -- (0.51,6.94);
-\draw (0,4) -- ({3*cos(-10)}, {4+3*sin(-10)});
-\node at (2.66,5.38) {x};
-\node at (3.2,5.8) {$x_2$,$y_2$};
-\node at (-2.66,5.38) {x};
-\node at (-3.2,5.8) {$x_1$,$y_1$};
-\draw [blue] (-2.66,5.38) -- (2.66,5.38);
-\node at (0.25,5.4) {x};
-\node at (0.8,5.2) {$r_{max}$};" /></p>
-</div><table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body"><p class="first">improvement: remove useless computation of rmax</p>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>pos</strong> (<em>np.array[N,3]</em>) &#8211; Position in the optical system</li>
-<li><strong>x</strong> (<em>list[np.array[N],..]</em>) &#8211; Position of the intersection on the ring (list contains 2 elements)</li>
-<li><strong>r</strong> (<em>float</em>) &#8211; Radius of the disk (should be centered at (0,0,0) and the perpendicular should be along the z-axis)</li>
-<li><strong>islens</strong> (<em>bool</em>) &#8211; True if the computation is for the lens (change of sign if it is the case)</li>
-</ul>
 </td>
 </tr>
 </tbody>

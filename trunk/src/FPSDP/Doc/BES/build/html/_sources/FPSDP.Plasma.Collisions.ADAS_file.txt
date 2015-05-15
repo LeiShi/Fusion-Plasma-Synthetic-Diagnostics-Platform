@@ -9,6 +9,9 @@ ADAS_file
 
 .. autoclass:: FPSDP.Plasma.Collisions.ADAS_file.ADAS_file
     :members:
+    :undoc-members:
+    :show-inheritance:
+
    
 
 
@@ -19,6 +22,8 @@ ADAS21 reader
 
 .. autoclass:: FPSDP.Plasma.Collisions.ADAS_file.ADAS21
    :members:
+   :undoc-members:
+   :show-inheritance:
 
 ADAS22 reader
 -------------
@@ -27,4 +32,6 @@ ADAS22 reader
 
 .. autoclass:: FPSDP.Plasma.Collisions.ADAS_file.ADAS22
    :members:
-   
+   :undoc-members:
+   :show-inheritance:
+

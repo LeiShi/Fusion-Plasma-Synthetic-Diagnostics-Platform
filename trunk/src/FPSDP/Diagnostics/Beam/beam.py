@@ -15,7 +15,7 @@ class Beam1D:
     """ Simulate a 1D beam with the help of data from simulation.
 
     Compute the beam density from the equilibrium or the raw data on a mesh.
-    The beam density is not very sensitive from the fluctuation, therefore
+    The beam density is not very sensitive of the fluctuation, therefore
     only the central line is computed and a gaussian profile is assumed (with a different
     vertical and horizontal width).
     When computing a beam density outside the mesh, an extrapolation is made (cubic).
@@ -76,7 +76,6 @@ class Beam1D:
     def __init__(self,config_file):
         """ Load everything from the config file"""
         self.cfg_file = config_file                                          #!
-        print 'Reading config file (beam)'
         config = psr.ConfigParser()
         config.read(self.cfg_file)
 

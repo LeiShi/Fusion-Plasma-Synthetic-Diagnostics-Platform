@@ -41,7 +41,7 @@ class BES:
     
     Load the parameter from a config file (example in :download:`bes.in <../../../../FPSDP/Diagnostics/BES/bes.in>`
     with a lot of comments for explaining all the parameters) and create everything from it.
-    The function :func:`get_bes <FPSDP.Diagnostics.BES.bes.BES.get_bes>` is used for computing the intensity received by
+    The function :func:`get_bes <FPSDP.Diagnostics.BES.bes.BES.get_bes>` is used for computing the photon radiance received by
     each fiber (number of photons per second).
 
     :param str input_file: Name of the config file
@@ -65,7 +65,7 @@ class BES:
     :var np.array[Nfib] self.lim_op: Distance for switching between different case in the solid angle (see :func:`find_case`).
     :var np.array[Nfib,3] self.perp1: Second basis vector for each fiber coordinates (first is the optical line)
     :var np.array[Nfib,3] self.perp2: Third basis vector
-    :var str self.type_int: choice between the full computation of the intensity or only over the central line ('1D' or '2D')
+    :var str self.type_int: choice between the full computation of the photo radiance or only over the central line ('1D' or '2D')
     :var float self.t_max: Cutoff time for the lifetime effect (in unit of the lifetime).\
     If set to 0, the lifetime will not be taken in account    
     :var bool self.lifetime: Choice between using the lifetime effect or not
@@ -441,7 +441,7 @@ class BES:
         """ Compute the image from the synthetic diagnostics.
         This function should be the only one used outside the class.
         
-        :returns: Intensity collected by each fiber (number of photons by seconds, by steradians and by square meters)
+        :returns: Photon radiance collected by each fiber (number of photons by seconds, by steradians and by square meters)
         :rtype: np.array[Ntime, Nfib]
 
         The following graph shows the most important call during the computation of the intensity collected by the fibers.
@@ -586,7 +586,7 @@ class BES:
         Use the variable :keyword:`self.beam.data.current` from the data loader.
 
         :param int i: Index of a fiber
-        :returns: Intensity received by the fiber (number of photons by seconds, by steradians and by square meters)
+        :returns: Photon radiance received by the fiber (number of photons by seconds, by steradians and by square meters)
         :rtype: float
         """
         t_ = self.beam.data.current
@@ -720,7 +720,8 @@ class BES:
         r""" Compute the case for the solid angle.
 
         In the following figure, the three different cases are shown.
-        In red, it the ring point case, in blue, the mixed case and, in green, the lens case (see :func:`get_solid_angle <FPSDP.Diagnostics.BES.bes.BES.get_solid_angle>` for more a drawing of the different cases).
+        In red, the area of the ring case is shown, in blue, the mixed case and, in green, the lens case 
+        (see :func:`get_solid_angle <FPSDP.Diagnostics.BES.bes.BES.get_solid_angle>` for more a drawing of the different cases).
 
         .. tikz:: [line cap=round,line join=round,x=0.75cm,y=0.75cm]
            \clip(-2,-5.71) rectangle (32,5.71);
@@ -889,7 +890,7 @@ class BES:
         :param int t_: Time step to compute
         :param int fiber_nber: Index of the fiber
 
-        :returns: Intensity of light collected by the fiber (number of photons by seconds, by steradians and by square meters)
+        :returns: Photon radiance collected by the fiber (number of photons by seconds, by steradians and by square meters)
         :rtype: float
         """
         # first define the quadrature formula
@@ -917,13 +918,13 @@ class BES:
         return I
         
     def get_emis_from(self,pos,t_,fiber_nber):
-        """ Compute the total emission received from a position.
+        """ Compute the total emission of each position.
 
         :param np.array[N,3] pos: Position in the optical system 
         :param int t_: Time step to compute
         :param int fiber_nber: Index of the fiber
 
-        :returns: Intensity collected from each point
+        :returns: Photon radiance emitted by each point
         :rtype: np.array[N]
         """
         # first change coordinate: optical -> cartesian (Tokamak)

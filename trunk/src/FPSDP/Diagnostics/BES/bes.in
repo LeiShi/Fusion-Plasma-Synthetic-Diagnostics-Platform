@@ -54,9 +54,12 @@ n_high = 3
 Nlt = 4
 # t_max*lifetime = upper value of the integrale for the lifetime effect
 # cutoff value
-# if t_max = 0, the lifetime will not be used
-# Used in Beam1d.get_emis_lifetime()
+# if t_max = 0, the lifetime will not be 
+# used in Beam1d.get_emis_lifetime()
 t_max = 6.0
+# Lifetime of the excited particles
+# (used for computing the limits of the mesh)
+tau = 1e-8
 # true for using the equilibrium for the attenation
 # and false for using the equilibrium + fluctuation
 # Using the fluctuation increase the size of the mesh
@@ -136,9 +139,6 @@ filter = FPSDP/Diagnostics/BES/filter.dat
 data_path = /global/project/projectdirs/m499/jlang/particle_pinch/
 # torroidal step for the field line interpolation (in radians)
 dphi = 0.06
-# max of the lifetime of the excited particles
-# (used for computing the limits of the mesh)
-tau_max = 1e-8
 # simulation time steps wanted
 timestart = 1
 timeend = 182

@@ -23,6 +23,8 @@ class Collisions:
     :param list[str] files_atte: List of names for ADAS21 files (beam stopping coefficient)
     :param list[str] files_emis: List of names for ADAS22 files (emission coefficient)
     :param list[int] states: Quantum number of the lower (states[0]) and the higher(states[1]) states of the hydrogen atom
+    :param float lifetime: Lifetime of the excited state
+
     :var list[str] self.files_atte: List of names for ADAS21 files (beam stopping coefficient)
     :var list[str] self.files_emis: List of names for ADAS22 files (emission coefficient)
     :var list[] self.beam_atte: List of :class:`ADAS21 <FPSDP.Plasma.Collisions.ADAS_file.ADAS21>` instance variable (beam stopping coefficient)
@@ -34,10 +36,10 @@ class Collisions:
     :var float self.n_low: Quantum number of the lower state for the hydrogen atom
     :var float self.n_high: Quantum number of the higher state for the hydrogen atom
     :var float self.E0: Energy of the ground state (in eV)    
-    
+    :var float self.lifetime: Lifetime of the excited state
     """
 
-    def __init__(self,files_atte,files_emis,states):
+    def __init__(self,files_atte,files_emis,states,lifetime):
         """ Copy the input inside the instance
             
         :param list[str] files_atte: List of names for ADAS21 files (beam stopping coefficient)
@@ -52,6 +54,7 @@ class Collisions:
         self.n_low = states[0]                                               #!
         self.n_high = states[1]                                              #!
         self.E0 = -13.6
+        self.lifetime = lifetime
         self.read_adas()
 
         # compute the interpolant
@@ -275,10 +278,10 @@ class Collisions:
             raise NameError('No list with this name: {0}'.format(typ))
 
     def get_lifetime(self,ne,Te,Ti,beam,mass_b,file_number):
-        """ Compute the lifetime of the excited state following the formula
-        given by I. H. Hutchinson, Plasma Phys. Controlled Fusion 44,71 (2002)
-        assuming an hydrogen atom.
-
+        """ Compute the lifetime of the excited state.
+        This version is using the radiative lifetime but can be upgraded in order
+        to have a plasma dependant lifetime.
+        
         :param float beam: Beam energy (eV)
         :param np.array[N] ne: Electron density (m :sup:`-3`)
         :param float mass_b: Mass of a neutral particle in the beam (amu)
@@ -291,15 +294,8 @@ class Collisions:
 
         :todo: everything
         """
-        #:todo: eV???
-        E = -self.E0*(1.0/self.n_low**2 - 1.0/self.n_high**2)
-        frac = (float(self.n_low)/float(self.n_high))**2
-        #print self.get_emission(beam,ne,mass_b,Ti,file_number)
-        sigv = frac*np.exp(E/Te)*self.get_attenutation(beam,ne,mass_b,Ti,file_number)
-        #print 'lifetime',1.0/(sigv*ne)
-        #return 1.0/(sigv*ne)
 
-        return 3.5e-9*np.ones(ne.shape)
+        return self.lifetime*np.ones(ne.shape)
 
     def get_wavelength(self):
         """ Compute the wavelength of the emitted photons in the particles 

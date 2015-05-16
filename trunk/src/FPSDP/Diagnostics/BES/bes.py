@@ -211,8 +211,10 @@ class BES:
         self.dist = np.sqrt(np.sum((self.pos_foc - self.pos_lens)**2,axis=1))#!
 
         self.type_int = config.get('Optics','type_int')                      #!
-
-        self.lim_op = self.dist*self.rad_lens/(self.rad_lens+self.rad_foc)   #!
+        
+        self.lim_op = np.zeros((len(Z),2))                                   #!
+        self.lim_op[:,0] = self.dist*self.rad_lens/(self.rad_lens+self.rad_foc)
+        self.lim_op[:,1] = self.dist*self.rad_lens/(self.rad_lens-self.rad_foc)
 
 
         self.t_max = json.loads(config.get('Collisions','t_max'))            #!
@@ -659,7 +661,7 @@ class BES:
         # case before the focus point
         r[ind] = self.rad_lens + (self.rad_foc[fib]-self.rad_lens)*z[ind]/self.dist[fib]
         # case after it
-        r[~ind] = -self.rad_foc[fib] + (self.rad_foc[fib] + self.rad_lens)*z[~ind]/self.dist[fib]
+        r[~ind] = -self.rad_lens + (self.rad_foc[fib] + self.rad_lens)*z[~ind]/self.dist[fib]
         return r
 
     def get_width_cases(self,z,fib):
@@ -709,11 +711,12 @@ class BES:
         # index before focus point
         ind = z<=self.dist[fib]
         # slope of the linear function
-        a = (self.rad_lens-self.rad_foc[fib])/self.dist[fib]
+        a = (self.rad_lens+self.rad_foc[fib])/self.dist[fib]
         # case before the focus point
         r[ind] = np.abs(self.rad_lens - a*z[ind])
         # case after it
-        r[~ind] = np.abs(self.rad_foc[fib] + a*(z[~ind]-self.dist[fib]))
+        a = (self.rad_lens-self.rad_foc[fib])/self.dist[fib]
+        r[~ind] = np.abs(self.rad_lens - a*z[~ind])
         return r
 
     def find_case(self,r,z,fib):
@@ -766,7 +769,10 @@ class BES:
         # if the radius is bigger than cone => case 2
         ret[r>r_cone] = 2
         # if before intersection => case 1
-        ret[z < self.lim_op[fib]] = 1
+        ret[(z < self.lim_op[fib,0]) & (r<=r_cone)] = 1
+        # if after the intersection 2 => case 1
+        ret[(z > self.lim_op[fib,1]) & (r<=r_cone)] = 1
+
         return ret
         
     def light_from_plane(self,z, t_, fiber_nber,zind):

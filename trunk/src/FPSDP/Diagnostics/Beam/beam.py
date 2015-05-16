@@ -82,12 +82,13 @@ class Beam1D:
         # The example input is well commented
         
         # load data for collisions
+        lt = json.loads(config.get('Data','tau_max'))
         self.adas_atte = json.loads(config.get('Collisions','adas_atte'))    #!
         self.adas_emis = json.loads(config.get('Collisions','adas_emis'))    #!
         n_low = json.loads(config.get('Collisions','n_low'))
         n_high = json.loads(config.get('Collisions','n_high'))
         self.collisions = col.Collisions(self.adas_atte,self.adas_emis,
-                                         (n_low,n_high))                     #!
+                                         (n_low,n_high),lt)                  #!
         self.coll_atte = json.loads(config.get('Collisions','coll_atte'))    #!
         self.coll_emis = json.loads(config.get('Collisions','coll_emis'))    #!
         self.Nlt = int(json.loads(config.get('Collisions','Nlt')))           #!
@@ -118,6 +119,7 @@ class Beam1D:
             config.get('Beam geometry','beam_width_v'))                      #!
         self.Nz = int(config.get('Beam geometry','Nz'))                      #!
 
+        
         # get the standard deviation at the origin
         self.stddev_h = self.beam_width_h/(2.0*np.sqrt(2.0*np.log(2.0)))     #!
         self.stddev_v = self.beam_width_v/(2.0*np.sqrt(2.0*np.log(2.0)))     #!

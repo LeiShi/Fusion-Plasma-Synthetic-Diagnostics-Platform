@@ -69,7 +69,7 @@ eq_atte = true
 
 [Optics]
 # position of the lens (X,Y,Z) in meter
-pos_lens = [2.255,-0.625,0.0]
+pos_lens = [2.255,-0.625,0.03]
 # position of the focus point for each fiber (R,Z,phi)
 # Z is assumed to be an array of the good size,
 # R and phi  can be a float or an array
@@ -140,6 +140,6 @@ data_path = /global/project/projectdirs/m499/jlang/particle_pinch/
 # torroidal step for the field line interpolation (in radians)
 dphi = 0.06
 # simulation time steps wanted
-timestart = 1
+timestart = 110
 timeend = 182
 timestep = 1

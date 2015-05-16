@@ -14,7 +14,7 @@ from FPSDP.IO.IO_funcs import parse_num
 
 import numpy as np
 import h5py as h5
-from scipy.interpolate import interp1d
+from scipy.interpolate import splrep, splev
 from scipy.interpolate import CloughTocher2DInterpolator
 from load_XGC_profile import load_m, XGC_Loader_Error
 from FPSDP.Maths.RungeKutta import runge_kutta_explicit
@@ -288,16 +288,16 @@ class XGC_Loader_local():
         self.ti_min = np.min(eq_ti)
 
         # interpolant for the equilibrium of the ions
-        self.ti0_sp = interp1d(eq_psi,eq_ti,bounds_error = False,fill_value = self.ti_min/2)
-        self.ni0_sp = interp1d(eq_psi,eq_ni,bounds_error = False,fill_value = self.ni_min/10)
+        self.ti0_sp = splrep(eq_psi,eq_ti,k=1)
+        self.ni0_sp = splrep(eq_psi,eq_ni,k=1)
         if('e_perp_temperature_1d' in eq_mesh.keys() ):
             #simulation has electron dynamics
             eq_te = eq_mesh['e_perp_temperature_1d'][0,:]
             eq_ne = eq_mesh['e_gc_density_1d'][0,:]
             self.te_min = np.min(eq_te)
             self.ne_min = np.min(eq_ne)
-            self.te0_sp = interp1d(eq_psi,eq_te,bounds_error = False,fill_value = self.te_min/2)
-            self.ne0_sp = interp1d(eq_psi,eq_ne,bounds_error = False,fill_value = self.ne_min/10)
+            self.te0_sp = splrep(eq_psi,eq_te,k=1)
+            self.ne0_sp = splrep(eq_psi,eq_ne,k=1)
 
         else:
             self.load_eq_tene_nonElectronRun() 
@@ -316,8 +316,8 @@ class XGC_Loader_local():
         psi_te *= self.psi_x
         psi_ne *= self.psi_x
 
-        self.te0_sp = interp1d(psi_te,te,bounds_error = False,fill_value = 0)
-        self.ne0_sp = interp1d(psi_ne,ne,bounds_error = False,fill_value = 0)
+        self.te0_sp = splrep(psi_te,te,k=1)
+        self.ne0_sp = splrep(psi_ne,ne,k=1)
         
 
     def calc_total_ne_3D(self,psi,nane,pot):
@@ -332,8 +332,11 @@ class XGC_Loader_local():
         
         """
         # temperature and density (equilibrium) on the psi mesh
-        te0 = self.te0_sp(psi)
-        ne0 = self.ne0_sp(psi)
+        te0 = splev(psi,self.te0_sp)
+        te0[te0<self.te_min/10] = self.te_min/10
+        ne0 = splev(psi,self.ne0_sp)
+        ne0[ne0<self.ne_min/10] = self.ne_min/10
+        
         inner_idx = te0>0
         dne_ad = np.zeros(pot.shape)
         dne_ad[...,inner_idx] += ne0[inner_idx]*pot[...,inner_idx]/te0[inner_idx]
@@ -542,12 +545,15 @@ class XGC_Loader_local():
         if eq:
             #ne0 on grid
             if ne_bool:
-                ne = self.ne0_sp(psi)
+                ne = splev(psi,self.ne0_sp)
+                ne[ne < self.ne_min/10] = self.ne_min/10
         #Te and Ti on grid
         if 'Te' in quant:
-            Te = self.te0_sp(psi)
+            Te = splev(psi,self.te0_sp)
+            Te[Te < self.te_min/10] = self.te_min/10
         if 'Ti' in quant:
-            Ti = self.ti0_sp(psi)
+            Ti = splev(psi,self.ti0_sp)
+            Ti[Ti < self.ti_min/10] = self.ti_min/10
 
                 
         if not eq:
@@ -609,6 +615,5 @@ class XGC_Loader_local():
         return ret
 
         
-
 
 

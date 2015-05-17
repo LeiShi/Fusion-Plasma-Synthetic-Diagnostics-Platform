@@ -59,7 +59,7 @@ Nlt = 4
 t_max = 6.0
 # Lifetime of the excited particles
 # (used for computing the limits of the mesh)
-tau = 1e-8
+tau = 8e-9
 # true for using the equilibrium for the attenation
 # and false for using the equilibrium + fluctuation
 # Using the fluctuation increase the size of the mesh

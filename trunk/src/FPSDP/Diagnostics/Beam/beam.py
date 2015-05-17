@@ -82,7 +82,7 @@ class Beam1D:
         # The example input is well commented
         
         # load data for collisions
-        lt = json.loads(config.get('Data','tau_max'))
+        lt = json.loads(config.get('Collisions','tau'))
         self.adas_atte = json.loads(config.get('Collisions','adas_atte'))    #!
         self.adas_emis = json.loads(config.get('Collisions','adas_emis'))    #!
         n_low = json.loads(config.get('Collisions','n_low'))
@@ -433,7 +433,7 @@ class Beam1D:
             file_nber = k[0]
             beam_nber = k[1]
             # loop over all the position
-            l = self.collisions.get_lifetime(ne_in,Te_in,Ti_in,
+            l = self.collisions.get_lifetime(ne_in,Te_in,
                                              self.beam_comp[beam_nber],
                                              self.mass_b[beam_nber],file_nber)
             dist = np.sqrt(np.sum((pos-self.pos)**2,axis=-1))

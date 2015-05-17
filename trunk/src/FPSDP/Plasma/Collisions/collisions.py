@@ -7,8 +7,7 @@ from FPSDP.GeneralSettings.UnitSystem import SI
 class Collisions:
     r""" Class containing all the physics about the collisions
         
-    Read the files from ADAS database, compute the lifetime, and compute
-    the cross-sections (cubic spline interpolation is used).
+    Read the files from ADAS database, compute the lifetime, and the cross-sections (cubic spline interpolation is used).
     
     For computing the coefficients, two interpolations are done.
     A first one in 2D (beam energy and density) and a second one in temperature.
@@ -50,7 +49,7 @@ class Collisions:
         self.files_emis = files_emis                                         #!
         self.beam_emis = []                                                  #!
         self.beam_atte = []                                                  #!
-        print 'The lifetime assume an hydrogen atom'
+        print 'The wavelength assumes an hydrogen atom'
         self.n_low = states[0]                                               #!
         self.n_high = states[1]                                              #!
         self.E0 = -13.6
@@ -277,22 +276,22 @@ class Collisions:
         else:
             raise NameError('No list with this name: {0}'.format(typ))
 
-    def get_lifetime(self,ne,Te,Ti,beam,mass_b,file_number):
+    def get_lifetime(self,ne,Te,beam,mass_b,file_number):
         """ Compute the lifetime of the excited state.
-        This version is using the radiative lifetime but can be upgraded in order
+        This version is using the lifetime given in the input but can be upgraded in order
         to have a plasma dependant lifetime.
+
+        :todo: Upgrading in order to take into account the plasma density
         
         :param float beam: Beam energy (eV)
         :param np.array[N] ne: Electron density (m :sup:`-3`)
         :param float mass_b: Mass of a neutral particle in the beam (amu)
         :param np.array[N] Te: Electron temperature (eV)
-        :param np.array[N] Ti: Ion temperature (eV)
         :param int file_number: File number (choosen in Beam.py)
 
         :returns: Lifetime of the excited atom
         :rtype: np.array[ne.shape]
 
-        :todo: everything
         """
 
         return self.lifetime*np.ones(ne.shape)

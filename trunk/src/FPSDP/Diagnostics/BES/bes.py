@@ -221,7 +221,7 @@ class BES:
         self.lifetime = self.t_max != 0                                      #!
         
         # Data part
-        self.tau_max = json.loads(config.get('Data','tau_max'))              #!
+        self.tau_max = json.loads(config.get('Collisions','tau'))            #!
         self.dphi = json.loads(config.get('Data','dphi'))                    #!
         end = json.loads(config.get('Data','timeend'))
         timestep = json.loads(config.get('Data','timestep'))

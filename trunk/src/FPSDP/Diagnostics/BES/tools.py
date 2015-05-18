@@ -99,15 +99,18 @@ def beam_density():
     """
     bes = bes_.BES(name)
     bes.beam.eq = True
-    bes.beam.t_ = t
+    bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
     bes.beam.data.current = t
+    bes.beam.data.load_next_time_step(increase=False)
     bes.beam.compute_beam_on_mesh()
     nb_eq = bes.beam.density_beam
-    ne_eq = bes.beam.get_quantities(bes.beam.mesh,self.t_,['ne'],True,check=False)[0]
+    ne_eq = bes.beam.get_quantities(bes.beam.mesh,t,['ne'],True,check=False)[0]
     bes.beam.eq = False
+    
+    bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
     bes.beam.compute_beam_on_mesh()
     nb_fl = bes.beam.density_beam
-    ne_fl = bes.beam.get_quantities(bes.beam.mesh,self.t_,['ne'],False,check=False)[0]
+    ne_fl = bes.beam.get_quantities(bes.beam.mesh,t,['ne'],False,check=False)[0]
     dl = np.sqrt(np.sum((bes.beam.mesh-bes.beam.pos[np.newaxis,:])**2,axis=1))
     
     
@@ -153,46 +156,58 @@ def beam_emission():
     """ Shows the effect of the beam density on the emission and the effect of the lifetime.
     """
     bes = bes_.BES(name)
-    bes.beam.t_ = t
+    bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
     bes.beam.data.current = t
+    bes.beam.data.load_next_time_step(increase=False)
     bes.beam.compute_beam_on_mesh()
 
-    r_max = 0.5
+    r_max = 0.25
     dl = np.sqrt(np.sum((bes.beam.mesh-bes.beam.pos[np.newaxis,:])**2,axis=1))
-    r = np.linspace(-r_max,r_max,20)
-    R,L = plt.meshgrid(r,dl)
+    Nr = 20
+    r = np.linspace(-r_max,r_max,Nr)
+    R,L = np.meshgrid(r,dl)
     R = R.flatten()
     L = L.flatten()
-    perp = bes.beam.direc
+    perp = np.copy(bes.beam.direc)
     perp[0] = perp[1]
     perp[1] = -bes.beam.direc[0]
     pos = bes.beam.pos[np.newaxis,:] + L[:,np.newaxis]*bes.beam.direc + R[:,np.newaxis]*perp
+    emis = bes.beam.get_emis(pos,t)[0,:]
+    emis_l = bes.beam.get_emis_lifetime(pos,t)[0,:]
 
-    emis = bes.beam.get_emis(pos,t)
-    emis_l = bes.beam.get_emis_lifetime(pos,t)
+    emis = np.reshape(emis, (-1,Nr))
+    emis_l = np.reshape(emis_l, (-1,Nr))
+    R = np.reshape(R, (-1,Nr))
+    L = np.reshape(L, (-1,Nr))
 
-    
+    v = 50
     plt.figure()
-    plt.title('Photon radiance with an instantaneous emission')
-    plt.contourf(R,L,emis)
+    plt.title('Photon radiance')
+    plt.contourf(R,L,emis,v)
+    width = bes.beam.stddev_h
+    plt.plot([-width, -width],[0, dl[-1]],'--k')
+    plt.plot([width, width],[0, dl[-1]],'--k')
     plt.colorbar()
     plt.xlabel('Distance from the central line [m]')
     plt.ylabel('Distance from the source [m]')
 
     plt.figure()
     plt.title('Photon radiance')
-    plt.contourf(R,L,emis_l)
+    plt.contourf(R,L,emis_l,v)
+    plt.plot([-width, -width],[0, dl[-1]],'--k')
+    plt.plot([width, width],[0, dl[-1]],'--k')
     plt.colorbar()
     plt.xlabel('Distance from the central line [m]')
     plt.ylabel('Distance from the source [m]')
 
     plt.figure()
-    plt.title('Difference of emission between the instantaneous and non-instantaneous emission')
-    plt.contourf(R,L,emis_l-emis)
+    plt.title('Difference between the instantaneous and non-instantaneous emission')
+    plt.contourf(R,L,(emis_l-emis)/emis,v)
+    plt.plot([-width, -width],[0, dl[-1]],'--k')
+    plt.plot([width, width],[0, dl[-1]],'--k')
     plt.colorbar()
     plt.xlabel('Distance from the central line [m]')
     plt.ylabel('Distance from the source [m]')
 
     plt.show()
-
 

@@ -140,6 +140,6 @@ data_path = /global/project/projectdirs/m499/jlang/particle_pinch/
 # torroidal step for the field line interpolation (in radians)
 dphi = 0.06
 # simulation time steps wanted
-timestart = 110
+timestart = 1
 timeend = 182
 timestep = 1

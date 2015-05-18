@@ -525,6 +525,7 @@ class XGC_Loader_local():
         """
         if (timestep is not self.current) and (eq is False):
             print 'Maybe an error is made, the requested time step is not the same than the XGC one'
+            print timestep, self.current
         
 
         # compute the coordinate in the torroidal system

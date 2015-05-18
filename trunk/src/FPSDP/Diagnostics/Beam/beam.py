@@ -384,7 +384,7 @@ class Beam1D:
         :param float t_: Time step
 
         :returns: :math:`\varepsilon`
-        :rtype: np.array[N]
+        :rtype: np.array[Ncomp,N]
         """
         # first take all the value needed for the computation
         if len(pos.shape) == 1:
@@ -420,7 +420,7 @@ class Beam1D:
         :param float t_: Time step
 
         :returns: :math:`\varepsilon_l`
-        :rtype: np.array[N]
+        :rtype: np.array[Ncomp,N]
         """
 
         quad = integ.integration_points(1,'GL4') # Gauss-Legendre order 5

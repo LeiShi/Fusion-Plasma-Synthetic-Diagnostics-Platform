@@ -374,10 +374,10 @@ class Tools:
 It contains all the code used for the figure in my report
 """
 name = 'FPSDP/Diagnostics/BES/bes.in'
-t = 150
 
 
-def beam_density():
+
+def beam_density(t=150):
     """ Compare the beam density of the equilibrium case and of the equilibrium+fluctuations case
 
     """
@@ -436,7 +436,7 @@ def beam_density():
     
     plt.show()
 
-def beam_emission():
+def beam_emission(Nr=40,t=150):
     """ Shows the effect of the beam density on the emission and the effect of the lifetime.
     """
     bes = bes_.BES(name)
@@ -447,7 +447,6 @@ def beam_emission():
 
     r_max = 0.25
     dl = np.sqrt(np.sum((bes.beam.mesh-bes.beam.pos[np.newaxis,:])**2,axis=1))
-    Nr = 20
     r = np.linspace(-r_max,r_max,Nr)
     R,L = np.meshgrid(r,dl)
     R = R.flatten()
@@ -484,6 +483,7 @@ def beam_emission():
     plt.xlabel('Distance from the central line [m]')
     plt.ylabel('Distance from the source [m]')
 
+    v = np.linspace(-1,1,v)
     plt.figure()
     plt.title('Difference between the instantaneous and non-instantaneous emission')
     plt.contourf(R,L,(emis_l-emis)/emis,v)
@@ -495,3 +495,28 @@ def beam_emission():
 
     plt.show()
 
+
+
+def check_convergence_lifetime(t=140,fib=4):
+
+    bes = bes_.BES(name)
+    bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
+    bes.beam.data.current = t
+    bes.beam.data.load_next_time_step(increase=False)
+    bes.beam.compute_beam_on_mesh()
+
+    N = np.arange(4,10)
+    Nref = 20
+
+    emis = np.zeros(N.shape)
+    for i,Nlt in enumerate(N):
+        bes.beam.Nlt = Nlt
+        emis[i] = bes.beam.get_emis_lifetime(bes.pos_foc[fib,:],t)[0,:]
+    bes.beam.Nlt = Nref
+    emis_ref = bes.beam.get_emis_lifetime(bes.pos_foc[fib,:],t)[0,:]
+
+    plt.figure()
+    plt.loglog(N,emis-emis_ref)
+    plt.ylabel('Emission')
+    plt.xlabel('Number of interval')
+    plt.show()

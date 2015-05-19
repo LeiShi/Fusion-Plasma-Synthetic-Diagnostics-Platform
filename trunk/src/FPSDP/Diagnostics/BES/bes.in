@@ -51,12 +51,12 @@ n_high = 3
 # number of points (=> intervals) for the integration of the lifetime effect
 # exponential decay => small distance, so do not need a big number
 # Used in Beam1d.get_emis_lifetime()
-Nlt = 4
+Nlt = 5
 # t_max*lifetime = upper value of the integrale for the lifetime effect
 # cutoff value
 # if t_max = 0, the lifetime will not be 
 # used in Beam1d.get_emis_lifetime()
-t_max = 6.0
+t_max = 8.0
 # Lifetime of the excited particles
 # (used for computing the limits of the mesh)
 tau = 8e-9

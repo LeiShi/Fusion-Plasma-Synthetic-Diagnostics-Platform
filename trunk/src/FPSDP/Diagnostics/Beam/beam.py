@@ -422,6 +422,7 @@ class Beam1D:
         :returns: :math:`\varepsilon_l`
         :rtype: np.array[Ncomp,N]
         """
+        pos = np.atleast_2d(pos)
 
         quad = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
         emis = np.zeros((len(self.beam_comp),pos.shape[0]))

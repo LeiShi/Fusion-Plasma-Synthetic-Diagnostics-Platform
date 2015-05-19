@@ -121,6 +121,8 @@ def integration_points(dim, meth, obj='', size=-1):
             points[7] = 0.8650633666889845
             points[8] = -0.9739065285171717
             points[9] = 0.9739065285171717
+        else:
+            raise NameError('Method not implemented')
     elif dim == 2:
         if obj == 'disk':
             if size == -1:
@@ -145,7 +147,47 @@ def integration_points(dim, meth, obj='', size=-1):
                     w[i+10] = high_weight
                     points[i+10,:] = np.array([high*np.cos(angle),
                                                high*np.sin(angle)])
+            elif meth == 'order4':
+                w = np.ones(4)/4.0
+                points = np.zeros((4,2))
 
+                h = size/2.0
+                points[0,:] = [h,h]
+                points[1,:] = [-h,h]
+                points[2,:] = [h,-h]
+                points[3,:] = [-h,-h]
+
+            elif meth == 'order6':
+                w = np.zeros(7)
+                w[0] = 1.0/4.0
+                w[1:] = 1.0/8.0
+                
+                points = np.zeros((7,2))
+
+                x = np.sqrt(2.0/3.0)*size
+                points[1,1] = x
+                points[2,1] = -x
+
+                x = np.sqrt(1.0/6.0)*size
+                y = np.sqrt(2.0)*size/2.0
+
+                points[3,:] = [x,y]
+                points[4,:] = [-x,y]
+                points[5,:] = [x,-y]
+                points[6,:] = [-x,-y]
+
+
+            else:
+                raise NameError('Method not implemented')
+
+        else:
+            raise NameError('Method not implemented')
+
+            
+    else:
+        raise NameError('Method not implemented')
+
+    
     named = collections.namedtuple('Quadrature',['w','pts'])
     return named(w,points) # can be acces with the following way
     # .w or .pts

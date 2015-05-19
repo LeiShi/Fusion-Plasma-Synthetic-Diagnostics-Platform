@@ -83,7 +83,7 @@ class Tools:
         plt.show()
 
     def fluctuations_movie(self,v=40):
-        """ Make a movie from the data and save them in movie.mp4
+        """ Make a movie from the data and save it in movie_fl.mp4
         :param int v: Number of ticks for the colorbar
         """        
         from matplotlib import animation
@@ -115,12 +115,13 @@ class Tools:
         # http://matplotlib.sourceforge.net/api/animation_api.html
 
         FFwriter = animation.FFMpegWriter()
-        anim.save('movie.mp4', writer=FFwriter,fps=15, extra_args=['-vcodec', 'libx264'])
+        anim.save('movie_fl.mp4', writer=FFwriter,fps=15, extra_args=['-vcodec', 'libx264'])
 
         
     def comparison_picture(self,tool2,timestep,v=40):
-        """ Make a picture from the data of the fluctuation
-        :param Tools tool2: Second instance of the Tools class
+        """ Make a picture from the data.
+        self should be the density fluctuation
+        :param Tools tool2: Second instance of the Tools class (BES images)
         :param int timestep: Index of the timestep
         :param int v: Number of ticks for the colorbar
         """        
@@ -165,8 +166,9 @@ class Tools:
         plt.show()
 
     def comparison_movie(self,tool2,v=40):
-        """ Make a movie from the data and save them in movie.mp4
-        :param int timestep: Index of the timestep
+        """ Make a movie from the data and save it in movie_comp.mp4
+        self should be the density fluctuation
+        :param Tools tool2: BES images
         :param int v: Number of ticks for the colorbar
         """        
         from matplotlib import animation
@@ -222,7 +224,7 @@ class Tools:
         # http://matplotlib.sourceforge.net/api/animation_api.html
 
         FFwriter = animation.FFMpegWriter()
-        anim.save('movie.mp4', writer=FFwriter,fps=15, extra_args=['-vcodec', 'libx264'])
+        anim.save('movie_comp.mp4', writer=FFwriter,fps=15, extra_args=['-vcodec', 'libx264'])
 
 
     def crosscorrelation(self, Nr=60, Nz=70, dr_max=0.05, dz_max=0.03, dkr_max=300, dkz_max=300, graph='3d'):

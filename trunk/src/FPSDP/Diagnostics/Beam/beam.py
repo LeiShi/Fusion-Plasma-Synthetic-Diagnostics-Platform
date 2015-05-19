@@ -440,12 +440,13 @@ class Beam1D:
             # used for avoiding the discontinuity before the origin
             # of the beam
             up_lim = np.minimum(l*self.t_max*self.speed[beam_nber],dist)
-
+            check_ = ~(up_lim == dist).any()
             # split the distance in interval
             # copy and modify the source code of linspace
-            step = up_lim/float(self.Nlt)
-            delta = step[...,np.newaxis]*np.arange(0, self.Nlt)\
-                    *np.ones(l.shape)[...,np.newaxis]
+            delta = integ.get_interval_exponential(up_lim,l*self.speed[beam_nber],self.Nlt,check=check_)
+            #step = up_lim/float(self.Nlt)
+            #delta = step[...,np.newaxis]*np.arange(0, self.Nlt)\
+            #        *np.ones(l.shape)[...,np.newaxis]
             
             # average position (a+b)/2
             av = 0.5*(delta[...,:-1] + delta[...,1:])

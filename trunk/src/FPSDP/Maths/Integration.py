@@ -25,6 +25,34 @@ def get_interval_gaussian(cutoff,sigma,N):
     x = x*(ndtr(cutoff/sigma)-ndtr(-cutoff/sigma))+ndtr(-cutoff/sigma)
     return ndtri(x)*sigma
 
+def get_interval_exponential(cutoff,tau,N,check=True):
+    r""" Create a mesh for doing a quadrature formula on a function close to
+    an exponential decay.
+
+    .. math::
+       x_i = F^{-1}\left(\frac{i}{N-1}\right)
+
+    where :math:`x_i` are the points defining the intervals, :math:`F(x) = \int_{0}^{x} A\exp\left(-\frac{x}{\tau}\right)`
+    and :math:`A = \frac{1}{F(cutoff)}`
+
+    :param float or np.array[Npt] cutoff: Limits of the integral
+    :param float or np.array[Npt] tau: Characteristic lenght of the exponential
+    :param int N: Number of points for the integrals
+    
+    :return: Points of the mesh (each one contains 1/(N-1) % of the total integral)
+    :rtype: np.array[Npt,N]
+    """
+    tau = np.atleast_1d(tau)
+    cutoff = np.atleast_1d(cutoff)
+    
+    if check and (cutoff/tau < 5.0).any():
+        print 'Cutoff value small: only {} % of the integral is taken in account'.format(100*(1-np.exp(-cutoff/tau)))
+    x = np.linspace(0.0,1.0,N)
+    y = np.zeros((tau.shape[0],N))
+    y[:,:-1] = tau[...,np.newaxis]*np.log(1.0/(1.0-x[:-1]*(1-np.exp(-cutoff[...,np.newaxis]/tau[...,np.newaxis]))))
+    y[:,-1] = cutoff
+    return y
+
 def integration_points(dim, meth, obj='', size=-1):
     """ Defines a few quadrature formula (in any number of dimension)
 

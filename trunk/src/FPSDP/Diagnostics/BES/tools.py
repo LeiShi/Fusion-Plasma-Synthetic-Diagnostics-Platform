@@ -202,11 +202,11 @@ class Tools:
             plt.suptitle('Timestep : {}'.format(i))
             
             axarr[0].plot(tool2.R,tool2.Z,'x')
-            tri1 = axarr[0].tricontourf(tool2.R,tool2.Z,tool2.I[i,:],v2)
+            tri1 = axarr[0].tricontourf(tool2.R,tool2.Z,tool2.I[i,:],v2,extend='both')
             axarr[0].tricontour(self.R,self.Z,self.psin,[1])
 
             axarr[1].plot(self.R,self.Z,'x')
-            tri2 = axarr[1].tricontourf(self.R,self.Z,self.I[i,:],v1)
+            tri2 = axarr[1].tricontourf(self.R,self.Z,self.I[i,:],v1,extend='both')
             axarr[1].tricontour(self.R,self.Z,self.psin,[1])
 
             fig.canvas.draw()
@@ -303,7 +303,7 @@ class Tools:
         
         plt.show()
 
-    def radial_dep_correlation(self,Nr=40,Zref=0.01,eps=0.4):
+    def radial_dep_correlation(self,Nr=40,Zref=0.01,eps=0.4,figure=True):
         """
         """
         ind = np.abs((self.Z - Zref)/Zref) < eps
@@ -328,6 +328,8 @@ class Tools:
                 corr[i] = temp[0]
             else:
                 corr[i] = np.nan
+        if not figure:
+            return r,corr
 
         fig = plt.figure()
         plt.plot(r,corr)

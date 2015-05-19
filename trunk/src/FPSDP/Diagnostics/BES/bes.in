@@ -104,7 +104,7 @@ phi = 0
 
 # index of the simulation toroidal plane
 # will be align to the focus points
-plane = 0
+plane = 1
 
 # radius of the lens
 rad_lens = 0.2

@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from scipy.interpolate import interp2d
+from scipy.interpolate import interp2d, splev, splrep
 from scipy.fftpack import fft2, ifft2
 import FPSDP.Diagnostics.Beam.beam as beam_
 import FPSDP.Diagnostics.BES.bes as bes_
@@ -126,27 +126,42 @@ class Tools:
         """        
 
         fig, axarr = plt.subplots(1,2,sharey=True)
-
-        axarr[0].set_title('Density fluctuation')
-
-        axarr[1].set_title('Synthetic BES')
-        min_ = np.min([np.min(self.I[timestep,:]), np.min(tool2.I[timestep,:])])
-        max_ = np.max([np.max(self.I[timestep,:]), np.max(tool2.I[timestep,:])])
-        v = np.linspace(min_,max_,v)
-        axarr[0].plot(tool2.R,tool2.Z,'x')
-
-        tri1 = axarr[0].tricontourf(tool2.R,tool2.Z,tool2.I[timestep,:],v)
-        axarr[0].tricontour(self.R,self.Z,self.psin,[1])
-
+        
+        lim1 = np.min([np.max(self.I), -np.min(self.I)])
+        lim2 = np.min([np.max(tool2.I), -np.min(tool2.I)])
+        v1 = np.linspace(-lim1,lim1,v)
+        v2 = np.linspace(-lim2,lim2,v)
+        fig, axarr = plt.subplots(1,2)
+        
         axarr[0].set_xlabel('R[m]')
         axarr[0].set_ylabel('Z[m]')
-        
-        tri2 = axarr[1].tricontourf(self.R,self.Z,self.I[timestep,:],v)
-        axarr[1].tricontour(self.R,self.Z,self.psin,[1])
         axarr[1].set_xlabel('R[m]')
-        axarr[1].plot(self.R,self.Z,'x')
-        plt.colorbar(tri1)
 
+        
+        tri0 = axarr[0].tricontourf(self.R,self.Z,self.I[0,:],v1)
+        tri1 = axarr[1].tricontourf(tool2.R,tool2.Z,tool2.I[0,:],v2)
+
+        cb = plt.colorbar(tri0,ax=axarr[0])
+        cb = plt.colorbar(tri1,ax=axarr[1])
+
+
+        axarr[0].locator_params(axis = 'x',nbins=5)
+        
+        axarr[1].locator_params(axis = 'x',nbins=5)
+        axarr[0].set_title('Density fluctuation')
+        axarr[1].set_title('Synthetic BES')
+        
+        axarr[1].set_yticklabels([])
+        plt.suptitle('Timestep : {}'.format(timestep))
+        
+        axarr[0].plot(tool2.R,tool2.Z,'x')
+        tri1 = axarr[0].tricontourf(tool2.R,tool2.Z,tool2.I[timestep,:],v2)
+        axarr[0].tricontour(self.R,self.Z,self.psin,[1])
+        
+        axarr[1].plot(self.R,self.Z,'x')
+        tri2 = axarr[1].tricontourf(self.R,self.Z,self.I[timestep,:],v1)
+        axarr[1].tricontour(self.R,self.Z,self.psin,[1])
+        
         plt.show()
 
     def comparison_movie(self,tool2,v=40):
@@ -156,12 +171,11 @@ class Tools:
         """        
         from matplotlib import animation
 
-        v1 = np.linspace(np.min(self.I),np.max(self.I),v)
-        v2 = np.linspace(np.min(tool2.I),np.max(tool2.I),v)
+        lim1 = np.min([np.max(self.I), -np.min(self.I)])
+        lim2 = np.min([np.max(tool2.I), -np.min(tool2.I)])
+        v1 = np.linspace(-lim1,lim1,v)
+        v2 = np.linspace(-lim2,lim2,v)
         fig, axarr = plt.subplots(1,2)
-
-        axarr[0].set_title('Density fluctuation')
-        axarr[1].set_title('Synthetic BES')
         
         axarr[0].set_xlabel('R[m]')
         axarr[0].set_ylabel('Z[m]')
@@ -181,9 +195,11 @@ class Tools:
             axarr[0].locator_params(axis = 'x',nbins=5)
             axarr[1].cla()
             axarr[1].locator_params(axis = 'x',nbins=5)
+            axarr[0].set_title('Density fluctuation')
+            axarr[1].set_title('Synthetic BES')
   
             axarr[1].set_yticklabels([])
-            plt.title('Timestep : {}'.format(i))
+            plt.suptitle('Timestep : {}'.format(i))
             
             axarr[0].plot(tool2.R,tool2.Z,'x')
             tri1 = axarr[0].tricontourf(tool2.R,tool2.Z,tool2.I[i,:],v2)
@@ -197,7 +213,7 @@ class Tools:
             return None
 
         # call the animator.  blit=True means only re-draw the parts that have changed.
-        anim = animation.FuncAnimation(fig, animate, frames=self.I.shape[0]-160,repeat=False)
+        anim = animation.FuncAnimation(fig, animate, frames=self.I.shape[0],repeat=False)
         
         # save the animation as an mp4.  This requires ffmpeg or mencoder to be
         # installed.  The extra_args ensure that the x264 codec is used, so that
@@ -209,7 +225,7 @@ class Tools:
         anim.save('movie.mp4', writer=FFwriter,fps=15, extra_args=['-vcodec', 'libx264'])
 
 
-    def crosscorrelation(self, Nr=20, Nz=30, dr_max=0.05, dz_max=0.03, dkr_max=300, dkz_max=300, graph='2d'):
+    def crosscorrelation(self, Nr=60, Nz=70, dr_max=0.05, dz_max=0.03, dkr_max=300, dkz_max=300, graph='3d'):
         """
         """
         from scipy.signal import correlate2d
@@ -275,7 +291,7 @@ class Tools:
             surf = ax.plot_surface(krfft,kzfft,fft_.T, cmap=matplotlib.cm.coolwarm,rstride=1,linewidth=0, cstride=1)
             fig.colorbar(surf)
         else:
-            plt.contourf(krfft,kzfft,fft_,40)
+            plt.contourf(krfft,kzfft,fft_.T,40)
             plt.colorbar()
         plt.xlabel('k_r')
         plt.ylabel('k_z')
@@ -287,6 +303,37 @@ class Tools:
         
         plt.show()
 
+    def radial_dep_correlation(self,Nr=40,Zref=0.01,eps=0.4):
+        """
+        """
+        ind = np.abs((self.Z - Zref)/Zref) < eps
+        N = np.sum(ind)
+        print N
+        
+        corr = np.zeros(Nr)
+        r = np.linspace(np.min(self.R[ind]),np.max(self.R[ind]),Nr)
+
+        R_temp = self.R[ind]
+        Igrid = np.zeros((self.Nt,Nr))
+        for i in range(self.Nt):
+            temp = splrep(R_temp,self.I[i,ind])
+            Igrid[i,:] = splev(r,temp)
+        
+        for i in range(Nr):
+            temp = np.zeros(Nr)
+            for j in range(Nr):
+                temp[j] = np.corrcoef(Igrid[:,i],Igrid[:,j])[0,1]
+            temp = r[(temp<np.exp(-1)) & (r>r[i])]-r[i]
+            if temp.shape[0] > 0:
+                corr[i] = temp[0]
+            else:
+                corr[i] = np.nan
+
+        fig = plt.figure()
+        plt.plot(r,corr)
+        plt.xlabel('R [m]')
+        plt.ylabel('Correlation length')
+        plt.show()
             
     def computePSF(self, ne, Nr=20, Nz=30, ne_fluc=False):
         """ Compute the PSF

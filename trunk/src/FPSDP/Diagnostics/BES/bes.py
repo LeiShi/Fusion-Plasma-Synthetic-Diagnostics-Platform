@@ -147,7 +147,7 @@ class BES:
         subgraph cluster_quantities { label="Beam1D.get_quantities"; "XGC_Loader_local.interpolate_data"}
 
        // XGC_LOADER_local.INTERPOLATE_DATA
-       "XGC_Loader_loca.interpolate_data"->B [lhead=cluster_interpolate];
+       "XGC_Loader_local.interpolate_data"->B [lhead=cluster_interpolate];
        subgraph cluster_interpolate { label="XGC_Loader_local.interpolate_data"; B->
        "XGC_Loader_local.find_interp_positions"[color="red"];
        }

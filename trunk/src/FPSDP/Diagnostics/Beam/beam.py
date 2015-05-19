@@ -424,7 +424,7 @@ class Beam1D:
         """
         pos = np.atleast_2d(pos)
 
-        quad = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
+        quad = integ.integration_points(1,'GL4') # Gauss-Legendre order 4
         emis = np.zeros((len(self.beam_comp),pos.shape[0]))
         # avoid the computation at each time
         ne_in, Ti_in,Te_in = self.get_quantities(pos,t_,['ne','Ti','Te'])
@@ -444,10 +444,11 @@ class Beam1D:
             check_ = ~(up_lim == dist).any()
             # split the distance in interval
             # copy and modify the source code of linspace
-            delta = integ.get_interval_exponential(up_lim,l*self.speed[beam_nber],self.Nlt,check=check_)
-            #step = up_lim/float(self.Nlt)
-            #delta = step[...,np.newaxis]*np.arange(0, self.Nlt)\
-            #        *np.ones(l.shape)[...,np.newaxis]
+            #delta = integ.get_interval_exponential(up_lim,l*self.speed[beam_nber],self.Nlt,check=check_)
+
+            step = up_lim/float(self.Nlt)
+            delta = step[...,np.newaxis]*np.arange(0, self.Nlt)\
+                    *np.ones(l.shape)[...,np.newaxis]
             
             # average position (a+b)/2
             av = 0.5*(delta[...,:-1] + delta[...,1:])
@@ -457,7 +458,7 @@ class Beam1D:
             pt = av[...,np.newaxis] + diff[...,np.newaxis]*quad.pts
 
             # points in 3D space
-            x = pos[np.newaxis,:,np.newaxis,np.newaxis,:] \
+            x = pos[:,np.newaxis,np.newaxis,np.newaxis,:] \
                 - pt[...,np.newaxis]*self.direc
 
             n_e, Ti = self.get_quantities(x,t_,['ne','Ti'])
@@ -471,8 +472,9 @@ class Beam1D:
             
             f = self.collisions.get_emission(self.beam_comp[beam_nber],n_e.flatten()
                                              ,self.mass_b[beam_nber],Ti.flatten(),file_nber)
-            f = np.reshape(f,pt.shape)
-            
+            f = np.reshape(f,(pos.shape[0],pt.shape))
+
+            # should be change if l depends on position
             f = n_b*f*n_e*np.exp(-pt/(l[...,np.newaxis,np.newaxis]*
                                       self.speed[beam_nber]))/self.speed[beam_nber]
             

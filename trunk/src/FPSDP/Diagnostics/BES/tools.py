@@ -5,6 +5,7 @@ from scipy.interpolate import interp2d, splev, splrep
 from scipy.fftpack import fft2, ifft2
 import FPSDP.Diagnostics.Beam.beam as beam_
 import FPSDP.Diagnostics.BES.bes as bes_
+import FPSDP.Plasma.XGC_Profile.load_XGC_local as xgc_
 
 class Tools:
     """ Defines a few tools for doing some computations on the BES image
@@ -505,8 +506,8 @@ def check_convergence_lifetime(t=140,fib=4):
     bes.beam.data.load_next_time_step(increase=False)
     bes.beam.compute_beam_on_mesh()
 
-    N = np.arange(4,10)
-    Nref = 20
+    N = np.round(np.logspace(1,2.5,30))
+    Nref = 1500
 
     emis = np.zeros(N.shape)
     for i,Nlt in enumerate(N):
@@ -516,7 +517,109 @@ def check_convergence_lifetime(t=140,fib=4):
     emis_ref = bes.beam.get_emis_lifetime(bes.pos_foc[fib,:],t)[0,:]
 
     plt.figure()
-    plt.loglog(N,emis-emis_ref)
-    plt.ylabel('Emission')
+    plt.loglog(N,np.abs(emis-emis_ref)/emis_ref)
+    plt.ylabel('Error')
+    plt.xlabel('Number of interval')
+    plt.show()
+
+
+def check_convergence_field_line_interpolation(t=140,fib=4,phi=0.2,nber_plane=16,fwd=True):
+    """
+    phi is used for putting the fiber far away from the planes
+    """
+
+    bes = bes_.BES(name)
+    bes.beam.data.current = t
+    bes.beam.data.load_next_time_step(increase=False)
+    foc = bes.pos_foc[fib,:]
+    r = np.sqrt(np.sum(foc[0:2]**2))
+    z = foc[2]
+    
+    N = np.logspace(0.2,2,20)
+    Nref = 1000
+
+    dphi = 2*np.pi/(16*N)
+    dphi_ref = 2*np.pi/(16*Nref)
+
+    if fwd:
+        ind = 1
+    else:
+        ind = 0
+        
+    pos = np.zeros((N.shape[0],3))
+    pos_ref = np.zeros(3)
+
+    phi = np.atleast_1d(phi)
+    r = np.atleast_1d(r)
+    z = np.atleast_1d(z)
+
+    prev,nex = xgc_.get_interp_planes_local(bes.beam.data,phi)
+    for i,dphi_ in enumerate(dphi):
+        bes.beam.data.dphi = dphi_
+        temp = bes.beam.data.find_interp_positions(r,z,phi,prev,nex)
+        pos[i,0] = temp[ind,1] # R
+        pos[i,1] = temp[ind,0] # Z
+        pos[i,2] = temp[ind,2] # s
+        
+    bes.beam.data.dphi = dphi_ref
+    temp = bes.beam.data.find_interp_positions(r,z,phi,prev,nex)
+    pos_ref[0] = temp[ind,1] # R
+    pos_ref[1] = temp[ind,0] # Z
+    pos_ref[2] = temp[ind,2] # s
+    
+    plt.figure()
+    plt.loglog(dphi,np.abs((pos[:,0]-pos_ref[0])/pos_ref[0]),label='R')
+    plt.loglog(dphi,np.abs((pos[:,1]-pos_ref[1])/pos_ref[1]),label='Z')
+    plt.loglog(dphi,np.abs((pos[:,2]-pos_ref[2])/pos_ref[2]),label='s')
+    plt.grid(True)
+    plt.legend()
+    
+    plt.ylabel('Error')
+    plt.xlabel('$\Delta\phi [rad]$')
+    plt.show()
+
+
+def check_convergence_interpolation_data(t=140,fib=4,phi=0.2,nber_plane=16,eq=False):
+    """
+    phi is used for putting the fiber far away from the planes
+    """
+
+    bes = bes_.BES(name)
+    bes.beam.data.current = t
+    bes.beam.data.load_next_time_step(increase=False)
+    foc = bes.pos_foc[fib,:]
+    r = np.sqrt(np.sum(foc[0:2]**2))
+    x = np.cos(phi)*r
+    y = np.sin(phi)*r
+    z = foc[2]
+    
+    N = np.logspace(1,2,20)
+    Nref = 1000
+
+    dphi = 2*np.pi/(16*N)
+    dphi_ref = 2*np.pi/(16*Nref)
+
+        
+    ne = np.zeros((N.shape[0]))
+
+    phi = np.atleast_1d(phi)
+    x = np.atleast_1d(x)
+    y = np.atleast_1d(y)
+    z = np.atleast_1d(z)
+
+    pos = np.array([x,y,z])
+    pos = np.atleast_2d(pos).T
+    for i,dphi_ in enumerate(dphi):
+        bes.beam.data.dphi = dphi_
+        ne[i] = bes.beam.data.interpolate_data(pos,t,['ne'],eq,check=True)[0]
+                
+    bes.beam.data.dphi = dphi_ref
+    ne_ref = bes.beam.data.interpolate_data(pos,t,['ne'],eq,check=True)[0]
+    
+    plt.figure()
+    plt.loglog(N,np.abs((ne-ne_ref)/ne_ref))
+
+    
+    plt.ylabel('Error')
     plt.xlabel('Number of interval')
     plt.show()

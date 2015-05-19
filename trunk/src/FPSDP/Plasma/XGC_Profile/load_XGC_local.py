@@ -1,3 +1,4 @@
+
 """Module of the XGC loader for the BES synthetic diagnostic.
 
 It reads the data from the simulation and remove the points not used for the diagnostics (in order to keep the used memory at a low level).

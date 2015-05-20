@@ -282,7 +282,7 @@ class BES:
         return tck
         
         
-    def compute_limits(self, eps=0.1, dxmin = 0.1, dymin = 0.1, dzmin = 0.1):
+    def compute_limits(self, eps=0, dxmin = 0.05, dymin = 0.05, dzmin = 0.05):
         r""" Compute the limits of the mesh that should be loaded
 
         The only limitations comes from the sampling volume and the lifetime of the excited state.

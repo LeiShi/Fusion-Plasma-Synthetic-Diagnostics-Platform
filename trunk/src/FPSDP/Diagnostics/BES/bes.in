@@ -69,7 +69,8 @@ eq_atte = true
 
 [Optics]
 # position of the lens (X,Y,Z) in meter
-pos_lens = [2.255,-0.625,0.03]
+#pos_lens = [2.255,-0.625,0.03]
+pos_lens = [2.255,-0.625,0]
 # position of the focus point for each fiber (R,Z,phi)
 # Z is assumed to be an array of the good size,
 # R and phi  can be a float or an array

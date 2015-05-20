@@ -503,6 +503,7 @@ def check_convergence_lifetime(t=140,fib=4):
     bes = bes_.BES(name)
     bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
     bes.beam.data.current = t
+    bes.beam.data.dphi = 2*np.pi/(16*200)
     bes.beam.data.load_next_time_step(increase=False)
     bes.beam.compute_beam_on_mesh()
 
@@ -623,3 +624,68 @@ def check_convergence_interpolation_data(t=140,fib=4,phi=0.2,nber_plane=16,eq=Fa
     plt.ylabel('Error')
     plt.xlabel('Number of interval')
     plt.show()
+
+
+def check_geometry(minorR=0.67,majorR=1.67):
+    """
+    """
+    print 'Default value assume D3D'
+
+    bes = bes_.BES(name)
+    foc = bes.pos_foc
+    r = np.sqrt(np.sum(foc[:,:2]**2,axis=1))
+    
+    plt.figure()
+    plt.title('Top view')
+    perp = np.copy(bes.beam.direc)
+    perp[1] = perp[0]
+    perp[0] = -bes.beam.direc[1]
+    stdp = bes.beam.mesh[:,:2]+perp[:2]*bes.beam.stddev_h
+    stdm = bes.beam.mesh[:,:2]-perp[:2]*bes.beam.stddev_h
+    plt.plot(bes.beam.mesh[:,0],bes.beam.mesh[:,1],'-x',label='Beam')
+    plt.plot(stdp[:,0],stdp[:,1],stdm[:,0],stdm[:,1],label='Standard deviation')
+    plt.plot(foc[:,0],foc[:,1],'x',label='Focus Points')
+
+    rad = np.linspace(0,2*np.pi,1000)
+    xmin_tok = (majorR-minorR)*np.cos(rad)
+    ymin_tok = (majorR-minorR)*np.sin(rad)
+
+    xmax_tok = (majorR+minorR)*np.cos(rad)
+    ymax_tok = (majorR+minorR)*np.sin(rad)
+
+    plt.plot(xmin_tok,ymin_tok,xmax_tok,ymax_tok,label='Tokamak')
+    lim = bes.limits
+    plt.plot([lim[0,0],lim[0,1],lim[0,1],lim[0,0],lim[0,0]],[lim[1,0],lim[1,0],lim[1,1],lim[1,1],lim[1,0]],label='Limits')
+    plt.legend()
+
+
+    plt.figure()
+    plt.title('Torroidal plane')
+
+    stdp = np.copy(bes.beam.mesh)
+    stdm = np.copy(bes.beam.mesh)
+    perp = np.copy(bes.beam.direc)
+    perp[2] = -np.sqrt(np.sum(bes.beam.direc[:2]**2))
+    perp[0] = bes.beam.direc[2]
+    stdp[:,2] = bes.beam.mesh[:,2]+perp[2]*bes.beam.stddev_v
+    stdm[:,2] = bes.beam.mesh[:,2]-perp[2]*bes.beam.stddev_v
+    stdp[:,0] = np.sqrt(np.sum(bes.beam.mesh[:,:2]**2,axis=1))
+    stdm[:,0] = np.sqrt(np.sum(bes.beam.mesh[:,:2]**2,axis=1))
+
+    plt.plot(np.sqrt(np.sum(bes.beam.mesh[:,:2]**2,axis=1)),bes.beam.mesh[:,2],'-x',label='Beam')
+    plt.plot(stdp[:,0],stdp[:,2],stdm[:,0],stdm[:,2],label='Standard deviation')
+    plt.plot(np.sqrt(np.sum(foc[:,:2]**2,axis=1)),foc[:,2],'x',label='Focus Points')
+
+    rlim = np.sqrt(np.sum(lim[:2,:]**2,axis=0))
+    plt.plot([rlim[0],rlim[1],rlim[1],rlim[0],rlim[0]],[lim[2,0],lim[2,0],lim[2,1],lim[2,1],lim[2,0]],label='Limits')
+
+    rad = np.linspace(0,2*np.pi,1000)
+    x_tok = majorR+(majorR-minorR)*np.cos(rad)
+    y_tok = (majorR-minorR)*np.sin(rad)
+
+
+    plt.plot(x_tok,y_tok,label='Tokamak')
+    plt.legend()
+    
+    plt.show()
+    

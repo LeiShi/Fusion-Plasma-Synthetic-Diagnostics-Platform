@@ -193,30 +193,32 @@ class Beam1D:
         """
         # X-direction
         if self.direc[0] == 0.0:
-            tx1 = -np.inf
-            tx2 = -np.inf
+            tx = np.inf
         else:
-            tx1 = abs((self.data.Xmax-self.pos[0])/self.direc[0])
-            tx2 = abs((self.data.Xmin-self.pos[0])/self.direc[0])
+            tx1 = (self.data.Xmax-self.pos[0])/self.direc[0]
+            tx2 = (self.data.Xmin-self.pos[0])/self.direc[0]
+            tx = np.max(tx1,tx2)
         
-        # Y-directio
+        # Y-direction
         if self.direc[1] == 0.0:
-            ty1 = -np.inf
-            ty2 = -np.inf
+            ty = np.inf
         else:
-            ty1 = abs((self.data.Zmax-self.pos[1])/self.direc[1])
-            ty2 = abs((self.data.Zmin-self.pos[1])/self.direc[1])
+            ty1 = (self.data.Zmax-self.pos[1])/self.direc[1]
+            ty2 = (self.data.Zmin-self.pos[1])/self.direc[1]
+            ty = np.max(ty1,ty2)
         
         # Z-direction
         if self.direc[2] == 0.0:
-            tz1 = -np.inf
-            tz2 = -np.inf
+            tz = np.inf
         else:
-            tz1 = abs((self.data.Ymax-self.pos[2])/self.direc[2])
-            tz2 = abs((self.data.Ymin-self.pos[2])/self.direc[2])
+            tz1 = (self.data.Ymax-self.pos[2])/self.direc[2]
+            tz2 = (self.data.Ymin-self.pos[2])/self.direc[2]
+            tz = np.max(tz1,tz2)
 
-        t_ = [tx1,tx2,ty1,ty2,tz1,tz2]
-        t = np.argmax(t_)
+        t_ = np.array([tx,tz,ty])
+        if not (np.isfinite(t_) & (t_>0)).any():
+            raise NameError('The beam does not cross the window')
+        t = np.argmin(t_)
         
         return self.pos + self.direc*t_[t]*(1-eps)
 
@@ -444,11 +446,11 @@ class Beam1D:
             check_ = ~(up_lim == dist).any()
             # split the distance in interval
             # copy and modify the source code of linspace
-            #delta = integ.get_interval_exponential(up_lim,l*self.speed[beam_nber],self.Nlt,check=check_)
+            delta = integ.get_interval_exponential(up_lim,l*self.speed[beam_nber],self.Nlt,check=check_)
 
-            step = up_lim/float(self.Nlt)
-            delta = step[...,np.newaxis]*np.arange(0, self.Nlt)\
-                    *np.ones(l.shape)[...,np.newaxis]
+            #step = up_lim/float(self.Nlt)
+            #delta = step[...,np.newaxis]*np.arange(0, self.Nlt)\
+            #        *np.ones(l.shape)[...,np.newaxis]
             
             # average position (a+b)/2
             av = 0.5*(delta[...,:-1] + delta[...,1:])
@@ -458,7 +460,7 @@ class Beam1D:
             pt = av[...,np.newaxis] + diff[...,np.newaxis]*quad.pts
 
             # points in 3D space
-            x = pos[:,np.newaxis,np.newaxis,np.newaxis,:] \
+            x = pos[:,np.newaxis,np.newaxis,:] \
                 - pt[...,np.newaxis]*self.direc
 
             n_e, Ti = self.get_quantities(x,t_,['ne','Ti'])
@@ -472,7 +474,7 @@ class Beam1D:
             
             f = self.collisions.get_emission(self.beam_comp[beam_nber],n_e.flatten()
                                              ,self.mass_b[beam_nber],Ti.flatten(),file_nber)
-            f = np.reshape(f,(pos.shape[0],pt.shape))
+            f = np.reshape(f,pt.shape)
 
             # should be change if l depends on position
             f = n_b*f*n_e*np.exp(-pt/(l[...,np.newaxis,np.newaxis]*

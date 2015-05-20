@@ -4,9 +4,9 @@
 [Beam geometry]
 # position of the beam (X,Y,Z) (in meter)
 # Z is for the height
-position = [2.34,-0.0452,0.0]
+position = [-2.36511538, -1.3655, 0.0]
 # direction of the beam (X,Y,Z), it will be normalized in the code
-direction = [-0.53215,1.0,0.0]
+direction = [0.85460336, 0.51928132,0.0]
 # beam width (FWHM in meter)
 # horizontal
 beam_width_h = 0.13
@@ -49,9 +49,8 @@ coll_emis = [[0,0], [0,1], [0,2]]
 n_low = 2
 n_high = 3
 # number of points (=> intervals) for the integration of the lifetime effect
-# exponential decay => small distance, so do not need a big number
 # Used in Beam1d.get_emis_lifetime()
-Nlt = 5
+Nlt = 10
 # t_max*lifetime = upper value of the integrale for the lifetime effect
 # cutoff value
 # if t_max = 0, the lifetime will not be 
@@ -69,8 +68,7 @@ eq_atte = true
 
 [Optics]
 # position of the lens (X,Y,Z) in meter
-#pos_lens = [2.255,-0.625,0.03]
-pos_lens = [2.255,-0.625,0]
+pos_lens = [-0.81236,-2.58433,0]
 # position of the focus point for each fiber (R,Z,phi)
 # Z is assumed to be an array of the good size,
 # R and phi  can be a float or an array
@@ -139,7 +137,7 @@ filter = FPSDP/Diagnostics/BES/filter.dat
 # path to the simulation data
 data_path = /global/project/projectdirs/m499/jlang/particle_pinch/
 # torroidal step for the field line interpolation (in radians)
-dphi = 0.06
+dphi = 0.2
 # simulation time steps wanted
 timestart = 1
 timeend = 182

@@ -689,3 +689,25 @@ def check_geometry(minorR=0.67,majorR=1.67):
     
     plt.show()
     
+
+
+def compute_beam_config(Rsource,phisource, Rtan,R=np.array([])):
+    """
+    """
+    side = np.sqrt(Rsource**2-Rtan**2)
+    alpha = np.arccos((Rsource**2 + Rtan**2 - side**2)/(2*Rsource*Rtan))
+    phitan = phisource - alpha
+    xtan = Rtan*np.cos(-phitan)
+    ytan = Rtan*np.cos(-phitan)
+
+    direc = np.array([xtan,ytan])
+    possource = np.array([np.cos(-phisource),np.sin(-phisource)])
+    possource = Rsource*possource
+
+    direc = direc - possource
+    direc = direc/np.sqrt(np.sum(direc**2))
+    print 'The position of the beam is :', possource
+    print 'The direction of the beam is :', direc
+    if R.shape[0] != 0:
+        phifoc = np.arccos(Rtan/R) + phitan
+        print 'If you want the Fiber on the central line of the beam, Phi = ',phifoc

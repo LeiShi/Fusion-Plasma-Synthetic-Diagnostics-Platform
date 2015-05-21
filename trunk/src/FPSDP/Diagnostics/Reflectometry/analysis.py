@@ -80,7 +80,7 @@ def Coherent_Signal(sig):
 
     return M_bar/np.sqrt(M2_bar)
 
-def Cross_Correlation(sig1,sig2):
+def Cross_Correlation(sig1,sig2,mode='REF'):
     """Calculate the cross correlation between 2 series of signals
 
     cross correlation function is defined as:
@@ -91,15 +91,18 @@ def Cross_Correlation(sig1,sig2):
 
     Input:
         sig1,sig2: array-like, complex or real. The two signals that need to be cross-correlated.
+        mode: default to be 'REF', denotes reflectometry mode. In this mode, two signals are complex signal who's phase fluctuations are of most importance, no modification will be done before correlation.
+              another valid mode is 'NORM', denotes normal mode. In this mode, two signals' mean value will be subtracted before correlation. So only the fluctuated part will be correlated.
     Return:
         the cross-correlation calculated at zero time delay
     """
     
     assert(sig1.shape == sig2.shape)
-    
+    assert(mode in ['REF','NORM'])
     #remove the mean value to get the fluctuating part of the two signal
-    sig1 = sig1-np.mean(sig1)
-    sig2 = sig2-np.mean(sig2)    
+    if (mode == 'NORM'):
+        sig1 = sig1-np.mean(sig1)
+        sig2 = sig2-np.mean(sig2)    
     
         
     sig1_2_bar = np.average(sig1 * np.conj(sig1))
@@ -110,13 +113,16 @@ def Cross_Correlation(sig1,sig2):
     
     return r
 
-def Cross_Correlation_by_fft(sig1,sig2):
+def Cross_Correlation_by_fft(sig1,sig2,mode = 'REF'):
     """Calculate the cross correlation using fft method. Details can be found in ref.[1] and in Appendix part of ref.[2]
     
     The strength of calculating cross_correlation using fft method, is that it can obtain all time delayed correlations automatically, with a very fast calculation.
     
     Input:
         sig1,sig2: array-like, complex or real. The two signals that need to be cross-correlated
+        mode: default to be 'REF', denotes reflectometry mode. In this mode, two signals are complex signal who's phase fluctuations are of most importance, no modification will be done before correlation.
+              another valid mode is 'NORM', denotes normal mode. In this mode, two signals' mean value will be subtracted before correlation. So only the fluctuated part will be correlated.
+
     Return:
         gamma_t: array-like, the cross-correlation of the two signals, gamma_t[t] will be the t time-delayed correlation, in which sig2 is put t time steps ahead of sig1, and they are both periodically extended to (-inf,inf)
     
@@ -124,10 +130,12 @@ def Cross_Correlation_by_fft(sig1,sig2):
     [2] Observation of ion scale fluctuations in the pedestal region during the edge-localized-mode cycle on the National Spherical torus Experiment. A.Diallo, G.J.Kramer, at. el. Phys. Plasmas 20, 012505(2013)
     """
     assert(sig1.shape == sig2.shape)    
+    assert(mode in ['REF','NORM'])
     
-    #remove mean value of the two signals
-    sig1 = sig1-np.mean(sig1)
-    sig2 = sig2-np.mean(sig2)    
+    if(mode == 'NORM'):
+        #remove mean value of the two signals
+        sig1 = sig1-np.mean(sig1)
+        sig2 = sig2-np.mean(sig2)    
         
     
     f1 = np.fft.fft(sig1)

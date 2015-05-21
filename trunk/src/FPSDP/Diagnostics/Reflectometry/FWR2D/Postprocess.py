@@ -259,7 +259,7 @@ def gaussian_fit(x,a):
 
 def exponential_fit(x,a):
 
-    return np.exp(-x/a)
+    return np.exp(-np.abs(x)/a)
 
 def fitting_cross_correlation(cross_cor_arr,dx_arr,fitting_type = 'gaussian'):
     """ fit the cross_correlation points with chosen function, default to be gaussian.

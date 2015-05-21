@@ -8,9 +8,9 @@ Script to create all the plots used in Varenna-Lausane paper.
 """
 
 import numpy as np
-import scipy.io.netcdf as nc
+
 import matplotlib.pyplot as plt
-from math import sqrt
+
 from scipy.signal import hilbert
 
 import FPSDP.scripts.nstx_reflectometry.load_nstx_exp_ref as nstx_exp
@@ -321,12 +321,12 @@ class Plot5(Plot4):
         self.fig.canvas.draw()
         
 class Plot6(Picture):
-    """ Plot 6: Four channel g factor plot. 55GHz, 57.5GHz, 60GHz and 62.5 GHz. 
+    """ Plot 6: Four channel g factor plot. 55GHz, 57.5GHz, 60GHz, 62.5 GHz and 67.5GHz. 
     """
     def __init__(self):
-        Picture.__init__(self,'Plot6:g factors for 4 channels', 'Plot 6: Four channel g factor plot. 55GHz, 57.5GHz, 60GHz and 62.5 GHz.')
+        Picture.__init__(self,'Plot6:g factors for 5 channels', 'Plot 6: Four channel g factor plot. 55GHz, 57.5GHz, 60GHz, 62.5 GHz. and 67.5GHz')
     
-    def prepare(self):
+    def prepare(self,t_exp = 0.001):
         
         #prepare the cut-off locations on the mid-plane
         self.x55 = ref_pos[8]
@@ -339,7 +339,7 @@ class Plot6(Picture):
         #First, we get experimental g factors ready
         
         self.tstart = 0.632
-        self.tend = 0.633        
+        self.tend = self.tstart + t_exp
         
         self.f_low = 4e4
         self.f_high = 5e5 #frequency filter range set to 40kHz-500kHz
@@ -449,23 +449,32 @@ class Plot6(Picture):
         
         
 class Plot7(Picture):
-    """ Plot 7: Cross-Correlation between 55GHz,57.5GHz, 60GHz, 62.5GHz and 67.5GHz channels. Center channel chosen to be 67.5GHz
+    """ Plot 7: Cross-Correlation between 55GHz,57.5GHz, 60GHz, 62.5GHz and 67.5GHz channels. Center channel chosen to be 62.5GHz
     """  
     def __init__(self):
         Picture.__init__(self,'Plot7:Multi channel cross-section plots','Plot 7: Cross-Correlation between 55GHz,57.5GHz, 60GHz, 62.5GHz and 67.5GHz channels.')
-    def prepare(self): 
+    def prepare(self,center = 62.5,t_exp = 0.002): 
         #prepare the cut-off locations on the mid-plane
-        self.x55 = np.abs(ref_pos[8]-ref_pos[12])
-        self.x575 = np.abs(ref_pos[9]-ref_pos[12])
-        self.x60 = np.abs(ref_pos[10]-ref_pos[12])
-        self.x625 = np.abs(ref_pos[11]-ref_pos[12])
-        self.x675 = np.abs(ref_pos[12]-ref_pos[12])
-        self.x = [self.x55,self.x575,self.x60,self.x625,self.x675]
+        if center == 67.5:
+            channel_c = 12    
+        elif center == 62.5:
+            channel_c = 11
+        elif center == 60:
+            channel_c = 10
+        else:
+            channel_c = 12
+            
+        self.x55 = (ref_pos[8]-ref_pos[channel_c])
+        self.x575 = (ref_pos[9]-ref_pos[channel_c])
+        self.x60 = (ref_pos[10]-ref_pos[channel_c])
+        self.x625 = (ref_pos[11]-ref_pos[channel_c])
+        self.x675 = (ref_pos[12]-ref_pos[channel_c])
+        self.x = [self.x55,self.x575,self.x60,self.x625,self.x675]    
         
         #First, we get experimental g factors ready
         
         self.tstart = 0.632
-        self.tend = 0.633        
+        self.tend = self.tstart + t_exp        
         
         self.f_low = 4e4
         self.f_high = 5e5 #frequency filter range set to 40kHz-500kHz
@@ -491,11 +500,19 @@ class Plot7(Picture):
         sig675_filt = band_pass_filter(sig675,dt,self.f_low,self.f_high)
         
         #prepare the g-factors,keep them complex until we draw them
-        self.c55 = Cross_Correlation(sig675_filt,sig55_filt)
-        self.c575 = Cross_Correlation(sig675_filt,sig575_filt)
-        self.c60 = Cross_Correlation(sig675_filt,sig60_filt)
-        self.c625 = Cross_Correlation(sig675_filt,sig625_filt)
-        self.c675 = Cross_Correlation(sig675_filt,sig675_filt)
+        if center == 67.5:
+            sig_c = sig675_filt
+        elif center == 62.5:
+            sig_c = sig625_filt
+        elif center == 60:
+            sig_c = sig60_filt
+        else:
+            sig_c = sig675_filt
+        self.c55 = Cross_Correlation(sig_c,sig55_filt)
+        self.c575 = Cross_Correlation(sig_c,sig575_filt)
+        self.c60 = Cross_Correlation(sig_c,sig60_filt)
+        self.c625 = Cross_Correlation(sig_c,sig625_filt)
+        self.c675 = Cross_Correlation(sig_c,sig675_filt)
         self.c_exp = [self.c55,self.c575,self.c60,self.c625,self.c675]
         
         # Now, we prepare the g factors from FWR2D
@@ -512,12 +529,21 @@ class Plot7(Picture):
         
         E2d = [E55_2d,E575_2d,E60_2d,E625_2d,E675_2d]
         
+        if center == 67.5:
+            E2d_c = 4
+        elif center == 62.5:
+            E2d_c = 3
+        elif center == 60:
+            E2d_c = 2
+        else:
+            E2d_c = 4       
+        
         self.c_2d = []
-        self.c_2d.append(Cross_Correlation(E2d[-1],E2d[0]))
-        self.c_2d.append(Cross_Correlation(E2d[-1],E2d[1]))
-        self.c_2d.append(Cross_Correlation(E2d[-1],E2d[2]))
-        self.c_2d.append(Cross_Correlation(E2d[-1],E2d[3]))
-        self.c_2d.append(Cross_Correlation(E2d[-1],E2d[4]))
+        self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[0]))
+        self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[1]))
+        self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[2]))
+        self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[3]))
+        self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[4]))
         
         
         # And g-factors from FWR3D
@@ -534,32 +560,41 @@ class Plot7(Picture):
         
         E3d = [E55_3d,E575_3d,E60_3d,E625_3d,E675_3d]
         
+        if center == 67.5:
+            E3d_c = 4
+        elif center == 62.5:
+            E3d_c = 3
+        elif center == 60:
+            E3d_c = 2
+        else:
+            E3d_c = 4          
+        
         self.c_3d = []
-        self.c_3d.append(Cross_Correlation(E3d[-1],E3d[0]))
-        self.c_3d.append(Cross_Correlation(E3d[-1],E3d[1]))
-        self.c_3d.append(Cross_Correlation(E3d[-1],E3d[2]))
-        self.c_3d.append(Cross_Correlation(E3d[-1],E3d[3]))
-        self.c_3d.append(Cross_Correlation(E3d[-1],E3d[4]))
+        self.c_3d.append(Cross_Correlation(E3d[E3d_c],E3d[0]))
+        self.c_3d.append(Cross_Correlation(E3d[E3d_c],E3d[1]))
+        self.c_3d.append(Cross_Correlation(E3d[E3d_c],E3d[2]))
+        self.c_3d.append(Cross_Correlation(E3d[E3d_c],E3d[3]))
+        self.c_3d.append(Cross_Correlation(E3d[E3d_c],E3d[4]))
         
                
         # Gaussian fit of the cross-correlations 
-        self.a_exp,sa_exp = fitting_cross_correlation(np.abs(self.c_exp),self.x,'gaussian')
-        self.a_2d,sa_2d = fitting_cross_correlation(np.abs(self.c_2d),self.x,'gaussian')
-        self.a_3d,sa_3d = fitting_cross_correlation(np.abs(self.c_3d),self.x,'gaussian')
+        self.a_exp,self.sa_exp = fitting_cross_correlation(np.abs(self.c_exp),self.x,'gaussian')
+        self.a_2d,self.sa_2d = fitting_cross_correlation(np.abs(self.c_2d),self.x,'gaussian')
+        self.a_3d,self.sa_3d = fitting_cross_correlation(np.abs(self.c_3d),self.x,'gaussian')
         
         self.xmax = 2*np.sqrt(np.max((np.abs(self.a_exp),np.abs(self.a_2d),np.abs(self.a_3d))))
-        self.x_fit = np.linspace(0,self.xmax,500)
+        self.x_fit = np.linspace(-self.xmax,self.xmax,500)
         self.fit_exp = gaussian_fit(self.x_fit,self.a_exp)
         self.fit_2d = gaussian_fit(self.x_fit,self.a_2d)
         self.fit_3d = gaussian_fit(self.x_fit,self.a_3d)
         
         #Exponential fit of the cross-correlations
-        self.e_exp,se_exp = fitting_cross_correlation(np.abs(self.c_exp),self.x,'exponential')
-        self.e_2d,se_2d = fitting_cross_correlation(np.abs(self.c_2d),self.x,'exponential')
-        self.e_3d,se_3d = fitting_cross_correlation(np.abs(self.c_3d),self.x,'exponential')
+        self.e_exp,self.se_exp = fitting_cross_correlation(np.abs(self.c_exp),self.x,'exponential')
+        self.e_2d,self.se_2d = fitting_cross_correlation(np.abs(self.c_2d),self.x,'exponential')
+        self.e_3d,self.se_3d = fitting_cross_correlation(np.abs(self.c_3d),self.x,'exponential')
         
         self.xmax_e = 2*np.max((np.abs(self.e_exp),np.abs(self.e_2d),np.abs(self.e_3d)))
-        self.x_fit_e = np.linspace(0,self.xmax_e,500)
+        self.x_fit_e = np.linspace(-self.xmax,self.xmax_e,500)
         self.fit_exp_e = exponential_fit(self.x_fit_e,self.e_exp)
         self.fit_2d_e = exponential_fit(self.x_fit_e,self.e_2d)
         self.fit_3d_e = exponential_fit(self.x_fit_e,self.e_3d)        
@@ -599,20 +634,20 @@ class Plot7(Picture):
             self.c_exp_fit_line = self.subfig.plot(self.x_fit,self.fit_exp,ls_exp,label = 'EXP FIT')
             self.c_2d_fit_line = self.subfig.plot(self.x_fit,self.fit_2d,ls_2d,label = 'FWR2D FIT')       
             self.c_3d_fit_line = self.subfig.plot(self.x_fit,self.fit_3d,ls_3d,label = 'FWR3D FIT')
-            self.subfig.hlines(1/np.e,0,self.xmax)
-            self.subfig.set_xlim(0,self.xmax) 
+            self.subfig.hlines(1/np.e,-self.xmax,self.xmax)
+            self.subfig.set_xlim(-self.xmax,self.xmax) 
         else:
             self.c_exp_fit_line = self.subfig.plot(self.x_fit_e,self.fit_exp_e,ls_exp,label = 'EXP FIT')
             self.c_2d_fit_line = self.subfig.plot(self.x_fit_e,self.fit_2d_e,ls_2d,label = 'FWR2D FIT')       
             self.c_3d_fit_line = self.subfig.plot(self.x_fit_e,self.fit_3d_e,ls_3d,label = 'FWR3D FIT')
-            self.subfig.hlines(1/np.e,0,self.xmax_e)
-            self.subfig.set_xlim(0,self.xmax_e) 
+            self.subfig.hlines(1/np.e,-self.xmax_e,self.xmax_e)
+            self.subfig.set_xlim(-self.xmax_e,self.xmax_e) 
                 
         
         self.subfig.legend(loc = 'best', prop = {'size':14})
         
         self.subfig.set_xlabel('\Delta R(m)')
-        self.subfig.set_ylabel('$|g|$')
+        self.subfig.set_ylabel('$|\gamma|$')
         self.subfig.set_ylim(0,1.1)
                
         

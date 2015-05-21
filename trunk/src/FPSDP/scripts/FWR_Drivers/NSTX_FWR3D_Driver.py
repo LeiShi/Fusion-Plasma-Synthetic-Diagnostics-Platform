@@ -25,7 +25,7 @@ time_arr = np.arange(time_start,time_end+1,time_inc)
 #frequencies in GHz
 
 freqs = [30,32.5,35,37.5,42.5,45,47.5,50,55,57.5,60,62.5,67.5,70,72.5,75]
-freqs_chosen = [67.5]
+freqs_chosen = [70.0]
 
 #MPI process info
 nproc_x = 2
@@ -63,7 +63,7 @@ link_FW = 'mvfw_O'
 #Start creating directories and files
 
 #The tag of RUN. Each new run should be assigned a new number.
-run_No = '_NEWAll_16_cross_16_time_67.5GHz'
+run_No = '_NEWAll_16_cross_16_time_70.0GHz'
 
 full_output_path = working_path + 'Correlation_Runs/3DRUNS/RUN'+str(run_No)+'/'
 
@@ -149,13 +149,7 @@ def make_dirs(f_arr = freqs_chosen,t_arr = time_arr, nc = n_cross_section):
                     mi.ant_freq = f*1e9
                     mi.equilibrium_file = equilibrium_link_name
                     mi.fluctuation_file = fluc_link_name
-
-                    if(f>=70):
-                        mi.nr_crossings = 8
-                    else:
-                        mi.nr_crossings = 5
                     
-
                     mi.create_all_input_files()
                     os.chdir('../../..')
         except subp.CalledProcessError:
@@ -176,7 +170,7 @@ def make_batch(f_arr=freqs_chosen,t_arr=time_arr,nc = n_cross_section):
                 batch_file.write('#PBS -M lshi@pppl.gov\n')
                 batch_file.write('#PBS -l nodes={0}:ppn=8\n'.format(nproc_total/8) )  #NOTE: here assume total process number is a multiple of 8. If not, this line must be modified to agree with the situation. The total processors requested must equal to the total process number set.
                 batch_file.write('#PBS -l mem={0}gb\n'.format(nproc_total*2))
-                batch_file.write('#PBS -l walltime=00:15:00\n')
+                batch_file.write('#PBS -l walltime=01:00:00\n')
                 batch_file.write('#PBS -r n\n')
                 batch_file.write('cd $PBS_O_WORKDIR\n\n')
                 batch_file.write('./reflect_O\n')
@@ -207,7 +201,7 @@ def submit(f_arr=freqs_chosen,t_arr=time_arr,nc = n_cross_section):
 if __name__ == "__main__":
 
     t_use = np.arange(100,107,8)
-    f_use = [67.5]#[30,32.5,35,37.5,42.5,45,47.5,50,55,57.5,60,62.5,67.5,70,72.5,75]
+    f_use = [62.5]#[30,32.5,35,37.5,42.5,45,47.5,50,55,57.5,60,62.5,67.5,70,72.5,75]
     nc_use = 1
     #make_dirs()#(t_arr = t_use,f_arr = f_use,nc = nc_use)
     #make_batch()#(t_arr = t_use,f_arr = f_use,nc = nc_use)

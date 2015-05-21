@@ -197,7 +197,7 @@ class Beam1D:
         else:
             tx1 = (self.data.Xmax-self.pos[0])/self.direc[0]
             tx2 = (self.data.Xmin-self.pos[0])/self.direc[0]
-            tx = np.max(tx1,tx2)
+            tx = max(tx1,tx2)
         
         # Y-direction
         if self.direc[1] == 0.0:
@@ -205,7 +205,7 @@ class Beam1D:
         else:
             ty1 = (self.data.Zmax-self.pos[1])/self.direc[1]
             ty2 = (self.data.Zmin-self.pos[1])/self.direc[1]
-            ty = np.max(ty1,ty2)
+            ty = max(ty1,ty2)
         
         # Z-direction
         if self.direc[2] == 0.0:
@@ -213,7 +213,7 @@ class Beam1D:
         else:
             tz1 = (self.data.Ymax-self.pos[2])/self.direc[2]
             tz2 = (self.data.Ymin-self.pos[2])/self.direc[2]
-            tz = np.max(tz1,tz2)
+            tz = max(tz1,tz2)
 
         t_ = np.array([tx,tz,ty])
         if not (np.isfinite(t_) & (t_>0)).any():

@@ -6,7 +6,7 @@
 # Z is for the height
 position = [-2.36511538, -1.3655, 0.0]
 # direction of the beam (X,Y,Z), it will be normalized in the code
-direction = [0.85460336, 0.51928132,0.0]
+direction = [0.96910869, 0.24663402,0.0]
 # beam width (FWHM in meter)
 # horizontal
 beam_width_h = 0.13
@@ -99,11 +99,11 @@ Z = [-0.0140560, -0.0145320,  -0.0145320,  -0.0147840,  -0.0152600,  -0.0152600,
       0.0392920,  0.0394200,   0.0512760,   0.0515040,   0.0519560,   0.0521840,
       0.0656800,  0.0662320,   0.0667840,   0.0670400]
 
-phi = 0
+phi = -2.55726044
 
 # index of the simulation toroidal plane
 # will be align to the focus points
-plane = 1
+plane = 0
 
 # radius of the lens
 rad_lens = 0.2
@@ -123,7 +123,9 @@ int = 2.5
 # sightline
 Nint = 7
 # number of section for the integral of the solid angle
-Nsolid = 10
+Nsolid = 50
+# number of interval for the radial integration of the solid angle
+Nr = 10
 
 # type of integration for the emission
 # 1D for taking into account only the emission

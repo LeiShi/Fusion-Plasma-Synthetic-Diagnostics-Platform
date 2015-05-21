@@ -78,12 +78,65 @@ def solid_angle_disk(pos,r):
     return solid
 
 
-def solid_angle_seg(pos,x,r,islens,N):
+def compute_threshold_solid_angle(x,y,pos,rx,ry):
+    """ Compute a normalization of the threshold for the function :func:`solid_angle_seg <FPSDP.Maths.Funcs.solid_angle_seg>`
+
+    :param list[x1,x2] x: Intersection on the ring of the mixed case
+    :param list[y1,y2] y: Intersection on the lens of the mixed case
+    :param np.array[N] pos: Position from where the solid angle is computed
+    :param int rx: Radius of the ring
+    :param int ry: Radius of the lens
+
+    :return: Threshold
+    :rtype: np.array[N]
+    """
+
+    x1 = x[0]
+    x2 = x[1]
+
+    # compute the scalar product between x1 and x2
+    angle = np.einsum('ij,ij->i',x1,x2)
+    # index where we compute the area of the smallest part of the disk
+    ind = np.einsum('ij,ij->i',pos[...,:2],x1) < 0
+    # area of the triangle between O,x1,x2
+    Atri = 0.5*angle
+    # Compute the angle between x1,0,x2
+    angle = np.arccos(angle/rx**2)
+    # rectification of the angle for being in [0,2pi]
+    angle[ind] = 2*np.pi - angle[ind]
+    # approximation of the solid angle for full circle - segment
+    A = ((np.pi-0.5*angle)*rx**2 + Atri)/pos[...,2]**2
+    
+    # same but with y
+    y1 = y[0]
+    y2 = y[1]
+
+    # compute the scalar product between y1 and y2
+    angle = np.einsum('ij,ij->i',y1,y2)
+    # index where we compute the area of the smallest part of the disk
+    ind = np.einsum('ij,ij->i',pos[...,:2],y1) < 0
+    # area of the triangle between O,y1,y2
+    Atri = 0.5*angle
+    # Compute the angle between y1,0,y2
+    angle = np.arccos(angle/ry**2)
+    # rectification of the angle for being in [0,2pi]
+    angle[ind] = 2*np.pi - angle[ind]
+    # approximation of the solid angle for full circle - segment
+    A = ((np.pi-0.5*angle)*ry**2 + Atri)/pos[...,2]**2
+
+    return A
+
+    
+
+def solid_angle_seg(pos,x,r,islens,Nth,Nr):
     r""" Compute the solid angle of a disk where a segment has been removed.
     
     First, the numerical integration will be carried out over the biggest area of the disk,
     and, in a second time, if necessary, the integral over the full disk is computed
     (with the analytical formula) and subtracted by the numerical integral.
+    When we want to compute the small area with this methods, the error can be bigger than
+    the solid angle, therefore an external check need to be done (usually this method is used in 
+    a computation in two step with the other one that will be a lot bigger than this error)
     
     The idea is to compute numerically the 2D integral by splitting the domain in 
     sector of the same angle and doing a Gauss-Legendre quadrature formula over
@@ -124,7 +177,8 @@ def solid_angle_seg(pos,x,r,islens,N):
     :param list[np.array[N],..] x: Position of the intersection on the ring (list contains 2 elements) 
     :param float r: Radius of the disk (should be centered at (0,0,0) and the perpendicular should be along the z-axis)
     :param bool islens: True if the computation is for the lens (change of sign if it is the case)
-    :param int N: Number of sections for the quadrature formula
+    :param int Nth: Number of sections for the theta quadrature formula
+    :param int Nr: Number of sections for the radial quadrature formula
 
     :return: Solid angle
     :rtype: np.array[N]
@@ -135,7 +189,7 @@ def solid_angle_seg(pos,x,r,islens,N):
     x2 = x[1]
     
     # limits (in angle) considered for the integration
-    theta = np.linspace(0,2*np.pi,N)
+    theta = np.linspace(0,2*np.pi,Nth)
     quadr = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
     quadt = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
     
@@ -144,23 +198,23 @@ def solid_angle_seg(pos,x,r,islens,N):
     # half size of the intervals in theta
     diff = 0.5*np.diff(theta)
     # array containing all the value of theta that will be computed
-    th = ((diff[:,np.newaxis]*quadt.pts).T + av).T
+    th = diff[:,np.newaxis]*quadt.pts + av[:,np.newaxis]
     
     # perpendicular vector to x1->x2
-    perp = -pos[:,0:2]
+    perp = -pos[:,:2]
     
     # indices where we want to compute the big part
     ind = np.einsum('ij,ij->i',perp,x1) > 0
-    # assume that all pos is on the same size of the focus point
-    if (islens & (pos[:,2]>0).any()) or ((not islens) & (pos[:,2]<0).any()):
+    if islens and (pos[:,2] > 0).any():
         ind = ~ind
+    # assume that all pos is on the same size of the focus point
     perp[~ind] = -perp[~ind]
-    perp = (perp.T/np.sqrt(np.sum(perp**2,axis=1))).T
+    perp = perp/np.sqrt(np.sum(perp**2,axis=1))[:,np.newaxis]
     
     # unit vector for each angle
     delta = np.array([np.cos(th),np.sin(th)])
     delta = np.rollaxis(delta,0,3)
-    # now detla[Nsolid-1,quadt,dim]
+    # now detla[Nth-1,quadt,dim]
     
     # compute the scalar product (=> the cos)
     cospsi = np.einsum('ak,ijk->aij',perp,delta)
@@ -173,7 +227,7 @@ def solid_angle_seg(pos,x,r,islens,N):
     #print('useless computations')
     #:todo: This can be improved
     # compute the distance along theta where the segment is crossed
-    rmax = ((1.0/cospsi).T*d).T
+    rmax = d[:,np.newaxis,np.newaxis]/cospsi
     # if the line cannot be cross, therefore the computation can raise some trouble
     # => set it manually to the good value
     rmax[~ind2] = r
@@ -181,26 +235,37 @@ def solid_angle_seg(pos,x,r,islens,N):
     rmax = np.minimum(r,rmax)
     
     # array containing the evaluation of the function that will be integrated
-    R = np.zeros((pos.shape[0],N-1,quadt.pts.shape[0],
+    R = np.zeros((pos.shape[0],Nth-1,quadt.pts.shape[0], Nr-1,
                   quadr.pts.shape[0],3))
+
+    # intervals for each integral along the radial axis (in r_max unit)
+    r_temp = np.linspace(0,1,Nr)
+    avr = 0.5*(r_temp[:-1]+r_temp[1:])
+    diffr = 0.5*(r_temp[1:]-r_temp[:-1])
     # radius that will be computed
-    temp = (0.5*rmax[...,np.newaxis]*(quadr.pts+1.0))
-    R[...,0] = pos[:,np.newaxis,np.newaxis,np.newaxis,0]\
-               + temp*delta[...,np.newaxis,0]
-    R[...,1] = pos[:,np.newaxis,np.newaxis,np.newaxis,1]\
-               + temp*delta[...,np.newaxis,1]
-    R[...,2] = pos[:,np.newaxis,np.newaxis,np.newaxis,2]
+    temp = rmax[...,np.newaxis,np.newaxis]*\
+        (diffr[:,np.newaxis]*quadr.pts+avr[:,np.newaxis])
+    R[...,0] = pos[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,0]\
+               + temp*delta[np.newaxis,...,np.newaxis,np.newaxis,0]
+    R[...,1] = pos[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,1]\
+               + temp*delta[np.newaxis,...,np.newaxis,np.newaxis,1]
+    R[...,2] = pos[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,2]
 
     # compute the norm of the vector
-    R = np.sum(R**2,axis=4)**(-1.5)
+    R = np.sum(R**2,axis=5)**(-1.5)
     # sum over all the index (theta and r quadrature formula, and, sector)
-    omega = np.sum(0.5*diff*np.sum(rmax*np.sum(temp*R*quadr.w,axis=3)*quadt.w,axis=2),axis=1)
+    # R quadrature
+    omega = np.sum(np.sum(temp*R*quadr.w,axis=4)*diffr,axis=3)
+    # Theta quadrature
+    omega = np.sum(diff*np.sum(rmax*omega*quadt.w,axis=2),axis=1)
     
     # multiply by the scalar product between the position and the normal (to the disk) vector 
     omega *= np.abs(pos[:,2])
-    
+
     # change the area that we want to compute
     omega[~ind] = solid_angle_disk(pos[~ind,:],r)-omega[~ind]
+    temp = solid_angle_disk(pos[~ind,:],r)
+        
     return omega
 
 

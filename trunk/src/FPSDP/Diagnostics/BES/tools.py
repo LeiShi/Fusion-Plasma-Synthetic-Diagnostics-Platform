@@ -42,6 +42,9 @@ class Tools:
 
         :param str filename: Name of the file
         :param bool fluc: The intensity inside the file is the total (False) or the fluctuation (True)
+        :return: New instance variable
+        :rtype: Tools
+        
         """
         data = np.load(filename)
         I = data['arr_0']
@@ -55,19 +58,15 @@ class Tools:
         """ Interpolate all the data on a spatial mesh and create this mesh.
         The interpolation is done for each timestep
         """
-        if not hasattr(self,'r'):
-            self.r = np.linspace(np.min(self.R),np.max(self.R),Nr)
-            self.z = np.linspace(np.min(self.Z),np.max(self.Z),Nz)
-        else:
-            if (self.r.shape[0] != Nr) or (self.z.shape[0] != Nz):
-                raise NameError('Not the same size of mesh')
-
+        r = np.linspace(np.min(self.R),np.max(self.R),Nr)
+        z = np.linspace(np.min(self.Z),np.max(self.Z),Nz)
+        
         Igrid = np.zeros((self.Nt,Nr,Nz))
         for i in range(self.Nt):
             temp = interp2d(self.R,self.Z,I[i,:])
-            Igrid[i,:,:] = temp(self.r,self.z).T
+            Igrid[i,:,:] = temp(r,z).T
             
-        return Igrid
+        return r,z,Igrid
 
     def fluctuations_picture(self,timestep,v=40):
         """ Plot a graph of the fluctuation
@@ -236,7 +235,7 @@ class Tools:
 
         corr = np.zeros(2*np.array([Nr,Nz])-1)
         
-        Igrid = self.interpolate(Nr,Nz,self.I)
+        r,z,Igrid = self.interpolate(Nr,Nz,self.I)
             
         for i in range(self.Nt):
             if np.isfinite(Igrid[i,...]).all():
@@ -247,8 +246,8 @@ class Tools:
 
         corr /= np.max(corr)
         temp = np.zeros(2*Nr-1)
-        r = self.r-self.r[0]
-        z = self.z-self.z[0]
+        r = r-r[0]
+        z = z-z[0]
         temp[:Nr-1] = -r[Nr-1:0:-1]
         temp[Nr-1:] = r
         r = temp
@@ -350,8 +349,8 @@ class Tools:
             neav = np.mean(ne,axis=0)
             ne = (ne-neav)/neav
 
-        negrid = self.interpolate(Nr,Nz,ne)
-        Igrid = self.interpolate(Nr,Nz,self.I)
+        r,z,negrid = self.interpolate(Nr,Nz,ne)
+        r,z,Igrid = self.interpolate(Nr,Nz,self.I)
         
         self.psf = np.zeros((Nr,Nz))
 
@@ -364,7 +363,7 @@ class Tools:
         self.psf /= self.Nt
 
         plt.figure()
-        plt.contourf(self.r,self.z,self.psf.T)
+        plt.contourf(r,z,self.psf.T)
         plt.xlabel('R[m]')
         plt.ylabel('Z[m]')
         plt.colorbar()
@@ -496,7 +495,9 @@ def beam_emission(Nr=40,t=150):
 
     plt.show()
 
-
+def check_convergence_beam_density(t=140,pt=-1):
+    """
+    """
 
 def check_convergence_lifetime(t=140,fib=4):
 
@@ -626,10 +627,84 @@ def check_convergence_interpolation_data(t=140,fib=4,phi=0.2,nber_plane=16,eq=Fa
     plt.show()
 
 
+def check_convergence_optic_int(t=140,fib=4,type_='2D'):
+    """
+    phi is used for putting the fiber far away from the planes
+    """
+
+    bes = bes_.BES(name)
+    bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
+    bes.beam.data.current = t
+    bes.beam.data.load_next_time_step(increase=False)
+    bes.beam.compute_beam_on_mesh()
+    bes.type_int = type_
+    bes.pos_foc = np.atleast_2d(bes.pos_foc[fib,:])
+    
+    Nsample = 20
+    N_ref = 300
+    N = np.logspace(0.5,2,Nsample)
+    I = np.zeros(Nsample)
+
+    for i,N_ in enumerate(N):
+        print i
+        bes.Nint = N_
+        if type_ == '2D':
+            bes.solid = np.zeros((1,bes.Nint-1,2,21) )
+        I[i] = bes.intensity(t,0,comp_eps=True)
+
+    bes.Nint = N_ref
+    if type_ == '2D':
+        bes.solid = np.zeros((1,bes.Nint-1,2,21) )
+    I_ref = bes.intensity(t,0,comp_eps=True)
+
+    
+    plt.figure()
+    plt.loglog(N,np.abs((I-I_ref)/I_ref))
+
+    
+    plt.ylabel('Error')
+    plt.xlabel('Number of interval')
+    plt.show()
+
+def check_convergence_solid_angle():
+    """
+    """
+    import FPSDP.Maths.Funcs as F
+
+    pos = np.array([[0.1,0.012,0.5]])
+    x = [np.array([[-0.08,0.1268857]]),np.array([[-0.047708,0.1422107]])]
+    r = 0.15
+
+    Nsample = 30
+    N = np.logspace(1,2.5,Nsample)
+
+    N_ref = 1000
+    R = np.zeros(Nsample)
+    Th = np.zeros(Nsample)
+
+    for i,N_ in enumerate(N):
+        print i
+        N_ = np.round(N_)
+        R[i] = F.solid_angle_seg(pos,x,r,False,N_ref,N_,0)
+        Th[i] = F.solid_angle_seg(pos,x,r,False,N_,N_ref,0)
+
+    ref = F.solid_angle_seg(pos,x,r,False,N_ref,N_ref,0)
+    
+    plt.figure()
+    plt.loglog(N,np.abs((R-ref)/ref),label='R')
+    plt.loglog(N,np.abs((Th-ref)/ref),label='$\Theta$')
+    plt.grid(True)
+    plt.legend()
+    
+    plt.ylabel('Error')
+    plt.xlabel('Number of interval')
+    plt.show()
+
+    
 def check_geometry(minorR=0.67,majorR=1.67):
     """
     """
-    print 'Default value assume D3D'
+    print 'Default values assume D3D'
 
     bes = bes_.BES(name)
     foc = bes.pos_foc
@@ -655,6 +730,7 @@ def check_geometry(minorR=0.67,majorR=1.67):
 
     plt.plot(xmin_tok,ymin_tok,xmax_tok,ymax_tok,label='Tokamak')
     lim = bes.limits
+    plt.plot(bes.pos_lens[0],bes.pos_lens[1],'x',label='lens')
     plt.plot([lim[0,0],lim[0,1],lim[0,1],lim[0,0],lim[0,0]],[lim[1,0],lim[1,0],lim[1,1],lim[1,1],lim[1,0]],label='Limits')
     plt.legend()
 
@@ -675,6 +751,7 @@ def check_geometry(minorR=0.67,majorR=1.67):
     plt.plot(np.sqrt(np.sum(bes.beam.mesh[:,:2]**2,axis=1)),bes.beam.mesh[:,2],'-x',label='Beam')
     plt.plot(stdp[:,0],stdp[:,2],stdm[:,0],stdm[:,2],label='Standard deviation')
     plt.plot(np.sqrt(np.sum(foc[:,:2]**2,axis=1)),foc[:,2],'x',label='Focus Points')
+    plt.plot(np.sqrt(np.sum(bes.pos_lens[:2]**2)),bes.pos_lens[2],'x',label='lens')
 
     rlim = np.sqrt(np.sum(lim[:2,:]**2,axis=0))
     plt.plot([rlim[0],rlim[1],rlim[1],rlim[0],rlim[0]],[lim[2,0],lim[2,0],lim[2,1],lim[2,1],lim[2,0]],label='Limits')
@@ -698,7 +775,7 @@ def compute_beam_config(Rsource,phisource, Rtan,R=np.array([])):
     alpha = np.arccos((Rsource**2 + Rtan**2 - side**2)/(2*Rsource*Rtan))
     phitan = phisource - alpha
     xtan = Rtan*np.cos(-phitan)
-    ytan = Rtan*np.cos(-phitan)
+    ytan = Rtan*np.sin(-phitan)
 
     direc = np.array([xtan,ytan])
     possource = np.array([np.cos(-phisource),np.sin(-phisource)])
@@ -710,4 +787,4 @@ def compute_beam_config(Rsource,phisource, Rtan,R=np.array([])):
     print 'The direction of the beam is :', direc
     if R.shape[0] != 0:
         phifoc = np.arccos(Rtan/R) + phitan
-        print 'If you want the Fiber on the central line of the beam, Phi = ',phifoc
+        print 'If you want the fibers on the central line of the beam, Phi = ',-phifoc

@@ -102,13 +102,12 @@ class XGC_Loader_local():
         self.Zmax = limits[2,1]
 
         # limits in tokamak coordinates
-        xmin = min(abs(self.Xmin),abs(self.Xmax))
-        xmax = max(abs(self.Xmin),abs(self.Xmax))
-        ymin = min(abs(self.Ymin),abs(self.Ymax))
-        ymax = max(abs(self.Ymin),abs(self.Ymax))
-
-        self.Rmin = np.sqrt(xmin**2 + ymin**2)
-        self.Rmax = np.sqrt(xmax**2 + ymax**2)
+        x = np.linspace(self.Xmin,self.Xmax,100)
+        y = np.linspace(self.Ymin,self.Ymax,100)
+        x,y = np.meshgrid(x,y)
+        R = np.sqrt(x**2 + y**2)
+        self.Rmin = np.min(R)
+        self.Rmax = np.max(R)
         phi = np.array([[self.Xmin,self.Ymin],[self.Xmin,self.Ymax],
                         [self.Xmax,self.Ymin],[self.Xmax,self.Ymax]])
 

@@ -17,7 +17,9 @@ import h5py as h5
 # quadrature formula and utility functions
 import FPSDP.Maths.Integration as integ
 from FPSDP.GeneralSettings.UnitSystem import SI
-from FPSDP.Maths.Funcs import heuman, solid_angle_disk, solid_angle_seg
+from FPSDP.Maths.Funcs import heuman, solid_angle_disk,\
+    solid_angle_seg, compute_threshold_solid_angle
+    
 
 
 from os.path import exists # used for checking if the input file exists
@@ -54,8 +56,9 @@ class BES:
     :var float self.inter: Cutoff distance from the focus point (in unit of the beam width).\
     Look at the figure in :func:`compute_limits <FPSDP.Diagnostics.BES.bes.BES.compute_limits>`, the two outer red lines for the limit. 
     :var int self.Nint: Number of point for splitting the integral over the optical direction
-    :var int self.Nsolid: Number of interval for the evaluation of the solid angle in the mixed case\
+    :var int self.Nsolid: Number of intervals for the evaluation of the solid angle in the mixed case\
     Look at the figure in :func:`get_solid_angle  <FPSDP.Diagnostics.BES.bes.BES.get_solid_angle>`.
+    :var int self.Nr: Number of intervals for the radial integration of the solid angle
     :var np.array[Nfib,Nint-1,2,21] self.solid: Solid angle for all the position that are computed.\
     The axis number 2 is the number of points used by interval in the integration along the field line and\
     the axis number 3 is the number of points used by integral over a disk.
@@ -179,6 +182,7 @@ class BES:
         self.inter = json.loads(config.get('Optics','int'))                  #!
         self.Nint = json.loads(config.get('Optics','Nint'))                  #!
         self.Nsolid = json.loads(config.get('Optics','Nsolid'))              #!
+        self.Nr = json.loads(config.get('Optics','Nr'))                      #!
     
         R = json.loads(config.get('Optics','R'))
         R = np.array(R)
@@ -436,7 +440,7 @@ class BES:
                                 [self.Ymin,self.Ymax],
                                 [self.Zmin,self.Zmax]])
 
-        print self.limits
+        print 'The limits are: ',self.limits
 
 
     def get_bes(self):
@@ -775,7 +779,7 @@ class BES:
 
         return ret
         
-    def light_from_plane(self,z, t_, fiber_nber,zind):
+    def light_from_plane(self,z, t_, fiber_nber,zind,comp_eps=False):
         r""" Compute the light from one plane using a method of order 10 (see report or
         Abramowitz and Stegun) or by making the assumption of a constant emission on the plane.
         
@@ -824,7 +828,7 @@ class BES:
                 eps = self.get_emis_from(pos,t_,fiber_nber)
                 
                 # now compute the solid angle
-                if (self.solid[fiber_nber,zind,i,:] == 0).any():
+                if comp_eps or (self.solid[fiber_nber,zind,i,:] == 0).any():
                     # if an error of size is thrown, look at the line that create the array
                     # the best explaination is that someone as change the order of a method
                     self.solid[fiber_nber,zind,i,:] = self.get_solid_angle(pos,fiber_nber)
@@ -842,7 +846,9 @@ class BES:
             # just use the point on the central line
             for i,z_ in enumerate(z):
                 pos = np.array([0,0,z_])
-                I[i] = self.get_emis_from(pos[np.newaxis,:],t_,fiber_nber)
+                filt = self.get_filter(pos)
+
+                I[i] = np.sum(self.get_emis_from(pos[np.newaxis,:],t_,fiber_nber)*filt,axis=0)
         else:
             raise NameError('This type of integration does not exist')
         return I
@@ -873,7 +879,7 @@ class BES:
         
         
 
-    def intensity(self,t_,fiber_nber):
+    def intensity(self,t_,fiber_nber,comp_eps=False):
         r""" Compute the light received by a fiber at one time step.
         
         Use a Gauss-Legendre quadrature formula of order 4.
@@ -917,7 +923,7 @@ class BES:
         for i,z in enumerate(Z):
             # distance of the plane from the lense
             pt = z + ba2[i]*quad.pts + self.dist[fiber_nber]
-            light = self.light_from_plane(pt,t_,fiber_nber,i)
+            light = self.light_from_plane(pt,t_,fiber_nber,i,comp_eps)
             # sum the weight with the appropriate pts
             I += np.sum(quad.w*light*ba2[i])
         # multiply by the weigth of each interval
@@ -1028,7 +1034,7 @@ class BES:
         B = -pos[ind,1]/pos[ind,0]
 
         # \Delta when computing the solution of a quadratic function
-        delta = np.sqrt(4*B**2*A**2 - 4*(A**2-self.rad_foc[fib])*(B**2 + 1))
+        delta = np.sqrt(4*B**2*A**2 - 4*(A**2-self.rad_foc[fib]**2)*(B**2 + 1))
         # first intersection point on the focus point [Npt,{x,y}]
         x1 = np.zeros((np.sum(ind),2))
         # second one
@@ -1039,15 +1045,20 @@ class BES:
         x2[:,0] = A + B*x2[:,1]
 
         # same but with the lens
-        y1 = f[:,np.newaxis]*(pos[ind,0:2]-ratio[:,np.newaxis]*x1)
-        y2 = f[:,np.newaxis]*(pos[ind,0:2]-ratio[:,np.newaxis]*x2)
+        y1 = f[:,np.newaxis]*(pos[ind,:2]-ratio[:,np.newaxis]*x1)
+        y2 = f[:,np.newaxis]*(pos[ind,:2]-ratio[:,np.newaxis]*x2)
 
         solid[ind] = self.solid_angle_mix_case(pos[ind,:],[x1,x2],[y1,y2],fib)
+
         #--------------------
         if (solid < 0).any() or (solid > 4*np.pi).any():
+            print np.sqrt(np.sum(x1**2,axis=1))
+            print np.sqrt(np.sum(y2**2,axis=1))
             print('solid angle',solid)
             print('find_case',test)
             print('ind',ind)
+            print ('x',x1,x2)
+            print('y',y1,y2)
             raise NameError('solid angle smaller than 0 or bigger than 4pi')
         return solid
 
@@ -1080,10 +1091,31 @@ class BES:
         :rtype: np.array[N]
         """
         # first the contribution of the ring
-        omega = solid_angle_seg(pos-np.array([0,0,self.dist[fib]]),x,
-                                     self.rad_foc[fib],0,self.Nsolid)
+        omega1 = solid_angle_seg(pos-np.array([0,0,self.dist[fib]]),x,
+                                self.rad_foc[fib],0,self.Nsolid,
+                                self.Nr)
+
         # second the contribution of the lens
-        omega += solid_angle_seg(pos,y,self.rad_lens,1,self.Nsolid)
+        omega2 = solid_angle_seg(pos,y,self.rad_lens,1,self.Nsolid,
+                               self.Nr)
+
+        # remove the part where the numerical error is too big
+        ind1 = omega1 < 0
+        ind2 = omega2 < 0
+        omega = np.zeros(omega1.shape)
+        omega[~ind1] += omega1[~ind1]
+        omega[~ind2] += omega2[~ind2]
+        
+        if (-omega1[ind1]/omega[ind1] > 1e-3).any():
+            print omega
+            print omega1
+            raise NameError('solid angle negative 1')
+
+        if (-omega2[ind2]/omega[ind2] > 1e-3).any():
+            print omega
+            print omega2
+            raise NameError('solid angle negative 2')
+
         return omega
 
 

@@ -60,10 +60,9 @@
 <span id="collisions-manager"></span><h1>Collisions Manager<a class="headerlink" href="#module-FPSDP.Plasma.Collisions.collisions" title="Permalink to this headline">¶</a></h1>
 <dl class="class">
 <dt id="FPSDP.Plasma.Collisions.collisions.Collisions">
-<em class="property">class </em><tt class="descclassname">FPSDP.Plasma.Collisions.collisions.</tt><tt class="descname">Collisions</tt><big>(</big><em>files_atte</em>, <em>files_emis</em>, <em>states</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/Collisions/collisions.html#Collisions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.Collisions.collisions.Collisions" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">FPSDP.Plasma.Collisions.collisions.</tt><tt class="descname">Collisions</tt><big>(</big><em>files_atte</em>, <em>files_emis</em>, <em>states</em>, <em>lifetime</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/Collisions/collisions.html#Collisions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.Collisions.collisions.Collisions" title="Permalink to this definition">¶</a></dt>
 <dd><p>Class containing all the physics about the collisions</p>
-<p>Read the files from ADAS database, compute the lifetime, and compute
-the cross-sections (cubic spline interpolation is used).</p>
+<p>Read the files from ADAS database, compute the lifetime, and the cross-sections (cubic spline interpolation is used).</p>
 <p>For computing the coefficients, two interpolations are done.
 A first one in 2D (beam energy and density) and a second one in temperature.
 The final result is given by:</p>
@@ -78,6 +77,7 @@ The final result is given by:</p>
 <li><strong>files_atte</strong> (<em>list[str]</em>) &#8211; List of names for ADAS21 files (beam stopping coefficient)</li>
 <li><strong>files_emis</strong> (<em>list[str]</em>) &#8211; List of names for ADAS22 files (emission coefficient)</li>
 <li><strong>states</strong> (<em>list[int]</em>) &#8211; Quantum number of the lower (states[0]) and the higher(states[1]) states of the hydrogen atom</li>
+<li><strong>lifetime</strong> (<em>float</em>) &#8211; Lifetime of the excited state</li>
 </ul>
 </td>
 </tr>
@@ -93,6 +93,7 @@ The final result is given by:</p>
 <li><strong>self.n_low</strong> (<em>float</em>) &#8211; Quantum number of the lower state for the hydrogen atom</li>
 <li><strong>self.n_high</strong> (<em>float</em>) &#8211; Quantum number of the higher state for the hydrogen atom</li>
 <li><strong>self.E0</strong> (<em>float</em>) &#8211; Energy of the ground state (in eV)</li>
+<li><strong>self.lifetime</strong> (<em>float</em>) &#8211; Lifetime of the excited state</li>
 </ul>
 </td>
 </tr>
@@ -232,31 +233,30 @@ we do a scaling with the temperature.</p>
 
 <dl class="method">
 <dt id="FPSDP.Plasma.Collisions.collisions.Collisions.get_lifetime">
-<tt class="descname">get_lifetime</tt><big>(</big><em>ne</em>, <em>Te</em>, <em>Ti</em>, <em>beam</em>, <em>mass_b</em>, <em>file_number</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/Collisions/collisions.html#Collisions.get_lifetime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.Collisions.collisions.Collisions.get_lifetime" title="Permalink to this definition">¶</a></dt>
-<dd><p>Compute the lifetime of the excited state following the formula
-given by I. H. Hutchinson, Plasma Phys. Controlled Fusion 44,71 (2002)
-assuming an hydrogen atom.</p>
+<tt class="descname">get_lifetime</tt><big>(</big><em>ne</em>, <em>Te</em>, <em>beam</em>, <em>mass_b</em>, <em>file_number</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Plasma/Collisions/collisions.html#Collisions.get_lifetime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Plasma.Collisions.collisions.Collisions.get_lifetime" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the lifetime of the excited state.
+This version is using the lifetime given in the input but can be upgraded in order
+to have a plasma dependant lifetime.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body"><p class="first">Upgrading in order to take into account the plasma density</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>beam</strong> (<em>float</em>) &#8211; Beam energy (eV)</li>
 <li><strong>ne</strong> (<em>np.array[N]</em>) &#8211; Electron density (m <sup>-3</sup>)</li>
 <li><strong>mass_b</strong> (<em>float</em>) &#8211; Mass of a neutral particle in the beam (amu)</li>
 <li><strong>Te</strong> (<em>np.array[N]</em>) &#8211; Electron temperature (eV)</li>
-<li><strong>Ti</strong> (<em>np.array[N]</em>) &#8211; Ion temperature (eV)</li>
 <li><strong>file_number</strong> (<em>int</em>) &#8211; File number (choosen in Beam.py)</li>
 </ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Lifetime of the excited atom</p>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Lifetime of the excited atom</p>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first">np.array[ne.shape]</p>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Todo:</th><td class="field-body"><p class="first last">everything</p>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[ne.shape]</p>
 </td>
 </tr>
 </tbody>

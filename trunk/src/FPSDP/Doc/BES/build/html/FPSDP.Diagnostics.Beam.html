@@ -27,7 +27,7 @@
     <link rel="top" title="BES 0.8 documentation" href="index.html" />
     <link rel="up" title="Diagnostics Directory" href="FPSDP.Diagnostics.html" />
     <link rel="next" title="Input and Output Directory" href="FPSDP.IO.html" />
-    <link rel="prev" title="Beam Emission Spectroscopy (BES) Directory" href="FPSDP.Diagnostics.BES.html" /> 
+    <link rel="prev" title="Tools File" href="FPSDP.Diagnostics.BES.tools.html" /> 
   </head>
   <body>
     <div class="related">
@@ -43,7 +43,7 @@
           <a href="FPSDP.IO.html" title="Input and Output Directory"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="FPSDP.Diagnostics.BES.html" title="Beam Emission Spectroscopy (BES) Directory"
+          <a href="FPSDP.Diagnostics.BES.tools.html" title="Tools File"
              accesskey="P">previous</a> |</li>
         <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
           <li><a href="FPSDP.Diagnostics.html" accesskey="U">Diagnostics Directory</a> &raquo;</li> 
@@ -62,7 +62,7 @@
 <em class="property">class </em><tt class="descclassname">FPSDP.Diagnostics.Beam.beam.</tt><tt class="descname">Beam1D</tt><big>(</big><em>config_file</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D" title="Permalink to this definition">¶</a></dt>
 <dd><p>Simulate a 1D beam with the help of data from simulation.</p>
 <p>Compute the beam density from the equilibrium or the raw data on a mesh.
-The beam density is not very sensitive from the fluctuation, therefore
+The beam density is not very sensitive of the fluctuation, therefore
 only the central line is computed and a gaussian profile is assumed (with a different
 vertical and horizontal width).
 When computing a beam density outside the mesh, an extrapolation is made (cubic).
@@ -198,7 +198,7 @@ the beam system and, after, interpolate the data.</p>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><span class="math">\(\varepsilon\)</span></p>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[Ncomp,N]</p>
 </td>
 </tr>
 </tbody>
@@ -229,7 +229,7 @@ where <span class="math">\(v\)</span> is the velocity of the beam particles (<sp
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><span class="math">\(\varepsilon_l\)</span></p>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[N]</p>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[Ncomp,N]</p>
 </td>
 </tr>
 </tbody>
@@ -320,7 +320,7 @@ See <a class="reference internal" href="FPSDP.Plasma.XGC_Profile.html#FPSDP.Plas
 <dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.set_data">
 <tt class="descname">set_data</tt><big>(</big><em>data</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.set_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.set_data" title="Permalink to this definition">¶</a></dt>
 <dd><p>Second part of the initialization (should be called manually!).</p>
-<p>Due to the computation of the limits (<a class="reference internal" href="FPSDP.Diagnostics.BES.html#FPSDP.Diagnostics.BES.bes.BES.compute_limits" title="FPSDP.Diagnostics.BES.bes.BES.compute_limits"><tt class="xref py py-func docutils literal"><span class="pre">compute_limits</span></tt></a>),
+<p>Due to the computation of the limits (<tt class="xref py py-func docutils literal"><span class="pre">compute_limits</span></tt>),
 the data are loaded after the initialization.
 This method save the data inside the instance and compute the beam density on the mesh</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -344,8 +344,8 @@ This method save the data inside the instance and compute the beam density on th
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
   <h4>Previous topic</h4>
-  <p class="topless"><a href="FPSDP.Diagnostics.BES.html"
-                        title="previous chapter">Beam Emission Spectroscopy (BES) Directory</a></p>
+  <p class="topless"><a href="FPSDP.Diagnostics.BES.tools.html"
+                        title="previous chapter">Tools File</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="FPSDP.IO.html"
                         title="next chapter">Input and Output Directory</a></p>
@@ -384,7 +384,7 @@ This method save the data inside the instance and compute the beam density on th
           <a href="FPSDP.IO.html" title="Input and Output Directory"
              >next</a> |</li>
         <li class="right" >
-          <a href="FPSDP.Diagnostics.BES.html" title="Beam Emission Spectroscopy (BES) Directory"
+          <a href="FPSDP.Diagnostics.BES.tools.html" title="Tools File"
              >previous</a> |</li>
         <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
           <li><a href="FPSDP.Diagnostics.html" >Diagnostics Directory</a> &raquo;</li> 

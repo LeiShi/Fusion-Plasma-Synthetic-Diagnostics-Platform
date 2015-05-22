@@ -62,6 +62,36 @@ that give the Butcher table of a few RungeKutta methods.</p>
 <div class="section" id="module-FPSDP.Maths.Integration">
 <span id="integration-module"></span><h2>Integration Module<a class="headerlink" href="#module-FPSDP.Maths.Integration" title="Permalink to this headline">¶</a></h2>
 <dl class="function">
+<dt id="FPSDP.Maths.Integration.get_interval_exponential">
+<tt class="descclassname">FPSDP.Maths.Integration.</tt><tt class="descname">get_interval_exponential</tt><big>(</big><em>cutoff</em>, <em>tau</em>, <em>N</em>, <em>check=True</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Maths/Integration.html#get_interval_exponential"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Maths.Integration.get_interval_exponential" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a mesh for doing a quadrature formula on a function close to
+an exponential decay.</p>
+<div class="math">
+\[x_i = F^{-1}\left(\frac{i}{N-1}\right)\]</div>
+<p>where <span class="math">\(x_i\)</span> are the points defining the intervals, <span class="math">\(F(x) = \int_{0}^{x} A\exp\left(-\frac{x}{\tau}\right)\)</span>
+and <span class="math">\(A = \frac{1}{F(cutoff)}\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>or np.array[Npt] cutoff</strong> (<em>float</em>) &#8211; Limits of the integral</li>
+<li><strong>or np.array[Npt] tau</strong> (<em>float</em>) &#8211; Characteristic lenght of the exponential</li>
+<li><strong>N</strong> (<em>int</em>) &#8211; Number of points for the integrals</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Points of the mesh (each one contains 1/(N-1) % of the total integral)</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array[Npt,N]</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
 <dt id="FPSDP.Maths.Integration.get_interval_gaussian">
 <tt class="descclassname">FPSDP.Maths.Integration.</tt><tt class="descname">get_interval_gaussian</tt><big>(</big><em>cutoff</em>, <em>sigma</em>, <em>N</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Maths/Integration.html#get_interval_gaussian"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Maths.Integration.get_interval_gaussian" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a mesh for doing a quadrature formula on a function close to
@@ -182,11 +212,14 @@ Circular Disk&#8221; in 1959 for the exact computation.</p>
 
 <dl class="function">
 <dt id="FPSDP.Maths.Funcs.solid_angle_seg">
-<tt class="descclassname">FPSDP.Maths.Funcs.</tt><tt class="descname">solid_angle_seg</tt><big>(</big><em>pos</em>, <em>x</em>, <em>r</em>, <em>islens</em>, <em>N</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Maths/Funcs.html#solid_angle_seg"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Maths.Funcs.solid_angle_seg" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">FPSDP.Maths.Funcs.</tt><tt class="descname">solid_angle_seg</tt><big>(</big><em>pos</em>, <em>x</em>, <em>r</em>, <em>islens</em>, <em>Nth</em>, <em>Nr</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Maths/Funcs.html#solid_angle_seg"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Maths.Funcs.solid_angle_seg" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the solid angle of a disk where a segment has been removed.</p>
 <p>First, the numerical integration will be carried out over the biggest area of the disk,
 and, in a second time, if necessary, the integral over the full disk is computed
-(with the analytical formula) and subtracted by the numerical integral.</p>
+(with the analytical formula) and subtracted by the numerical integral.
+When we want to compute the small area with this methods, the error can be bigger than
+the solid angle, therefore an external check need to be done (usually this method is used in 
+a computation in two step with the other one that will be a lot bigger than this error)</p>
 <p>The idea is to compute numerically the 2D integral by splitting the domain in 
 sector of the same angle and doing a Gauss-Legendre quadrature formula over
 each dimension.</p>
@@ -227,7 +260,8 @@ has to be compute.</p>
 <li><strong>x</strong> (<em>list[np.array[N],..]</em>) &#8211; Position of the intersection on the ring (list contains 2 elements)</li>
 <li><strong>r</strong> (<em>float</em>) &#8211; Radius of the disk (should be centered at (0,0,0) and the perpendicular should be along the z-axis)</li>
 <li><strong>islens</strong> (<em>bool</em>) &#8211; True if the computation is for the lens (change of sign if it is the case)</li>
-<li><strong>N</strong> (<em>int</em>) &#8211; Number of sections for the quadrature formula</li>
+<li><strong>Nth</strong> (<em>int</em>) &#8211; Number of sections for the theta quadrature formula</li>
+<li><strong>Nr</strong> (<em>int</em>) &#8211; Number of sections for the radial quadrature formula</li>
 </ul>
 </td>
 </tr>

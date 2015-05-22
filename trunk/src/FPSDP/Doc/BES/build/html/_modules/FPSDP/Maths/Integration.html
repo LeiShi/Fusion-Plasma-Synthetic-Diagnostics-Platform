@@ -69,11 +69,39 @@
 <span class="sd">    :return: Points of the mesh (each one contains 1/(N-1) % of the total integral)</span>
 <span class="sd">    :rtype: np.array[N]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">cutoff</span><span class="o">/</span><span class="n">sigma</span> <span class="o">&lt;</span> <span class="mf">2.5</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">cutoff</span><span class="o">/</span><span class="n">sigma</span> <span class="o">&lt;</span> <span class="mf">2.49</span><span class="p">:</span>
         <span class="k">print</span> <span class="s">&#39;Cutoff value small: only {} </span><span class="si">% o</span><span class="s">f the integral is taken in account&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="mi">100</span><span class="o">*</span><span class="p">(</span><span class="n">ndtr</span><span class="p">(</span><span class="n">cutoff</span><span class="o">/</span><span class="n">sigma</span><span class="p">)</span><span class="o">-</span><span class="n">ndtr</span><span class="p">(</span><span class="o">-</span><span class="n">cutoff</span><span class="o">/</span><span class="n">sigma</span><span class="p">)))</span>
     <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="n">N</span><span class="p">)</span>
     <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">*</span><span class="p">(</span><span class="n">ndtr</span><span class="p">(</span><span class="n">cutoff</span><span class="o">/</span><span class="n">sigma</span><span class="p">)</span><span class="o">-</span><span class="n">ndtr</span><span class="p">(</span><span class="o">-</span><span class="n">cutoff</span><span class="o">/</span><span class="n">sigma</span><span class="p">))</span><span class="o">+</span><span class="n">ndtr</span><span class="p">(</span><span class="o">-</span><span class="n">cutoff</span><span class="o">/</span><span class="n">sigma</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">ndtri</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">*</span><span class="n">sigma</span>
+</div>
+<div class="viewcode-block" id="get_interval_exponential"><a class="viewcode-back" href="../../../FPSDP.Maths.html#FPSDP.Maths.Integration.get_interval_exponential">[docs]</a><span class="k">def</span> <span class="nf">get_interval_exponential</span><span class="p">(</span><span class="n">cutoff</span><span class="p">,</span><span class="n">tau</span><span class="p">,</span><span class="n">N</span><span class="p">,</span><span class="n">check</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="sd">r&quot;&quot;&quot; Create a mesh for doing a quadrature formula on a function close to</span>
+<span class="sd">    an exponential decay.</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">       x_i = F^{-1}\left(\frac{i}{N-1}\right)</span>
+
+<span class="sd">    where :math:`x_i` are the points defining the intervals, :math:`F(x) = \int_{0}^{x} A\exp\left(-\frac{x}{\tau}\right)`</span>
+<span class="sd">    and :math:`A = \frac{1}{F(cutoff)}`</span>
+
+<span class="sd">    :param float or np.array[Npt] cutoff: Limits of the integral</span>
+<span class="sd">    :param float or np.array[Npt] tau: Characteristic lenght of the exponential</span>
+<span class="sd">    :param int N: Number of points for the integrals</span>
+<span class="sd">    </span>
+<span class="sd">    :return: Points of the mesh (each one contains 1/(N-1) % of the total integral)</span>
+<span class="sd">    :rtype: np.array[Npt,N]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tau</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">tau</span><span class="p">)</span>
+    <span class="n">cutoff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">cutoff</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">check</span> <span class="ow">and</span> <span class="p">(</span><span class="n">cutoff</span><span class="o">/</span><span class="n">tau</span> <span class="o">&lt;</span> <span class="mf">5.0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="k">print</span> <span class="s">&#39;Cutoff value small: only {} </span><span class="si">% o</span><span class="s">f the integral is taken in account&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="mi">100</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">cutoff</span><span class="o">/</span><span class="n">tau</span><span class="p">)))</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span><span class="mf">1.0</span><span class="p">,</span><span class="n">N</span><span class="p">)</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">tau</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">N</span><span class="p">))</span>
+    <span class="n">y</span><span class="p">[:,:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">tau</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">1.0</span><span class="o">/</span><span class="p">(</span><span class="mf">1.0</span><span class="o">-</span><span class="n">x</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">cutoff</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">/</span><span class="n">tau</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]))))</span>
+    <span class="n">y</span><span class="p">[:,</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">cutoff</span>
+    <span class="k">return</span> <span class="n">y</span>
 </div>
 <div class="viewcode-block" id="integration_points"><a class="viewcode-back" href="../../../FPSDP.Maths.html#FPSDP.Maths.Integration.integration_points">[docs]</a><span class="k">def</span> <span class="nf">integration_points</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">meth</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">size</span><span class="o">=-</span><span class="mi">1</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot; Defines a few quadrature formula (in any number of dimension)</span>
@@ -143,6 +171,8 @@
             <span class="n">points</span><span class="p">[</span><span class="mi">7</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.8650633666889845</span>
             <span class="n">points</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.9739065285171717</span>
             <span class="n">points</span><span class="p">[</span><span class="mi">9</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.9739065285171717</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Method not implemented&#39;</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">dim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">obj</span> <span class="o">==</span> <span class="s">&#39;disk&#39;</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">size</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
@@ -167,7 +197,47 @@
                     <span class="n">w</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">10</span><span class="p">]</span> <span class="o">=</span> <span class="n">high_weight</span>
                     <span class="n">points</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">10</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">high</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angle</span><span class="p">),</span>
                                                <span class="n">high</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angle</span><span class="p">)])</span>
+            <span class="k">elif</span> <span class="n">meth</span> <span class="o">==</span> <span class="s">&#39;order4&#39;</span><span class="p">:</span>
+                <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span><span class="o">/</span><span class="mf">4.0</span>
+                <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span>
 
+                <span class="n">h</span> <span class="o">=</span> <span class="n">size</span><span class="o">/</span><span class="mf">2.0</span>
+                <span class="n">points</span><span class="p">[</span><span class="mi">0</span><span class="p">,:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">h</span><span class="p">,</span><span class="n">h</span><span class="p">]</span>
+                <span class="n">points</span><span class="p">[</span><span class="mi">1</span><span class="p">,:]</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">,</span><span class="n">h</span><span class="p">]</span>
+                <span class="n">points</span><span class="p">[</span><span class="mi">2</span><span class="p">,:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">h</span><span class="p">,</span><span class="o">-</span><span class="n">h</span><span class="p">]</span>
+                <span class="n">points</span><span class="p">[</span><span class="mi">3</span><span class="p">,:]</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">,</span><span class="o">-</span><span class="n">h</span><span class="p">]</span>
+
+            <span class="k">elif</span> <span class="n">meth</span> <span class="o">==</span> <span class="s">&#39;order6&#39;</span><span class="p">:</span>
+                <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
+                <span class="n">w</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">/</span><span class="mf">4.0</span>
+                <span class="n">w</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">/</span><span class="mf">8.0</span>
+                
+                <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">7</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span>
+
+                <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.0</span><span class="o">/</span><span class="mf">3.0</span><span class="p">)</span><span class="o">*</span><span class="n">size</span>
+                <span class="n">points</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span>
+                <span class="n">points</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">x</span>
+
+                <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span><span class="o">/</span><span class="mf">6.0</span><span class="p">)</span><span class="o">*</span><span class="n">size</span>
+                <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)</span><span class="o">*</span><span class="n">size</span><span class="o">/</span><span class="mf">2.0</span>
+
+                <span class="n">points</span><span class="p">[</span><span class="mi">3</span><span class="p">,:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">]</span>
+                <span class="n">points</span><span class="p">[</span><span class="mi">4</span><span class="p">,:]</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">]</span>
+                <span class="n">points</span><span class="p">[</span><span class="mi">5</span><span class="p">,:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">,</span><span class="o">-</span><span class="n">y</span><span class="p">]</span>
+                <span class="n">points</span><span class="p">[</span><span class="mi">6</span><span class="p">,:]</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="n">x</span><span class="p">,</span><span class="o">-</span><span class="n">y</span><span class="p">]</span>
+
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Method not implemented&#39;</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Method not implemented&#39;</span><span class="p">)</span>
+
+            
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Method not implemented&#39;</span><span class="p">)</span>
+
+    
     <span class="n">named</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">namedtuple</span><span class="p">(</span><span class="s">&#39;Quadrature&#39;</span><span class="p">,[</span><span class="s">&#39;w&#39;</span><span class="p">,</span><span class="s">&#39;pts&#39;</span><span class="p">])</span>
     <span class="k">return</span> <span class="n">named</span><span class="p">(</span><span class="n">w</span><span class="p">,</span><span class="n">points</span><span class="p">)</span> <span class="c"># can be acces with the following way</span>
     <span class="c"># .w or .pts</span></div>

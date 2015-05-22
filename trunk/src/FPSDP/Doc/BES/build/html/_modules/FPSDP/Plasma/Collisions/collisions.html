@@ -57,8 +57,7 @@
 <div class="viewcode-block" id="Collisions"><a class="viewcode-back" href="../../../../FPSDP.Plasma.Collisions.collisions.html#FPSDP.Plasma.Collisions.collisions.Collisions">[docs]</a><span class="k">class</span> <span class="nc">Collisions</span><span class="p">:</span>
     <span class="sd">r&quot;&quot;&quot; Class containing all the physics about the collisions</span>
 <span class="sd">        </span>
-<span class="sd">    Read the files from ADAS database, compute the lifetime, and compute</span>
-<span class="sd">    the cross-sections (cubic spline interpolation is used).</span>
+<span class="sd">    Read the files from ADAS database, compute the lifetime, and the cross-sections (cubic spline interpolation is used).</span>
 <span class="sd">    </span>
 <span class="sd">    For computing the coefficients, two interpolations are done.</span>
 <span class="sd">    A first one in 2D (beam energy and density) and a second one in temperature.</span>
@@ -73,6 +72,8 @@
 <span class="sd">    :param list[str] files_atte: List of names for ADAS21 files (beam stopping coefficient)</span>
 <span class="sd">    :param list[str] files_emis: List of names for ADAS22 files (emission coefficient)</span>
 <span class="sd">    :param list[int] states: Quantum number of the lower (states[0]) and the higher(states[1]) states of the hydrogen atom</span>
+<span class="sd">    :param float lifetime: Lifetime of the excited state</span>
+
 <span class="sd">    :var list[str] self.files_atte: List of names for ADAS21 files (beam stopping coefficient)</span>
 <span class="sd">    :var list[str] self.files_emis: List of names for ADAS22 files (emission coefficient)</span>
 <span class="sd">    :var list[] self.beam_atte: List of :class:`ADAS21 &lt;FPSDP.Plasma.Collisions.ADAS_file.ADAS21&gt;` instance variable (beam stopping coefficient)</span>
@@ -84,10 +85,10 @@
 <span class="sd">    :var float self.n_low: Quantum number of the lower state for the hydrogen atom</span>
 <span class="sd">    :var float self.n_high: Quantum number of the higher state for the hydrogen atom</span>
 <span class="sd">    :var float self.E0: Energy of the ground state (in eV)    </span>
-<span class="sd">    </span>
+<span class="sd">    :var float self.lifetime: Lifetime of the excited state</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">files_atte</span><span class="p">,</span><span class="n">files_emis</span><span class="p">,</span><span class="n">states</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">files_atte</span><span class="p">,</span><span class="n">files_emis</span><span class="p">,</span><span class="n">states</span><span class="p">,</span><span class="n">lifetime</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Copy the input inside the instance</span>
 <span class="sd">            </span>
 <span class="sd">        :param list[str] files_atte: List of names for ADAS21 files (beam stopping coefficient)</span>
@@ -98,10 +99,11 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">files_emis</span> <span class="o">=</span> <span class="n">files_emis</span>                                         <span class="c">#!</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">beam_emis</span> <span class="o">=</span> <span class="p">[]</span>                                                  <span class="c">#!</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">beam_atte</span> <span class="o">=</span> <span class="p">[]</span>                                                  <span class="c">#!</span>
-        <span class="k">print</span> <span class="s">&#39;The lifetime assume an hydrogen atom&#39;</span>
+        <span class="k">print</span> <span class="s">&#39;The wavelength assumes an hydrogen atom&#39;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_low</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>                                               <span class="c">#!</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_high</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>                                              <span class="c">#!</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">E0</span> <span class="o">=</span> <span class="o">-</span><span class="mf">13.6</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lifetime</span> <span class="o">=</span> <span class="n">lifetime</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">read_adas</span><span class="p">()</span>
 
         <span class="c"># compute the interpolant</span>
@@ -324,32 +326,25 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;No list with this name: {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">typ</span><span class="p">))</span>
 </div>
-<div class="viewcode-block" id="Collisions.get_lifetime"><a class="viewcode-back" href="../../../../FPSDP.Plasma.Collisions.collisions.html#FPSDP.Plasma.Collisions.collisions.Collisions.get_lifetime">[docs]</a>    <span class="k">def</span> <span class="nf">get_lifetime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">ne</span><span class="p">,</span><span class="n">Te</span><span class="p">,</span><span class="n">Ti</span><span class="p">,</span><span class="n">beam</span><span class="p">,</span><span class="n">mass_b</span><span class="p">,</span><span class="n">file_number</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Compute the lifetime of the excited state following the formula</span>
-<span class="sd">        given by I. H. Hutchinson, Plasma Phys. Controlled Fusion 44,71 (2002)</span>
-<span class="sd">        assuming an hydrogen atom.</span>
+<div class="viewcode-block" id="Collisions.get_lifetime"><a class="viewcode-back" href="../../../../FPSDP.Plasma.Collisions.collisions.html#FPSDP.Plasma.Collisions.collisions.Collisions.get_lifetime">[docs]</a>    <span class="k">def</span> <span class="nf">get_lifetime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">ne</span><span class="p">,</span><span class="n">Te</span><span class="p">,</span><span class="n">beam</span><span class="p">,</span><span class="n">mass_b</span><span class="p">,</span><span class="n">file_number</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Compute the lifetime of the excited state.</span>
+<span class="sd">        This version is using the lifetime given in the input but can be upgraded in order</span>
+<span class="sd">        to have a plasma dependant lifetime.</span>
 
+<span class="sd">        :todo: Upgrading in order to take into account the plasma density</span>
+<span class="sd">        </span>
 <span class="sd">        :param float beam: Beam energy (eV)</span>
 <span class="sd">        :param np.array[N] ne: Electron density (m :sup:`-3`)</span>
 <span class="sd">        :param float mass_b: Mass of a neutral particle in the beam (amu)</span>
 <span class="sd">        :param np.array[N] Te: Electron temperature (eV)</span>
-<span class="sd">        :param np.array[N] Ti: Ion temperature (eV)</span>
 <span class="sd">        :param int file_number: File number (choosen in Beam.py)</span>
 
 <span class="sd">        :returns: Lifetime of the excited atom</span>
 <span class="sd">        :rtype: np.array[ne.shape]</span>
 
-<span class="sd">        :todo: everything</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c">#:todo: eV???</span>
-        <span class="n">E</span> <span class="o">=</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">E0</span><span class="o">*</span><span class="p">(</span><span class="mf">1.0</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">n_low</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mf">1.0</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">n_high</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-        <span class="n">frac</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_low</span><span class="p">)</span><span class="o">/</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_high</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span>
-        <span class="c">#print self.get_emission(beam,ne,mass_b,Ti,file_number)</span>
-        <span class="n">sigv</span> <span class="o">=</span> <span class="n">frac</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">E</span><span class="o">/</span><span class="n">Te</span><span class="p">)</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">get_attenutation</span><span class="p">(</span><span class="n">beam</span><span class="p">,</span><span class="n">ne</span><span class="p">,</span><span class="n">mass_b</span><span class="p">,</span><span class="n">Ti</span><span class="p">,</span><span class="n">file_number</span><span class="p">)</span>
-        <span class="c">#print &#39;lifetime&#39;,1.0/(sigv*ne)</span>
-        <span class="c">#return 1.0/(sigv*ne)</span>
 
-        <span class="k">return</span> <span class="mf">3.5e-9</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">ne</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">lifetime</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">ne</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="Collisions.get_wavelength"><a class="viewcode-back" href="../../../../FPSDP.Plasma.Collisions.collisions.html#FPSDP.Plasma.Collisions.collisions.Collisions.get_wavelength">[docs]</a>    <span class="k">def</span> <span class="nf">get_wavelength</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Compute the wavelength of the emitted photons in the particles </span>

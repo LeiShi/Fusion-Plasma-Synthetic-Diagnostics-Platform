@@ -23,6 +23,7 @@ class Tools:
 
     def __init__(self,I,R,Z,psin,I_fluc=False):
         if I_fluc == False:
+            self.Itot = I
             Iav = np.mean(I,axis=0)
             self.I = (I-Iav)/Iav
         else:
@@ -54,34 +55,46 @@ class Tools:
         Z = pos[:,2]
         return cls(I,R,Z,psin,fluc)
 
-    def interpolate(self,Nr,Nz,I):
+    def interpolate(self,Nr,Nz,I,timestep=None,kind='linear'):
         """ Interpolate all the data on a spatial mesh and create this mesh.
         The interpolation is done for each timestep
 
         :param int Nr: Number of points for the discretization in R
         :param int Nz: Number of points for the discretization in Z 
         :param np.array[Ntime,R,Z] I: Picture to interpolate
+        :param int timestep: Time step wanted (None compute all of them)
 
         :return: r,z of the mesh and I on the mesh
         :rtype: tuple(np.array[Nr],np.array[Nz],np.array[Ntime,Nr,Nz])
         """
         r = np.linspace(np.min(self.R),np.max(self.R),Nr)
         z = np.linspace(np.min(self.Z),np.max(self.Z),Nz)
-        
-        Igrid = np.zeros((self.Nt,Nr,Nz))
-        for i in range(self.Nt):
-            temp = interp2d(self.R,self.Z,I[i,:])
-            Igrid[i,:,:] = temp(r,z).T
-            
+
+        if timestep is None:
+            Igrid = np.zeros((self.Nt,Nr,Nz))
+            for i in range(self.Nt):
+                temp = interp2d(self.R,self.Z,I[i,:],kind)
+                Igrid[i,:,:] = temp(r,z).T
+        else:
+            Igrid = np.zeros((Nr,Nz))
+            temp = interp2d(self.R,self.Z,I[timestep,:],kind)
+            Igrid = temp(r,z).T
         return r,z,Igrid
 
-    def fluctuations_picture(self,timestep,v=40):
+    def fluctuations_picture(self,timestep,v=40,total=False):
         """ Plot a graph of the fluctuation
         :param int timestep: Index of the timestep
         :param int v: Number of ticks for the colorbar
+        :param bool total: Choice between total intensity or only fluctuation
         """
+        if total:
+            I = self.Itot[timestep,:]
+        else:
+            I = self.I[timestep,:]
+
+
         plt.figure()
-        plt.tricontourf(self.R,self.Z,self.I[timestep,:],v)
+        plt.tricontourf(self.R,self.Z,I,v)
         plt.colorbar()
         plt.plot(self.R,self.Z,'x')
         plt.tricontour(self.R,self.Z,self.psin,[1])
@@ -126,33 +139,32 @@ class Tools:
         anim.save(name_movie, writer=FFwriter,fps=15, extra_args=['-vcodec', 'libx264'])
 
         
-    def comparison_picture(self,tool2,timestep,v=40):
+    def comparison_picture(self,tool2,timestep,v=40,total=False):
         """ Make a picture from the data.
         self should be the density fluctuation
         :param Tools tool2: Second instance of the Tools class (BES images)
         :param int timestep: Index of the timestep
         :param int v: Number of ticks for the colorbar
-        """        
+        :param bool total: Total intensity or only fluctuation
+        """
+        if total:
+            I = self.Itot
+            I2 = tool2.Itot
+            v1 = np.linspace(0,np.max(I),v)
+            v2 = np.linspace(0,np.max(I2),v)
+        else:
+            I = self.I
+            I2 = tool2.I
+            lim1 = np.min([np.max(I), -np.min(I)])
+            lim2 = np.min([np.max(I2), -np.min(I2)])
+            v1 = np.linspace(-lim1,lim1,v)
+            v2 = np.linspace(-lim2,lim2,v)
 
-        fig, axarr = plt.subplots(1,2,sharey=True)
-        
-        lim1 = np.min([np.max(self.I), -np.min(self.I)])
-        lim2 = np.min([np.max(tool2.I), -np.min(tool2.I)])
-        v1 = np.linspace(-lim1,lim1,v)
-        v2 = np.linspace(-lim2,lim2,v)
         fig, axarr = plt.subplots(1,2)
         
         axarr[0].set_xlabel('R[m]')
         axarr[0].set_ylabel('Z[m]')
         axarr[1].set_xlabel('R[m]')
-
-        
-        tri0 = axarr[0].tricontourf(self.R,self.Z,self.I[0,:],v1)
-        tri1 = axarr[1].tricontourf(tool2.R,tool2.Z,tool2.I[0,:],v2)
-
-        cb = plt.colorbar(tri0,ax=axarr[0])
-        cb = plt.colorbar(tri1,ax=axarr[1])
-
 
         axarr[0].locator_params(axis = 'x',nbins=5)
         
@@ -164,14 +176,19 @@ class Tools:
         plt.suptitle('Timestep : {}'.format(timestep))
         
         axarr[0].plot(tool2.R,tool2.Z,'x')
-        tri1 = axarr[0].tricontourf(tool2.R,tool2.Z,tool2.I[timestep,:],v2)
+        tri0 = axarr[0].tricontourf(tool2.R,tool2.Z,I2[timestep,:],v2,extend='both')
         axarr[0].tricontour(self.R,self.Z,self.psin,[1])
         
         axarr[1].plot(self.R,self.Z,'x')
-        tri2 = axarr[1].tricontourf(self.R,self.Z,self.I[timestep,:],v1)
+        tri1 = axarr[1].tricontourf(self.R,self.Z,I[timestep,:],v1,extend='both')
         axarr[1].tricontour(self.R,self.Z,self.psin,[1])
         
+
+        cb = plt.colorbar(tri0,ax=axarr[0])
+        cb = plt.colorbar(tri1,ax=axarr[1])
+        
         plt.show()
+
 
     def comparison_movie(self,tool2,v=40,name_movie='movie_comp.mp4'):
         """ Make a movie from the data and save it in movie_comp.mp4
@@ -540,9 +557,46 @@ def beam_emission(Nr=40,t=150):
 
     plt.show()
 
-def check_convergence_beam_density(t=140,pt=-1):
+def check_convergence_beam_density(t=140,eq=False):
+    """ Plot the error of the beam density at the last computed point as a function of
+    the number of intervals.
+
+    :param int t: Time step wanted
+    :param bool eq: If equilibrium is wanted
     """
-    """
+    bes = bes_.BES(name)
+    
+    bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
+    bes.beam.data.current = t
+    bes.beam.data.load_next_time_step(increase=False)
+
+    Nsample = 20
+    N = np.logspace(0.5,2,Nsample)
+    nb = np.zeros((bes.beam.beam_comp.shape[0],Nsample))
+    Nref = 1000
+
+    for i in range(Nsample):
+        bes.beam.Nz = np.round(N[i])
+        bes.beam.eq = eq
+        bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
+        bes.beam.create_mesh()
+        bes.beam.compute_beam_on_mesh()
+        nb[:,i] = bes.beam.density_beam[:,-1]
+
+    bes.beam.Nz = Nref
+    bes.beam.eq = eq
+    bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
+    bes.beam.create_mesh()
+    bes.beam.compute_beam_on_mesh()
+    nbref = bes.beam.density_beam[:,-1]
+
+    for i in range(nb.shape[0]):
+        plt.plot(N,np.abs(nb[i,:]-nbref[i])/nbref[i],label='Beam Component {}'.format(i))
+    plt.legend()
+    plt.xlabel('Number of intervals')
+    plt.ylabel('Error')
+    plt.show()
+
 
 def check_convergence_lifetime(t=140,fib=4):
     """ Plot the error as a function of the number of interval for the computation

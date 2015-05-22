@@ -57,6 +57,13 @@ class Tools:
     def interpolate(self,Nr,Nz,I):
         """ Interpolate all the data on a spatial mesh and create this mesh.
         The interpolation is done for each timestep
+
+        :param int Nr: Number of points for the discretization in R
+        :param int Nz: Number of points for the discretization in Z 
+        :param np.array[Ntime,R,Z] I: Picture to interpolate
+
+        :return: r,z of the mesh and I on the mesh
+        :rtype: tuple(np.array[Nr],np.array[Nz],np.array[Ntime,Nr,Nz])
         """
         r = np.linspace(np.min(self.R),np.max(self.R),Nr)
         z = np.linspace(np.min(self.Z),np.max(self.Z),Nz)
@@ -82,10 +89,11 @@ class Tools:
         plt.ylabel('Z[m]')
         plt.show()
 
-    def fluctuations_movie(self,v=40):
+    def fluctuations_movie(self,v=40,name_movie='movie_fl.mp4'):
         """ Make a movie from the data and save it in movie_fl.mp4
         :param int v: Number of ticks for the colorbar
-        """        
+        :param str name_movie: Name of the movie that will be saved
+        """
         from matplotlib import animation
         fig = plt.figure()
         ax = plt.gca()
@@ -115,7 +123,7 @@ class Tools:
         # http://matplotlib.sourceforge.net/api/animation_api.html
 
         FFwriter = animation.FFMpegWriter()
-        anim.save('movie_fl.mp4', writer=FFwriter,fps=15, extra_args=['-vcodec', 'libx264'])
+        anim.save(name_movie, writer=FFwriter,fps=15, extra_args=['-vcodec', 'libx264'])
 
         
     def comparison_picture(self,tool2,timestep,v=40):
@@ -165,7 +173,7 @@ class Tools:
         
         plt.show()
 
-    def comparison_movie(self,tool2,v=40):
+    def comparison_movie(self,tool2,v=40,name_movie='movie_comp.mp4'):
         """ Make a movie from the data and save it in movie_comp.mp4
         self should be the density fluctuation
         :param Tools tool2: BES images
@@ -224,11 +232,24 @@ class Tools:
         # http://matplotlib.sourceforge.net/api/animation_api.html
 
         FFwriter = animation.FFMpegWriter()
-        anim.save('movie_comp.mp4', writer=FFwriter,fps=15, extra_args=['-vcodec', 'libx264'])
+        anim.save(name_movie, writer=FFwriter,fps=15, extra_args=['-vcodec', 'libx264'])
 
 
-    def crosscorrelation(self, Nr=60, Nz=70, dr_max=0.05, dz_max=0.03, dkr_max=300, dkz_max=300, graph='3d'):
-        """
+    def crosscorrelation(self, Nr=60, Nz=70, dr_max=0.05, dz_max=0.03, dkr_max=300, dkz_max=300, graph='3d',figure=True):
+        """ Plot or just compute the shape of the crosscorrelation from the point R[0],Z[0]
+
+        :param int Nr: Number of points for the discretization
+        :param int Nz: Number of points for the discretization
+        :param float dr_max: Distance max to show in the figure for the real space crosscorrelation
+        :param float dz_max: Distance max to show in the figure for the real space crosscorrelation
+        :param float dkr_max: Distance max to show in the figure for the Fourier space crosscorrelation
+        :param float dkz_max: Distance max to show in the figure for the Fourier space crosscorrelation
+        :param str graph: Choice between surface or contourf graph ('2d')
+        :param bool figure: Choice between plot or computing
+
+        :return: If (figure == False), the correlation and its fourier transform are returned.\
+        The size of the two arrays is defined by the cutoff limits (dr_max,dkr_max,...))
+        :rtype: (np.array[R,Z],np.array[R,Z])
         """
         from scipy.signal import correlate2d
         from mpl_toolkits.mplot3d import Axes3D
@@ -270,43 +291,56 @@ class Tools:
         indrfft = (krfft >= 0) & (krfft < dkr_max)
         indzfft = (kzfft >= 0) & (kzfft < dkz_max)
         krfft,kzfft = np.meshgrid(krfft[indrfft],kzfft[indzfft])
-        
-        fig = plt.figure()
-        plt.title('Correlation')
-        if graph == '3d':
-            ax = fig.gca(projection='3d')
-            surf = ax.plot_surface(rm,zm,corr.T, cmap=matplotlib.cm.coolwarm, rstride=2, linewidth=0, cstride=2)
-            fig.colorbar(surf)
-        else:
-            plt.contourf(r[indr_],z[indz_],corr.T,30)
-            plt.colorbar()
-        plt.xlabel('R')
-        plt.ylabel('Z')
 
-        fft_ = fft_corr[indrfft,:]
-        fft_ = fft_[:,indzfft]
-        
-        fig = plt.figure()
-        plt.title('FFT of the Correlation')
-        if graph == '3d':
-            ax = fig.gca(projection='3d')
-            surf = ax.plot_surface(krfft,kzfft,fft_.T, cmap=matplotlib.cm.coolwarm,rstride=1,linewidth=0, cstride=1)
-            fig.colorbar(surf)
-        else:
-            plt.contourf(krfft,kzfft,fft_.T,40)
-            plt.colorbar()
-        plt.xlabel('k_r')
-        plt.ylabel('k_z')
+        if figure:
+            fig = plt.figure()
+            plt.title('Correlation')
+            if graph == '3d':
+                ax = fig.gca(projection='3d')
+                surf = ax.plot_surface(rm,zm,corr.T, cmap=matplotlib.cm.coolwarm, rstride=2, linewidth=0, cstride=2)
+                fig.colorbar(surf)
+            else:
+                plt.contourf(r[indr_],z[indz_],corr.T,30)
+                plt.colorbar()
+            plt.xlabel('R')
+            plt.ylabel('Z')
+
+            fft_ = fft_corr[indrfft,:]
+            fft_ = fft_[:,indzfft]
             
-        plt.figure()
-        plt.plot(r[indr_],corr[:,0],label='R')
-        plt.plot(z[indz_],corr[0,:],label='Z')
-        plt.legend()
-        
-        plt.show()
+            fig = plt.figure()
+            plt.title('FFT of the Correlation')
+            if graph == '3d':
+                ax = fig.gca(projection='3d')
+                surf = ax.plot_surface(krfft,kzfft,fft_.T, cmap=matplotlib.cm.coolwarm,rstride=1,linewidth=0, cstride=1)
+                fig.colorbar(surf)
+            else:
+                plt.contourf(krfft,kzfft,fft_.T,40)
+                plt.colorbar()
+            plt.xlabel('k_r')
+            plt.ylabel('k_z')
+            
+            plt.figure()
+            plt.plot(r[indr_],corr[:,0],label='R')
+            plt.plot(z[indz_],corr[0,:],label='Z')
+            plt.legend()
+            
+            plt.show()
+        else:
+            return corr,fft_
 
     def radial_dep_correlation(self,Nr=40,Zref=0.01,eps=0.4,figure=True):
-        """
+        """ Show the characteristic length of the radial correlation length as a function
+        of the radial position
+
+        :param int Nr: Number of points for the discretization
+        :param fload Zref: Horizontal plane wanted
+        :param float eps: Relative interval accepted for Zref
+        :param bool figure: Choice between plot or computing
+
+        :return: If (figure == False), the radius and the correlation are returned.\
+        :rtype: (np.array[Nr],np.array[Nr])
+        
         """
         ind = np.abs((self.Z - Zref)/Zref) < eps
         N = np.sum(ind)
@@ -332,16 +366,18 @@ class Tools:
                 corr[i] = np.nan
         if not figure:
             return r,corr
+        else:
 
-        fig = plt.figure()
-        plt.plot(r,corr)
-        plt.xlabel('R [m]')
-        plt.ylabel('Correlation length')
-        plt.show()
+            fig = plt.figure()
+            plt.plot(r,corr)
+            plt.xlabel('R [m]')
+            plt.ylabel('Correlation length')
+            plt.show()
             
     def computePSF(self, ne, Nr=20, Nz=30, ne_fluc=False):
         """ Compute the PSF
         """
+        raise NameError('not done')
         if isinstance(ne,str):
             data = np.load(ne)
             ne = data['arr_0']
@@ -379,6 +415,9 @@ name = 'FPSDP/Diagnostics/BES/bes.in'
 
 def beam_density(t=150):
     """ Compare the beam density of the equilibrium case and of the equilibrium+fluctuations case
+
+    Three plots will be done: a first one with the relative difference between the equilibrium and the fluctuation cases,
+    a second one with the absolute value of both and the last one shows the ratio of each components as a function of the distance
 
     """
     bes = bes_.BES(name)
@@ -438,6 +477,12 @@ def beam_density(t=150):
 
 def beam_emission(Nr=40,t=150):
     """ Shows the effect of the beam density on the emission and the effect of the lifetime.
+
+    Three plots will be done: a first one with the emission without the lifetime, a second one with
+    lifetime and a last one that show the relative difference between the two
+
+    :param int Nr: Number of points along the radial direction of the beam
+    :param int t: Timestep wanted
     """
     bes = bes_.BES(name)
     bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
@@ -500,6 +545,12 @@ def check_convergence_beam_density(t=140,pt=-1):
     """
 
 def check_convergence_lifetime(t=140,fib=4):
+    """ Plot the error as a function of the number of interval for the computation
+    of the emission with lifetime.
+
+    :param int t: Timestep wanted
+    :param int fib: Index of the fiber to use for the computation
+    """
 
     bes = bes_.BES(name)
     bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
@@ -508,8 +559,8 @@ def check_convergence_lifetime(t=140,fib=4):
     bes.beam.data.load_next_time_step(increase=False)
     bes.beam.compute_beam_on_mesh()
 
-    N = np.round(np.logspace(1,2.5,30))
-    Nref = 1500
+    N = np.round(np.logspace(0.5,2,30))
+    Nref = 400
 
     emis = np.zeros(N.shape)
     for i,Nlt in enumerate(N):
@@ -520,28 +571,32 @@ def check_convergence_lifetime(t=140,fib=4):
 
     plt.figure()
     plt.loglog(N,np.abs(emis-emis_ref)/emis_ref)
+    plt.grid(True)
     plt.ylabel('Error')
     plt.xlabel('Number of interval')
     plt.show()
 
 
-def check_convergence_field_line_interpolation(t=140,fib=4,phi=0.2,nber_plane=16,fwd=True):
-    """
-    phi is used for putting the fiber far away from the planes
+def check_convergence_field_line(fib=4,phi=0.2,nber_plane=16,fwd=True):
+    """ Plot the error of the field line following integration as a function of the integration step
+    at the position given by the focus point of the fiber and by phi
+
+    :param int fib: Index of the fiber
+    :param float phi: Angle to use for the position
+    :param int nber_plane: Number of planes in XGC1
+    :param bool fwd: Choice of the forward or backward direction
     """
 
     bes = bes_.BES(name)
-    bes.beam.data.current = t
-    bes.beam.data.load_next_time_step(increase=False)
     foc = bes.pos_foc[fib,:]
     r = np.sqrt(np.sum(foc[0:2]**2))
     z = foc[2]
     
-    N = np.logspace(0.2,2,20)
+    N = np.logspace(0.1,2,20)
     Nref = 1000
 
-    dphi = 2*np.pi/(16*N)
-    dphi_ref = 2*np.pi/(16*Nref)
+    dphi = 2*np.pi/(nber_plane*N)
+    dphi_ref = 2*np.pi/(nber_plane*Nref)
 
     if fwd:
         ind = 1
@@ -582,9 +637,17 @@ def check_convergence_field_line_interpolation(t=140,fib=4,phi=0.2,nber_plane=16
 
 
 def check_convergence_interpolation_data(t=140,fib=4,phi=0.2,nber_plane=16,eq=False):
+    """ Plot the error of the field line following interpolation as a function of the
+    step size of the field line integration at the position given by 
+    the focus point of the fiber and by phi
+    
+    :param int t: Timestep wanted
+    :param int fib: Index of the fiber
+    :param float phi: Angle to use for the position
+    :param int nber_plane: Number of planes in XGC1
+    :param bool eq: Choice of the equilibrium or not
     """
-    phi is used for putting the fiber far away from the planes
-    """
+
 
     bes = bes_.BES(name)
     bes.beam.data.current = t
@@ -595,11 +658,11 @@ def check_convergence_interpolation_data(t=140,fib=4,phi=0.2,nber_plane=16,eq=Fa
     y = np.sin(phi)*r
     z = foc[2]
     
-    N = np.logspace(1,2,20)
+    N = np.logspace(0.5,2,20)
     Nref = 1000
 
-    dphi = 2*np.pi/(16*N)
-    dphi_ref = 2*np.pi/(16*Nref)
+    dphi = 2*np.pi/(nber_plane*N)
+    dphi_ref = 2*np.pi/(nber_plane*Nref)
 
         
     ne = np.zeros((N.shape[0]))
@@ -619,17 +682,21 @@ def check_convergence_interpolation_data(t=140,fib=4,phi=0.2,nber_plane=16,eq=Fa
     ne_ref = bes.beam.data.interpolate_data(pos,t,['ne'],eq,check=True)[0]
     
     plt.figure()
+    plt.title('Interpolation of data')
     plt.loglog(N,np.abs((ne-ne_ref)/ne_ref))
-
-    
+    plt.grid(True)    
     plt.ylabel('Error')
     plt.xlabel('Number of interval')
     plt.show()
 
 
-def check_convergence_optic_int(t=140,fib=4,type_='2D'):
-    """
-    phi is used for putting the fiber far away from the planes
+def check_convergence_optic_int(t=140,fib=4,type_='1D'):
+    """ Plot the error of the image captured by a fiber as a function of the number
+    of interval for the integration along the optical axis
+
+    :param int t: Time step wanted
+    :param int fib: Index of the fiber
+    :param str type_: Type of integration wanted (see config file for more detail)
     """
 
     bes = bes_.BES(name)
@@ -659,15 +726,19 @@ def check_convergence_optic_int(t=140,fib=4,type_='2D'):
 
     
     plt.figure()
+    plt.title('Optical integral')
     plt.loglog(N,np.abs((I-I_ref)/I_ref))
-
-    
+    plt.grid(True)
     plt.ylabel('Error')
     plt.xlabel('Number of interval')
     plt.show()
 
-def check_convergence_solid_angle():
+def check_convergence_solid_angle_to_analy():
     """
+    """
+
+def check_convergence_solid_angle():
+    """ Plot the error of the solid angle as a function of the number of interval for R and :math:`\Theta`
     """
     import FPSDP.Maths.Funcs as F
 
@@ -676,33 +747,40 @@ def check_convergence_solid_angle():
     r = 0.15
 
     Nsample = 30
-    N = np.logspace(1,2.5,Nsample)
+    N = np.logspace(0.5,2,Nsample)
 
-    N_ref = 1000
+    N_ref = 300
     R = np.zeros(Nsample)
     Th = np.zeros(Nsample)
 
     for i,N_ in enumerate(N):
         print i
         N_ = np.round(N_)
-        R[i] = F.solid_angle_seg(pos,x,r,False,N_ref,N_,0)
-        Th[i] = F.solid_angle_seg(pos,x,r,False,N_,N_ref,0)
+        R[i] = F.solid_angle_seg(pos,x,r,False,N_ref,N_)
+        Th[i] = F.solid_angle_seg(pos,x,r,False,N_,N_ref)
 
-    ref = F.solid_angle_seg(pos,x,r,False,N_ref,N_ref,0)
+    ref = F.solid_angle_seg(pos,x,r,False,N_ref,N_ref)
     
     plt.figure()
+    plt.title('Solid Angle')
     plt.loglog(N,np.abs((R-ref)/ref),label='R')
     plt.loglog(N,np.abs((Th-ref)/ref),label='$\Theta$')
     plt.grid(True)
     plt.legend()
-    
     plt.ylabel('Error')
     plt.xlabel('Number of interval')
     plt.show()
 
     
 def check_geometry(minorR=0.67,majorR=1.67):
-    """
+    """ Plot the geometry readed by the synthetic diagnostics
+    The default Tokamak is the D3D (only a very simple model of the tokamak
+    is considered)
+
+    :param float minorR: Minor radius of the tokamak (distance between the center\
+    of the plasma to the wall)
+    :param float majorR: Major radius of the tokamak (distance between the symmetry axis\
+    and the center of the plasma))
     """
     print 'Default values assume D3D'
 
@@ -769,7 +847,13 @@ def check_geometry(minorR=0.67,majorR=1.67):
 
 
 def compute_beam_config(Rsource,phisource, Rtan,R=np.array([])):
-    """
+    """ Help to compute the value to put inside the config file
+
+    :param float Rsource: R-coordinate of the beam source
+    :param float phisource: :math:`\phi`-coordinate of the beam source
+    :param float Rtan: Radius where the beam will be tangent
+    :param np.array[N] R: R-coordinate of the fibers (if given, will print the\
+    phi value for being in the beam)
     """
     side = np.sqrt(Rsource**2-Rtan**2)
     alpha = np.arccos((Rsource**2 + Rtan**2 - side**2)/(2*Rsource*Rtan))

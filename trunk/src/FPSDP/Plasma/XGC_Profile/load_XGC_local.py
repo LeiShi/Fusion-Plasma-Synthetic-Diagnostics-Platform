@@ -16,7 +16,7 @@ from FPSDP.IO.IO_funcs import parse_num
 import numpy as np
 import h5py as h5
 from scipy.interpolate import splrep, splev
-from scipy.interpolate import CloughTocher2DInterpolator
+from scipy.interpolate import LinearNDInterpolator, CloughTocher2DInterpolator
 from load_XGC_profile import load_m, XGC_Loader_Error
 from FPSDP.Maths.RungeKutta import runge_kutta_explicit
 
@@ -33,19 +33,23 @@ def get_interp_planes_local(my_xgc,phi3D):
     :rtype: tuple(prev=np.array[N],next=np.array[N])
     """
 
+    temp = np.copy(phi3D)
     # angle between two planes
     dPHI = 2 * np.pi / my_xgc.n_plane
     # angle of each planes
     phi_planes = np.arange(my_xgc.n_plane)*dPHI+my_xgc.shift
     # previous/next plane depends on the direction of the field
+
+    temp [temp < np.min(phi_planes)] += 2*np.pi
+    temp[temp > np.max(phi_planes)] -= 2*np.pi
     if(my_xgc.CO_DIR):
         # find next plane and previous plane
-        nextplane = np.searchsorted(phi_planes,phi3D,side = 'right')
+        nextplane = np.searchsorted(phi_planes,temp,side = 'right')
         prevplane = nextplane - 1
         # change the highest value for the periodicity
         nextplane[np.nonzero(nextplane == my_xgc.n_plane)] = 0
     else:
-        prevplane = np.searchsorted(phi_planes,phi3D,side = 'right')
+        prevplane = np.searchsorted(phi_planes,temp,side = 'right')
         nextplane = prevplane - 1
         prevplane[np.nonzero(prevplane == my_xgc.n_plane)] = 0
 
@@ -67,11 +71,12 @@ class XGC_Loader_local():
     :param list[list[]] limits: Mesh limits for the diagnostics (first index is for X,Y,Z and second for min/max)
     :param float dphi: Size of the step for the field line integration (in radian)
     :param float shift: Shift for phi (default value assumed that plane number 0 is at phi=0)
+    :param str kind: Order of the interpolation method (linear or cubic))
 
     For more detail about the shift, look at the code in :func:`get_interp_planes_local <FPSDP.Plasma.XGC_Profile.load_XGC_local.get_interp_planes_local>`
     """
 
-    def __init__(self,xgc_path,t_start,t_end,dt,limits,dphi,shift=0):
+    def __init__(self,xgc_path,t_start,t_end,dt,limits,dphi,shift=0,kind='linear'):
         """Copy all the input values and call all the functions that compute the equilibrium and the first
         time step.
         """
@@ -86,6 +91,7 @@ class XGC_Loader_local():
         self.te_input_file = xgc_path+'te_input.in'
         self.ne_input_file = xgc_path+'ne_input.in'
         self.shift = shift
+        self.kind = kind
         
         print 'from directory:'+ self.xgc_path
         self.unit_dic = load_m(self.unit_file)
@@ -136,18 +142,19 @@ class XGC_Loader_local():
 
         self.load_next_time_step(False)
 
-    def load_next_time_step(self,increase=True):
+    def load_next_time_step(self,increase=True,t=None):
         """ Load all the quantities for the next time step.
         
         The old quantities are overwritten.
-        Can be easily change to load any time, but for BES
-        loading them in order is enough
         
         :param bool increase: Define if the time step should be increase or not
-
+        :param int t: Time step to load (index in self.time)
         """
         if increase:
             self.current += 1
+        else:
+            if t is not None:
+                self.current = t
         if self.current >= len(self.time_steps):
             raise XGC_Loader_Error('The time step is bigger than the ones\
             requested')
@@ -175,17 +182,21 @@ class XGC_Loader_local():
 
         self.psi = mesh['psi']
         # psi interpolant
-        self.psi_interp = CloughTocher2DInterpolator(
-            np.array([Zpts,Rpts]).T, self.psi, fill_value=np.max(self.psi))
-        
-
+        if self.kind == 'linear':
+            self.psi_interp = LinearNDInterpolator(
+                np.array([Zpts,Rpts]).T, self.psi, fill_value=np.max(self.psi))
+        elif self.kind == 'cubic':
+            self.psi_interp = CloughTocher2DInterpolator(
+                np.array([Zpts,Rpts]).T, self.psi, fill_value=np.max(self.psi))
+        else:
+            raise NameError("The method '{}' is not defined".format(self.kind))
         self.ind = self.ind & (Zpts > self.Zmin) & (Zpts < self.Zmax)
-
+        self.ind[:] = True
         self.psi = self.psi[self.ind]
         Rpts = Rpts[self.ind]
         Zpts = Zpts[self.ind]
         self.points = np.array([Zpts,Rpts]).transpose()
-        
+
         print 'Keep: ',str(Rpts.shape[0]),'Points on a total of: '\
             ,str(self.ind.shape[0])
 
@@ -214,8 +225,14 @@ class XGC_Loader_local():
         # interpolant of each direction of the field
         # use np.inf as a flag for outside points,
         # deal with them later in interpolation function
-        self.B_interp = CloughTocher2DInterpolator(
-            self.points, np.array([BR,BZ,BPhi]).T, fill_value = np.inf)
+        if self.kind == 'linear':
+            self.B_interp = LinearNDInterpolator(
+                self.points, np.array([BR,BZ,BPhi]).T, fill_value = np.inf)
+        elif self.kind == 'cubic':
+            self.B_interp =  CloughTocher2DInterpolator(
+                self.points, np.array([BR,BZ,BPhi]).T, fill_value = np.inf)
+        else:
+            raise NameError("The method '{}' is not defined".format(self.kind))
 
         self.fill_Bphi = np.sign(BPhi[0])*np.min(np.absolute(BPhi))
 
@@ -290,35 +307,15 @@ class XGC_Loader_local():
         # interpolant for the equilibrium of the ions
         self.ti0_sp = splrep(eq_psi,eq_ti,k=1)
         self.ni0_sp = splrep(eq_psi,eq_ni,k=1)
-        if('e_perp_temperature_1d' in eq_mesh.keys() ):
-            #simulation has electron dynamics
-            eq_te = eq_mesh['e_perp_temperature_1d'][0,:]
-            eq_ne = eq_mesh['e_gc_density_1d'][0,:]
-            self.te_min = np.min(eq_te)
-            self.ne_min = np.min(eq_ne)
-            self.te0_sp = splrep(eq_psi,eq_te,k=1)
-            self.ne0_sp = splrep(eq_psi,eq_ne,k=1)
-
-        else:
-            self.load_eq_tene_nonElectronRun() 
-        eq_mesh.close()
-
-    def load_eq_tene_nonElectronRun(self):
-        """For ion only silumations, te and ne are read from simulation input files.
-
-        """
-        te_fname = 'xgc.Te_prof.prf'
-        ne_fname = 'xgc.ne_prof.prf'
-
-        psi_te, te = np.genfromtxt(te_fname,skip_header = 1,skip_footer = 1,unpack = True)
-        psi_ne, ne = np.genfromtxt(ne_fname,skip_header = 1,skip_footer = 1,unpack = True)
-
-        psi_te *= self.psi_x
-        psi_ne *= self.psi_x
-
-        self.te0_sp = splrep(psi_te,te,k=1)
-        self.ne0_sp = splrep(psi_ne,ne,k=1)
+        #simulation has electron dynamics
+        eq_te = eq_mesh['e_perp_temperature_1d'][0,:]
+        eq_ne = eq_mesh['e_gc_density_1d'][0,:]
+        self.te_min = np.min(eq_te)
+        self.ne_min = np.min(eq_ne)
+        self.te0_sp = splrep(eq_psi,eq_te,k=1)
+        self.ne0_sp = splrep(eq_psi,eq_ne,k=1)
         
+        eq_mesh.close()
 
     def calc_total_ne_3D(self,psi,nane,pot):
         """Calculate the total electron at the wanted points.
@@ -333,13 +330,13 @@ class XGC_Loader_local():
         """
         # temperature and density (equilibrium) on the psi mesh
         te0 = splev(psi,self.te0_sp)
+        # avoid temperature <= 0
         te0[te0<self.te_min/10] = self.te_min/10
         ne0 = splev(psi,self.ne0_sp)
         ne0[ne0<self.ne_min/10] = self.ne_min/10
         
-        inner_idx = te0>0
         dne_ad = np.zeros(pot.shape)
-        dne_ad[...,inner_idx] += ne0[inner_idx]*pot[...,inner_idx]/te0[inner_idx]
+        dne_ad += ne0*pot/te0
         ad_valid_idx = np.absolute(dne_ad)<= np.absolute(ne0)
 
         ne = np.zeros(pot.shape)
@@ -360,9 +357,15 @@ class XGC_Loader_local():
         self.interpfluc = []
         for j in range(len(self.planes)):
             # computation of interpolant
-            self.interpfluc.append(
-                CloughTocher2DInterpolator(self.points,np.array([self.phi[j,:],self.nane[j,:]]).T,fill_value=0.0))
-
+            if self.kind == 'linear':
+                self.interpfluc.append(
+                    LinearNDInterpolator(self.points,np.array([self.phi[j,:],self.nane[j,:]]).T,fill_value=0.0))
+            elif self.kind == 'cubic':
+                self.interpfluc.append(
+                    CloughTocher2DInterpolator(self.points,np.array([self.phi[j,:],self.nane[j,:]]).T,fill_value=0.0))
+            else:
+                raise NameError("The method '{}' is not defined".format(self.kind))
+    
 
     def find_interp_positions(self,r,z,phi,prev_,next_):
         """Using B field information and follows the exact field line.
@@ -384,15 +387,27 @@ class XGC_Loader_local():
 
         # angle of the planes
         phi_planes = np.arange(self.n_plane)*dPhi+self.shift
+        ind = phi_planes < 0
+        # put the angle of the planes inside [0,2*pi]
+        while np.sum(ind) != 0:
+            phi_planes[ind] = phi_planes[ind] + 2*np.pi
+            ind = phi_planes < 0
+
+        ind = phi_planes > 2*np.pi
+        # put the angle of the planes inside [0,2*pi]
+        while np.sum(ind) != 0:
+            phi_planes[ind] = phi_planes[ind] - 2*np.pi
+            ind = phi_planes > 2*np.pi
+        
 
         # the previous/next planes depend on the direction of the field
         if(self.CO_DIR):
             # distance (angle) between the phiw wanted and the closest planes
-            phiFWD = np.where(nextplane == 0,np.pi*2 - phi, phi_planes[nextplane]-phi)
+            phiFWD = np.where(phi_planes[nextplane] < dPhi ,phi_planes[nextplane] + np.pi*2 - phi, phi_planes[nextplane]-phi)
             phiBWD = phi_planes[prevplane]-phi
         else:
             phiFWD = phi_planes[nextplane]-phi
-            phiBWD = np.where(prevplane ==0,np.pi*2 - phi, phi_planes[prevplane]-phi)
+            phiBWD = np.where(phi_planes[prevplane] < dPhi ,phi_planes[prevplane] + np.pi*2 - phi, phi_planes[prevplane]-phi)
 
         # angle between two steps
         R_FWD = np.copy(r)
@@ -405,9 +420,7 @@ class XGC_Loader_local():
         # check which index need to be integrated
         ind = np.ones(r.shape,dtype=bool)
         # Coefficient of the Runge-Kutta method
-        a,b,c = runge_kutta_explicit(3)
-        # Number of stage for the method
-        Nstage = b.shape[0]
+        a,b,c,Nstage = runge_kutta_explicit(2)
         sign = 1.0
         # use any because all the angle are of the same sign
         if (phiFWD < 0).any():
@@ -415,26 +428,23 @@ class XGC_Loader_local():
         # forward step
         while ind.any():
             # size of the next step for each position
-            step = phiFWD[ind]
+            step = np.copy(phiFWD[ind])
             step[np.abs(step) > self.dphi] = sign*self.dphi
             # update the position of the next iteration
             phiFWD[ind] -= step
             K = np.zeros((r[ind].shape[0],3,Nstage))
             for i in range(Nstage):
                 # compute the coordinates of this stage
-                dRtemp = step*np.sum(a[i,:i]*K[:,0,:i],axis=1)
-                Rtemp = R_FWD[ind] + dRtemp
-                dZtemp = step*np.sum(a[i,:i]*K[:,1,:i],axis=1)
-                Ztemp = Z_FWD[ind] + dZtemp
-                dPhitemp = step*np.sum(a[i,:i])
+                Rtemp = R_FWD[ind] + step*np.sum(a[i,:i]*K[:,0,:i],axis=1)
+                Ztemp = Z_FWD[ind] + step*np.sum(a[i,:i]*K[:,1,:i],axis=1)
                 Btemp = self.B_interp(Ztemp,Rtemp)
                 # avoid the part outside the mesh
                 indinf = np.isfinite(Btemp[:,2])
+
                 # evaluate the function
-                
                 K[indinf,0,i] = Rtemp[indinf] * Btemp[indinf,0] / Btemp[indinf,2]
-                K[indinf,1,i] = Ztemp[indinf] * Btemp[indinf,1] / Btemp[indinf,2]
-                K[indinf,2,i] = np.sqrt(dRtemp[indinf]**2 * + (Rtemp[indinf]*dPhitemp[indinf])**2 + Ztemp[indinf]**2)
+                K[indinf,1,i] = Rtemp[indinf] * Btemp[indinf,1] / Btemp[indinf,2]
+                K[indinf,2,i] = np.sqrt(Rtemp[indinf]**2 + K[indinf,0,i]**2 + K[indinf,1,i]**2)
 
 
             # compute the final value of this step
@@ -461,25 +471,23 @@ class XGC_Loader_local():
         # backward step
         while ind.any():
             # size of the next step for each position
-            step = phiBWD[ind]
+            step = np.copy(phiBWD[ind])
             step[np.abs(step) > self.dphi] = sign*self.dphi
             # update the position of the next iteration
             phiBWD[ind] -= step
             K = np.zeros((r[ind].shape[0],3,Nstage))
             for i in range(Nstage):
                 # compute the coordinates of this stage
-                dRtemp = step*np.sum(a[i,:i]*K[:,0,:i],axis=1)
-                Rtemp = R_BWD[ind] + dRtemp
-                dZtemp = step*np.sum(a[i,:i]*K[:,1,:i],axis=1)
-                Ztemp = Z_BWD[ind] + dZtemp
-                dPhitemp = step*np.sum(a[i,:i])
+                Rtemp = R_BWD[ind] + step*np.sum(a[i,:i]*K[:,0,:i],axis=1)
+                Ztemp = Z_BWD[ind] + step*np.sum(a[i,:i]*K[:,1,:i],axis=1)
                 Btemp = self.B_interp(Ztemp,Rtemp)
                 indinf = np.isfinite(Btemp[:,2])
                 # evaluate the function
                 
                 K[indinf,0,i] = Rtemp[indinf] * Btemp[indinf,0] / Btemp[indinf,2]
-                K[indinf,1,i] = Ztemp[indinf] * Btemp[indinf,1] / Btemp[indinf,2]
-                K[indinf,2,i] = np.sqrt(dRtemp[indinf]**2 * + (Rtemp[indinf]*dPhitemp[indinf])**2 + Ztemp[indinf]**2)
+                K[indinf,1,i] = Rtemp[indinf] * Btemp[indinf,1] / Btemp[indinf,2]
+                K[indinf,2,i] = np.sqrt(Rtemp[indinf]**2 + K[indinf,0,i]**2 + K[indinf,1,i]**2)
+
 
             # compute the final value of this step
             dR_BWD = step*np.sum(b[np.newaxis,:]*K[:,0,:],axis=1)
@@ -534,14 +542,15 @@ class XGC_Loader_local():
         phi = np.arctan2(pos[...,1],pos[...,0]).flatten()
         # goes into the interval [0,2pi]
         phi[phi<0] += 2*np.pi
+        
         # get the planes for theses points
         prevplane,nextplane = get_interp_planes_local(self,phi)
-
         # check if asking for densities
         ne_bool = 'ne' in quant
-
-        #psi on grid
-        psi = self.psi_interp(z,r)
+        
+        if eq or ('Te' in quant) or ('Ti' in quant):
+            #psi on grid
+            psi = self.psi_interp(z,r)
         # check if want equilibrium data
         if eq:
             #ne0 on grid

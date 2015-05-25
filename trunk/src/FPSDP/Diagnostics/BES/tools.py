@@ -571,11 +571,12 @@ def check_convergence_beam_density(t=140,eq=False):
     bes.beam.data.load_next_time_step(increase=False)
 
     Nsample = 20
-    N = np.logspace(0.5,2,Nsample)
+    N = np.logspace(0.7,2.1,Nsample)
     nb = np.zeros((bes.beam.beam_comp.shape[0],Nsample))
     Nref = 1000
 
     for i in range(Nsample):
+        print i
         bes.beam.Nz = np.round(N[i])
         bes.beam.eq = eq
         bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
@@ -591,8 +592,11 @@ def check_convergence_beam_density(t=140,eq=False):
     nbref = bes.beam.density_beam[:,-1]
 
     for i in range(nb.shape[0]):
-        plt.plot(N,np.abs(nb[i,:]-nbref[i])/nbref[i],label='Beam Component {}'.format(i))
+        plt.loglog(N,np.abs(nb[i,:]-nbref[i])/nbref[i],label='Beam Component {}'.format(i))
+
+    plt.title('Beam Density')
     plt.legend()
+    plt.grid(True)
     plt.xlabel('Number of intervals')
     plt.ylabel('Error')
     plt.show()
@@ -624,6 +628,7 @@ def check_convergence_lifetime(t=140,fib=4):
     emis_ref = bes.beam.get_emis_lifetime(bes.pos_foc[fib,:],t)[0,:]
 
     plt.figure()
+    plt.title('Lifetime convergence')
     plt.loglog(N,np.abs(emis-emis_ref)/emis_ref)
     plt.grid(True)
     plt.ylabel('Error')
@@ -646,7 +651,7 @@ def check_convergence_field_line(fib=4,phi=0.2,nber_plane=16,fwd=True):
     r = np.sqrt(np.sum(foc[0:2]**2))
     z = foc[2]
     
-    N = np.logspace(0.1,2,20)
+    N = np.logspace(0.4,1.5,20)
     Nref = 1000
 
     dphi = 2*np.pi/(nber_plane*N)
@@ -677,6 +682,8 @@ def check_convergence_field_line(fib=4,phi=0.2,nber_plane=16,fwd=True):
     pos_ref[0] = temp[ind,1] # R
     pos_ref[1] = temp[ind,0] # Z
     pos_ref[2] = temp[ind,2] # s
+
+    print temp[ind,:]
     
     plt.figure()
     plt.loglog(dphi,np.abs((pos[:,0]-pos_ref[0])/pos_ref[0]),label='R')
@@ -787,9 +794,35 @@ def check_convergence_optic_int(t=140,fib=4,type_='1D'):
     plt.xlabel('Number of interval')
     plt.show()
 
-def check_convergence_solid_angle_to_analy():
+def check_convergence_solid_angle_to_analy(R=0.5,Z=0.1,radius=0.4,Nth=100,Nr=10):
+    """ Is used for checking the convergence to the analytical formula
+    in the case where the intersection tends to a single point
+
+    :param float R: Distance from the central axis of the emission position
+    :param float Z: Z-coordinate (along the central line)
+    :param float radius: Radius of the obstacle
     """
-    """
+    from FPSDP.Maths.Funcs import solid_angle_disk, solid_angle_seg
+    Nsample = 100
+    phi = np.linspace(np.pi/4.0,np.pi/2.0,Nsample)
+    y = -radius*np.sin(phi)
+    x = radius*np.cos(phi)
+
+    x1 = np.array([x,y]).T
+    x2 = np.array([-x,y]).T
+    pos = np.array(np.ones((Nsample,1))*np.array([[0,R,Z]]))
+    
+    solid = solid_angle_seg(pos,[x1,x2],radius,0,Nth,Nr)
+    analytical = solid_angle_disk(pos[0,:],radius)
+
+    phi = np.cos(phi)
+    plt.figure()
+    plt.title('Verification of the Solid Angle Computation')
+    plt.grid(True)
+    plt.plot(phi,np.abs((solid-analytical)/analytical),'x')
+    plt.xlabel('Cosine of the Intersection Angle')
+    plt.ylabel('Error')
+    plt.show()
 
 def check_convergence_solid_angle():
     """ Plot the error of the solid angle as a function of the number of interval for R and :math:`\Theta`
@@ -926,3 +959,36 @@ def compute_beam_config(Rsource,phisource, Rtan,R=np.array([])):
     if R.shape[0] != 0:
         phifoc = np.arccos(Rtan/R) + phitan
         print 'If you want the fibers on the central line of the beam, Phi = ',-phifoc
+
+
+
+def check_interpolation(phi=0.1,t=130,Nr=200,Nz=210,R=[0,2.4],Z=[-1.5,1.5]):
+    
+    bes = bes_.BES(name)
+    
+    bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
+    bes.beam.data.current = t
+    bes.beam.data.load_next_time_step(increase=False)
+
+    
+    r = np.linspace(R[0],R[1],Nr)
+    z = np.linspace(Z[0],Z[1],Nz)
+    R,Z = np.meshgrid(r,z)
+    R = R.flatten()
+    Z = Z.flatten()
+    
+    x = R*np.cos(phi)
+    y = R*np.sin(phi)
+    
+    ne = bes.beam.data.interpolate_data(np.array([x,y,Z]).T,t,['ne'],False,False)[0]
+    ne = np.reshape(ne,(Nr,Nz))
+    R = np.reshape(R,(Nr,Nz))
+    Z = np.reshape(Z,(Nr,Nz))
+
+    
+    plt.figure()
+    plt.contourf(R,Z,ne,extend='both')
+    plt.xlabel('R-coordinate')
+    plt.ylabel('Z-coordinate')
+    plt.colorbar()
+    plt.show()

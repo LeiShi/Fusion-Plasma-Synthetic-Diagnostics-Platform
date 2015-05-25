@@ -45,6 +45,7 @@ def solid_angle_disk(pos,r):
     :returns: Solid angle for each positions
     :rtype: np.array[N]
     """
+    pos = np.atleast_2d(pos)
     # define a few value (look Paxton paper for name)
     r0 = np.sqrt(np.sum(pos[:,0:2]**2, axis=1))
     ind1 = r0 != 0

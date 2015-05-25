@@ -230,13 +230,12 @@ class BES:
         end = json.loads(config.get('Data','timeend'))
         timestep = json.loads(config.get('Data','timestep'))
         filter_name = config.get('Data','filter')
+        order = config.get('Data','interpolation')
         self.beam = be.Beam1D(input_file)                                    #!
         self.compute_limits()      # compute the limits of the mesh
-        # position swap due to a difference in the axis        
-        #grid3D = Grid.Cartesian3D(Xmin=self.Xmin, Xmax=self.Xmax, Ymin=self.Zmin, Ymax=self.Zmax,
-        #                          Zmin=self.Ymin, Zmax=self.Ymax, NX=self.N[0], NY=self.N[2], NZ=self.N[1])
+        
         xgc_ = xgc.XGC_Loader_local(self.data_path, start, end, timestep,
-                                  self.limits, self.dphi,shift)
+                                    self.limits, self.dphi,shift,order)
         self.time = xgc_.time_steps                                          #!
 
         # set the data inside the beam (2nd part of the initialization)

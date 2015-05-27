@@ -279,7 +279,9 @@ class Beam1D:
         
         # define the quadrature formula for this method
         quad = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
-        for j in range(len(self.mesh[:,0])):
+        # can be rewritten by computing the integral of all the interval at
+        # once and using cumulative sum
+        for j in range(self.mesh.shape[0]):
             # density over the central line (usefull for some check)
             if j is not 0:
                 temp_beam = np.zeros(len(self.beam_comp))
@@ -309,7 +311,7 @@ class Beam1D:
                         T,file_nber)
 
                     # half distance between a & b
-                    norm_ = 0.5*np.sqrt(np.sum((b-a)**2))
+                    norm_ = np.sqrt(np.sum(diff**2))
                     temp1 = np.sum(ne*S*quad.w)
                     temp1 *= norm_/self.speed[beam_nber]
                     temp_beam[beam_nber] += temp1
@@ -445,12 +447,10 @@ class Beam1D:
             up_lim = np.minimum(l*self.t_max*self.speed[beam_nber],dist)
             check_ = ~(up_lim == dist).any()
             # split the distance in interval
-            # copy and modify the source code of linspace
-            delta = integ.get_interval_exponential(up_lim,l*self.speed[beam_nber],self.Nlt,check=check_)
+            #delta = integ.get_interval_exponential(up_lim,l*self.speed[beam_nber],self.Nlt,check=check_)
 
-            #step = up_lim/float(self.Nlt)
-            #delta = step[...,np.newaxis]*np.arange(0, self.Nlt)\
-            #        *np.ones(l.shape)[...,np.newaxis]
+            step = up_lim/float(self.Nlt-1)
+            delta = step[...,np.newaxis]*np.arange(0, self.Nlt)
             
             # average position (a+b)/2
             av = 0.5*(delta[...,:-1] + delta[...,1:])
@@ -484,8 +484,7 @@ class Beam1D:
                 print 'isnan',np.isnan(f)
                 print 'pos',pos
                 raise NameError('Mesh not well computed')
-            
-            f = np.einsum('kmn,n->km',f,quad.w)
 
+            f = np.einsum('kmn,n->km',f,quad.w)
             emis[beam_nber,:] = np.sum(diff*f,axis=-1)/l
         return emis

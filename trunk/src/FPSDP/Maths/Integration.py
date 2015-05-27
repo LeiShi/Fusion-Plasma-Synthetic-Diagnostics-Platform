@@ -65,7 +65,11 @@ def integration_points(dim, meth, obj='', size=-1):
     :rtype: Named tuple (.pts and .w)
     """
     if dim == 1:
-        if meth == 'GL4': # gauss legendre with accuracy order 4, exactness 3 and 2 points.
+        if meth == 'GL2':
+            w = np.array([2.0])
+            points = np.array([0.0])
+            
+        elif meth == 'GL4': # gauss legendre with accuracy order 4, exactness 3 and 2 points.
             w = np.array([1.0,1.0])
             temp = np.sqrt(1.0/3.0)
             points = np.array([-temp,temp])

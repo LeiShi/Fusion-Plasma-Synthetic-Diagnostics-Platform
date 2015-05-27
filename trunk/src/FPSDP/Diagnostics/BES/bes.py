@@ -183,7 +183,11 @@ class BES:
         self.Nint = json.loads(config.get('Optics','Nint'))                  #!
         self.Nsolid = json.loads(config.get('Optics','Nsolid'))              #!
         self.Nr = json.loads(config.get('Optics','Nr'))                      #!
-    
+
+        if self.Nint/self.inter < 10:
+            print """WARNING: The precision of the optical integral is assumed to be
+            to small"""
+
         R = json.loads(config.get('Optics','R'))
         R = np.array(R)
         phi = json.loads(config.get('Optics','phi'))
@@ -331,8 +335,8 @@ class BES:
         w = (width[0]*np.sum(self.op_direc[0,0:2]) + width[1]*self.op_direc[0,2])*self.inter
         w /= np.abs(np.dot(self.beam.direc,self.op_direc[0,:]))
         # size of the integration along the optical axis
-        d = self.inter*w
-
+        d = self.inter*w        
+        
         # position of the last value computed on the axis
         # the origin of this system is the center of the ring
         center_max = np.zeros((self.pos_foc.shape[0],3))
@@ -914,7 +918,8 @@ class BES:
         width = (width[0]*np.sum(self.op_direc[fiber_nber,0:2]) + width[1]*self.op_direc[fiber_nber,2])*self.inter
         width /= np.abs(np.dot(self.beam.direc,self.op_direc[fiber_nber,:]))
         # limit of the intervals
-        border = integ.get_interval_gaussian(width*self.inter,width,self.Nint)
+        border = np.linspace(-width*self.inter,width*self.inter,self.Nint)
+	#border = integ.get_interval_gaussian(width*self.inter,width,self.Nint)
         # value inside the intervals
         Z = 0.5*(border[:-1] + border[1:])
         # half size of one interval
@@ -924,7 +929,7 @@ class BES:
             pt = z + ba2[i]*quad.pts + self.dist[fiber_nber]
             light = self.light_from_plane(pt,t_,fiber_nber,i,comp_eps)
             # sum the weight with the appropriate pts
-            I += np.sum(quad.w*light*ba2[i])
+            I += np.sum(quad.w*light)*ba2[i]
         # multiply by the weigth of each interval
         return I
         
@@ -1178,12 +1183,10 @@ class BES_ideal:
         self.dphi = json.loads(config.get('Data','dphi'))                    #!
         end = json.loads(config.get('Data','timeend'))
         timestep = json.loads(config.get('Data','timestep'))
+        order = config.get('Data','interpolation')
         self.compute_limits()      # compute the limits of the mesh
-        # position swap due to a difference in the axis        
-        #grid3D = Grid.Cartesian3D(Xmin=self.Xmin, Xmax=self.Xmax, Ymin=self.Zmin, Ymax=self.Zmax,
-        #                          Zmin=self.Ymin, Zmax=self.Ymax, NX=self.N[0], NY=self.N[2], NZ=self.N[1])
         xgc_ = xgc.XGC_Loader_local(self.data_path, start, end, timestep,
-                                  self.limits, self.dphi,shift)
+                                    self.limits, self.dphi,shift,order)
         self.time = xgc_.time_steps                                          #!
 
 

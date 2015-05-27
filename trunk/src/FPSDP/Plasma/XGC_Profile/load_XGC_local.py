@@ -152,9 +152,9 @@ class XGC_Loader_local():
         """
         if increase:
             self.current += 1
-        else:
-            if t is not None:
-                self.current = t
+
+        if t is not None:
+            self.current = t
         if self.current >= len(self.time_steps):
             raise XGC_Loader_Error('The time step is bigger than the ones\
             requested')
@@ -255,11 +255,6 @@ class XGC_Loader_local():
         this loading method doesn't differentiate them and will read all of them.
         
         """
-        #similar to the 2D case, we first read one file to determine the total
-        # toroidal plane number in the simulation
-        flucf = self.xgc_path + 'xgc.3d.'+str(self.time_steps[0]).zfill(5)+'.h5'
-        fluc_mesh = h5.File(flucf,'r')
-
         # list of all planes of interest
         self.planes = np.unique(np.array([np.unique(self.refprevplane),
                                           np.unique(self.refnextplane)]))

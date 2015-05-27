@@ -18,10 +18,11 @@ class Tools:
     :param np.array[Nfib] R: R coordinate
     :param np.array[Nfib] Z: Z coordinate
     :param np.array[Nfib] psin: :math:`\Psi_n` value
+    :param str name_id: Name defining the data (used for the titles))
     :param bool I_fluc: Input are fluctuation or total intensity
     """
 
-    def __init__(self,I,R,Z,psin,I_fluc=False):
+    def __init__(self,I,R,Z,psin,name_id,I_fluc=False):
         if I_fluc == False:
             self.Itot = I
             Iav = np.mean(I,axis=0)
@@ -29,6 +30,7 @@ class Tools:
         else:
             self.I = I
 
+        self.name_id = name_id
         self.R = R
         self.Z = Z
         self.psin = psin
@@ -36,7 +38,7 @@ class Tools:
         self.Nt = I.shape[0]
 
     @classmethod
-    def init_from_file(cls,filename,fluc=False):
+    def init_from_file(cls,filename,name_id,fluc=False):
         """ Load of file in the numpy format (npz)
 
         The data inside it should be in the following order: [I,psin,pos_foc,...]
@@ -53,7 +55,7 @@ class Tools:
         pos = data['arr_2']
         R = np.sqrt(np.sum(pos[:,0:2]**2,axis=1))
         Z = pos[:,2]
-        return cls(I,R,Z,psin,fluc)
+        return cls(I,R,Z,psin,name_id,fluc)
 
     def interpolate(self,Nr,Nz,I,timestep=None,kind='linear'):
         """ Interpolate all the data on a spatial mesh and create this mesh.
@@ -141,8 +143,8 @@ class Tools:
         
     def comparison_picture(self,tool2,timestep,v=40,total=False):
         """ Make a picture from the data.
-        self should be the density fluctuation
-        :param Tools tool2: Second instance of the Tools class (BES images)
+
+        :param Tools tool2: Second instance of the Tools class
         :param int timestep: Index of the timestep
         :param int v: Number of ticks for the colorbar
         :param bool total: Total intensity or only fluctuation
@@ -169,8 +171,8 @@ class Tools:
         axarr[0].locator_params(axis = 'x',nbins=5)
         
         axarr[1].locator_params(axis = 'x',nbins=5)
-        axarr[0].set_title('Density fluctuation')
-        axarr[1].set_title('Synthetic BES')
+        axarr[0].set_title(tool2.name_id)
+        axarr[1].set_title(self.name_id)
         
         axarr[1].set_yticklabels([])
         plt.suptitle('Timestep : {}'.format(timestep))
@@ -209,8 +211,8 @@ class Tools:
         axarr[1].set_xlabel('R[m]')
 
         
-        tri0 = axarr[0].tricontourf(self.R,self.Z,self.I[0,:],v1)
-        tri1 = axarr[1].tricontourf(tool2.R,tool2.Z,tool2.I[0,:],v2)
+        tri0 = axarr[1].tricontourf(self.R,self.Z,self.I[0,:],v1)
+        tri1 = axarr[0].tricontourf(tool2.R,tool2.Z,tool2.I[0,:],v2)
 
         cb = plt.colorbar(tri0,ax=axarr[0])
         cb = plt.colorbar(tri1,ax=axarr[1])
@@ -222,8 +224,8 @@ class Tools:
             axarr[0].locator_params(axis = 'x',nbins=5)
             axarr[1].cla()
             axarr[1].locator_params(axis = 'x',nbins=5)
-            axarr[0].set_title('Density fluctuation')
-            axarr[1].set_title('Synthetic BES')
+            axarr[0].set_title(tool2.name_id)
+            axarr[1].set_title(self.name_id)
   
             axarr[1].set_yticklabels([])
             plt.suptitle('Timestep : {}'.format(i))
@@ -391,36 +393,6 @@ class Tools:
             plt.ylabel('Correlation length')
             plt.show()
             
-    def computePSF(self, ne, Nr=20, Nz=30, ne_fluc=False):
-        """ Compute the PSF
-        """
-        raise NameError('not done')
-        if isinstance(ne,str):
-            data = np.load(ne)
-            ne = data['arr_0']
-        if ne_fluc == False:
-            neav = np.mean(ne,axis=0)
-            ne = (ne-neav)/neav
-
-        r,z,negrid = self.interpolate(Nr,Nz,ne)
-        r,z,Igrid = self.interpolate(Nr,Nz,self.I)
-        
-        self.psf = np.zeros((Nr,Nz))
-
-        for i in range(self.Nt):
-            ne_tilde = fft2(negrid[i,...])
-            I_tilde = fft2(Igrid[i,...])
-            I_tilde /= ne_tilde
-            self.psf += np.real(ifft2(I_tilde))
-
-        self.psf /= self.Nt
-
-        plt.figure()
-        plt.contourf(r,z,self.psf.T)
-        plt.xlabel('R[m]')
-        plt.ylabel('Z[m]')
-        plt.colorbar()
-        plt.show()
 
         
 """ Define a few test for checking the data given by the code
@@ -569,30 +541,31 @@ def check_convergence_beam_density(t=140,eq=False):
     bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
     bes.beam.data.current = t
     bes.beam.data.load_next_time_step(increase=False)
+    bes.beam.data.dphi = 0.01
 
     Nsample = 20
-    N = np.logspace(0.7,2.1,Nsample)
+    N = np.logspace(1,2,Nsample)
     nb = np.zeros((bes.beam.beam_comp.shape[0],Nsample))
-    Nref = 1000
+    Nref = 300
 
+    bes.beam.eq = eq
     for i in range(Nsample):
         print i
         bes.beam.Nz = np.round(N[i])
-        bes.beam.eq = eq
         bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
         bes.beam.create_mesh()
         bes.beam.compute_beam_on_mesh()
         nb[:,i] = bes.beam.density_beam[:,-1]
 
     bes.beam.Nz = Nref
-    bes.beam.eq = eq
     bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
     bes.beam.create_mesh()
     bes.beam.compute_beam_on_mesh()
     nbref = bes.beam.density_beam[:,-1]
 
     for i in range(nb.shape[0]):
-        plt.loglog(N,np.abs(nb[i,:]-nbref[i])/nbref[i],label='Beam Component {}'.format(i))
+        print nb[i,:]-nbref[i]
+        plt.loglog(N,np.abs((nb[i,:]-nbref[i])/nbref[i]),label='Beam Component {}'.format(i+1))
 
     plt.title('Beam Density')
     plt.legend()
@@ -602,7 +575,7 @@ def check_convergence_beam_density(t=140,eq=False):
     plt.show()
 
 
-def check_convergence_lifetime(t=140,fib=4):
+def check_convergence_lifetime(t=140,fib=4,beam_comp=0):
     """ Plot the error as a function of the number of interval for the computation
     of the emission with lifetime.
 
@@ -617,19 +590,19 @@ def check_convergence_lifetime(t=140,fib=4):
     bes.beam.data.load_next_time_step(increase=False)
     bes.beam.compute_beam_on_mesh()
 
-    N = np.round(np.logspace(0.5,2,30))
-    Nref = 400
+    N = np.round(np.logspace(2,3,30))
+    Nref = 4000
 
     emis = np.zeros(N.shape)
     for i,Nlt in enumerate(N):
         bes.beam.Nlt = Nlt
-        emis[i] = bes.beam.get_emis_lifetime(bes.pos_foc[fib,:],t)[0,:]
+        emis[i] = bes.beam.get_emis_lifetime(bes.pos_foc[fib,:],t)[beam_comp,:]
     bes.beam.Nlt = Nref
-    emis_ref = bes.beam.get_emis_lifetime(bes.pos_foc[fib,:],t)[0,:]
+    emis_ref = bes.beam.get_emis_lifetime(bes.pos_foc[fib,:],t)[beam_comp,:]
 
     plt.figure()
     plt.title('Lifetime convergence')
-    plt.loglog(N,np.abs(emis-emis_ref)/emis_ref)
+    plt.loglog(N,np.abs((emis-emis_ref)/emis_ref))
     plt.grid(True)
     plt.ylabel('Error')
     plt.xlabel('Number of interval')
@@ -651,8 +624,8 @@ def check_convergence_field_line(fib=4,phi=0.2,nber_plane=16,fwd=True):
     r = np.sqrt(np.sum(foc[0:2]**2))
     z = foc[2]
     
-    N = np.logspace(0.4,1.5,20)
-    Nref = 1000
+    N = np.logspace(1,3,20)
+    Nref =5000
 
     dphi = 2*np.pi/(nber_plane*N)
     dphi_ref = 2*np.pi/(nber_plane*Nref)
@@ -768,9 +741,9 @@ def check_convergence_optic_int(t=140,fib=4,type_='1D'):
     bes.type_int = type_
     bes.pos_foc = np.atleast_2d(bes.pos_foc[fib,:])
     
-    Nsample = 20
+    Nsample = 30
     N_ref = 300
-    N = np.logspace(0.5,2,Nsample)
+    N = np.logspace(1,2,Nsample)
     I = np.zeros(Nsample)
 
     for i,N_ in enumerate(N):

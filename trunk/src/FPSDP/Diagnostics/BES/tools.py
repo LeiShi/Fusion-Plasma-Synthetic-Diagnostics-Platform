@@ -91,9 +91,10 @@ class Tools:
         """
         if total:
             I = self.Itot[timestep,:]
+            v = np.linspace(np.min(self.Itot),np.max(self.Itot))
         else:
             I = self.I[timestep,:]
-
+            v = np.linspace(np.min(self.I),np.max(self.I))
 
         plt.figure()
         plt.tricontourf(self.R,self.Z,I,v)
@@ -159,8 +160,8 @@ class Tools:
             I2 = tool2.I
             lim1 = np.min([np.max(I), -np.min(I)])
             lim2 = np.min([np.max(I2), -np.min(I2)])
-            v1 = np.linspace(-lim1,lim1,v)
-            v2 = np.linspace(-lim2,lim2,v)
+            v1 = np.linspace(np.min(I),np.max(I),v)
+            v2 = np.linspace(np.min(I),np.max(I2),v)
 
         fig, axarr = plt.subplots(1,2)
         
@@ -192,18 +193,28 @@ class Tools:
         plt.show()
 
 
-    def comparison_movie(self,tool2,v=40,name_movie='movie_comp.mp4'):
+    def comparison_movie(self,tool2,v=40,name_movie='movie_comp.mp4',interpolation=False):
         """ Make a movie from the data and save it in movie_comp.mp4
         self should be the density fluctuation
         :param Tools tool2: BES images
         :param int v: Number of ticks for the colorbar
-        """        
+        :param str name_movie: Name of the output movie
+        :param bool interpolation: Choice of making an interpolation on a grid
+        """
+        Nr = 100
+        Nz = 120
         from matplotlib import animation
+        if interpolation:
+            r,z,I_id = self.interpolate(Nr,Nz,self.I)
+            r,z,I = self.interpolate(Nr,Nz,tool2.I)
 
-        lim1 = np.min([np.max(self.I), -np.min(self.I)])
-        lim2 = np.min([np.max(tool2.I), -np.min(tool2.I)])
-        v1 = np.linspace(-lim1,lim1,v)
-        v2 = np.linspace(-lim2,lim2,v)
+        #lim1 = np.min([np.max(self.I), -np.min(self.I)])
+        #lim2 = np.min([np.max(tool2.I), -np.min(tool2.I)])
+        #v1 = np.linspace(-lim1,lim1,v)
+        #v2 = np.linspace(-lim2,lim2,v)
+        print self.I, tool2.I
+        v1 = np.linspace(np.min(self.I),np.max(self.I),v)
+        v2 = np.linspace(np.min(tool2.I),np.max(tool2.I),v)
         fig, axarr = plt.subplots(1,2)
         
         axarr[0].set_xlabel('R[m]')
@@ -231,11 +242,17 @@ class Tools:
             plt.suptitle('Timestep : {}'.format(i))
             
             axarr[0].plot(tool2.R,tool2.Z,'x')
-            tri1 = axarr[0].tricontourf(tool2.R,tool2.Z,tool2.I[i,:],v2,extend='both')
+            if interpolation:
+                tri0 = axarr[1].contourf(r,z,I[i,...].T,v2,extend='both')
+            else:
+                tri0 = axarr[1].tricontourf(tool2.R,tool2.Z,tool2.I[i,:],v2,extend='both')
             axarr[0].tricontour(self.R,self.Z,self.psin,[1])
 
             axarr[1].plot(self.R,self.Z,'x')
-            tri2 = axarr[1].tricontourf(self.R,self.Z,self.I[i,:],v1,extend='both')
+            if interpolation:
+                tri1 = axarr[0].contourf(r,z,I_id[i,...].T,v1,extend='both')
+            else:
+                tri1 = axarr[0].tricontourf(self.R,self.Z,self.I[i,:],v1,extend='both')
             axarr[1].tricontour(self.R,self.Z,self.psin,[1])
 
             fig.canvas.draw()
@@ -254,7 +271,7 @@ class Tools:
         anim.save(name_movie, writer=FFwriter,fps=15, extra_args=['-vcodec', 'libx264'])
 
 
-    def crosscorrelation(self, Nr=60, Nz=70, dr_max=0.05, dz_max=0.03, dkr_max=300, dkz_max=300, graph='3d',figure=True):
+    def crosscorrelation(self, Nr=60, Nz=70, dr_max=0.1, dz_max=0.03, dkr_max=300, dkz_max=300, graph='3d',figure=True):
         """ Plot or just compute the shape of the crosscorrelation from the point R[0],Z[0]
 
         :param int Nr: Number of points for the discretization
@@ -363,7 +380,6 @@ class Tools:
         """
         ind = np.abs((self.Z - Zref)/Zref) < eps
         N = np.sum(ind)
-        print N
         
         corr = np.zeros(Nr)
         r = np.linspace(np.min(self.R[ind]),np.max(self.R[ind]),Nr)
@@ -384,7 +400,7 @@ class Tools:
             else:
                 corr[i] = np.nan
         if not figure:
-            return r,corr
+            return r,corr,ind
         else:
 
             fig = plt.figure()
@@ -392,8 +408,39 @@ class Tools:
             plt.xlabel('R [m]')
             plt.ylabel('Correlation length')
             plt.show()
-            
 
+    def comparison_radial_correlation_lenght(self,tool2,Nr=40,Zref=0.01,eps=0.4):
+        """ Show the characteristic length of the radial correlation length as a function
+        of the radial position for two different diagnostics.
+
+        :param Tools tool2: Second instance of the Tools class
+        :param int Nr: Number of points for the discretization
+        :param fload Zref: Horizontal plane wanted
+        :param float eps: Relative interval accepted for Zref
+        :param bool figure: Choice between plot or computing
+        """
+
+        r0, corr0,ind0 = self.radial_dep_correlation(Nr,Zref,eps,figure=False)
+        print 'First computation done'
+        r1, corr1,ind1 = tool2.radial_dep_correlation(Nr,Zref,eps,figure=False)
+
+        plt.figure()
+        plt.plot(r0,100*corr0,label=self.name_id)
+        plt.plot(r1,100*corr1,label=tool2.name_id)
+        plt.xlabel('Radius [m]')
+        plt.ylabel('Correlation length [cm]')
+
+        psi_n = splrep(self.R[ind0],self.psin[ind0])
+        psi_n = splev(r0,psi_n)
+
+        ind_sep = np.abs(1.0-psi_n) < 1e-3
+        if np.sum(ind_sep) > 0:
+            ind_sep = np.argmax(ind_sep)
+        xa,xb,ya,yb = plt.axis()
+        plt.plot([r0[ind_sep],r0[ind_sep]],[ya,yb])
+        plt.legend()
+        plt.show()
+        
         
 """ Define a few test for checking the data given by the code
 It contains all the code used for the figure in my report

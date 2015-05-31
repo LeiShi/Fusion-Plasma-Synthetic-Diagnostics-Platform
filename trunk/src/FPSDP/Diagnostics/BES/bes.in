@@ -16,7 +16,7 @@ beam_width_v = 0.27
 # the ending point is computed at the edge of the mesh
 # (the beam line goes from 'position' until the farest point used
 # for all the computation)
-Nz = 128
+Nz = 512
 
 
 [Beam energy]
@@ -50,7 +50,7 @@ n_low = 2
 n_high = 3
 # number of points (=> intervals) for the integration of the lifetime effect
 # Used in Beam1d.get_emis_lifetime()
-Nlt = 20
+Nlt = 40
 # t_max*lifetime = upper value of the integrale for the lifetime effect
 # cutoff value
 # if t_max = 0, the lifetime will not be 
@@ -121,7 +121,7 @@ rad_foc = 0.01
 int = 2.5
 # number of points for the integration along the
 # sightline
-Nint = 7
+Nint = 18
 # number of section for the integral of the solid angle
 Nsolid = 80
 # number of interval for the radial integration of the solid angle
@@ -146,3 +146,6 @@ dphi = 0.3
 timestart = 1
 timeend = 182
 timestep = 1
+# Limits for the loader (with a low toroidal resolution, it should be false)
+# read doc about the XGC1 loader for more information
+limits = false

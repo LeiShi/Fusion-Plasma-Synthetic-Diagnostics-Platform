@@ -184,10 +184,9 @@ class BES:
         self.Nsolid = json.loads(config.get('Optics','Nsolid'))              #!
         self.Nr = json.loads(config.get('Optics','Nr'))                      #!
 
-        if self.Nint/self.inter < 10:
-            print """WARNING: The precision of the optical integral is assumed to be
-            to small"""
-
+        if self.Nint/self.inter < 2:
+            print 'WARNING: The accuracy of the optical integral is assumed to be too small'
+        
         R = json.loads(config.get('Optics','R'))
         R = np.array(R)
         phi = json.loads(config.get('Optics','phi'))
@@ -237,13 +236,18 @@ class BES:
         order = config.get('Data','interpolation')
         self.beam = be.Beam1D(input_file)                                    #!
         self.compute_limits()      # compute the limits of the mesh
-        
+        lim = json.loads(config.get('Data','limits'))
+
+        if  lim:
+            limit = self.limits
+        else:
+            limit = self.limits[:2,:]
         xgc_ = xgc.XGC_Loader_local(self.data_path, start, end, timestep,
-                                    self.limits, self.dphi,shift,order)
+                                    limit, self.dphi,shift,order)
         self.time = xgc_.time_steps                                          #!
 
         # set the data inside the beam (2nd part of the initialization)
-        self.beam.set_data(xgc_)
+        self.beam.set_data(xgc_,self.limits)
 
         # compute the two others basis vector
         self.perp1 = np.zeros(self.pos_foc.shape)
@@ -285,7 +289,7 @@ class BES:
         wl = data[:,0]
         # transmission coefficient
         trans = data[:,1]
-        tck = sp.interpolate.interp1d(wl,trans,kind='cubic',fill_value=0.0)
+        tck = sp.interpolate.interp1d(wl,trans,kind='linear',fill_value=0.0)
         return tck
         
         
@@ -324,9 +328,10 @@ class BES:
         :param float dxmin: Smallest size accepted for the box in X
         :param float dymin: Smallest size accepted for the box in Y
         :param float dzmin: Smallest size accepted for the box in Z
-        
+
+        :todo: Improve this function in order to have a smaller window        
         """
-        print('need to improve this ')
+
         # average beam width
         # assume a configuration where the beam as a width close to a constant
         # and the focus point are close from each other
@@ -909,7 +914,7 @@ class BES:
         :rtype: float
         """
         # first define the quadrature formula
-        quad = integ.integration_points(1,'GL4') # Gauss-Legendre order 4
+        quad = integ.integration_points(1,'GL2') # Gauss-Legendre order 4
         I = 0.0
         # compute the distance from the origin of the beam
         dist = np.dot(self.pos_foc[fiber_nber,:] - self.beam.pos,self.beam.direc)

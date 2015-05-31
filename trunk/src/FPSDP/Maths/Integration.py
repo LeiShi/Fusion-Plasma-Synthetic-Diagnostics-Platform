@@ -65,7 +65,12 @@ def integration_points(dim, meth, obj='', size=-1):
     :rtype: Named tuple (.pts and .w)
     """
     if dim == 1:
-        if meth == 'GL2':
+        if meth == 'trapezoid':
+            # accuracy order 3
+            w = np.array([1.0,1.0])
+            points = np.array([-1.0,1.0])
+
+        elif meth == 'GL2':
             w = np.array([2.0])
             points = np.array([0.0])
             

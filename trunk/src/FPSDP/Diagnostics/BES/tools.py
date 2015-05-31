@@ -591,13 +591,13 @@ def check_convergence_beam_density(t=140,eq=False):
     bes.beam.data.dphi = 0.01
 
     Nsample = 20
-    N = np.logspace(1,2,Nsample)
+    N = np.logspace(2,3,Nsample)
     nb = np.zeros((bes.beam.beam_comp.shape[0],Nsample))
     Nref = 300
 
     bes.beam.eq = eq
     for i in range(Nsample):
-        print i
+        print N[i]
         bes.beam.Nz = np.round(N[i])
         bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
         bes.beam.create_mesh()
@@ -611,7 +611,6 @@ def check_convergence_beam_density(t=140,eq=False):
     nbref = bes.beam.density_beam[:,-1]
 
     for i in range(nb.shape[0]):
-        print nb[i,:]-nbref[i]
         plt.loglog(N,np.abs((nb[i,:]-nbref[i])/nbref[i]),label='Beam Component {}'.format(i+1))
 
     plt.title('Beam Density')
@@ -982,7 +981,7 @@ def compute_beam_config(Rsource,phisource, Rtan,R=np.array([])):
 
 
 
-def check_interpolation(phi=0.1,t=130,Nr=200,Nz=210,R=[0,2.4],Z=[-1.5,1.5]):
+def check_interpolation(phi=-2.58,t=130,Nr=1000,Nz=1000,R=[1.82,2.3],Z=[-0.25,0.25]):
     
     bes = bes_.BES(name)
     
@@ -1000,15 +999,28 @@ def check_interpolation(phi=0.1,t=130,Nr=200,Nz=210,R=[0,2.4],Z=[-1.5,1.5]):
     x = R*np.cos(phi)
     y = R*np.sin(phi)
     
-    ne = bes.beam.data.interpolate_data(np.array([x,y,Z]).T,t,['ne'],False,False)[0]
+    ne = bes.beam.data.interpolate_data(np.array([x,y,Z]).T,t,['ne'],False,True)[0]
     ne = np.reshape(ne,(Nr,Nz))
     R = np.reshape(R,(Nr,Nz))
     Z = np.reshape(Z,(Nr,Nz))
 
-    
+    #import pdb; pdb.set_trace()    
     plt.figure()
-    plt.contourf(R,Z,ne,extend='both')
+    plt.contourf(R,Z,ne)
+    #plt.imshow(ne)
+    #plt.plot(bes.beam.data.points[:,1],bes.beam.data.points[:,0],'x')
     plt.xlabel('R-coordinate')
     plt.ylabel('Z-coordinate')
     plt.colorbar()
+
+    #B = bes.beam.data.B_interp(Z.flatten(),R.flatten())
+    #plt.figure()
+    #plt.streamplot(R,Z,np.reshape(B[:,0],(Nr,Nz)),np.reshape(B[:,1],(Nr,Nz)))
+    #plt.colorbar()
+
+    #plt.figure()
+    #plt.contourf(R,Z,np.reshape(B[:,2],(Nr,Nz)))
+    #plt.colorbar()
+    
     plt.show()
+

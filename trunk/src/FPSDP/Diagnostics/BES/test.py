@@ -13,12 +13,12 @@ if profiler:
     pr = cProfile.Profile()
 
 name = 'FPSDP/Diagnostics/BES/bes.in'
-bes_ = bes.BES(name,parallel)
-
-
 f = open(name,'r')
 input_ = f.read()
 f.close()
+bes_ = bes.BES(name,parallel)
+
+
 
 if profiler:
     pr.enable()

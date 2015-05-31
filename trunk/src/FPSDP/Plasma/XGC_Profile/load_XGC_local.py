@@ -60,15 +60,24 @@ class XGC_Loader_local():
     """Loader classe for a local diagnostics and without a grid.
 
     The idea of this loader is to compute one time step at a time and calling the function 
-    :func:`load_next_time_step` at the end of the time step (no return possible with this implementation, 
-    very easy to add the choice of the time step, just change the variable self.current).
+    :func:`load_next_time_step` at the end of the time step that have two different ways to work.
+    The first one is to load the next time step and the second one to give the index of the time step.
     The function :func:`interpolate_data` is used to obtain the data from any position.
+
+    A try to limit the size of the data loaded has been made and still can be access by given a 2D array
+    for the parameter limits, but it still need to be checked and will only work if the number of toroidal planes
+    in the output of XGC1 is big enough (the field line integration need to stay is the same size of the plasma if the integration
+    is made from one plane to the other).
+    The second case is just done by giving phi min/max and will just load the planes that are concerned.
    
     :param str xgc_path: Name of the directory containing the data
     :param int t_start: Time step at which starting the diagnostics
     :param int t_end: Time step at which stoping the diagnostics
     :param int dt: Interval between two time step that the diagnostics should compute
-    :param list[list[]] limits: Mesh limits for the diagnostics (first index is for X,Y,Z and second for min/max)
+    :param np.array[...,2] limits: Mesh limits for the diagnostics. Two different cases can happen.\
+    The first is that we give a 1D array (np.array[2]), in this case, phi_min and phi_max are given.\
+    The second case is that we give a 2D array (np.array[3,2]), in this case,\
+    the first index corresponds to the coordinates X,Y,Z and the second one to min/max
     :param float dphi: Size of the step for the field line integration (in radian)
     :param float shift: Shift for phi (default value assumed that plane number 0 is at phi=0)
     :param str kind: Order of the interpolation method (linear or cubic))
@@ -99,14 +108,20 @@ class XGC_Loader_local():
         self.dt = self.tstep * dt
         self.t = self.time_steps * self.tstep
         self.current = 0 # index of the current time step
+        # check if limits are asked for the mesh on the toroidal plane
+        self.lim = False
+
         # limits of the mesh
         self.Xmin = limits[0,0]
         self.Xmax = limits[0,1]
         self.Ymin = limits[1,0]
         self.Ymax = limits[1,1]
-        self.Zmin = limits[2,0]
-        self.Zmax = limits[2,1]
 
+        if limits.shape[0]==3:
+            self.lim = True
+            self.Zmin = limits[2,0]
+            self.Zmax = limits[2,1]
+            
         # limits in tokamak coordinates
         x = np.linspace(self.Xmin,self.Xmax,100)
         y = np.linspace(self.Ymin,self.Ymax,100)
@@ -116,8 +131,9 @@ class XGC_Loader_local():
         self.Rmax = np.max(R)
         phi = np.array([[self.Xmin,self.Ymin],[self.Xmin,self.Ymax],
                         [self.Xmax,self.Ymin],[self.Xmax,self.Ymax]])
-
+        
         phi = np.arctan2(phi[:,1],phi[:,0])
+        
         # put the value between [0,2pi]
         tempmin = np.min(phi)
         tempmax = np.max(phi)
@@ -176,31 +192,32 @@ class XGC_Loader_local():
         RZ = mesh['coordinates']['values']
         Rpts =RZ[:,0]
 
-        # remove the points outside the window
-        self.ind = (Rpts > self.Rmin) & (Rpts < self.Rmax)
         Zpts = RZ[:,1]
 
-        self.psi = mesh['psi']
+        psi = mesh['psi']
         # psi interpolant
+        fill_ = np.nan
+        if not self.lim:
+            fill_ = max(psi)
         if self.kind == 'linear':
             self.psi_interp = LinearNDInterpolator(
-                np.array([Zpts,Rpts]).T, self.psi, fill_value=np.max(self.psi))
+                np.array([Rpts,Zpts]).T, psi, fill_value=fill_)
         elif self.kind == 'cubic':
             self.psi_interp = CloughTocher2DInterpolator(
-                np.array([Zpts,Rpts]).T, self.psi, fill_value=np.max(self.psi))
+                np.array([Rpts,Zpts]).T, psi, fill_value=fill_)
         else:
             raise NameError("The method '{}' is not defined".format(self.kind))
-        self.ind = self.ind & (Zpts > self.Zmin) & (Zpts < self.Zmax)
-        self.ind[:] = True
-        self.psi = self.psi[self.ind]
-        Rpts = Rpts[self.ind]
-        Zpts = Zpts[self.ind]
-        self.points = np.array([Zpts,Rpts]).transpose()
 
-        print 'Keep: ',str(Rpts.shape[0]),'Points on a total of: '\
-            ,str(self.ind.shape[0])
+        self.points = np.array([Rpts,Zpts]).transpose()
 
-
+        if self.lim:
+            # 0.99 and 1.01 are for increasing the window in order to take the last point
+            # in it
+            self.Rmin = np.max([self.Rmin,0.999*np.min(Rpts)])
+            self.Rmax = np.min([self.Rmax,1.001*np.max(Rpts)])
+            self.Zmin = np.max([self.Zmin,0.999*np.min(Zpts)])
+            self.Zmax = np.min([self.Zmax,1.001*np.max(Zpts)])
+            
         mesh.close()
 
         # get the number of toroidal planes from fluctuation data file
@@ -212,36 +229,70 @@ class XGC_Loader_local():
         
         
 
-    def load_B_3D(self):
-        """Load equilibrium magnetic field data and compute the interpolant
+    def load_B_3D(self,eps=0.01):
+        """Load equilibrium magnetic field data and compute the interpolant.
+        Compute the limits by taking into account the field line interpolation
         """
         B_mesh = h5.File(self.bfield_file,'r')
         B = B_mesh['node_data[0]']['values']
         # keep only the values around the diagnostics
-        BR = B[self.ind,0]
-        BZ = B[self.ind,1]
-        BPhi = B[self.ind,2]
 
         # interpolant of each direction of the field
         # use np.inf as a flag for outside points,
         # deal with them later in interpolation function
         if self.kind == 'linear':
             self.B_interp = LinearNDInterpolator(
-                self.points, np.array([BR,BZ,BPhi]).T, fill_value = np.inf)
+                self.points, B, fill_value = np.inf)
         elif self.kind == 'cubic':
             self.B_interp =  CloughTocher2DInterpolator(
-                self.points, np.array([BR,BZ,BPhi]).T, fill_value = np.inf)
+                self.points, B, fill_value = np.inf)
         else:
             raise NameError("The method '{}' is not defined".format(self.kind))
-
-        self.fill_Bphi = np.sign(BPhi[0])*np.min(np.absolute(BPhi))
-
-        
-        B_mesh.close()
+        self.fill_Bphi = np.sign(B[0,2])*np.min(np.absolute(B[:,2]))
 
         #If toroidal B field is positive, then field line is going in
         # the direction along which plane number is increasing.
-        self.CO_DIR = (np.sign(BPhi[0]) > 0)
+        self.CO_DIR = (np.sign(B[0,2]) > 0)
+        B_mesh.close()
+
+        if self.lim:
+            # increase the limits for taking into account the field line intergration
+            N = 20
+            r = np.array([np.linspace(self.Rmin,self.Rmax,N),np.linspace(self.Rmin,self.Rmax,N)]).flatten()
+            z = np.array([self.Zmin*np.ones(N),self.Zmax*np.ones(N)]).flatten()
+            # case on one side of the ref plane
+            phi = (1+eps)*self.shift*np.ones(r.shape)
+            prev,next_ = get_interp_planes_local(self,phi)
+            interp1 = self.find_interp_positions(r,z,phi,prev,next_)
+            # case on the other side
+            phi = (1-eps)*self.shift*np.ones(r.shape)
+            prev,next_ = get_interp_planes_local(self,phi)        
+            interp2 = self.find_interp_positions(r,z,phi,prev,next_)
+
+            # find min/max
+            rmin1 = np.min(interp1[:,0,...])
+            rmax1 = np.max(interp1[:,0,...])
+            rmin2 = np.min(interp2[:,0,...])
+            rmax2 = np.max(interp2[:,0,...])
+            zmin1 = np.min(interp1[:,1,...])
+            zmax1 = np.max(interp1[:,1,...])
+            zmin2 = np.min(interp2[:,1,...])
+            zmax2 = np.max(interp2[:,1,...])
+
+            self.Rmin = np.min([self.Rmin,rmin1,rmin2])
+            self.Rmax = np.max([self.Rmax,rmax1,rmax2])
+            self.Zmin = np.min([self.Zmin,zmin1,zmin2])
+            self.Zmax = np.max([self.Zmax,zmax1,zmax2])
+            # remove the points outside the window
+            self.ind = (self.points[:,0] > self.Rmin) & (self.points[:,0] < self.Rmax)        
+            self.ind = self.ind & (self.points[:,1] > self.Zmin) & (self.points[:,1] < self.Zmax)
+            self.points = self.points[self.ind,:]
+            print 'Keep: ',str(self.points.shape[0]),'Points on a total of: '\
+                ,str(self.ind.shape[0])
+
+        
+            print 'Zlimits: [',np.min(self.points[:,1]),np.max(self.points[:,1]),']'
+            print 'Rlimits: [',np.min(self.points[:,0]),np.max(self.points[:,0]),']'
         return 0
 
 
@@ -270,13 +321,21 @@ class XGC_Loader_local():
         
         flucf = self.xgc_path + 'xgc.3d.'+str(self.time_steps[self.current]).zfill(5)+'.h5'
         fluc_mesh = h5.File(flucf,'r')
-        
-        self.phi += np.swapaxes(
-            fluc_mesh['dpot'][self.ind,:][:,(self.planes)%self.n_plane],0,1)
-        
-        self.nane += np.swapaxes(
-            fluc_mesh['eden'][self.ind,:][:,(self.planes)%self.n_plane],0,1)
-        
+
+        if self.lim:
+            self.phi += np.swapaxes(
+                fluc_mesh['dpot'][self.ind,:][:,(self.planes)%self.n_plane],0,1)
+            
+            self.nane += np.swapaxes(
+                fluc_mesh['eden'][self.ind,:][:,(self.planes)%self.n_plane],0,1)
+
+        else:
+            self.phi += np.swapaxes(
+                fluc_mesh['dpot'][:,:][:,(self.planes)%self.n_plane],0,1)
+            
+            self.nane += np.swapaxes(
+                fluc_mesh['eden'][:,:][:,(self.planes)%self.n_plane],0,1)
+            
         fluc_mesh.close()
             
         return 0
@@ -340,8 +399,6 @@ class XGC_Loader_local():
         na_valid_idx = np.absolute(nane)<= np.absolute(ne)
         ne[na_valid_idx] += nane[na_valid_idx]
 
-        if ((ne < 0) | np.isnan(ne)).any():
-            print ne, psi
         return ne
     
     def compute_interpolant(self):
@@ -354,10 +411,10 @@ class XGC_Loader_local():
             # computation of interpolant
             if self.kind == 'linear':
                 self.interpfluc.append(
-                    LinearNDInterpolator(self.points,np.array([self.phi[j,:],self.nane[j,:]]).T,fill_value=0.0))
+                    LinearNDInterpolator(self.points,np.array([self.phi[j,:],self.nane[j,:]]).T,fill_value=np.nan))
             elif self.kind == 'cubic':
                 self.interpfluc.append(
-                    CloughTocher2DInterpolator(self.points,np.array([self.phi[j,:],self.nane[j,:]]).T,fill_value=0.0))
+                    CloughTocher2DInterpolator(self.points,np.array([self.phi[j,:],self.nane[j,:]]).T,fill_value=np.nan))
             else:
                 raise NameError("The method '{}' is not defined".format(self.kind))
     
@@ -432,7 +489,7 @@ class XGC_Loader_local():
                 # compute the coordinates of this stage
                 Rtemp = R_FWD[ind] + step*np.sum(a[i,:i]*K[:,0,:i],axis=1)
                 Ztemp = Z_FWD[ind] + step*np.sum(a[i,:i]*K[:,1,:i],axis=1)
-                Btemp = self.B_interp(Ztemp,Rtemp)
+                Btemp = self.B_interp(Rtemp,Ztemp)
                 # avoid the part outside the mesh
                 indinf = np.isfinite(Btemp[:,2])
 
@@ -475,7 +532,7 @@ class XGC_Loader_local():
                 # compute the coordinates of this stage
                 Rtemp = R_BWD[ind] + step*np.sum(a[i,:i]*K[:,0,:i],axis=1)
                 Ztemp = Z_BWD[ind] + step*np.sum(a[i,:i]*K[:,1,:i],axis=1)
-                Btemp = self.B_interp(Ztemp,Rtemp)
+                Btemp = self.B_interp(Rtemp,Ztemp)
                 indinf = np.isfinite(Btemp[:,2])
                 # evaluate the function
                 
@@ -502,13 +559,13 @@ class XGC_Loader_local():
 
         interp_positions = np.zeros((2,3,r.shape[0]))
         
-        interp_positions[0,0,...] = Z_BWD
-        interp_positions[0,1,...] = R_BWD
+        interp_positions[0,0,...] = R_BWD
+        interp_positions[0,1,...] = Z_BWD
         tot = (s_BWD+s_FWD)
         ind = tot != 0.0
         interp_positions[0,2,ind] = (s_BWD[ind]/tot[ind])
-        interp_positions[1,0,...] = Z_FWD
-        interp_positions[1,1,...] = R_FWD
+        interp_positions[1,0,...] = R_FWD
+        interp_positions[1,1,...] = Z_FWD
         interp_positions[1,2,...] = 1-interp_positions[0,2,...]
 
         return interp_positions
@@ -565,7 +622,12 @@ class XGC_Loader_local():
             if ne_bool:
                 ne = np.zeros(r.shape[0])
                 interp_positions = self.find_interp_positions(r,z,phi,prevplane,nextplane)
-                    
+                if self.lim:
+                    ind = (self.Zmax > interp_positions[0,1]) & (interp_positions[0,1] > self.Zmin)
+                    ind = ind & ((self.Zmax > interp_positions[1,1]) & (interp_positions[1,1] > self.Zmin))
+                    ind = ind & (self.Rmax > interp_positions[0,0]) & (interp_positions[0,0] > self.Rmin)
+                    ind = ind & (self.Rmax > interp_positions[1,0]) & (interp_positions[1,0] > self.Rmin)
+                
                 #create index dictionary, for each key as plane number and
                 # value the corresponding indices where the plane is used as previous or next plane.
                 prev_idx = {}
@@ -591,19 +653,17 @@ class XGC_Loader_local():
                 psi = self.psi_interp(interp_positions[0,0,...],interp_positions[0,1,...])
                 psin= self.psi_interp(interp_positions[1,0,...],interp_positions[1,1,...])
                 psi = psin * interp_positions[1,2,...] + psi * interp_positions[0,2,...]
-
                 ne = self.calc_total_ne_3D(psi,ne,phi_pot)
-                # if ne is in the box and nan => outside the simulation data => outside
-                # of the tokamak
-                ne[np.isnan(ne) & (r < self.Rmax) & (r > self.Rmin) &
-                   (z < self.Zmax) & (z > self.Zmin)] = self.ne_min/10
-                if check & (np.isnan(ne).any() | (ne<0).any()):
-                    print 'r',r
-                    print 'z',z
-                    print 'phi',phi
-                    print 'prev',prevn
-                    print 'next',nextn
-                    print interp_positions
+
+                if self.lim:
+                    ne[~ind] = np.nan
+                    if check & (~ind).any():
+                        print 'r',r[~ind]
+                        print 'z',z[~ind]
+                        print 'phi',phi[~ind]
+                        print 'prev',prevn[~ind,:]
+                        print 'next',nextn[~ind,:]
+                        print interp_positions[:,:,~ind]
 
                     
         ret = ()
@@ -616,7 +676,7 @@ class XGC_Loader_local():
             elif i is 'Te':
                 ret += (Te,)
             else:
-                raise XGC_Loader_Error('{} is not a valid value in the evaluation of XGC data'.format(i))
+                raise XGC_Loader_Error("'{}' is not a valid value in the evaluation of XGC data".format(i))
         return ret
 
         

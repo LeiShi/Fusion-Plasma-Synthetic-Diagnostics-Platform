@@ -71,6 +71,7 @@ class Beam1D:
     :var list[tck_interp] self.nb_tck: Interpolant for each component (use cubic spline)
     :var int self.t_: Current time step
     :var bool self.eq: Equilibrium data for the attenuation
+    :var np.array[3,2] self.limits: Limits for the beam
     """
     
     def __init__(self,config_file):
@@ -136,7 +137,7 @@ class Beam1D:
         self.t_ = -1                                                         #!
 
 
-    def set_data(self,data):
+    def set_data(self,data,limits):
         """ Second part of the initialization (should be called manually!).
 
         Due to the computation of the limits (:func:`compute_limits <FPSDP.Diagnostics.BES.bes.BES.compute_limits>`),
@@ -145,7 +146,9 @@ class Beam1D:
 
         :param data: Loader of the simulation data
         :type data: e.g. :class:`XGC_Loader_BES <FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES>`
+        :param np.array[3,2] limits: Limits for the mesh (first index for X,Y,Z, second for min/max))
         """
+        self.limits = limits                                                 #!
         self.data = data                                                     #!
         print 'Creating mesh'
         self.create_mesh()
@@ -174,6 +177,7 @@ class Beam1D:
         """
         # intersection between end of mesh and beam
         self.inters = self.find_wall()                                       #!
+        print self.inters
         length = np.sqrt(np.sum((self.pos-self.inters)**2))
         # distance to the origin along the central line
         self.dl = np.linspace(0,length,self.Nz)
@@ -195,24 +199,24 @@ class Beam1D:
         if self.direc[0] == 0.0:
             tx = np.inf
         else:
-            tx1 = (self.data.Xmax-self.pos[0])/self.direc[0]
-            tx2 = (self.data.Xmin-self.pos[0])/self.direc[0]
+            tx1 = (self.limits[0,1]-self.pos[0])/self.direc[0]
+            tx2 = (self.limits[0,0]-self.pos[0])/self.direc[0]
             tx = max(tx1,tx2)
         
         # Y-direction
         if self.direc[1] == 0.0:
             ty = np.inf
         else:
-            ty1 = (self.data.Zmax-self.pos[1])/self.direc[1]
-            ty2 = (self.data.Zmin-self.pos[1])/self.direc[1]
+            ty1 = (self.limits[1,1]-self.pos[1])/self.direc[1]
+            ty2 = (self.limits[1,0]-self.pos[1])/self.direc[1]
             ty = max(ty1,ty2)
         
         # Z-direction
         if self.direc[2] == 0.0:
             tz = np.inf
         else:
-            tz1 = (self.data.Ymax-self.pos[2])/self.direc[2]
-            tz2 = (self.data.Ymin-self.pos[2])/self.direc[2]
+            tz1 = (self.limits[2,1]-self.pos[2])/self.direc[2]
+            tz2 = (self.limits[2,0]-self.pos[2])/self.direc[2]
             tz = max(tz1,tz2)
 
         t_ = np.array([tx,tz,ty])
@@ -249,7 +253,7 @@ class Beam1D:
     def compute_beam_on_mesh(self):
         r""" Compute the beam density on the mesh and the interpolant.
 
-        Use the Gauss-Legendre quadrature of order 5 for computing the integral:
+        Use the Gauss-Legendre quadrature of order 2 for computing the integral:
 
         .. math::
            n_b(P) = n_{b,0} \exp\left(-\int_0^P n_e(z)S_\text{cr}\left(E,n_e(z),T_i(z)\right)\sqrt{\frac{m}{2E}}\mathrm{d}z\right)
@@ -278,7 +282,7 @@ class Beam1D:
         n0 *= self.frac/(self.beam_comp*SI['keV']/1000)**(1.5)
         
         # define the quadrature formula for this method
-        quad = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
+        quad = integ.integration_points(1,'GL2') # Gauss-Legendre order 2
         # can be rewritten by computing the integral of all the interval at
         # once and using cumulative sum
         for j in range(self.mesh.shape[0]):
@@ -323,7 +327,7 @@ class Beam1D:
         self.nb_tck = []                                                     #!
         # interpolant for the beam
         for i in range(len(self.beam_comp)):
-            self.nb_tck.append(interpolate.splrep(self.dl,self.density_beam[i,:]))
+            self.nb_tck.append(interpolate.splrep(self.dl,self.density_beam[i,:],k=1))
         
             
     def get_mesh(self):
@@ -428,7 +432,7 @@ class Beam1D:
         """
         pos = np.atleast_2d(pos)
 
-        quad = integ.integration_points(1,'GL4') # Gauss-Legendre order 4
+        quad = integ.integration_points(1,'GL2') # Gauss-Legendre order 4
         emis = np.zeros((len(self.beam_comp),pos.shape[0]))
         # avoid the computation at each time
         ne_in, Ti_in,Te_in = self.get_quantities(pos,t_,['ne','Ti','Te'])

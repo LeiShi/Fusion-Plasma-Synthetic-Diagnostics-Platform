@@ -206,16 +206,15 @@ class BES:
         self.pos_foc[:,2] = Z
         self.op_direc = self.pos_foc-self.pos_lens                           #!
         
-        norm_ = np.sqrt(np.sum(self.op_direc**2,axis=1))
+        self.dist = np.sqrt(np.sum(self.op_direc**2,axis=1))
         if isinstance(self.rad_foc,float):
             self.rad_foc = self.rad_foc*np.ones(self.pos_foc.shape[0])
         
         # normalize the vector
-        self.op_direc[:,0] /= norm_
-        self.op_direc[:,1] /= norm_
-        self.op_direc[:,2] /= norm_
+        self.op_direc[:,0] /= self.dist
+        self.op_direc[:,1] /= self.dist
+        self.op_direc[:,2] /= self.dist
 
-        self.dist = np.sqrt(np.sum((self.pos_foc - self.pos_lens)**2,axis=1))#!
 
         self.type_int = config.get('Optics','type_int')                      #!
         
@@ -1037,9 +1036,9 @@ class BES:
             raise NameError('Should implement the other version (switch pos[ind,0] <-> pos[ind,1])')
 
         # few values defined in my report
-        ratio = np.abs(z[ind]/self.dist[fib])
+        ratio = np.abs(self.dist[fib]/z[ind])
         f = 1.0/(1.0-ratio)
-        A = 0.5*((r[ind]**2-(self.rad_lens/f)**2)/ratio + ratio*self.rad_foc[fib]**2)/pos[ind,0]
+        A = 0.5*(ratio*r[ind]**2+(-(self.rad_lens/f)**2 + self.rad_foc[fib]**2)/ratio)/pos[ind,0]
         B = -pos[ind,1]/pos[ind,0]
 
         # \Delta when computing the solution of a quadratic function
@@ -1068,7 +1067,8 @@ class BES:
             print('ind',ind)
             print ('x',x1,x2)
             print('y',y1,y2)
-            raise NameError('solid angle smaller than 0 or bigger than 4pi')
+            solid[solid<0 | solid>4*np.pi] = np.nan
+            #raise NameError('solid angle smaller than 0 or bigger than 4pi')
         return solid
 
     def solid_angle_mix_case(self,pos,x,y,fib):
@@ -1101,11 +1101,11 @@ class BES:
         """
         # first the contribution of the ring
         omega1 = solid_angle_seg(pos-np.array([0,0,self.dist[fib]]),x,
-                                self.rad_foc[fib],0,self.Nsolid,
+                                self.rad_foc[fib],None,self.Nsolid,
                                 self.Nr)
 
         # second the contribution of the lens
-        omega2 = solid_angle_seg(pos,y,self.rad_lens,1,self.Nsolid,
+        omega2 = solid_angle_seg(pos,y,self.rad_lens,self.dist[fib],self.Nsolid,
                                self.Nr)
 
         # remove the part where the numerical error is too big
@@ -1118,13 +1118,15 @@ class BES:
         if (-omega1[ind1]/omega[ind1] > 1e-3).any():
             print omega
             print omega1
-            raise NameError('solid angle negative 1')
+            omega[-omega1[ind1]/omega[ind1] > 1e-3] = np.nan
+            #raise NameError('solid angle negative 1')
 
         if (-omega2[ind2]/omega[ind2] > 1e-3).any():
             print omega
             print omega2
-            raise NameError('solid angle negative 2')
-
+            omega[-omega2[ind2]/omega[ind2] > 1e-3] = np.nan
+            #raise NameError('solid angle negative 2')
+        
         return omega
 
 

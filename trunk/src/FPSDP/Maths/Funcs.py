@@ -146,7 +146,7 @@ def solid_angle_seg(pos,x,r,islens,Nth,Nr):
     In a first time, the maximum radius (that will depends on the coordinate :math:`\theta`)
     has to be compute.
     
-    This function assumed that all the point are on the same size of the focus point.
+    WARNING: This function assumed that all the points are at the same distance of the focus points.
 
     In this figure, we want to compute the area between the black line and the blue one.
     
@@ -177,7 +177,7 @@ def solid_angle_seg(pos,x,r,islens,Nth,Nr):
     :param np.array[N,3] pos: Position in the optical system
     :param list[np.array[N],..] x: Position of the intersection on the ring (list contains 2 elements) 
     :param float r: Radius of the disk (should be centered at (0,0,0) and the perpendicular should be along the z-axis)
-    :param bool islens: True if the computation is for the lens (change of sign if it is the case)
+    :param float islens: None if it is not the lens, otherwise the distance between the lens and the focus point
     :param int Nth: Number of sections for the theta quadrature formula
     :param int Nr: Number of sections for the radial quadrature formula
 
@@ -191,8 +191,8 @@ def solid_angle_seg(pos,x,r,islens,Nth,Nr):
     
     # limits (in angle) considered for the integration
     theta = np.linspace(0,2*np.pi,Nth)
-    quadr = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
-    quadt = integ.integration_points(1,'GL4') # Gauss-Legendre order 5
+    quadr = integ.integration_points(1,'GL4') # Gauss-Legendre order 4
+    quadt = integ.integration_points(1,'GL4') # Gauss-Legendre order 4
     
     # mid point of the limits in theta
     av = 0.5*(theta[:-1] + theta[1:])
@@ -202,15 +202,18 @@ def solid_angle_seg(pos,x,r,islens,Nth,Nr):
     th = diff[:,np.newaxis]*quadt.pts + av[:,np.newaxis]
     
     # perpendicular vector to x1->x2
-    perp = -pos[:,:2]
+    perp = np.copy(-pos[:,:2])
     
     # indices where we want to compute the big part
     ind = np.einsum('ij,ij->i',perp,x1) > 0
-    if islens and (pos[:,2] > 0).any():
-        ind = ~ind
-    # assume that all pos is on the same size of the focus point
+
+    # create a vector perpendicular to x1-x2 and goes to the line from the origin
     perp[~ind] = -perp[~ind]
     perp = perp/np.sqrt(np.sum(perp**2,axis=1))[:,np.newaxis]
+    # in the case of the lens and between the fiber and the lens, we want the opposite case
+    if islens != None:
+        test = pos[:,2] < islens
+        ind[test] = ~ind[test]
     
     # unit vector for each angle
     delta = np.array([np.cos(th),np.sin(th)])

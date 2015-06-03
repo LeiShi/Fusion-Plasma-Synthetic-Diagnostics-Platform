@@ -70,7 +70,7 @@ class Collisions:
             
             # interpolation over beam and density
             self.atte_tck_dens.append(interpolate.bisplrep(
-                lbeams,ldens,coef_dens))
+                lbeams,ldens,coef_dens,kx=1,ky=1))
             
             # get data for the interpolation in temperature
             T = np.log(self.get_list_temperature('atte',i))
@@ -80,7 +80,7 @@ class Collisions:
             
             #interpolation over the temperature
             self.atte_tck_temp.append(interpolate.splrep(
-                T,coef_T/coef_T[index]))
+                T,coef_T/coef_T[index],k=1))
 
         for i in range(len(self.beam_emis)):
             # get data
@@ -91,7 +91,7 @@ class Collisions:
             
             # interpolation over beam and density
             self.emis_tck_dens.append(interpolate.bisplrep(
-                lbeams,ldens,coef_dens))
+                lbeams,ldens,coef_dens,kx=1,ky=1))
 
             # Get data for the interpolation in temperature
             T = np.log(self.get_list_temperature('emis',i))
@@ -101,7 +101,7 @@ class Collisions:
             
             #interpolation over the temperature
             self.emis_tck_temp.append(interpolate.splrep(
-                T,coef_T/coef_T[index]))
+                T,coef_T/coef_T[index],k=1))
 
         
     def read_adas(self):

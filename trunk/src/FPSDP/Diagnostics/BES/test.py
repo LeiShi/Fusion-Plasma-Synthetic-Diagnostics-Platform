@@ -3,7 +3,7 @@ import numpy as np
 
 import FPSDP.Diagnostics.BES.bes as bes
 
-profiler = False
+profiler = True
 parallel = False
 
 print 'Parallel: ', parallel

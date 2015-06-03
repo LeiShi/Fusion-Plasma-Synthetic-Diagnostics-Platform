@@ -75,8 +75,8 @@ class XGC_Loader_local():
     :param int t_end: Time step at which stoping the diagnostics
     :param int dt: Interval between two time step that the diagnostics should compute
     :param np.array[...,2] limits: Mesh limits for the diagnostics. Two different cases can happen.\
-    The first is that we give a 1D array (np.array[2]), in this case, phi_min and phi_max are given.\
-    The second case is that we give a 2D array (np.array[3,2]), in this case,\
+    The first is that we give an np.array[2,2], in this case, X/Y_min and X/Y_max are given (first index is for X,Y).\
+    The second case is that we give a np.array[3,2], in this case,\
     the first index corresponds to the coordinates X,Y,Z and the second one to min/max
     :param float dphi: Size of the step for the field line integration (in radian)
     :param float shift: Shift for phi (default value assumed that plane number 0 is at phi=0)
@@ -391,14 +391,18 @@ class XGC_Loader_local():
         
         dne_ad = np.zeros(pot.shape)
         dne_ad += ne0*pot/te0
-        ad_valid_idx = np.absolute(dne_ad)<= np.absolute(ne0)
+        ind = np.isfinite(dne_ad)
+        ad_valid_idx = np.zeros(dne_ad.shape,dtype=bool)
+        ad_valid_idx[ind] = np.absolute(dne_ad[ind])<= np.absolute(ne0[ind])
 
         ne = np.zeros(pot.shape)
         ne += ne0[:]
         ne[ad_valid_idx] += dne_ad[ad_valid_idx]
-        na_valid_idx = np.absolute(nane)<= np.absolute(ne)
+        ind2 = np.isfinite(nane)
+        na_valid_idx = np.zeros(nane.shape,dtype=bool)
+        na_valid_idx[ind2] = np.absolute(nane[ind2])<= np.absolute(ne[ind2])
         ne[na_valid_idx] += nane[na_valid_idx]
-
+        ne[~ind | ~ind2] = self.ne_min/10
         return ne
     
     def compute_interpolant(self):
@@ -456,11 +460,12 @@ class XGC_Loader_local():
         if(self.CO_DIR):
             # distance (angle) between the phiw wanted and the closest planes
             phiFWD = np.where(phi_planes[nextplane] < dPhi ,phi_planes[nextplane] + np.pi*2 - phi, phi_planes[nextplane]-phi)
+            phi[phi<phi_planes[prevplane]] += 2*np.pi
             phiBWD = phi_planes[prevplane]-phi
         else:
-            phiFWD = phi_planes[nextplane]-phi
             phiBWD = np.where(phi_planes[prevplane] < dPhi ,phi_planes[prevplane] + np.pi*2 - phi, phi_planes[prevplane]-phi)
-
+            phi[phi<phi_planes[nextplane]] += 2*np.pi
+            phiFWD = phi_planes[nextplane]-phi
         # angle between two steps
         R_FWD = np.copy(r)
         R_BWD = np.copy(r)
@@ -602,13 +607,14 @@ class XGC_Loader_local():
         
         if eq or ('Te' in quant) or ('Ti' in quant):
             #psi on grid
-            psi = self.psi_interp(z,r)
+            psi = self.psi_interp(r,z)
         # check if want equilibrium data
         if eq:
             #ne0 on grid
             if ne_bool:
                 ne = splev(psi,self.ne0_sp)
                 ne[ne < self.ne_min/10] = self.ne_min/10
+
         #Te and Ti on grid
         if 'Te' in quant:
             Te = splev(psi,self.te0_sp)

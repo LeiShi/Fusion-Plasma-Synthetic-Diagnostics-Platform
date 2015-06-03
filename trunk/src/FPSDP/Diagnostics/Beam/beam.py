@@ -304,11 +304,6 @@ class Beam1D:
                     # compute all the values needed for the integral
                     ne, T = self.get_quantities(pt,self.t_,['ne','Ti'],self.eq,check=False)
                     
-                    # the interpolation for the equilibrium case
-                    # can be outside the mesh                        
-                    if self.eq:
-                        ne[np.isnan(ne)] = self.data.ne_min
-                        T[np.isnan(T)] = self.data.ti_min
                     # attenuation coefficient from adas
                     S = self.collisions.get_attenutation(
                         self.beam_comp[beam_nber],ne,self.mass_b[beam_nber],

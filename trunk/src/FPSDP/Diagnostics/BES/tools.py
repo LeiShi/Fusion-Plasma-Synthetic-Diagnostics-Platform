@@ -7,6 +7,10 @@ import FPSDP.Diagnostics.Beam.beam as beam_
 import FPSDP.Diagnostics.BES.bes as bes_
 import FPSDP.Plasma.XGC_Profile.load_XGC_local as xgc_
 
+# command for using pdflatex for the graph in pgf
+pgf_with_rc_fonts = {"pgf.texsystem": "pdflatex"}
+matplotlib.rcParams.update(pgf_with_rc_fonts)
+
 class Tools:
     """ Defines a few tools for doing some computations on the BES image
     
@@ -440,8 +444,39 @@ class Tools:
         plt.plot([r0[ind_sep],r0[ind_sep]],[ya,yb])
         plt.legend()
         plt.show()
+
+
+
+def put_two_files_together(name1,name2,outputname):
+    """ When doing two simulations on a different time intervals,
+    this function can be used to put the output in one file.
+    """
+    data1 = np.load(name1)
+    I1 = data['arr_0']
+    psin1 = data['arr_1']
+    pos1 = data['arr_2']
+
+    data2 = np.load(filename)
+    I2 = data['arr_0']
+    psin2 = data['arr_1']
+    pos2 = data['arr_2']
+
+    check = True
+    if (pos1 != pos2).any():
+        check = False
+    if (psin1 != psin2).any():
+        check = False
+
+    if not check:
+        raise NameError('Not the same simulation')
+
+    else:
+        I = np.zeros((I1.shape[0]+I2.shape[0],I1.shape[1]))
+        I[:I1.shape[0],:] = I1
+        I[I2.shape[0]:,:] = I2
+        np.savez(outputname,I,psin1,pos1)
         
-        
+    
 """ Define a few test for checking the data given by the code
 It contains all the code used for the figure in my report
 """
@@ -478,14 +513,14 @@ def beam_density(t=150):
     axarr[1].plot(dl,((nb_eq-nb_fl)/nb_eq).T)
     plt.xlabel('Distance [m]')
     axarr[1].set_ylabel('Error')
-    axarr[1].legend(['1st component','2nd component','3rd component'],loc=4)
+    axarr[1].legend(['1st component','2nd component','3rd component'],loc=3)
     axarr[1].grid(True)
     
     axarr[0].plot(dl,nb_eq.T)
     axarr[0].plot(dl,nb_fl.T)
     axarr[0].grid(True)
     axarr[0].set_ylabel('Beam density [m$^{-3}$]')
-    axarr[0].legend(['1st Eq','2nd Eq','3rd Eq'])
+    axarr[0].legend(['1st Eq','2nd Eq','3rd Eq'],loc=3)
     
     
     fig, axarr = plt.subplots(2,sharex=True)
@@ -498,7 +533,7 @@ def beam_density(t=150):
     axarr[0].plot(dl,ne_eq)
     axarr[0].plot(dl,ne_fl)
     axarr[0].grid(True)
-    axarr[0].legend(['Equilibrium','Fluctuations'],loc=4)
+    axarr[0].legend(['Equilibrium','Fluctuations'],loc=2)
     axarr[0].set_ylabel('Electron Density [m$^{-3}$]')
         
     plt.figure()
@@ -507,11 +542,13 @@ def beam_density(t=150):
     tot = np.sum(nb_fl,axis=0)
     plt.plot(dl,(nb_fl/tot[np.newaxis,:]).T)
     plt.legend(['1st Eq','2nd Eq','3rd Eq'],loc=2)
+    plt.xlabel('Distance [m]')
+    plt.ylabel('Ratio')
     plt.grid(True)
     
     plt.show()
 
-def beam_emission(Nr=40,t=150):
+def beam_emission(Nr=40,t=81):
     """ Shows the effect of the beam density on the emission and the effect of the lifetime.
 
     Three plots will be done: a first one with the emission without the lifetime, a second one with
@@ -566,7 +603,7 @@ def beam_emission(Nr=40,t=150):
 
     v = np.linspace(-1,1,v)
     plt.figure()
-    plt.title('Difference between the instantaneous and non-instantaneous emission')
+    plt.title('Relative Error')
     plt.contourf(R,L,(emis_l-emis)/emis,v)
     plt.plot([-width, -width],[0, dl[-1]],'--k')
     plt.plot([width, width],[0, dl[-1]],'--k')
@@ -593,7 +630,7 @@ def check_convergence_beam_density(t=140,eq=False):
     Nsample = 20
     N = np.logspace(2,3,Nsample)
     nb = np.zeros((bes.beam.beam_comp.shape[0],Nsample))
-    Nref = 300
+    Nref = 3000
 
     bes.beam.eq = eq
     for i in range(Nsample):
@@ -610,9 +647,12 @@ def check_convergence_beam_density(t=140,eq=False):
     bes.beam.compute_beam_on_mesh()
     nbref = bes.beam.density_beam[:,-1]
 
+    #np.save('test_beam_conv',np.abs(nb-nbref[:,np.newaxis])/nbref[:,np.newaxis])
+    nb_test = np.load('test_beam_conv.npy')
     for i in range(nb.shape[0]):
         plt.loglog(N,np.abs((nb[i,:]-nbref[i])/nbref[i]),label='Beam Component {}'.format(i+1))
 
+    plt.loglog(N,nb_test[0,:],label='Test Function')
     plt.title('Beam Density')
     plt.legend()
     plt.grid(True)
@@ -709,7 +749,7 @@ def check_convergence_field_line(fib=4,phi=0.2,nber_plane=16,fwd=True):
     plt.loglog(dphi,np.abs((pos[:,1]-pos_ref[1])/pos_ref[1]),label='Z')
     plt.loglog(dphi,np.abs((pos[:,2]-pos_ref[2])/pos_ref[2]),label='s')
     plt.grid(True)
-    plt.legend()
+    plt.legend(loc=2)
     
     plt.ylabel('Error')
     plt.xlabel('$\Delta\phi [rad]$')
@@ -877,6 +917,72 @@ def check_convergence_solid_angle():
     plt.xlabel('Number of interval')
     plt.show()
 
+
+def check_field_line_integration(R=2.23,Z=0.01,phi=0.1,Nrot=10,fwd=True,data_name='/project/projectdirs/m499/jlang/particle_pinch/'):
+    """ Use the coordinate of a fiber for making a field line integration
+    on Nrot tour and plot the value of :math:`\psi_n` at each toroidal planes.
+
+    :param float R: Initial position
+    :param float Z: Initial position
+    :param int Nrot: Number of toroidal tour
+    :param bool fwd: Choice between forward or backward rotation
+    """
+    Rinit = R
+    Zinit = Z
+    # the value of the limits are random, we do not care about them in this function
+    data = xgc_.XGC_Loader_local(data_name,1,182,1,np.array([[0.1,1],[0.1,1]]),0.001)
+    # take all the planes into account
+    n_plane = data.n_plane
+    
+    Rcur = np.atleast_1d(R)
+    Zcur = np.atleast_1d(Z)
+    phicur = np.atleast_1d(phi)
+    R = np.zeros(n_plane*Nrot)
+    Z = np.zeros(n_plane*Nrot)
+
+    dPhi = 2*np.pi/n_plane
+    phi_planes = np.arange(n_plane)*dPhi+data.shift
+
+    sign = 1.0
+    if not data.CO_DIR:
+        sign = -1.0
+    for i in range(n_plane*Nrot):
+        prevplane,nextplane = xgc_.get_interp_planes_local(data,phicur)
+        # MAYBE NEED TO CHANGE IT IF data.CO_DIR (I do not have data with it for checking)
+        # this condition is due to the fact that phicur == phi_planes and that I want to
+        # go to a next plane
+        if phicur == phi_planes[nextplane]:
+            nextplane -= 1
+            nextplane = nextplane % n_plane
+
+        interp = data.find_interp_positions(Rcur,Zcur,phicur,prevplane,nextplane)
+        if fwd:
+            Rcur = interp[1,0,:]
+            Zcur = interp[1,1,:]
+            phicur = phi_planes[nextplane]
+        else:
+            Rcur = interp[0,0,:]
+            Zcur = interp[0,1,:]
+            phicur = phi_planes[prevplane]
+
+        R[i] = Rcur
+        Z[i] = Zcur
+
+    psi = data.psi_interp(np.array([R,Z]).T)/data.psi_x
+    psi_ref = data.psi_interp(np.array([Rinit,Zinit]).T)/data.psi_x
+    N = np.arange(n_plane*Nrot)+1
+    plt.figure()
+    plt.plot(Rinit,Zinit,'rd')
+    plt.plot(R,Z,'-x')
+    plt.xlabel('R [m]')
+    plt.ylabel('Z [m]')
+
+    plt.figure()
+    plt.loglog(N,np.abs(psi-psi_ref)/psi_ref)
+    plt.xlabel('Number of step')
+    plt.ylabel('Relative error in $\psi$')
+    plt.show()
+
     
 def check_geometry(minorR=0.67,majorR=1.67):
     """ Plot the geometry readed by the synthetic diagnostics
@@ -981,7 +1087,17 @@ def compute_beam_config(Rsource,phisource, Rtan,R=np.array([])):
 
 
 
-def check_interpolation(phi=-2.58,t=130,Nr=1000,Nz=1000,R=[1.82,2.3],Z=[-0.25,0.25]):
+def interpolation_toroidal_plane(phi=-2.58,t=130,Nr=1000,Nz=1000,R=[1.82,2.3],Z=[-0.25,0.25]):
+    """ Create a R-Z mesh and interpolate the data on it.
+    Is usefull for checking if the data are well interpolated
+
+    :param float phi: Toroidal plane to compute
+    :param int t: Time step
+    :param int Nr: Number of radial points
+    :param int Nz: Number of Z points
+    :param list[] R: R min and max
+    :param list[] Z: Z min and max
+    """
     
     bes = bes_.BES(name)
     
@@ -1004,23 +1120,48 @@ def check_interpolation(phi=-2.58,t=130,Nr=1000,Nz=1000,R=[1.82,2.3],Z=[-0.25,0.
     R = np.reshape(R,(Nr,Nz))
     Z = np.reshape(Z,(Nr,Nz))
 
-    #import pdb; pdb.set_trace()    
+
     plt.figure()
+    plt.title('Electron Density')
     plt.contourf(R,Z,ne)
-    #plt.imshow(ne)
-    #plt.plot(bes.beam.data.points[:,1],bes.beam.data.points[:,0],'x')
     plt.xlabel('R-coordinate')
     plt.ylabel('Z-coordinate')
     plt.colorbar()
 
-    #B = bes.beam.data.B_interp(Z.flatten(),R.flatten())
-    #plt.figure()
-    #plt.streamplot(R,Z,np.reshape(B[:,0],(Nr,Nz)),np.reshape(B[:,1],(Nr,Nz)))
-    #plt.colorbar()
-
-    #plt.figure()
-    #plt.contourf(R,Z,np.reshape(B[:,2],(Nr,Nz)))
-    #plt.colorbar()
-    
     plt.show()
 
+
+def solid_angle_evolution(Rmax=2,Zmax=0.1,Nr=80,Nz=100,fib=4,v=40):
+    """ Plot the value of the solid angle as a function of R-Z (optical system)
+    (Every parameter are in the unit of the focus point radius/distance to the lens)
+    """
+
+    bes = bes_.BES(name)
+    r = np.linspace(-Rmax,Rmax,Nr)*bes.rad_foc[fib]
+    z = np.linspace(1-Zmax,1+Zmax,Nz)*bes.dist[fib]
+
+    Z,R = np.meshgrid(z,r,indexing='ij')
+
+    eps = np.zeros(R.shape)
+    for i in range(Nz):
+        pos = np.array([r,np.zeros(r.shape),z[i]*np.ones(r.shape)]).T
+        eps[i,:] = bes.get_solid_angle(pos,fib)
+        
+    Z -= bes.dist[fib]
+
+    plt.figure()
+    #v = np.linspace(0,0.1,v)
+    plt.contourf(Z,R,eps,v)
+    plt.plot([0, 0],np.array([-1,1])*bes.rad_foc[fib],'-k')
+    plt.xlabel('Distance from the central line')
+    plt.ylabel('Distance from the focus point along the central line')
+    plt.colorbar()
+    plt.title('Solid Angle')
+
+    plt.figure()
+    plt.plot(R[0:Nz:10,:].T,eps[0:Nz:10,:].T)
+    plt.xlabel('Distance from the central line')
+    plt.ylabel('Solid Angle')
+
+    
+    plt.show()

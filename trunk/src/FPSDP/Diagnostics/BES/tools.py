@@ -661,7 +661,7 @@ def check_convergence_beam_density(t=140,eq=False):
     plt.show()
 
 
-def check_convergence_lifetime(t=140,fib=4,beam_comp=0):
+def check_convergence_lifetime(t=81,fib=4,beam_comp=0):
     """ Plot the error as a function of the number of interval for the computation
     of the emission with lifetime.
 
@@ -675,20 +675,27 @@ def check_convergence_lifetime(t=140,fib=4,beam_comp=0):
     bes.beam.data.dphi = 2*np.pi/(16*200)
     bes.beam.data.load_next_time_step(increase=False)
     bes.beam.compute_beam_on_mesh()
+    bes.beam.t_max = 8.0
 
-    N = np.round(np.logspace(2,3,30))
-    Nref = 4000
+    N = 10*np.round(np.logspace(2,3,30))
+    Nref = 40000
 
+    #bes.pos_foc[fib,:] += 0.4*bes.beam.direc
     emis = np.zeros(N.shape)
+    #test = np.zeros(N.shape)
     for i,Nlt in enumerate(N):
+        print i
         bes.beam.Nlt = Nlt
         emis[i] = bes.beam.get_emis_lifetime(bes.pos_foc[fib,:],t)[beam_comp,:]
+        #test[i] = bes.beam.get_emis_lifetime(bes.pos_foc[fib,:],t,test=True)[beam_comp,:]
     bes.beam.Nlt = Nref
     emis_ref = bes.beam.get_emis_lifetime(bes.pos_foc[fib,:],t)[beam_comp,:]
-
+    #test_ref = bes.beam.get_emis_lifetime(bes.pos_foc[fib,:],t,test=True)[beam_comp,:]
+    
     plt.figure()
     plt.title('Lifetime convergence')
     plt.loglog(N,np.abs((emis-emis_ref)/emis_ref))
+    #plt.loglog(N,np.abs((test-test_ref)/test_ref))
     plt.grid(True)
     plt.ylabel('Error')
     plt.xlabel('Number of interval')
@@ -810,13 +817,12 @@ def check_convergence_interpolation_data(t=140,fib=4,phi=0.2,nber_plane=16,eq=Fa
     plt.show()
 
 
-def check_convergence_optic_int(t=140,fib=4,type_='1D'):
+def check_convergence_optic_int(t=81,fib=4):
     """ Plot the error of the image captured by a fiber as a function of the number
     of interval for the integration along the optical axis
 
     :param int t: Time step wanted
     :param int fib: Index of the fiber
-    :param str type_: Type of integration wanted (see config file for more detail)
     """
 
     bes = bes_.BES(name)
@@ -824,33 +830,45 @@ def check_convergence_optic_int(t=140,fib=4,type_='1D'):
     bes.beam.data.current = t
     bes.beam.data.load_next_time_step(increase=False)
     bes.beam.compute_beam_on_mesh()
-    bes.type_int = type_
     bes.pos_foc = np.atleast_2d(bes.pos_foc[fib,:])
     
     Nsample = 30
     N_ref = 300
     N = np.logspace(1,2,Nsample)
-    I = np.zeros(Nsample)
+    I1D = np.zeros(Nsample)
+    I2D = np.zeros(Nsample)
+    #Itest = np.zeros(Nsample)
 
     for i,N_ in enumerate(N):
         print i
         bes.Nint = N_
-        if type_ == '2D':
-            bes.solid = np.zeros((1,bes.Nint-1,2,21) )
-        I[i] = bes.intensity(t,0,comp_eps=True)
+        bes.type_int = '1D'
+        bes.solid = np.zeros((1,bes.Nint-1,2,21) )
+        I1D[i] = bes.intensity(t,0,comp_eps=True)
+        bes.type_int = '2D'
+        I2D[i] = bes.intensity(t,0,comp_eps=True)
+        #Itest[i] = bes.intensity(t,0,comp_eps=True,test=True)
+        
 
     bes.Nint = N_ref
-    if type_ == '2D':
-        bes.solid = np.zeros((1,bes.Nint-1,2,21) )
-    I_ref = bes.intensity(t,0,comp_eps=True)
+    bes.type_int = '1D'
+    bes.solid = np.zeros((1,bes.Nint-1,2,21) )
+    I1D_ref = bes.intensity(t,0,comp_eps=True)
+    bes.type_int = '2D'
+    I2D_ref = bes.intensity(t,0,comp_eps=True)
+    #Itest_ref = bes.intensity(t,0,comp_eps=True,test=True)
+    
 
     
     plt.figure()
     plt.title('Optical integral')
-    plt.loglog(N,np.abs((I-I_ref)/I_ref))
+    plt.loglog(N,np.abs((I1D-I1D_ref)/I1D_ref),label='1D integral')
+    plt.loglog(N,np.abs((I2D-I2D_ref)/I2D_ref),label='2D integral')
+    #plt.loglog(N,np.abs((Itest-Itest_ref)/Itest_ref),label='Test')
     plt.grid(True)
     plt.ylabel('Error')
     plt.xlabel('Number of interval')
+    plt.legend()
     plt.show()
 
 def check_convergence_solid_angle_to_analy(R=0.5,Z=0.1,radius=0.4,Nth=100,Nr=10):

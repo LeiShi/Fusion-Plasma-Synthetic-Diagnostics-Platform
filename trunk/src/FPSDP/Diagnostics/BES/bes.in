@@ -139,9 +139,9 @@ filter = FPSDP/Diagnostics/BES/filter.dat
 # path to the simulation data
 data_path = /global/project/projectdirs/m499/jlang/particle_pinch/
 # method of the interpolation (linear or cubic)
-interpolation = linear
+interpolation = cubic
 # torroidal step for the field line interpolation (in radians)
-dphi = 0.05
+dphi = 0.01
 # simulation time steps wanted
 timestart = 91
 timeend = 182

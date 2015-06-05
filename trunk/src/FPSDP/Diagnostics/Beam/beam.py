@@ -177,7 +177,7 @@ class Beam1D:
         """
         # intersection between end of mesh and beam
         self.inters = self.find_wall()                                       #!
-        print self.inters
+        
         length = np.sqrt(np.sum((self.pos-self.inters)**2))
         # distance to the origin along the central line
         self.dl = np.linspace(0,length,self.Nz)
@@ -427,7 +427,7 @@ class Beam1D:
         """
         pos = np.atleast_2d(pos)
 
-        quad = integ.integration_points(1,'GL2') # Gauss-Legendre order 4
+        quad = integ.integration_points(1,'GL2') # Gauss-Legendre order 2
         emis = np.zeros((len(self.beam_comp),pos.shape[0]))
         # avoid the computation at each time
         ne_in, Ti_in,Te_in = self.get_quantities(pos,t_,['ne','Ti','Te'])

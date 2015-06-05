@@ -212,13 +212,13 @@ class Tools:
             r,z,I_id = self.interpolate(Nr,Nz,self.I)
             r,z,I = self.interpolate(Nr,Nz,tool2.I)
 
-        #lim1 = np.min([np.max(self.I), -np.min(self.I)])
-        #lim2 = np.min([np.max(tool2.I), -np.min(tool2.I)])
-        #v1 = np.linspace(-lim1,lim1,v)
-        #v2 = np.linspace(-lim2,lim2,v)
-        print self.I, tool2.I
-        v1 = np.linspace(np.min(self.I),np.max(self.I),v)
-        v2 = np.linspace(np.min(tool2.I),np.max(tool2.I),v)
+        lim1 = np.min([np.max(self.I), -np.min(self.I)])
+        lim2 = np.min([np.max(tool2.I), -np.min(tool2.I)])
+        v1 = np.linspace(-lim1,lim1,v)
+        v2 = np.linspace(-lim2,lim2,v)
+        
+        #v1 = np.linspace(np.min(self.I),np.max(self.I),v)
+        #v2 = np.linspace(np.min(tool2.I),np.max(tool2.I),v)
         fig, axarr = plt.subplots(1,2)
         
         axarr[0].set_xlabel('R[m]')
@@ -239,8 +239,8 @@ class Tools:
             axarr[0].locator_params(axis = 'x',nbins=5)
             axarr[1].cla()
             axarr[1].locator_params(axis = 'x',nbins=5)
-            axarr[0].set_title(tool2.name_id)
-            axarr[1].set_title(self.name_id)
+            axarr[1].set_title(tool2.name_id)
+            axarr[0].set_title(self.name_id)
   
             axarr[1].set_yticklabels([])
             plt.suptitle('Timestep : {}'.format(i))
@@ -250,14 +250,14 @@ class Tools:
                 tri0 = axarr[1].contourf(r,z,I[i,...].T,v2,extend='both')
             else:
                 tri0 = axarr[1].tricontourf(tool2.R,tool2.Z,tool2.I[i,:],v2,extend='both')
-            axarr[0].tricontour(self.R,self.Z,self.psin,[1])
+            axarr[1].tricontour(tool2.R,tool2.Z,tool2.psin,[1])
 
             axarr[1].plot(self.R,self.Z,'x')
             if interpolation:
                 tri1 = axarr[0].contourf(r,z,I_id[i,...].T,v1,extend='both')
             else:
                 tri1 = axarr[0].tricontourf(self.R,self.Z,self.I[i,:],v1,extend='both')
-            axarr[1].tricontour(self.R,self.Z,self.psin,[1])
+            axarr[0].tricontour(self.R,self.Z,self.psin,[1])
 
             fig.canvas.draw()
             return None
@@ -452,14 +452,14 @@ def put_two_files_together(name1,name2,outputname):
     this function can be used to put the output in one file.
     """
     data1 = np.load(name1)
-    I1 = data['arr_0']
-    psin1 = data['arr_1']
-    pos1 = data['arr_2']
+    I1 = data1['arr_0']
+    psin1 = data1['arr_1']
+    pos1 = data1['arr_2']
 
-    data2 = np.load(filename)
-    I2 = data['arr_0']
-    psin2 = data['arr_1']
-    pos2 = data['arr_2']
+    data2 = np.load(name2)
+    I2 = data2['arr_0']
+    psin2 = data2['arr_1']
+    pos2 = data2['arr_2']
 
     check = True
     if (pos1 != pos2).any():
@@ -473,8 +473,8 @@ def put_two_files_together(name1,name2,outputname):
     else:
         I = np.zeros((I1.shape[0]+I2.shape[0],I1.shape[1]))
         I[:I1.shape[0],:] = I1
-        I[I2.shape[0]:,:] = I2
-        np.savez(outputname,I,psin1,pos1)
+        I[I1.shape[0]:,:] = I2
+        np.savez(outputname,I,psin1,pos1,data1['arr_3'])
         
     
 """ Define a few test for checking the data given by the code

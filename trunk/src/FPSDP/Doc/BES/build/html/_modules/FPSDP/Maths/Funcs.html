@@ -1,0 +1,497 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>FPSDP.Maths.Funcs &mdash; BES 0.8 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="BES 0.8 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for FPSDP.Maths.Funcs</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;simple math functions used for debugging and/or productive runs</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">scipy</span> <span class="kn">as</span> <span class="nn">sp</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">FPSDP.Maths.Integration</span> <span class="kn">as</span> <span class="nn">integ</span>
+
+
+<div class="viewcode-block" id="heuman"><a class="viewcode-back" href="../../../FPSDP.Maths.html#FPSDP.Maths.Funcs.heuman">[docs]</a><span class="k">def</span> <span class="nf">heuman</span><span class="p">(</span><span class="n">phi</span><span class="p">,</span><span class="n">m</span><span class="p">):</span>
+    <span class="sd">r&quot;&quot;&quot; Compute the Heuman&#39;s lambda function</span>
+
+<span class="sd">    :math:`\Lambda_0 (\xi,k) = \frac{2}{\pi}\left[E(k)F(\xi,k&#39;) + K(k)E(\xi,k&#39;)- K(k)F(\xi,k&#39;)\right]`</span>
+<span class="sd">    where :math:`k&#39; = \sqrt{(1-k^2)}`</span>
+
+<span class="sd">    :param np.array[N] phi: The amplitude of the elliptic integrals</span>
+<span class="sd">    :param np.array[N] m: The parameter of the elliptic integrals</span>
+
+<span class="sd">    :returns: Evaluation of the Heuman&#39;s lambda function</span>
+<span class="sd">    :rtype: np.array[N]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">m2</span> <span class="o">=</span> <span class="mi">1</span><span class="o">-</span><span class="n">m</span>
+    <span class="n">F2</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">ellipkinc</span><span class="p">(</span><span class="n">phi</span><span class="p">,</span><span class="n">m2</span><span class="p">)</span> <span class="c"># incomplete elliptic integral of 1st kind</span>
+    <span class="n">K</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">ellipk</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="c"># complete elliptic integral of 1st kind</span>
+    <span class="n">E</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">ellipe</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="c"># complete elliptic integral of 2nd kind</span>
+    <span class="n">E2</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">ellipeinc</span><span class="p">(</span><span class="n">phi</span><span class="p">,</span><span class="n">m2</span><span class="p">)</span> <span class="c"># incomplete elliptic integral of 2nd kind</span>
+    <span class="n">ret</span> <span class="o">=</span> <span class="mf">2.0</span><span class="o">*</span><span class="p">(</span><span class="n">E</span><span class="o">*</span><span class="n">F2</span><span class="o">+</span><span class="n">K</span><span class="o">*</span><span class="n">E2</span><span class="o">-</span><span class="n">K</span><span class="o">*</span><span class="n">F2</span><span class="p">)</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span>
+    <span class="k">return</span> <span class="n">ret</span>
+</div>
+<div class="viewcode-block" id="solid_angle_disk"><a class="viewcode-back" href="../../../FPSDP.Maths.html#FPSDP.Maths.Funcs.solid_angle_disk">[docs]</a><span class="k">def</span> <span class="nf">solid_angle_disk</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span><span class="n">r</span><span class="p">):</span>
+    <span class="sd">r&quot;&quot;&quot; Compute the solid angle of a disk on/off-axis from the pos</span>
+<span class="sd">    the center of the circle should be in (0,0,0)</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">      \Omega = \left\{\begin{array}{lr}</span>
+<span class="sd">      2\pi-\frac{2L}{R_\text{max}}K(k)-\pi\Lambda_0(\xi,k) &amp; r_0 &lt; r_m \\</span>
+<span class="sd">      \phantom{2}\pi-\frac{2L}{R_\text{max}}K(k) &amp; r_0 = r_m \\</span>
+<span class="sd">      \phantom{2\pi}-\frac{2L}{R_\text{max}}K(k)+\pi\Lambda_0(\xi,k) &amp; r_0 &gt; r_m \\</span>
+<span class="sd">      \end{array}\right.</span>
+
+<span class="sd">    Read the paper of `Paxton  &lt;http://scitation.aip.org/content/aip/journal/rsi/30/4/10.1063/1.1716590&gt;`_ &quot;Solid Angle Calculation for a </span>
+<span class="sd">    Circular Disk&quot; in 1959 for the exact computation.</span>
+
+<span class="sd">    :param np.array[N,3] pos: Position from which computing the solid angle</span>
+<span class="sd">    :param float r: Radius of the disk (the disk is centered in (0,0,0) and the perpendicular is along the z-axis)</span>
+
+<span class="sd">    :returns: Solid angle for each positions</span>
+<span class="sd">    :rtype: np.array[N]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+    <span class="c"># define a few value (look Paxton paper for name)</span>
+    <span class="n">r0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">pos</span><span class="p">[:,</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">ind1</span> <span class="o">=</span> <span class="n">r0</span> <span class="o">!=</span> <span class="mi">0</span>
+    <span class="n">ind2</span> <span class="o">=</span> <span class="o">~</span><span class="n">ind1</span>
+    <span class="n">Rmax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">pos</span><span class="p">[</span><span class="n">ind1</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">r0</span><span class="p">[</span><span class="n">ind1</span><span class="p">]</span><span class="o">+</span><span class="n">r</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">R1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">pos</span><span class="p">[</span><span class="n">ind1</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">r0</span><span class="p">[</span><span class="n">ind1</span><span class="p">]</span><span class="o">-</span><span class="n">r</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="p">(</span><span class="n">R1</span><span class="o">/</span><span class="n">Rmax</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">LK_R</span> <span class="o">=</span> <span class="mf">2.0</span><span class="o">*</span><span class="nb">abs</span><span class="p">(</span><span class="n">pos</span><span class="p">[</span><span class="n">ind1</span><span class="p">,</span><span class="mi">2</span><span class="p">])</span><span class="o">*</span><span class="n">sp</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">ellipk</span><span class="p">(</span><span class="n">k</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="n">Rmax</span>
+    <span class="c"># not use for r0=r but it should not append</span>
+    <span class="c"># often</span>
+    <span class="n">xsi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">pos</span><span class="p">[</span><span class="n">ind1</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span><span class="o">/</span><span class="p">(</span><span class="n">r</span><span class="o">-</span><span class="n">r0</span><span class="p">[</span><span class="n">ind1</span><span class="p">])))</span>
+    <span class="n">pilam</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">heuman</span><span class="p">(</span><span class="n">xsi</span><span class="p">,</span><span class="n">k</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="c"># the three different case</span>
+    <span class="n">inda</span> <span class="o">=</span> <span class="n">r0</span><span class="p">[</span><span class="n">ind1</span><span class="p">]</span> <span class="o">==</span> <span class="n">r</span>
+    <span class="n">indb</span> <span class="o">=</span> <span class="n">r0</span><span class="p">[</span><span class="n">ind1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">r</span>
+    <span class="n">indc</span> <span class="o">=</span> <span class="p">(</span><span class="o">~</span><span class="n">inda</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="o">~</span><span class="n">indb</span><span class="p">)</span>
+    <span class="c"># compute the solid angle</span>
+    <span class="n">solid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">temp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">ind1</span><span class="p">))</span>
+    <span class="n">temp</span><span class="p">[</span><span class="n">inda</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">-</span> <span class="n">LK_R</span><span class="p">[</span><span class="n">inda</span><span class="p">]</span>
+    <span class="n">temp</span><span class="p">[</span><span class="n">indb</span><span class="p">]</span> <span class="o">=</span> <span class="mf">2.0</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">-</span> <span class="n">LK_R</span><span class="p">[</span><span class="n">indb</span><span class="p">]</span> <span class="o">-</span> <span class="n">pilam</span><span class="p">[</span><span class="n">indb</span><span class="p">]</span>
+    <span class="n">temp</span><span class="p">[</span><span class="n">indc</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span> <span class="n">LK_R</span><span class="p">[</span><span class="n">indc</span><span class="p">]</span> <span class="o">+</span> <span class="n">pilam</span><span class="p">[</span><span class="n">indc</span><span class="p">]</span>
+    <span class="n">solid</span><span class="p">[</span><span class="n">ind1</span><span class="p">]</span> <span class="o">=</span> <span class="n">temp</span>
+
+    <span class="c"># on axis case (easy analytical computation)</span>
+    <span class="n">solid</span><span class="p">[</span><span class="n">ind2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">pos</span><span class="p">[</span><span class="n">ind2</span><span class="p">,</span><span class="mi">2</span><span class="p">])</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">r</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">pos</span><span class="p">[</span><span class="n">ind2</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">solid</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;Solid angle:&#39;</span><span class="p">,</span><span class="n">solid</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;Position:&#39;</span><span class="p">,</span> <span class="n">pos</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Solid angle smaller than 0&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">solid</span>
+
+</div>
+<span class="k">def</span> <span class="nf">compute_threshold_solid_angle</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">rx</span><span class="p">,</span><span class="n">ry</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Compute a normalization of the threshold for the function :func:`solid_angle_seg &lt;FPSDP.Maths.Funcs.solid_angle_seg&gt;`</span>
+
+<span class="sd">    :param list[x1,x2] x: Intersection on the ring of the mixed case</span>
+<span class="sd">    :param list[y1,y2] y: Intersection on the lens of the mixed case</span>
+<span class="sd">    :param np.array[N] pos: Position from where the solid angle is computed</span>
+<span class="sd">    :param int rx: Radius of the ring</span>
+<span class="sd">    :param int ry: Radius of the lens</span>
+
+<span class="sd">    :return: Threshold</span>
+<span class="sd">    :rtype: np.array[N]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">x1</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">x2</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="c"># compute the scalar product between x1 and x2</span>
+    <span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s">&#39;ij,ij-&gt;i&#39;</span><span class="p">,</span><span class="n">x1</span><span class="p">,</span><span class="n">x2</span><span class="p">)</span>
+    <span class="c"># index where we compute the area of the smallest part of the disk</span>
+    <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s">&#39;ij,ij-&gt;i&#39;</span><span class="p">,</span><span class="n">pos</span><span class="p">[</span><span class="o">...</span><span class="p">,:</span><span class="mi">2</span><span class="p">],</span><span class="n">x1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span>
+    <span class="c"># area of the triangle between O,x1,x2</span>
+    <span class="n">Atri</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">angle</span>
+    <span class="c"># Compute the angle between x1,0,x2</span>
+    <span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arccos</span><span class="p">(</span><span class="n">angle</span><span class="o">/</span><span class="n">rx</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="c"># rectification of the angle for being in [0,2pi]</span>
+    <span class="n">angle</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">-</span> <span class="n">angle</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span>
+    <span class="c"># approximation of the solid angle for full circle - segment</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">-</span><span class="mf">0.5</span><span class="o">*</span><span class="n">angle</span><span class="p">)</span><span class="o">*</span><span class="n">rx</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">Atri</span><span class="p">)</span><span class="o">/</span><span class="n">pos</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
+    
+    <span class="c"># same but with y</span>
+    <span class="n">y1</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">y2</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="c"># compute the scalar product between y1 and y2</span>
+    <span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s">&#39;ij,ij-&gt;i&#39;</span><span class="p">,</span><span class="n">y1</span><span class="p">,</span><span class="n">y2</span><span class="p">)</span>
+    <span class="c"># index where we compute the area of the smallest part of the disk</span>
+    <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s">&#39;ij,ij-&gt;i&#39;</span><span class="p">,</span><span class="n">pos</span><span class="p">[</span><span class="o">...</span><span class="p">,:</span><span class="mi">2</span><span class="p">],</span><span class="n">y1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span>
+    <span class="c"># area of the triangle between O,y1,y2</span>
+    <span class="n">Atri</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">angle</span>
+    <span class="c"># Compute the angle between y1,0,y2</span>
+    <span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arccos</span><span class="p">(</span><span class="n">angle</span><span class="o">/</span><span class="n">ry</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="c"># rectification of the angle for being in [0,2pi]</span>
+    <span class="n">angle</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">-</span> <span class="n">angle</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span>
+    <span class="c"># approximation of the solid angle for full circle - segment</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">-</span><span class="mf">0.5</span><span class="o">*</span><span class="n">angle</span><span class="p">)</span><span class="o">*</span><span class="n">ry</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">Atri</span><span class="p">)</span><span class="o">/</span><span class="n">pos</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
+
+    <span class="k">return</span> <span class="n">A</span>
+
+    
+
+<div class="viewcode-block" id="solid_angle_seg"><a class="viewcode-back" href="../../../FPSDP.Maths.html#FPSDP.Maths.Funcs.solid_angle_seg">[docs]</a><span class="k">def</span> <span class="nf">solid_angle_seg</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span><span class="n">x</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">islens</span><span class="p">,</span><span class="n">Nth</span><span class="p">,</span><span class="n">Nr</span><span class="p">):</span>
+    <span class="sd">r&quot;&quot;&quot; Compute the solid angle of a disk where a segment has been removed.</span>
+<span class="sd">    </span>
+<span class="sd">    First, the numerical integration will be carried out over the biggest area of the disk,</span>
+<span class="sd">    and, in a second time, if necessary, the integral over the full disk is computed</span>
+<span class="sd">    (with the analytical formula) and subtracted by the numerical integral.</span>
+<span class="sd">    When we want to compute the small area with this methods, the error can be bigger than</span>
+<span class="sd">    the solid angle, therefore an external check need to be done (usually this method is used in </span>
+<span class="sd">    a computation in two step with the other one that will be a lot bigger than this error)</span>
+<span class="sd">    </span>
+<span class="sd">    The idea is to compute numerically the 2D integral by splitting the domain in </span>
+<span class="sd">    sector of the same angle and doing a Gauss-Legendre quadrature formula over</span>
+<span class="sd">    each dimension.</span>
+<span class="sd">    </span>
+<span class="sd">    In a first time, the maximum radius (that will depends on the coordinate :math:`\theta`)</span>
+<span class="sd">    has to be compute.</span>
+<span class="sd">    </span>
+<span class="sd">    This function assumed that all the point are on the same size of the focus point.</span>
+
+<span class="sd">    In this figure, we want to compute the area between the black line and the blue one.</span>
+<span class="sd">    </span>
+<span class="sd">    .. tikz::</span>
+<span class="sd">       \draw [red,dashed,domain=115:180] plot ({6*cos(\x)}, {6*sin(\x)});</span>
+<span class="sd">       \draw [red,dashed,domain=360:425] plot ({6*cos(\x)}, {6*sin(\x)});</span>
+<span class="sd">       \draw [black,thick,domain=150:390] plot ({3*cos(\x)}, {4+3*sin(\x)});</span>
+<span class="sd">       \draw [red,thick,domain=65:115] plot ({6*cos(\x)}, {6*sin(\x)});</span>
+<span class="sd">       \draw [black,dashed,domain=30:150] plot ({3*cos(\x)}, {4+3*sin(\x)});</span>
+<span class="sd">       \draw [domain=-10:80] plot ({0.8*cos(\x)}, {4+0.8*sin(\x)});</span>
+<span class="sd">       \node at (1,4.6) {$\theta$};</span>
+<span class="sd">       \node at (-5,0) {Lens};</span>
+<span class="sd">       \node at (2.4,1) {Ring};</span>
+<span class="sd">       \node at (0,0) {x};</span>
+<span class="sd">       \node at (0,4) {x};</span>
+<span class="sd">       \draw (0,4) -- (0.51,6.94);</span>
+<span class="sd">       \draw (0,4) -- ({3*cos(-10)}, {4+3*sin(-10)});</span>
+<span class="sd">       \node at (2.66,5.38) {x};</span>
+<span class="sd">       \node at (3.2,5.8) {$x_2$,$y_2$};</span>
+<span class="sd">       \node at (-2.66,5.38) {x};</span>
+<span class="sd">       \node at (-3.2,5.8) {$x_1$,$y_1$};</span>
+<span class="sd">       \draw [blue] (-2.66,5.38) -- (2.66,5.38);</span>
+<span class="sd">       \node at (0.25,5.4) {x};</span>
+<span class="sd">       \node at (0.8,5.2) {$r_{max}$};</span>
+
+<span class="sd">        </span>
+<span class="sd">    :todo: improvement: remove useless computation of rmax</span>
+<span class="sd">    :param np.array[N,3] pos: Position in the optical system</span>
+<span class="sd">    :param list[np.array[N],..] x: Position of the intersection on the ring (list contains 2 elements) </span>
+<span class="sd">    :param float r: Radius of the disk (should be centered at (0,0,0) and the perpendicular should be along the z-axis)</span>
+<span class="sd">    :param bool islens: True if the computation is for the lens (change of sign if it is the case)</span>
+<span class="sd">    :param int Nth: Number of sections for the theta quadrature formula</span>
+<span class="sd">    :param int Nr: Number of sections for the radial quadrature formula</span>
+
+<span class="sd">    :return: Solid angle</span>
+<span class="sd">    :rtype: np.array[N]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="c"># split the two intersections in two variables</span>
+    <span class="n">x1</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">x2</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    
+    <span class="c"># limits (in angle) considered for the integration</span>
+    <span class="n">theta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span><span class="n">Nth</span><span class="p">)</span>
+    <span class="n">quadr</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL4&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 5</span>
+    <span class="n">quadt</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL4&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 5</span>
+    
+    <span class="c"># mid point of the limits in theta</span>
+    <span class="n">av</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">theta</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">theta</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+    <span class="c"># half size of the intervals in theta</span>
+    <span class="n">diff</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span>
+    <span class="c"># array containing all the value of theta that will be computed</span>
+    <span class="n">th</span> <span class="o">=</span> <span class="n">diff</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="n">quadt</span><span class="o">.</span><span class="n">pts</span> <span class="o">+</span> <span class="n">av</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+    
+    <span class="c"># perpendicular vector to x1-&gt;x2</span>
+    <span class="n">perp</span> <span class="o">=</span> <span class="o">-</span><span class="n">pos</span><span class="p">[:,:</span><span class="mi">2</span><span class="p">]</span>
+    
+    <span class="c"># indices where we want to compute the big part</span>
+    <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s">&#39;ij,ij-&gt;i&#39;</span><span class="p">,</span><span class="n">perp</span><span class="p">,</span><span class="n">x1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">islens</span> <span class="ow">and</span> <span class="p">(</span><span class="n">pos</span><span class="p">[:,</span><span class="mi">2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="n">ind</span> <span class="o">=</span> <span class="o">~</span><span class="n">ind</span>
+    <span class="c"># assume that all pos is on the same size of the focus point</span>
+    <span class="n">perp</span><span class="p">[</span><span class="o">~</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">perp</span><span class="p">[</span><span class="o">~</span><span class="n">ind</span><span class="p">]</span>
+    <span class="n">perp</span> <span class="o">=</span> <span class="n">perp</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">perp</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+    
+    <span class="c"># unit vector for each angle</span>
+    <span class="n">delta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">th</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">th</span><span class="p">)])</span>
+    <span class="n">delta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">rollaxis</span><span class="p">(</span><span class="n">delta</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span>
+    <span class="c"># now detla[Nth-1,quadt,dim]</span>
+    
+    <span class="c"># compute the scalar product (=&gt; the cos)</span>
+    <span class="n">cospsi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s">&#39;ak,ijk-&gt;aij&#39;</span><span class="p">,</span><span class="n">perp</span><span class="p">,</span><span class="n">delta</span><span class="p">)</span>
+    <span class="c"># index where the line can cross the segment</span>
+    <span class="n">ind2</span> <span class="o">=</span> <span class="n">cospsi</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    
+    <span class="c"># distance between line</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x1</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">x2</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">x2</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">x1</span><span class="p">[:,</span><span class="mi">1</span><span class="p">])</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">x2</span><span class="o">-</span><span class="n">x1</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+    
+    <span class="c">#print(&#39;useless computations&#39;)</span>
+    <span class="c">#:todo: This can be improved</span>
+    <span class="c"># compute the distance along theta where the segment is crossed</span>
+    <span class="n">rmax</span> <span class="o">=</span> <span class="n">d</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">/</span><span class="n">cospsi</span>
+    <span class="c"># if the line cannot be cross, therefore the computation can raise some trouble</span>
+    <span class="c"># =&gt; set it manually to the good value</span>
+    <span class="n">rmax</span><span class="p">[</span><span class="o">~</span><span class="n">ind2</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span>
+    <span class="c"># take the min between the intersection with the segment and the circle</span>
+    <span class="n">rmax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">r</span><span class="p">,</span><span class="n">rmax</span><span class="p">)</span>
+    
+    <span class="c"># array containing the evaluation of the function that will be integrated</span>
+    <span class="n">R</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">Nth</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">quadt</span><span class="o">.</span><span class="n">pts</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">Nr</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+                  <span class="n">quadr</span><span class="o">.</span><span class="n">pts</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="mi">3</span><span class="p">))</span>
+
+    <span class="c"># intervals for each integral along the radial axis (in r_max unit)</span>
+    <span class="n">r_temp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="n">Nr</span><span class="p">)</span>
+    <span class="n">avr</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">r_temp</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="n">r_temp</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+    <span class="n">diffr</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">r_temp</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span><span class="o">-</span><span class="n">r_temp</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="c"># radius that will be computed</span>
+    <span class="n">temp</span> <span class="o">=</span> <span class="n">rmax</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span>\
+        <span class="p">(</span><span class="n">diffr</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="n">quadr</span><span class="o">.</span><span class="n">pts</span><span class="o">+</span><span class="n">avr</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">])</span>
+    <span class="n">R</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>\
+               <span class="o">+</span> <span class="n">temp</span><span class="o">*</span><span class="n">delta</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">R</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>\
+               <span class="o">+</span> <span class="n">temp</span><span class="o">*</span><span class="n">delta</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">R</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span>
+
+    <span class="c"># compute the norm of the vector</span>
+    <span class="n">R</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">R</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="o">-</span><span class="mf">1.5</span><span class="p">)</span>
+    <span class="c"># sum over all the index (theta and r quadrature formula, and, sector)</span>
+    <span class="c"># R quadrature</span>
+    <span class="n">omega</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">temp</span><span class="o">*</span><span class="n">R</span><span class="o">*</span><span class="n">quadr</span><span class="o">.</span><span class="n">w</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span><span class="o">*</span><span class="n">diffr</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="c"># Theta quadrature</span>
+    <span class="n">omega</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">diff</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">rmax</span><span class="o">*</span><span class="n">omega</span><span class="o">*</span><span class="n">quadt</span><span class="o">.</span><span class="n">w</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    
+    <span class="c"># multiply by the scalar product between the position and the normal (to the disk) vector </span>
+    <span class="n">omega</span> <span class="o">*=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">pos</span><span class="p">[:,</span><span class="mi">2</span><span class="p">])</span>
+
+    <span class="c"># change the area that we want to compute</span>
+    <span class="n">omega</span><span class="p">[</span><span class="o">~</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="n">solid_angle_disk</span><span class="p">(</span><span class="n">pos</span><span class="p">[</span><span class="o">~</span><span class="n">ind</span><span class="p">,:],</span><span class="n">r</span><span class="p">)</span><span class="o">-</span><span class="n">omega</span><span class="p">[</span><span class="o">~</span><span class="n">ind</span><span class="p">]</span>
+    <span class="n">temp</span> <span class="o">=</span> <span class="n">solid_angle_disk</span><span class="p">(</span><span class="n">pos</span><span class="p">[</span><span class="o">~</span><span class="n">ind</span><span class="p">,:],</span><span class="n">r</span><span class="p">)</span>
+        
+    <span class="k">return</span> <span class="n">omega</span>
+
+
+
+
+</div>
+<span class="k">def</span> <span class="nf">my_quad</span><span class="p">(</span><span class="n">y</span><span class="p">,</span><span class="n">x</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;quadratic integration on given grids</span>
+<span class="sd">        I = Sum (y[i+1]+y[i])*(x[i+1]-x[i])/2  </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">I</span> <span class="o">=</span> <span class="mf">0.</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">I</span> <span class="o">+=</span> <span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">*</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">/</span><span class="mf">2.</span>
+        
+    <span class="k">return</span> <span class="n">I</span>
+
+<span class="k">def</span> <span class="nf">determinent3d</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span><span class="n">y1</span><span class="p">,</span><span class="n">z1</span><span class="p">,</span><span class="n">x2</span><span class="p">,</span><span class="n">y2</span><span class="p">,</span><span class="n">z2</span><span class="p">,</span><span class="n">x3</span><span class="p">,</span><span class="n">y3</span><span class="p">,</span><span class="n">z3</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;calculate the determinent of 3*3 matrix</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="p">(</span><span class="n">x1</span><span class="o">*</span><span class="n">y2</span><span class="o">*</span><span class="n">z3</span> <span class="o">+</span> <span class="n">y1</span><span class="o">*</span><span class="n">z2</span><span class="o">*</span><span class="n">x3</span> <span class="o">+</span> <span class="n">z1</span><span class="o">*</span><span class="n">x2</span><span class="o">*</span><span class="n">y3</span> <span class="o">-</span> <span class="n">x1</span><span class="o">*</span><span class="n">z2</span><span class="o">*</span><span class="n">y3</span> <span class="o">-</span> <span class="n">y1</span><span class="o">*</span><span class="n">x2</span><span class="o">*</span><span class="n">z3</span> <span class="o">-</span> <span class="n">z1</span><span class="o">*</span><span class="n">y2</span><span class="o">*</span><span class="n">x3</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">low_pass_box</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="n">nc</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;returns the low pass filtered frequency sequence of s, with critical frequency set by location nc. nc must be less than half of the length of s. Assuming s is a frequency domain spectra which obey numpy.fft.fft format.</span>
+<span class="sd">    ideal box filter is used, which means the frequencies higher than that set by nc will be erased totally, and the frequencies lower than nc will be untouched.</span>
+<span class="sd">    Inputs:</span>
+<span class="sd">        s: array_like, frequency spectra that need to be filtered</span>
+<span class="sd">	nc: int, the critical frequency index above which the signal will be erased</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">nc</span><span class="o">&gt;</span><span class="n">n</span><span class="o">/</span><span class="mi">2</span><span class="p">:</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;Warning: critical frequency out of input range, nothing will happen to the input spectra.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">s</span>
+    <span class="n">mask_plus</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="o">&lt;=</span><span class="n">nc</span>
+    <span class="n">mask_minus</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="o">&gt;=</span> <span class="n">n</span><span class="o">-</span><span class="n">nc</span>
+    <span class="n">s_filtered</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">),</span><span class="n">dtype</span><span class="o">=</span><span class="s">&#39;complex&#39;</span><span class="p">)</span>
+    <span class="n">s_filtered</span><span class="p">[</span><span class="n">mask_plus</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="n">mask_plus</span><span class="p">]</span>
+    <span class="n">s_filtered</span><span class="p">[</span><span class="n">mask_minus</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="n">mask_minus</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">s_filtered</span>	
+
+<span class="k">def</span> <span class="nf">high_pass_box</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="n">nc</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;returns the high pass filtered frequency sequence of s, with critical frequency set by location nc. nc must be less than half of the length of s. Assuming s is a frequency domain spectra which obey numpy.fft.fft format.</span>
+<span class="sd">    ideal box filter is used, which means the frequencies lower than that set by nc will be erased totally, and the frequencies higher than nc will be untouched.</span>
+<span class="sd">    Inputs:</span>
+<span class="sd">        s: array_like, frequency spectra that need to be filtered</span>
+<span class="sd">	nc: int, the critical frequency index below which the signal will be erased</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">nc</span><span class="o">&gt;</span><span class="n">n</span><span class="o">/</span><span class="mi">2</span><span class="p">:</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;Warning: critical frequency out of input range, the whole input spectra will be erased.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">))</span>
+    <span class="n">mask_plus</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="o">&lt;=</span><span class="n">nc</span>
+    <span class="n">mask_minus</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="o">&gt;=</span> <span class="n">n</span><span class="o">-</span><span class="n">nc</span>
+    <span class="n">s_filtered</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="n">s_filtered</span><span class="p">[</span><span class="n">mask_plus</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">s_filtered</span><span class="p">[</span><span class="n">mask_minus</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">return</span> <span class="n">s_filtered</span>	
+
+<span class="k">def</span> <span class="nf">band_pass_box</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="n">nl</span><span class="p">,</span><span class="n">nh</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A composition of high_pass_box and low_pass_box. nl and nh are lower and higher frequency domain indices respectively, which are in turn passed into low/high_pass_box functions.</span>
+<span class="sd">    Inputs:</span>
+<span class="sd">        s: array_like, frequency spectra that need to be filtered</span>
+<span class="sd">        nl: int, the critical frequency index below which the signal will be erased </span>
+<span class="sd">        nh: int, the critical frequency index above which the signal will be erased</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">s_low_filtered</span> <span class="o">=</span> <span class="n">high_pass_box</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="n">nl</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">low_pass_box</span><span class="p">(</span><span class="n">s_low_filtered</span><span class="p">,</span><span class="n">nh</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">correlation</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span><span class="n">s2</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Calculate the correlation between two arrays of data. </span>
+<span class="sd">    s1 and s2 can be multi-dimensional, the average will be taken over all the dimensions. Returns the correlation, which will be a (complex) number between 0 and 1 (in the sense of the modular).  </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">s1_tilde</span> <span class="o">=</span> <span class="n">s1</span><span class="c">#-np.average(s1)</span>
+    <span class="n">s2_tilde</span> <span class="o">=</span> <span class="n">s2</span><span class="c">#-np.average(s2)</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">s1_tilde</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="n">s2_tilde</span><span class="p">))</span>
+    <span class="n">s1_mod</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">s1_tilde</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="n">s1_tilde</span><span class="p">)))</span>
+    <span class="n">s2_mod</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">s2_tilde</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="n">s2_tilde</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">s</span><span class="o">/</span><span class="p">(</span><span class="n">s1_mod</span><span class="o">*</span><span class="n">s2_mod</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">sweeping_correlation</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span><span class="n">s2</span><span class="p">,</span><span class="n">dt</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">nt_min</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Calculate the correlation of two given time-series signals.</span>
+<span class="sd">    </span>
+<span class="sd">    Correlation is defined as:</span>
+
+<span class="sd">    gamma(s1,s2) = &lt;(s1_tilde * conj(s2_tilde))&gt;/sqrt(&lt;|s1_tilde|^2&gt; &lt;|s2_tilde|^2&gt;)</span>
+
+<span class="sd">    where s1_tilde = s1 - &lt;s1&gt;, &lt;...&gt; denotes time average.</span>
+
+<span class="sd">    Sweeping correlation is carried out by correlating one signal to a delayed(or advanced) version of the other signal.</span>
+<span class="sd">    </span>
+<span class="sd">    Arguments:</span>
+<span class="sd">        s1,s2: signals to be correlated, ndarray with same shape, the first dimension is &quot;time&quot;.</span>
+<span class="sd">        dt: int, sweeping step size, move s2 dt units in time every step, and carryout another correlation with s1</span>
+<span class="sd">        nt_min: optional, int, the minimum time overlap for sweeping correlation, the average must be taken over longer time period than set by this, otherwise sweeping will stop. Default to be 100. </span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        SCorrelation: ndarray, same shape as s1 and s2 except for the first dimension, the first dimension length will be total number of sweeping correlations, it&#39;s determined by dt, nt_min, and the original time series length. Indexing convention for time dimension is similar to that in fft, if total length is 2n+1, index 0 is for correlation without moving, index 1 to n for s2 delayed compared to s1, index -1 to -n for s2 advanced compared to s1.</span>
+<span class="sd">        </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">assert</span> <span class="p">(</span><span class="n">s1</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">s2</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span><span class="s">&#39;Shapes of two signals don</span><span class="se">\&#39;</span><span class="s">t match. s1:{0},s2:{1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">s1</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span><span class="nb">str</span><span class="p">(</span><span class="n">s2</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+    
+    <span class="n">shape</span> <span class="o">=</span> <span class="n">s1</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">nt</span> <span class="o">=</span> <span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">nt</span> <span class="o">&gt;=</span> <span class="n">nt_min</span> <span class="p">),</span><span class="s">&#39;signal length {0} is shorter than minimum length: {1}.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nt</span><span class="p">,</span><span class="n">nt_min</span><span class="p">)</span>
+    <span class="n">spatial_shape</span> <span class="o">=</span> <span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+    
+    <span class="n">n_wing</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">nt</span><span class="o">-</span><span class="n">nt_min</span><span class="p">)</span><span class="o">/</span><span class="n">dt</span><span class="p">)</span> <span class="c">#length of single wing of the result    </span>
+    
+    <span class="n">n_sweep</span> <span class="o">=</span> <span class="n">n_wing</span><span class="o">*</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span> <span class="c">#total sweep correlation numbers</span>
+    
+    <span class="n">SCorrelation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">n_sweep</span><span class="p">,)</span><span class="o">+</span><span class="n">spatial_shape</span><span class="p">,</span><span class="n">dtype</span> <span class="o">=</span> <span class="s">&#39;complex128&#39;</span><span class="p">)</span> <span class="c">#concatenate last dimension to spatial dimensions</span>
+    
+    <span class="c">#first get rid of the mean signal</span>
+    <span class="n">s1</span> <span class="o">=</span> <span class="n">s1</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">s2</span> <span class="o">=</span> <span class="n">s2</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">s2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>    
+    
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="n">n_wing</span><span class="p">,</span><span class="n">n_wing</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">delta_t</span> <span class="o">=</span> <span class="n">dt</span><span class="o">*</span><span class="n">i</span>
+        <span class="k">if</span> <span class="n">delta_t</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span><span class="c">#when s2 is moved advance to s1</span>
+            <span class="n">s1_moved</span> <span class="o">=</span> <span class="n">s1</span><span class="p">[:</span><span class="n">delta_t</span><span class="p">,</span><span class="o">...</span><span class="p">]</span>
+            <span class="n">s2_moved</span> <span class="o">=</span> <span class="n">s2</span><span class="p">[</span><span class="o">-</span><span class="n">delta_t</span><span class="p">:,</span><span class="o">...</span><span class="p">]</span>
+            <span class="n">SCorrelation</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">s1_moved</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="n">s2_moved</span><span class="p">),</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">s1_moved</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="n">s1_moved</span><span class="p">),</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">s2_moved</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="n">s2_moved</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">delta_t</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span><span class="c">#when not moved</span>
+            <span class="n">SCorrelation</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">s1</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="n">s2</span><span class="p">),</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">s1</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="n">s1</span><span class="p">),</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">s2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="n">s2</span><span class="p">),</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span> <span class="c">#when s2 is delayed to s2</span>
+            <span class="n">s1_moved</span> <span class="o">=</span> <span class="n">s1</span><span class="p">[</span><span class="n">delta_t</span><span class="p">:,</span><span class="o">...</span><span class="p">]</span>
+            <span class="n">s2_moved</span> <span class="o">=</span> <span class="n">s2</span><span class="p">[:</span><span class="o">-</span><span class="n">delta_t</span><span class="p">,</span><span class="o">...</span><span class="p">]</span>
+            <span class="n">SCorrelation</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">s1_moved</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="n">s2_moved</span><span class="p">),</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">s1_moved</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="n">s1_moved</span><span class="p">),</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">s2_moved</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="n">s2_moved</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">SCorrelation</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Loic Hausammann.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

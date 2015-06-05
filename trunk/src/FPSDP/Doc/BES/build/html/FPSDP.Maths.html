@@ -280,7 +280,7 @@ has to be compute.</p>
 <span id="runge-kutta-module"></span><h2>Runge-Kutta Module<a class="headerlink" href="#module-FPSDP.Maths.RungeKutta" title="Permalink to this headline">¶</a></h2>
 <dl class="function">
 <dt id="FPSDP.Maths.RungeKutta.runge_kutta_explicit">
-<tt class="descclassname">FPSDP.Maths.RungeKutta.</tt><tt class="descname">runge_kutta_explicit</tt><big>(</big><em>order</em>, <em>alpha=None</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Maths/RungeKutta.html#runge_kutta_explicit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Maths.RungeKutta.runge_kutta_explicit" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">FPSDP.Maths.RungeKutta.</tt><tt class="descname">runge_kutta_explicit</tt><big>(</big><em>order</em>, <em>alpha=0.5</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Maths/RungeKutta.html#runge_kutta_explicit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Maths.RungeKutta.runge_kutta_explicit" title="Permalink to this definition">¶</a></dt>
 <dd><p>Coefficient of the explicit Runge-Kutta methods.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -288,9 +288,9 @@ has to be compute.</p>
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>order</strong> (<em>int</em>) &#8211; Order of the Runge-Kutta method</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Coefficient of the Butcher table</td>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Coefficient of the Butcher table and the number of stage</td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">tuple(a,b,c)</td>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">tuple(a,b,c,Nstage)</td>
 </tr>
 </tbody>
 </table>

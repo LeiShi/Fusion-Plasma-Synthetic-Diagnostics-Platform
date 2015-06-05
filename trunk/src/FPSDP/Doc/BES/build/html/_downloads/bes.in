@@ -121,11 +121,11 @@ rad_foc = 0.01
 int = 2.5
 # number of points for the integration along the
 # sightline
-Nint = 8
+Nint = 7
 # number of section for the integral of the solid angle
-Nsolid = 50
+Nsolid = 80
 # number of interval for the radial integration of the solid angle
-Nr = 6
+Nr = 10
 
 # type of integration for the emission
 # 1D for taking into account only the emission
@@ -138,6 +138,8 @@ type_int = 2D
 filter = FPSDP/Diagnostics/BES/filter.dat
 # path to the simulation data
 data_path = /global/project/projectdirs/m499/jlang/particle_pinch/
+# method of the interpolation (linear or cubic)
+interpolation = linear
 # torroidal step for the field line interpolation (in radians)
 dphi = 0.3
 # simulation time steps wanted

@@ -13,12 +13,13 @@ print 'Parallel code: ', parallel
 # the initialization consist to compute the beam density,
 # the geometry, loading a few datas from XGC1, ...
 name = 'FPSDP/Diagnostics/BES/bes.in'
-bes_ = bes.BES(name,parallel)
 
 # save the input file in the data
 f = open(name,'r')
 input_ = f.read()
 f.close()
+
+bes_ = bes.BES(name,parallel)
 # compute the intensity (number of photons) received by each fiber
 # and their psi_n value
 I = bes_.get_bes()

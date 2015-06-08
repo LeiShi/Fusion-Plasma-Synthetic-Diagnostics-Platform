@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Maths Directory &mdash; BES 0.8 documentation</title>
+    <title>Maths Directory &mdash; BES 1.0 documentation</title>
     
     <link rel="stylesheet" href="_static/default.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '0.8',
+        VERSION:     '1.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -24,7 +24,7 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    <link rel="top" title="BES 0.8 documentation" href="index.html" />
+    <link rel="top" title="BES 1.0 documentation" href="index.html" />
     <link rel="next" title="Collisions and Plasma Simulations Directory" href="FPSDP.Plasma.html" />
     <link rel="prev" title="Input and Output Directory" href="FPSDP.IO.html" /> 
   </head>
@@ -44,7 +44,7 @@
         <li class="right" >
           <a href="FPSDP.IO.html" title="Input and Output Directory"
              accesskey="P">previous</a> |</li>
-        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li> 
+        <li><a href="FPSDP.html">BES 1.0 documentation</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -225,7 +225,7 @@ sector of the same angle and doing a Gauss-Legendre quadrature formula over
 each dimension.</p>
 <p>In a first time, the maximum radius (that will depends on the coordinate <span class="math">\(\theta\)</span>)
 has to be compute.</p>
-<p>This function assumed that all the point are on the same size of the focus point.</p>
+<p>WARNING: This function assumed that all the points are at the same distance of the focus points.</p>
 <p>In this figure, we want to compute the area between the black line and the blue one.</p>
 <div class="figure">
 <p><img src="_images/tikz-26474fc0c8cf31bb4059adec29c3e7665698ae47.png" alt="\draw [red,dashed,domain=115:180] plot ({6*cos(\x)}, {6*sin(\x)});
@@ -259,7 +259,7 @@ has to be compute.</p>
 <li><strong>pos</strong> (<em>np.array[N,3]</em>) &#8211; Position in the optical system</li>
 <li><strong>x</strong> (<em>list[np.array[N],..]</em>) &#8211; Position of the intersection on the ring (list contains 2 elements)</li>
 <li><strong>r</strong> (<em>float</em>) &#8211; Radius of the disk (should be centered at (0,0,0) and the perpendicular should be along the z-axis)</li>
-<li><strong>islens</strong> (<em>bool</em>) &#8211; True if the computation is for the lens (change of sign if it is the case)</li>
+<li><strong>islens</strong> (<em>float</em>) &#8211; None if it is not the lens, otherwise the distance between the lens and the focus point</li>
 <li><strong>Nth</strong> (<em>int</em>) &#8211; Number of sections for the theta quadrature formula</li>
 <li><strong>Nr</strong> (<em>int</em>) &#8211; Number of sections for the radial quadrature formula</li>
 </ul>
@@ -280,7 +280,7 @@ has to be compute.</p>
 <span id="runge-kutta-module"></span><h2>Runge-Kutta Module<a class="headerlink" href="#module-FPSDP.Maths.RungeKutta" title="Permalink to this headline">¶</a></h2>
 <dl class="function">
 <dt id="FPSDP.Maths.RungeKutta.runge_kutta_explicit">
-<tt class="descclassname">FPSDP.Maths.RungeKutta.</tt><tt class="descname">runge_kutta_explicit</tt><big>(</big><em>order</em>, <em>alpha=0.5</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Maths/RungeKutta.html#runge_kutta_explicit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Maths.RungeKutta.runge_kutta_explicit" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">FPSDP.Maths.RungeKutta.</tt><tt class="descname">runge_kutta_explicit</tt><big>(</big><em>order</em>, <em>alpha=1</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Maths/RungeKutta.html#runge_kutta_explicit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Maths.RungeKutta.runge_kutta_explicit" title="Permalink to this definition">¶</a></dt>
 <dd><p>Coefficient of the explicit Runge-Kutta methods.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -358,7 +358,7 @@ has to be compute.</p>
         <li class="right" >
           <a href="FPSDP.IO.html" title="Input and Output Directory"
              >previous</a> |</li>
-        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li> 
+        <li><a href="FPSDP.html">BES 1.0 documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">

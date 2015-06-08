@@ -162,10 +162,12 @@ class Tools:
         else:
             I = self.I
             I2 = tool2.I
-            lim1 = np.min([np.max(I), -np.min(I)])
-            lim2 = np.min([np.max(I2), -np.min(I2)])
-            v1 = np.linspace(np.min(I),np.max(I),v)
-            v2 = np.linspace(np.min(I),np.max(I2),v)
+            lim1 = np.max([np.max(I), -np.min(I)])
+            lim2 = np.max([np.max(I2), -np.min(I2)])
+            v1 = np.linspace(-lim1,lim1,v)
+            v2 = np.linspace(-lim2,lim2,v)
+            #v1 = np.linspace(np.min(I),np.max(I),v)
+            #v2 = np.linspace(np.min(I),np.max(I2),v)
 
         fig, axarr = plt.subplots(1,2)
         
@@ -183,11 +185,11 @@ class Tools:
         plt.suptitle('Timestep : {}'.format(timestep))
         
         axarr[0].plot(tool2.R,tool2.Z,'x')
-        tri0 = axarr[0].tricontourf(tool2.R,tool2.Z,I2[timestep,:],v2,extend='both')
+        tri0 = axarr[0].tricontourf(tool2.R,tool2.Z,I2[timestep,:],v2)
         axarr[0].tricontour(self.R,self.Z,self.psin,[1])
         
         axarr[1].plot(self.R,self.Z,'x')
-        tri1 = axarr[1].tricontourf(self.R,self.Z,I[timestep,:],v1,extend='both')
+        tri1 = axarr[1].tricontourf(self.R,self.Z,I[timestep,:],v1)
         axarr[1].tricontour(self.R,self.Z,self.psin,[1])
         
 
@@ -212,8 +214,8 @@ class Tools:
             r,z,I_id = self.interpolate(Nr,Nz,self.I)
             r,z,I = self.interpolate(Nr,Nz,tool2.I)
 
-        lim1 = np.min([np.max(self.I), -np.min(self.I)])
-        lim2 = np.min([np.max(tool2.I), -np.min(tool2.I)])
+        lim1 = np.max([np.max(self.I), -np.min(self.I)])
+        lim2 = np.max([np.max(tool2.I), -np.min(tool2.I)])
         v1 = np.linspace(-lim1,lim1,v)
         v2 = np.linspace(-lim2,lim2,v)
         
@@ -337,13 +339,13 @@ class Tools:
             plt.title('Correlation')
             if graph == '3d':
                 ax = fig.gca(projection='3d')
-                surf = ax.plot_surface(rm,zm,corr.T, cmap=matplotlib.cm.coolwarm, rstride=2, linewidth=0, cstride=2)
+                surf = ax.plot_surface(rm,zm,corr.T, cmap=matplotlib.cm.coolwarm, rstride=1, linewidth=0, cstride=1)
                 fig.colorbar(surf)
             else:
                 plt.contourf(r[indr_],z[indz_],corr.T,30)
                 plt.colorbar()
-            plt.xlabel('R')
-            plt.ylabel('Z')
+            plt.xlabel('$\Delta$ R')
+            plt.ylabel('$\Delta$ Z')
 
             fft_ = fft_corr[indrfft,:]
             fft_ = fft_[:,indzfft]
@@ -357,12 +359,16 @@ class Tools:
             else:
                 plt.contourf(krfft,kzfft,fft_.T,40)
                 plt.colorbar()
-            plt.xlabel('k_r')
-            plt.ylabel('k_z')
+            plt.xlabel('$k_r$')
+            plt.ylabel('$k_z$')
             
             plt.figure()
+            # legend!
             plt.plot(r[indr_],corr[:,0],label='R')
             plt.plot(z[indz_],corr[0,:],label='Z')
+            plt.xlabel('Distance [m]')
+            plt.ylabel('Correlation')
+            plt.grid(True)
             plt.legend()
             
             plt.show()
@@ -413,11 +419,12 @@ class Tools:
             plt.ylabel('Correlation length')
             plt.show()
 
-    def comparison_radial_correlation_lenght(self,tool2,Nr=40,Zref=0.01,eps=0.4):
+
+    def comparison_radial_correlation_lenght(self,tools,Nr=40,Zref=0.01,eps=0.4):
         """ Show the characteristic length of the radial correlation length as a function
         of the radial position for two different diagnostics.
 
-        :param Tools tool2: Second instance of the Tools class
+        :param list[Tools] tools: List of Tools instance
         :param int Nr: Number of points for the discretization
         :param fload Zref: Horizontal plane wanted
         :param float eps: Relative interval accepted for Zref
@@ -425,26 +432,58 @@ class Tools:
         """
 
         r0, corr0,ind0 = self.radial_dep_correlation(Nr,Zref,eps,figure=False)
-        print 'First computation done'
-        r1, corr1,ind1 = tool2.radial_dep_correlation(Nr,Zref,eps,figure=False)
+        corr = np.zeros((Nr,len(tools)))
+        for i in range(len(tools)):
+            r, corr[:,i],ind = tools[i].radial_dep_correlation(Nr,Zref,eps,figure=False)
 
         plt.figure()
         plt.plot(r0,100*corr0,label=self.name_id)
-        plt.plot(r1,100*corr1,label=tool2.name_id)
+        for i in range(len(tools)):
+            plt.plot(r,100*corr[:,i],label=tools[i].name_id)
         plt.xlabel('Radius [m]')
         plt.ylabel('Correlation length [cm]')
 
         psi_n = splrep(self.R[ind0],self.psin[ind0])
         psi_n = splev(r0,psi_n)
 
-        ind_sep = np.abs(1.0-psi_n) < 1e-3
+        ind_sep = np.abs(1.0-psi_n) < 5e-3
+        print np.sum(ind_sep)
         if np.sum(ind_sep) > 0:
             ind_sep = np.argmax(ind_sep)
         xa,xb,ya,yb = plt.axis()
-        plt.plot([r0[ind_sep],r0[ind_sep]],[ya,yb])
-        plt.legend()
+        plt.plot([r0[ind_sep],r0[ind_sep]],[ya,yb],'-k',label='Separatrix')
+        plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+           ncol=2, mode="expand", borderaxespad=0.)
         plt.show()
 
+        
+    def compute_PSF_constant(self,tool2,v=30,threshold=True,lim=1):
+        """ Compute a simple PSF given by the relation :math:`C\frac{\tilde{I}}{I} = \frac{\tilde{n}_e}{n_e}`
+        C is computed by doing the average of the ratio of self/tool2 of each point (for having a PSF, self should
+        be the raw density fluctuation and tool2 the BES result)
+
+        :param Tools tool2: Second instance of Tools
+        """
+
+        C = np.zeros(self.psin.shape)
+        lim1 = lim*np.std(self.I,axis=0)
+        lim2 = lim*np.std(tool2.I,axis=0)
+        for i in range(self.psin.shape[0]):
+            ind = (np.abs(self.I[:,i]) > lim1[i]) & (np.abs(tool2.I[:,i]) > lim2[i])
+            if np.sum(ind) != 0:
+                C[i] = np.sum(self.I[ind,i]/tool2.I[ind,i])/np.sum(ind)
+
+        if threshold:
+            v = np.linspace(0,5,v)
+        
+        plt.figure()
+        plt.tricontourf(self.R,self.Z,C,v)
+        plt.colorbar()
+        plt.plot(self.R,self.Z,'xk')
+        plt.xlabel('R [m]')
+        plt.ylabel('Z [m]')
+        plt.tricontour(self.R,self.Z,self.psin,[1])
+        plt.show()
 
 
 def put_two_files_together(name1,name2,outputname):

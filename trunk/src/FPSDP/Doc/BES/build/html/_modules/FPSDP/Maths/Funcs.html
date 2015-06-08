@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>FPSDP.Maths.Funcs &mdash; BES 0.8 documentation</title>
+    <title>FPSDP.Maths.Funcs &mdash; BES 1.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '0.8',
+        VERSION:     '1.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -24,7 +24,7 @@
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    <link rel="top" title="BES 0.8 documentation" href="../../../index.html" />
+    <link rel="top" title="BES 1.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" /> 
   </head>
   <body>
@@ -37,7 +37,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+        <li><a href="../../../FPSDP.html">BES 1.0 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -196,7 +196,7 @@
 <span class="sd">    In a first time, the maximum radius (that will depends on the coordinate :math:`\theta`)</span>
 <span class="sd">    has to be compute.</span>
 <span class="sd">    </span>
-<span class="sd">    This function assumed that all the point are on the same size of the focus point.</span>
+<span class="sd">    WARNING: This function assumed that all the points are at the same distance of the focus points.</span>
 
 <span class="sd">    In this figure, we want to compute the area between the black line and the blue one.</span>
 <span class="sd">    </span>
@@ -227,7 +227,7 @@
 <span class="sd">    :param np.array[N,3] pos: Position in the optical system</span>
 <span class="sd">    :param list[np.array[N],..] x: Position of the intersection on the ring (list contains 2 elements) </span>
 <span class="sd">    :param float r: Radius of the disk (should be centered at (0,0,0) and the perpendicular should be along the z-axis)</span>
-<span class="sd">    :param bool islens: True if the computation is for the lens (change of sign if it is the case)</span>
+<span class="sd">    :param float islens: None if it is not the lens, otherwise the distance between the lens and the focus point</span>
 <span class="sd">    :param int Nth: Number of sections for the theta quadrature formula</span>
 <span class="sd">    :param int Nr: Number of sections for the radial quadrature formula</span>
 
@@ -241,8 +241,8 @@
     
     <span class="c"># limits (in angle) considered for the integration</span>
     <span class="n">theta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span><span class="n">Nth</span><span class="p">)</span>
-    <span class="n">quadr</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL4&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 5</span>
-    <span class="n">quadt</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL4&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 5</span>
+    <span class="n">quadr</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL4&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 4</span>
+    <span class="n">quadt</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL4&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 4</span>
     
     <span class="c"># mid point of the limits in theta</span>
     <span class="n">av</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">theta</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">theta</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
@@ -252,15 +252,18 @@
     <span class="n">th</span> <span class="o">=</span> <span class="n">diff</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="n">quadt</span><span class="o">.</span><span class="n">pts</span> <span class="o">+</span> <span class="n">av</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
     
     <span class="c"># perpendicular vector to x1-&gt;x2</span>
-    <span class="n">perp</span> <span class="o">=</span> <span class="o">-</span><span class="n">pos</span><span class="p">[:,:</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">perp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="o">-</span><span class="n">pos</span><span class="p">[:,:</span><span class="mi">2</span><span class="p">])</span>
     
     <span class="c"># indices where we want to compute the big part</span>
     <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s">&#39;ij,ij-&gt;i&#39;</span><span class="p">,</span><span class="n">perp</span><span class="p">,</span><span class="n">x1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
-    <span class="k">if</span> <span class="n">islens</span> <span class="ow">and</span> <span class="p">(</span><span class="n">pos</span><span class="p">[:,</span><span class="mi">2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
-        <span class="n">ind</span> <span class="o">=</span> <span class="o">~</span><span class="n">ind</span>
-    <span class="c"># assume that all pos is on the same size of the focus point</span>
+
+    <span class="c"># create a vector perpendicular to x1-x2 and goes to the line from the origin</span>
     <span class="n">perp</span><span class="p">[</span><span class="o">~</span><span class="n">ind</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">perp</span><span class="p">[</span><span class="o">~</span><span class="n">ind</span><span class="p">]</span>
     <span class="n">perp</span> <span class="o">=</span> <span class="n">perp</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">perp</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+    <span class="c"># in the case of the lens and between the fiber and the lens, we want the opposite case</span>
+    <span class="k">if</span> <span class="n">islens</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">test</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[:,</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">islens</span>
+        <span class="n">ind</span><span class="p">[</span><span class="n">test</span><span class="p">]</span> <span class="o">=</span> <span class="o">~</span><span class="n">ind</span><span class="p">[</span><span class="n">test</span><span class="p">]</span>
     
     <span class="c"># unit vector for each angle</span>
     <span class="n">delta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">th</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">th</span><span class="p">)])</span>
@@ -485,7 +488,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+        <li><a href="../../../FPSDP.html">BES 1.0 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

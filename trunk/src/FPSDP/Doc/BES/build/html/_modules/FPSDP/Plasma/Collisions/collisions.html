@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>FPSDP.Plasma.Collisions.collisions &mdash; BES 0.8 documentation</title>
+    <title>FPSDP.Plasma.Collisions.collisions &mdash; BES 1.0 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/default.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '0.8',
+        VERSION:     '1.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -24,7 +24,7 @@
     <script type="text/javascript" src="../../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    <link rel="top" title="BES 0.8 documentation" href="../../../../index.html" />
+    <link rel="top" title="BES 1.0 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" /> 
   </head>
   <body>
@@ -37,7 +37,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+        <li><a href="../../../../FPSDP.html">BES 1.0 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -120,7 +120,7 @@
             
             <span class="c"># interpolation over beam and density</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">atte_tck_dens</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">bisplrep</span><span class="p">(</span>
-                <span class="n">lbeams</span><span class="p">,</span><span class="n">ldens</span><span class="p">,</span><span class="n">coef_dens</span><span class="p">))</span>
+                <span class="n">lbeams</span><span class="p">,</span><span class="n">ldens</span><span class="p">,</span><span class="n">coef_dens</span><span class="p">,</span><span class="n">kx</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">ky</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
             
             <span class="c"># get data for the interpolation in temperature</span>
             <span class="n">T</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_list_temperature</span><span class="p">(</span><span class="s">&#39;atte&#39;</span><span class="p">,</span><span class="n">i</span><span class="p">))</span>
@@ -130,7 +130,7 @@
             
             <span class="c">#interpolation over the temperature</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">atte_tck_temp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">splrep</span><span class="p">(</span>
-                <span class="n">T</span><span class="p">,</span><span class="n">coef_T</span><span class="o">/</span><span class="n">coef_T</span><span class="p">[</span><span class="n">index</span><span class="p">]))</span>
+                <span class="n">T</span><span class="p">,</span><span class="n">coef_T</span><span class="o">/</span><span class="n">coef_T</span><span class="p">[</span><span class="n">index</span><span class="p">],</span><span class="n">k</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
 
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_emis</span><span class="p">)):</span>
             <span class="c"># get data</span>
@@ -141,7 +141,7 @@
             
             <span class="c"># interpolation over beam and density</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">emis_tck_dens</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">bisplrep</span><span class="p">(</span>
-                <span class="n">lbeams</span><span class="p">,</span><span class="n">ldens</span><span class="p">,</span><span class="n">coef_dens</span><span class="p">))</span>
+                <span class="n">lbeams</span><span class="p">,</span><span class="n">ldens</span><span class="p">,</span><span class="n">coef_dens</span><span class="p">,</span><span class="n">kx</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">ky</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
 
             <span class="c"># Get data for the interpolation in temperature</span>
             <span class="n">T</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_list_temperature</span><span class="p">(</span><span class="s">&#39;emis&#39;</span><span class="p">,</span><span class="n">i</span><span class="p">))</span>
@@ -151,7 +151,7 @@
             
             <span class="c">#interpolation over the temperature</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">emis_tck_temp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">splrep</span><span class="p">(</span>
-                <span class="n">T</span><span class="p">,</span><span class="n">coef_T</span><span class="o">/</span><span class="n">coef_T</span><span class="p">[</span><span class="n">index</span><span class="p">]))</span>
+                <span class="n">T</span><span class="p">,</span><span class="n">coef_T</span><span class="o">/</span><span class="n">coef_T</span><span class="p">[</span><span class="n">index</span><span class="p">],</span><span class="n">k</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
 
         
 <div class="viewcode-block" id="Collisions.read_adas"><a class="viewcode-back" href="../../../../FPSDP.Plasma.Collisions.collisions.html#FPSDP.Plasma.Collisions.collisions.Collisions.read_adas">[docs]</a>    <span class="k">def</span> <span class="nf">read_adas</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -427,7 +427,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+        <li><a href="../../../../FPSDP.html">BES 1.0 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

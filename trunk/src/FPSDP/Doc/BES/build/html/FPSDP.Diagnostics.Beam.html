@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Beam Simulation &mdash; BES 0.8 documentation</title>
+    <title>Beam Simulation &mdash; BES 1.0 documentation</title>
     
     <link rel="stylesheet" href="_static/default.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '0.8',
+        VERSION:     '1.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -24,7 +24,7 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    <link rel="top" title="BES 0.8 documentation" href="index.html" />
+    <link rel="top" title="BES 1.0 documentation" href="index.html" />
     <link rel="up" title="Diagnostics Directory" href="FPSDP.Diagnostics.html" />
     <link rel="next" title="Input and Output Directory" href="FPSDP.IO.html" />
     <link rel="prev" title="Tools File" href="FPSDP.Diagnostics.BES.tools.html" /> 
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="FPSDP.Diagnostics.BES.tools.html" title="Tools File"
              accesskey="P">previous</a> |</li>
-        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+        <li><a href="FPSDP.html">BES 1.0 documentation</a> &raquo;</li>
           <li><a href="FPSDP.Diagnostics.html" accesskey="U">Diagnostics Directory</a> &raquo;</li> 
       </ul>
     </div>  
@@ -109,6 +109,7 @@ The simulation data are saved in this class.</p>
 <li><strong>self.nb_tck</strong> (<em>list[tck_interp]</em>) &#8211; Interpolant for each component (use cubic spline)</li>
 <li><strong>self.t</strong> (<em>int</em>) &#8211; Current time step</li>
 <li><strong>self.eq</strong> (<em>bool</em>) &#8211; Equilibrium data for the attenuation</li>
+<li><strong>self.limits</strong> (<em>np.array[3,2]</em>) &#8211; Limits for the beam</li>
 </ul>
 </td>
 </tr>
@@ -118,7 +119,7 @@ The simulation data are saved in this class.</p>
 <dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.compute_beam_on_mesh">
 <tt class="descname">compute_beam_on_mesh</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.compute_beam_on_mesh"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.compute_beam_on_mesh" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the beam density on the mesh and the interpolant.</p>
-<p>Use the Gauss-Legendre quadrature of order 5 for computing the integral:</p>
+<p>Use the Gauss-Legendre quadrature of order 2 for computing the integral:</p>
 <div class="math">
 \[n_b(P) = n_{b,0} \exp\left(-\int_0^P n_e(z)S_\text{cr}\left(E,n_e(z),T_i(z)\right)\sqrt{\frac{m}{2E}}\mathrm{d}z\right)\]</div>
 <p>where <span class="math">\(n_b(P)\)</span> is the density at the point P (along the beam central line),
@@ -318,7 +319,7 @@ See <a class="reference internal" href="FPSDP.Plasma.XGC_Profile.html#FPSDP.Plas
 
 <dl class="method">
 <dt id="FPSDP.Diagnostics.Beam.beam.Beam1D.set_data">
-<tt class="descname">set_data</tt><big>(</big><em>data</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.set_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.set_data" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">set_data</tt><big>(</big><em>data</em>, <em>limits</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/Beam/beam.html#Beam1D.set_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.Beam.beam.Beam1D.set_data" title="Permalink to this definition">¶</a></dt>
 <dd><p>Second part of the initialization (should be called manually!).</p>
 <p>Due to the computation of the limits (<a class="reference internal" href="FPSDP.Diagnostics.BES.bes.html#FPSDP.Diagnostics.BES.bes.BES.compute_limits" title="FPSDP.Diagnostics.BES.bes.BES.compute_limits"><tt class="xref py py-func docutils literal"><span class="pre">compute_limits</span></tt></a>),
 the data are loaded after the initialization.
@@ -327,7 +328,11 @@ This method save the data inside the instance and compute the beam density on th
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>data</strong> (e.g. <a class="reference internal" href="FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES" title="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES"><tt class="xref py py-class docutils literal"><span class="pre">XGC_Loader_BES</span></tt></a>) &#8211; Loader of the simulation data</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>data</strong> (e.g. <a class="reference internal" href="FPSDP.Plasma.XGC_Profile.html#FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES" title="FPSDP.Plasma.XGC_Profile.load_XGC_BES.XGC_Loader_BES"><tt class="xref py py-class docutils literal"><span class="pre">XGC_Loader_BES</span></tt></a>) &#8211; Loader of the simulation data</li>
+<li><strong>limits</strong> (<em>np.array[3,2]</em>) &#8211; Limits for the mesh (first index for X,Y,Z, second for min/max))</li>
+</ul>
+</td>
 </tr>
 </tbody>
 </table>
@@ -386,7 +391,7 @@ This method save the data inside the instance and compute the beam density on th
         <li class="right" >
           <a href="FPSDP.Diagnostics.BES.tools.html" title="Tools File"
              >previous</a> |</li>
-        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+        <li><a href="FPSDP.html">BES 1.0 documentation</a> &raquo;</li>
           <li><a href="FPSDP.Diagnostics.html" >Diagnostics Directory</a> &raquo;</li> 
       </ul>
     </div>

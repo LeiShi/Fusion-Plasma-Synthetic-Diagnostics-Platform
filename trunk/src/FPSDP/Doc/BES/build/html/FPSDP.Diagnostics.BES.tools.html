@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Tools File &mdash; BES 0.8 documentation</title>
+    <title>Tools File &mdash; BES 1.0 documentation</title>
     
     <link rel="stylesheet" href="_static/default.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '0.8',
+        VERSION:     '1.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -24,7 +24,7 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    <link rel="top" title="BES 0.8 documentation" href="index.html" />
+    <link rel="top" title="BES 1.0 documentation" href="index.html" />
     <link rel="up" title="Beam Emission Spectroscopy (BES) Directory" href="FPSDP.Diagnostics.BES.html" />
     <link rel="next" title="Beam Simulation" href="FPSDP.Diagnostics.Beam.html" />
     <link rel="prev" title="BES File" href="FPSDP.Diagnostics.BES.bes.html" /> 
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="FPSDP.Diagnostics.BES.bes.html" title="BES File"
              accesskey="P">previous</a> |</li>
-        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+        <li><a href="FPSDP.html">BES 1.0 documentation</a> &raquo;</li>
           <li><a href="FPSDP.Diagnostics.html" >Diagnostics Directory</a> &raquo;</li>
           <li><a href="FPSDP.Diagnostics.BES.html" accesskey="U">Beam Emission Spectroscopy (BES) Directory</a> &raquo;</li> 
       </ul>
@@ -60,7 +60,7 @@
 <span id="id1"></span><h1>Tools File<a class="headerlink" href="#tools-file" title="Permalink to this headline">¶</a></h1>
 <p>This file contains the class <a class="reference internal" href="#FPSDP.Diagnostics.BES.tools.Tools" title="FPSDP.Diagnostics.BES.tools.Tools"><tt class="xref py py-class docutils literal"><span class="pre">Tools</span></tt></a> that contains some methods for the analysis of the BES pictures and
 the file defines some function for checking the convergence, helping with the input file or creating some plots of the different quantities.
-It can be a good start to understant how the code works.</p>
+It can be a good start to understand how the code works.</p>
 <span class="target" id="module-FPSDP.Diagnostics.BES.tools"></span><dl class="class">
 <dt id="FPSDP.Diagnostics.BES.tools.Tools">
 <em class="property">class </em><tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">Tools</tt><big>(</big><em>I</em>, <em>R</em>, <em>Z</em>, <em>psin</em>, <em>name_id</em>, <em>I_fluc=False</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools" title="Permalink to this definition">¶</a></dt>
@@ -272,7 +272,7 @@ a second one with the absolute value of both and the last one shows the ratio of
 
 <dl class="function">
 <dt id="FPSDP.Diagnostics.BES.tools.beam_emission">
-<tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">beam_emission</tt><big>(</big><em>Nr=40</em>, <em>t=150</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#beam_emission"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.beam_emission" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">beam_emission</tt><big>(</big><em>Nr=40</em>, <em>t=81</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#beam_emission"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.beam_emission" title="Permalink to this definition">¶</a></dt>
 <dd><p>Shows the effect of the beam density on the emission and the effect of the lifetime.</p>
 <p>Three plots will be done: a first one with the emission without the lifetime, a second one with
 lifetime and a last one that show the relative difference between the two</p>
@@ -355,7 +355,7 @@ the focus point of the fiber and by phi</p>
 
 <dl class="function">
 <dt id="FPSDP.Diagnostics.BES.tools.check_convergence_lifetime">
-<tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">check_convergence_lifetime</tt><big>(</big><em>t=140</em>, <em>fib=4</em>, <em>beam_comp=0</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#check_convergence_lifetime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.check_convergence_lifetime" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">check_convergence_lifetime</tt><big>(</big><em>t=81</em>, <em>fib=4</em>, <em>beam_comp=0</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#check_convergence_lifetime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.check_convergence_lifetime" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot the error as a function of the number of interval for the computation
 of the emission with lifetime.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -374,7 +374,7 @@ of the emission with lifetime.</p>
 
 <dl class="function">
 <dt id="FPSDP.Diagnostics.BES.tools.check_convergence_optic_int">
-<tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">check_convergence_optic_int</tt><big>(</big><em>t=140</em>, <em>fib=4</em>, <em>type_='1D'</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#check_convergence_optic_int"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.check_convergence_optic_int" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">check_convergence_optic_int</tt><big>(</big><em>t=81</em>, <em>fib=4</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#check_convergence_optic_int"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.check_convergence_optic_int" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot the error of the image captured by a fiber as a function of the number
 of interval for the integration along the optical axis</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -384,7 +384,6 @@ of interval for the integration along the optical axis</p>
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
 <li><strong>t</strong> (<em>int</em>) &#8211; Time step wanted</li>
 <li><strong>fib</strong> (<em>int</em>) &#8211; Index of the fiber</li>
-<li><strong>type</strong> (<em>str</em>) &#8211; Type of integration wanted (see config file for more detail)</li>
 </ul>
 </td>
 </tr>
@@ -419,6 +418,27 @@ in the case where the intersection tends to a single point</p>
 </dd></dl>
 
 <dl class="function">
+<dt id="FPSDP.Diagnostics.BES.tools.check_field_line_integration">
+<tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">check_field_line_integration</tt><big>(</big><em>R=2.23</em>, <em>Z=0.01</em>, <em>phi=0.1</em>, <em>Nrot=10</em>, <em>fwd=True</em>, <em>data_name='/project/projectdirs/m499/jlang/particle_pinch/'</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#check_field_line_integration"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.check_field_line_integration" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use the coordinate of a fiber for making a field line integration
+on Nrot tour and plot the value of <span class="math">\(\psi_n\)</span> at each toroidal planes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>R</strong> (<em>float</em>) &#8211; Initial position</li>
+<li><strong>Z</strong> (<em>float</em>) &#8211; Initial position</li>
+<li><strong>Nrot</strong> (<em>int</em>) &#8211; Number of toroidal tour</li>
+<li><strong>fwd</strong> (<em>bool</em>) &#8211; Choice between forward or backward rotation</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
 <dt id="FPSDP.Diagnostics.BES.tools.check_geometry">
 <tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">check_geometry</tt><big>(</big><em>minorR=0.67</em>, <em>majorR=1.67</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#check_geometry"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.check_geometry" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot the geometry readed by the synthetic diagnostics
@@ -439,11 +459,6 @@ is considered)</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="FPSDP.Diagnostics.BES.tools.check_interpolation">
-<tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">check_interpolation</tt><big>(</big><em>phi=0.1, t=130, Nr=200, Nz=210, R=[0, 2.4], Z=[-1.5, 1.5]</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#check_interpolation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.check_interpolation" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
 <dt id="FPSDP.Diagnostics.BES.tools.compute_beam_config">
 <tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">compute_beam_config</tt><big>(</big><em>Rsource</em>, <em>phisource</em>, <em>Rtan</em>, <em>R=array([]</em>, <em>dtype=float64)</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#compute_beam_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.compute_beam_config" title="Permalink to this definition">¶</a></dt>
 <dd><p>Help to compute the value to put inside the config file</p>
@@ -461,6 +476,43 @@ is considered)</p>
 </tr>
 </tbody>
 </table>
+</dd></dl>
+
+<dl class="function">
+<dt id="FPSDP.Diagnostics.BES.tools.interpolation_toroidal_plane">
+<tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">interpolation_toroidal_plane</tt><big>(</big><em>phi=-2.58, t=130, Nr=1000, Nz=1000, R=[1.82, 2.3], Z=[-0.25, 0.25]</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#interpolation_toroidal_plane"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.interpolation_toroidal_plane" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a R-Z mesh and interpolate the data on it.
+Is usefull for checking if the data are well interpolated</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>phi</strong> (<em>float</em>) &#8211; Toroidal plane to compute</li>
+<li><strong>t</strong> (<em>int</em>) &#8211; Time step</li>
+<li><strong>Nr</strong> (<em>int</em>) &#8211; Number of radial points</li>
+<li><strong>Nz</strong> (<em>int</em>) &#8211; Number of Z points</li>
+<li><strong>R</strong> (<em>list[]</em>) &#8211; R min and max</li>
+<li><strong>Z</strong> (<em>list[]</em>) &#8211; Z min and max</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="FPSDP.Diagnostics.BES.tools.put_two_files_together">
+<tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">put_two_files_together</tt><big>(</big><em>name1</em>, <em>name2</em>, <em>outputname</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#put_two_files_together"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.put_two_files_together" title="Permalink to this definition">¶</a></dt>
+<dd><p>When doing two simulations on a different time intervals,
+this function can be used to put the output in one file.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="FPSDP.Diagnostics.BES.tools.solid_angle_evolution">
+<tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">solid_angle_evolution</tt><big>(</big><em>Rmax=2</em>, <em>Zmax=0.1</em>, <em>Nr=80</em>, <em>Nz=100</em>, <em>fib=4</em>, <em>v=40</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#solid_angle_evolution"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.solid_angle_evolution" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot the value of the solid angle as a function of R-Z (optical system)
+(Every parameter are in the unit of the focus point radius/distance to the lens)</p>
 </dd></dl>
 
 </div>
@@ -514,7 +566,7 @@ is considered)</p>
         <li class="right" >
           <a href="FPSDP.Diagnostics.BES.bes.html" title="BES File"
              >previous</a> |</li>
-        <li><a href="FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+        <li><a href="FPSDP.html">BES 1.0 documentation</a> &raquo;</li>
           <li><a href="FPSDP.Diagnostics.html" >Diagnostics Directory</a> &raquo;</li>
           <li><a href="FPSDP.Diagnostics.BES.html" >Beam Emission Spectroscopy (BES) Directory</a> &raquo;</li> 
       </ul>

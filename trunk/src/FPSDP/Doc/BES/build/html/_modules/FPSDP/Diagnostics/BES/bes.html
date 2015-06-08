@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>FPSDP.Diagnostics.BES.bes &mdash; BES 0.8 documentation</title>
+    <title>FPSDP.Diagnostics.BES.bes &mdash; BES 1.0 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/default.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '0.8',
+        VERSION:     '1.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -24,7 +24,7 @@
     <script type="text/javascript" src="../../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    <link rel="top" title="BES 0.8 documentation" href="../../../../index.html" />
+    <link rel="top" title="BES 1.0 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" /> 
   </head>
   <body>
@@ -37,7 +37,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+        <li><a href="../../../../FPSDP.html">BES 1.0 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -234,10 +234,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">Nsolid</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Optics&#39;</span><span class="p">,</span><span class="s">&#39;Nsolid&#39;</span><span class="p">))</span>              <span class="c">#!</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">Nr</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Optics&#39;</span><span class="p">,</span><span class="s">&#39;Nr&#39;</span><span class="p">))</span>                      <span class="c">#!</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nint</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">inter</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
-            <span class="k">print</span> <span class="s">&quot;&quot;&quot;WARNING: The precision of the optical integral is assumed to be</span>
-<span class="s">            to small&quot;&quot;&quot;</span>
-
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nint</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">inter</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&#39;WARNING: The accuracy of the optical integral is assumed to be too small&#39;</span>
+        
         <span class="n">R</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Optics&#39;</span><span class="p">,</span><span class="s">&#39;R&#39;</span><span class="p">))</span>
         <span class="n">R</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">R</span><span class="p">)</span>
         <span class="n">phi</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Optics&#39;</span><span class="p">,</span><span class="s">&#39;phi&#39;</span><span class="p">))</span>
@@ -257,16 +256,15 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">Z</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">op_direc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_lens</span>                           <span class="c">#!</span>
         
-        <span class="n">norm_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">op_direc</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">op_direc</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_foc</span><span class="p">,</span><span class="nb">float</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">rad_foc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rad_foc</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
         
         <span class="c"># normalize the vector</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">op_direc</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">/=</span> <span class="n">norm_</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">op_direc</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">/=</span> <span class="n">norm_</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">op_direc</span><span class="p">[:,</span><span class="mi">2</span><span class="p">]</span> <span class="o">/=</span> <span class="n">norm_</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">op_direc</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">/=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dist</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">op_direc</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">/=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dist</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">op_direc</span><span class="p">[:,</span><span class="mi">2</span><span class="p">]</span> <span class="o">/=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dist</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos_lens</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span><span class="c">#!</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">type_int</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Optics&#39;</span><span class="p">,</span><span class="s">&#39;type_int&#39;</span><span class="p">)</span>                      <span class="c">#!</span>
         
@@ -287,13 +285,18 @@
         <span class="n">order</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Data&#39;</span><span class="p">,</span><span class="s">&#39;interpolation&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">beam</span> <span class="o">=</span> <span class="n">be</span><span class="o">.</span><span class="n">Beam1D</span><span class="p">(</span><span class="n">input_file</span><span class="p">)</span>                                    <span class="c">#!</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">compute_limits</span><span class="p">()</span>      <span class="c"># compute the limits of the mesh</span>
-        
+        <span class="n">lim</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Data&#39;</span><span class="p">,</span><span class="s">&#39;limits&#39;</span><span class="p">))</span>
+
+        <span class="k">if</span>  <span class="n">lim</span><span class="p">:</span>
+            <span class="n">limit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">limits</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">limit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">limits</span><span class="p">[:</span><span class="mi">2</span><span class="p">,:]</span>
         <span class="n">xgc_</span> <span class="o">=</span> <span class="n">xgc</span><span class="o">.</span><span class="n">XGC_Loader_local</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_path</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span>
-                                    <span class="bp">self</span><span class="o">.</span><span class="n">limits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dphi</span><span class="p">,</span><span class="n">shift</span><span class="p">,</span><span class="n">order</span><span class="p">)</span>
+                                    <span class="n">limit</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dphi</span><span class="p">,</span><span class="n">shift</span><span class="p">,</span><span class="n">order</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="n">xgc_</span><span class="o">.</span><span class="n">time_steps</span>                                          <span class="c">#!</span>
 
         <span class="c"># set the data inside the beam (2nd part of the initialization)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">set_data</span><span class="p">(</span><span class="n">xgc_</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">set_data</span><span class="p">(</span><span class="n">xgc_</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">limits</span><span class="p">)</span>
 
         <span class="c"># compute the two others basis vector</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">perp1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
@@ -335,7 +338,7 @@
         <span class="n">wl</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span>
         <span class="c"># transmission coefficient</span>
         <span class="n">trans</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span>
-        <span class="n">tck</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">interpolate</span><span class="o">.</span><span class="n">interp1d</span><span class="p">(</span><span class="n">wl</span><span class="p">,</span><span class="n">trans</span><span class="p">,</span><span class="n">kind</span><span class="o">=</span><span class="s">&#39;cubic&#39;</span><span class="p">,</span><span class="n">fill_value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+        <span class="n">tck</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">interpolate</span><span class="o">.</span><span class="n">interp1d</span><span class="p">(</span><span class="n">wl</span><span class="p">,</span><span class="n">trans</span><span class="p">,</span><span class="n">kind</span><span class="o">=</span><span class="s">&#39;linear&#39;</span><span class="p">,</span><span class="n">fill_value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">tck</span>
         
         </div>
@@ -374,9 +377,10 @@
 <span class="sd">        :param float dxmin: Smallest size accepted for the box in X</span>
 <span class="sd">        :param float dymin: Smallest size accepted for the box in Y</span>
 <span class="sd">        :param float dzmin: Smallest size accepted for the box in Z</span>
-<span class="sd">        </span>
+
+<span class="sd">        :todo: Improve this function in order to have a smaller window        </span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">print</span><span class="p">(</span><span class="s">&#39;need to improve this &#39;</span><span class="p">)</span>
+
         <span class="c"># average beam width</span>
         <span class="c"># assume a configuration where the beam as a width close to a constant</span>
         <span class="c"># and the focus point are close from each other</span>
@@ -959,7 +963,7 @@
 <span class="sd">        :rtype: float</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># first define the quadrature formula</span>
-        <span class="n">quad</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL4&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 4</span>
+        <span class="n">quad</span> <span class="o">=</span> <span class="n">integ</span><span class="o">.</span><span class="n">integration_points</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s">&#39;GL2&#39;</span><span class="p">)</span> <span class="c"># Gauss-Legendre order 4</span>
         <span class="n">I</span> <span class="o">=</span> <span class="mf">0.0</span>
         <span class="c"># compute the distance from the origin of the beam</span>
         <span class="n">dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">,:]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">pos</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">direc</span><span class="p">)</span>
@@ -1082,9 +1086,9 @@
             <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;Should implement the other version (switch pos[ind,0] &lt;-&gt; pos[ind,1])&#39;</span><span class="p">)</span>
 
         <span class="c"># few values defined in my report</span>
-        <span class="n">ratio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">z</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="p">[</span><span class="n">fib</span><span class="p">])</span>
+        <span class="n">ratio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="p">[</span><span class="n">fib</span><span class="p">]</span><span class="o">/</span><span class="n">z</span><span class="p">[</span><span class="n">ind</span><span class="p">])</span>
         <span class="n">f</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">/</span><span class="p">(</span><span class="mf">1.0</span><span class="o">-</span><span class="n">ratio</span><span class="p">)</span>
-        <span class="n">A</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">((</span><span class="n">r</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="o">-</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_lens</span><span class="o">/</span><span class="n">f</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="n">ratio</span> <span class="o">+</span> <span class="n">ratio</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_foc</span><span class="p">[</span><span class="n">fib</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="n">pos</span><span class="p">[</span><span class="n">ind</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">ratio</span><span class="o">*</span><span class="n">r</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_lens</span><span class="o">/</span><span class="n">f</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">rad_foc</span><span class="p">[</span><span class="n">fib</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="n">ratio</span><span class="p">)</span><span class="o">/</span><span class="n">pos</span><span class="p">[</span><span class="n">ind</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">B</span> <span class="o">=</span> <span class="o">-</span><span class="n">pos</span><span class="p">[</span><span class="n">ind</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">pos</span><span class="p">[</span><span class="n">ind</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="c"># \Delta when computing the solution of a quadratic function</span>
@@ -1113,7 +1117,8 @@
             <span class="k">print</span><span class="p">(</span><span class="s">&#39;ind&#39;</span><span class="p">,</span><span class="n">ind</span><span class="p">)</span>
             <span class="k">print</span> <span class="p">(</span><span class="s">&#39;x&#39;</span><span class="p">,</span><span class="n">x1</span><span class="p">,</span><span class="n">x2</span><span class="p">)</span>
             <span class="k">print</span><span class="p">(</span><span class="s">&#39;y&#39;</span><span class="p">,</span><span class="n">y1</span><span class="p">,</span><span class="n">y2</span><span class="p">)</span>
-            <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;solid angle smaller than 0 or bigger than 4pi&#39;</span><span class="p">)</span>
+            <span class="n">solid</span><span class="p">[</span><span class="n">solid</span><span class="o">&lt;</span><span class="mi">0</span> <span class="o">|</span> <span class="n">solid</span><span class="o">&gt;</span><span class="mi">4</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+            <span class="c">#raise NameError(&#39;solid angle smaller than 0 or bigger than 4pi&#39;)</span>
         <span class="k">return</span> <span class="n">solid</span>
 </div>
 <div class="viewcode-block" id="BES.solid_angle_mix_case"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.bes.html#FPSDP.Diagnostics.BES.bes.BES.solid_angle_mix_case">[docs]</a>    <span class="k">def</span> <span class="nf">solid_angle_mix_case</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pos</span><span class="p">,</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">fib</span><span class="p">):</span>
@@ -1146,11 +1151,11 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># first the contribution of the ring</span>
         <span class="n">omega1</span> <span class="o">=</span> <span class="n">solid_angle_seg</span><span class="p">(</span><span class="n">pos</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="p">[</span><span class="n">fib</span><span class="p">]]),</span><span class="n">x</span><span class="p">,</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">rad_foc</span><span class="p">[</span><span class="n">fib</span><span class="p">],</span><span class="mi">0</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">Nsolid</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">rad_foc</span><span class="p">[</span><span class="n">fib</span><span class="p">],</span><span class="bp">None</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">Nsolid</span><span class="p">,</span>
                                 <span class="bp">self</span><span class="o">.</span><span class="n">Nr</span><span class="p">)</span>
 
         <span class="c"># second the contribution of the lens</span>
-        <span class="n">omega2</span> <span class="o">=</span> <span class="n">solid_angle_seg</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_lens</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">Nsolid</span><span class="p">,</span>
+        <span class="n">omega2</span> <span class="o">=</span> <span class="n">solid_angle_seg</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_lens</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="p">[</span><span class="n">fib</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">Nsolid</span><span class="p">,</span>
                                <span class="bp">self</span><span class="o">.</span><span class="n">Nr</span><span class="p">)</span>
 
         <span class="c"># remove the part where the numerical error is too big</span>
@@ -1163,13 +1168,15 @@
         <span class="k">if</span> <span class="p">(</span><span class="o">-</span><span class="n">omega1</span><span class="p">[</span><span class="n">ind1</span><span class="p">]</span><span class="o">/</span><span class="n">omega</span><span class="p">[</span><span class="n">ind1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">1e-3</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
             <span class="k">print</span> <span class="n">omega</span>
             <span class="k">print</span> <span class="n">omega1</span>
-            <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;solid angle negative 1&#39;</span><span class="p">)</span>
+            <span class="n">omega</span><span class="p">[</span><span class="o">-</span><span class="n">omega1</span><span class="p">[</span><span class="n">ind1</span><span class="p">]</span><span class="o">/</span><span class="n">omega</span><span class="p">[</span><span class="n">ind1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">1e-3</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+            <span class="c">#raise NameError(&#39;solid angle negative 1&#39;)</span>
 
         <span class="k">if</span> <span class="p">(</span><span class="o">-</span><span class="n">omega2</span><span class="p">[</span><span class="n">ind2</span><span class="p">]</span><span class="o">/</span><span class="n">omega</span><span class="p">[</span><span class="n">ind2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">1e-3</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
             <span class="k">print</span> <span class="n">omega</span>
             <span class="k">print</span> <span class="n">omega2</span>
-            <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&#39;solid angle negative 2&#39;</span><span class="p">)</span>
-
+            <span class="n">omega</span><span class="p">[</span><span class="o">-</span><span class="n">omega2</span><span class="p">[</span><span class="n">ind2</span><span class="p">]</span><span class="o">/</span><span class="n">omega</span><span class="p">[</span><span class="n">ind2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">1e-3</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+            <span class="c">#raise NameError(&#39;solid angle negative 2&#39;)</span>
+        
         <span class="k">return</span> <span class="n">omega</span>
 
 
@@ -1367,7 +1374,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../FPSDP.html">BES 0.8 documentation</a> &raquo;</li>
+        <li><a href="../../../../FPSDP.html">BES 1.0 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

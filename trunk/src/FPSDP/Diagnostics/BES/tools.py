@@ -14,7 +14,7 @@ matplotlib.rcParams.update(pgf_with_rc_fonts)
 class Tools:
     """ Defines a few tools for doing some computations on the BES image
     
-    Two different methods of initalization have been made:
+    Two different methods of initialization have been made:
     The first one is the usual __init__ function that take as input the photon radiance, the R,Z coordinates
     and the psin value, and the second one read a npz file with a standard order and calls the __init__ method.
 
@@ -61,7 +61,7 @@ class Tools:
         Z = pos[:,2]
         return cls(I,R,Z,psin,name_id,fluc)
 
-    def interpolate(self,Nr,Nz,I,timestep=None,kind='linear'):
+    def interpolate(self,Nr,Nz,I,timestep=None,kind='linear',start=40):
         """ Interpolate all the data on a spatial mesh and create this mesh.
         The interpolation is done for each timestep
 
@@ -77,8 +77,8 @@ class Tools:
         z = np.linspace(np.min(self.Z),np.max(self.Z),Nz)
 
         if timestep is None:
-            Igrid = np.zeros((self.Nt,Nr,Nz))
-            for i in range(self.Nt):
+            Igrid = np.zeros((self.Nt-start,Nr,Nz))
+            for i in range(self.Nt-start):
                 temp = interp2d(self.R,self.Z,I[i,:],kind)
                 Igrid[i,:,:] = temp(r,z).T
         else:
@@ -277,7 +277,7 @@ class Tools:
         anim.save(name_movie, writer=FFwriter,fps=15, extra_args=['-vcodec', 'libx264'])
 
 
-    def crosscorrelation(self, Nr=60, Nz=70, dr_max=0.1, dz_max=0.03, dkr_max=300, dkz_max=300, graph='3d',figure=True):
+    def crosscorrelation(self, Nr=60, Nz=70, dr_max=0.1, dz_max=0.03, dkr_max=300, dkz_max=300, graph='3d',figure=True,start=40):
         """ Plot or just compute the shape of the crosscorrelation from the point R[0],Z[0]
 
         :param int Nr: Number of points for the discretization
@@ -288,6 +288,7 @@ class Tools:
         :param float dkz_max: Distance max to show in the figure for the Fourier space crosscorrelation
         :param str graph: Choice between surface or contourf graph ('2d')
         :param bool figure: Choice between plot or computing
+        :param int start: First time step to use
 
         :return: If (figure == False), the correlation and its fourier transform are returned.\
         The size of the two arrays is defined by the cutoff limits (dr_max,dkr_max,...))
@@ -298,9 +299,9 @@ class Tools:
 
         corr = np.zeros(2*np.array([Nr,Nz])-1)
         
-        r,z,Igrid = self.interpolate(Nr,Nz,self.I)
+        r,z,Igrid = self.interpolate(Nr,Nz,self.I,start=start)
             
-        for i in range(self.Nt):
+        for i in range(self.Nt-start):
             if np.isfinite(Igrid[i,...]).all():
                 corr += correlate2d(Igrid[i,...],Igrid[i,...])
             else:
@@ -350,8 +351,9 @@ class Tools:
             fft_ = fft_corr[indrfft,:]
             fft_ = fft_[:,indzfft]
             
+            fs = 16
             fig = plt.figure()
-            plt.title('FFT of the Correlation')
+            #plt.title('FFT of the Correlation')
             if graph == '3d':
                 ax = fig.gca(projection='3d')
                 surf = ax.plot_surface(krfft,kzfft,fft_.T, cmap=matplotlib.cm.coolwarm,rstride=1,linewidth=0, cstride=1)
@@ -359,8 +361,8 @@ class Tools:
             else:
                 plt.contourf(krfft,kzfft,fft_.T,40)
                 plt.colorbar()
-            plt.xlabel('$k_r$')
-            plt.ylabel('$k_z$')
+            plt.xlabel('$k_r [m^{-1}]$',fontsize=fs)
+            plt.ylabel('$k_z [m^{-1}]$',fontsize=fs)
             
             plt.figure()
             # legend!
@@ -375,88 +377,298 @@ class Tools:
         else:
             return corr,fft_
 
-    def radial_dep_correlation(self,Nr=40,Zref=0.01,eps=0.4,figure=True):
+    def vertical_correlation(self,Nz=40,Rref=2.2236,eps=0.0008,figure=True,index=0.5,start=40):
         """ Show the characteristic length of the vertical correlation length as a function
         of the radial position
 
-        :param int Nr: Number of points for the discretization
-        :param fload Zref: Horizontal plane wanted
-        :param float eps: Relative interval accepted for Zref
+        :param int Nz: Number of points for the discretization
+        :param fload Rref: Horizontal plane wanted
+        :param float eps: Relative interval accepted for Rref
         :param bool figure: Choice between plot or computing
+        :param int start: First time step to use
+
 
         :return: If (figure == False), the radius and the correlation are returned.\
         :rtype: (np.array[Nr],np.array[Nr])
         
         """
-        ind = np.abs((self.Z - Zref)/Zref) < eps
+        ind = np.abs((self.R - Rref)/Rref) < eps
         N = np.sum(ind)
-        
-        corr = np.zeros(Nr)
-        r = np.linspace(np.min(self.R[ind]),np.max(self.R[ind]),Nr)
-
-        R_temp = self.R[ind]
-        Igrid = np.zeros((self.Nt,Nr))
-        for i in range(self.Nt):
-            temp = splrep(R_temp,self.I[i,ind])
-            Igrid[i,:] = splev(r,temp)
-        
-        for i in range(Nr):
-            temp = np.zeros(Nr)
-            for j in range(Nr):
-                temp[j] = np.corrcoef(Igrid[:,i],Igrid[:,j])[0,1]
-            temp = r[(temp<np.exp(-1)) & (r>r[i])]-r[i]
-            if temp.shape[0] > 0:
-                corr[i] = temp[0]
-            else:
-                corr[i] = np.nan
+        corr = np.zeros(Nz)
+        z = np.linspace(np.min(self.Z[ind]),np.max(self.Z[ind]),Nz)
+        Z_temp = self.Z[ind]
+        a = Z_temp.argsort()
+        Z_temp = Z_temp[a]
+        I = self.I[start:,ind][:,a]
+        Igrid = np.zeros((self.Nt-start,Nz))
+        for i in range(self.Nt-start):
+            temp = splrep(Z_temp,I[i,:])
+            Igrid[i,:] = splev(z,temp)
+            
+        for j in range(Nz):
+            corr[j] = np.corrcoef(Igrid[:,round(index*Nz)],Igrid[:,j])[0,1]
+            
         if not figure:
-            return r,corr,ind
+            return z-z[0],corr,ind
         else:
-
             fig = plt.figure()
-            plt.plot(r,corr)
-            plt.xlabel('R [m]')
-            plt.ylabel('Correlation length')
+            plt.plot(z-z[0],corr)
+            plt.xlabel('$\Delta Z$ [m]')
+            plt.ylabel('Correlation')
             plt.show()
 
 
-    def comparison_radial_correlation_lenght(self,tools,Nr=40,Zref=0.01,eps=0.4):
+    def comparison_vertical_correlation_length(self,tools,Nz=40,Nr=100,eps=0.0005,start=40):
         """ Show the characteristic length of the radial correlation length as a function
         of the radial position for two different diagnostics.
 
         :param list[Tools] tools: List of Tools instance
-        :param int Nr: Number of points for the discretization
-        :param fload Zref: Horizontal plane wanted
-        :param float eps: Relative interval accepted for Zref
+        :param int Nz: Number of points for the discretization
+        :param float eps: Relative interval accepted for Rref
         :param bool figure: Choice between plot or computing
+        :param int start: First time step to use
         """
+        from scipy.optimize import curve_fit
+        def decay(x,sigma):
+            """
+            Assumption shape of the decay
+            :param np.array[N] x: position
+            :param sigma: parameter
+            :return: Expected value
+            :rtype: np.array[N]
+            """
+            return np.exp(-x/sigma)
+        def get_correlation_length(z,corr):
+            """
+            Compute the correlation using the assumption in :func:`decay`
+            :param np.array[N] z: Coordinate of the correlation
+            :param np.array[N] corr: Correlation
+            :return: Correlation length
+            :rtype: float
+            """
+            ind = np.zeros(corr.shape,dtype=bool)
+            i = np.where((corr[1:] > corr[:-1]))[0]
+            if i.shape[0] != 0:
+                ind[:i[0]+1] = True
+                corr = corr[ind]
+                z = z[ind]
+            l = z[corr < np.exp(-1)]
+            if l.shape[0] > 0:
+                return l[0]
+            else:
+                popt,pcov = curve_fit(decay,z,corr,p0=r[-1])
+                return popt
 
-        r0, corr0,ind0 = self.radial_dep_correlation(Nr,Zref,eps,figure=False)
-        corr = np.zeros((Nr,len(tools)))
-        for i in range(len(tools)):
-            r, corr[:,i],ind = tools[i].radial_dep_correlation(Nr,Zref,eps,figure=False)
-
+        R_copy = np.copy(self.R)
+        Z_copy = np.copy(self.Z)
+        r = []
+        corr = []
+        while R_copy.shape[0] != 0:
+            Rref = R_copy[0]
+            print Rref
+            r.append(Rref)
+            temp_corr = np.zeros(len(tools)+1)
+            z0, corr0,ind0 = self.vertical_correlation(Nz,Rref,eps,figure=False,index=0,start=start)
+            ind = np.ones(R_copy.shape,dtype=bool)
+            for k in range(R_copy.shape[0]):
+                if R_copy[k] in self.R[ind0]:
+                    ind[k] = False
+            R_copy = R_copy[ind]
+            temp_corr[0] = get_correlation_length(z0,corr0)
+            for i in range(len(tools)):
+                z, corr_,ind = tools[i].vertical_correlation(Nz,Rref,eps,figure=False,index=0,start=start)
+                temp_corr[i+1] = get_correlation_length(z,corr_)
+            corr.append(temp_corr)
+            
+        r0 = np.linspace(np.min(self.R),np.max(self.R),Nr)
+        corr = np.array(corr)
+        k = 1
+        tck = splrep(r,100*corr[:,0],k=k)
         plt.figure()
-        plt.plot(r0,100*corr0,label=self.name_id)
+        plt.plot(r0,splev(r0,tck),label=self.name_id)
         for i in range(len(tools)):
-            plt.plot(r,100*corr[:,i],label=tools[i].name_id)
+            tck = splrep(r,100*corr[:,i+1],k=k)
+            plt.plot(r0,splev(r0,tck),label=tools[i].name_id)
         plt.xlabel('Radius [m]')
         plt.ylabel('Correlation length [cm]')
 
-        psi_n = splrep(self.R[ind0],self.psin[ind0])
+        ind = np.abs((self.Z - self.Z[0])/self.Z[0]) < 2e-1
+        print np.sum(ind)
+        psi_n = splrep(self.R[ind],self.psin[ind])
         psi_n = splev(r0,psi_n)
 
-        ind_sep = np.abs(1.0-psi_n) < 5e-3
-        print np.sum(ind_sep)
-        if np.sum(ind_sep) > 0:
-            ind_sep = np.argmax(ind_sep)
+        ind_sep = np.argmax(psi_n > 1.0)
         xa,xb,ya,yb = plt.axis()
+        plt.grid(True)
         plt.plot([r0[ind_sep],r0[ind_sep]],[ya,yb],'-k',label='Separatrix')
         plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
            ncol=2, mode="expand", borderaxespad=0.)
         plt.show()
 
+
+    def comparison_vertical_correlation(self,tools,Nz=40,Rref=2.2236,eps=0.0008,index=0.5,start=40):
+        """ Show the vertical correlation as a function of the distance for each instance in tools 
+        (plus self).
+
+        :param list[Tools] tools: List of Tools instance
+        :param int Nz: Number of points for the discretization
+        :param float Rref: Reference radius
+        :param float eps: Relative interval accepted for Rref
+        :param int start: First time step to use
+        """
+
+        plt.figure()
+        z,corr,ind = self.vertical_correlation(eps=eps,Nz=Nz,Rref=Rref,figure=False,index=index,start=start)
+        plt.plot(z,corr,label=self.name_id)
+        for i in range(len(tools)):
+            z,corr,ind = tools[i].vertical_correlation(eps=eps,Nz=Nz,Rref=Rref,figure=False,index=index,start=start)
+            plt.plot(z,corr,label=tools[i].name_id)
+        plt.xlabel('$\Delta z$ [m]',fontsize=16)
+        plt.ylabel('Correlation')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+    def radial_correlation(self,Nr=100,Zref=0.01195,eps=3e-2,figure=True,index=0.5,start=40):
+        """
+        Radial correlation for the reference plane.
         
+        :param int Nr: Number of points for the radial correlation
+        :param float Zref: Reference plane
+        :param float eps: Relative error accepted for the reference plane
+        :param float index: Relative index wanted
+        :param bool figure: Choice between returning the value and plotting
+        :param int start: First time step to use
+
+        :return: (if figure == False) Distance from the reference point, correlation and index used from the fiber
+        :rtype: tuple(np.array[Nr],np.array[Nr],np.array(shape=Nfib,dtype=bool))
+        """
+        ind = np.abs((self.Z - Zref)/Zref) < eps
+        N = np.sum(ind)
+        print N
+        print 'NEED TO DO THE INTERPOLATION AFTER'
+        r = np.linspace(np.min(self.R[ind]),np.max(self.R[ind]),Nr)
+        R_temp = self.R[ind]
+        a = R_temp.argsort()
+        R_temp = R_temp[a]
+        I = self.I[:,ind][:,a]
+        corr_ = np.zeros(N)
+        for j in range(N):
+            corr_[j] = np.corrcoef(I[start:,round(index*N)],I[start:,j])[0,1]
+
+        temp = splrep(R_temp,corr_)
+        corr = splev(r,temp)
+
+        if not figure:
+            return r-r[round(index*Nr)],corr,ind
+        else:
+            fig = plt.figure()
+            plt.plot(r-r[0],corr)
+            plt.xlabel('$\Delta R$ [m]')
+            plt.ylabel('Correlation')
+            plt.show()
+
+    def comparison_radial_correlation(self,tools,Nr=100,Zref=0.01195,eps=3e-2,index=0.5,start=40):
+        """
+        Plot the radial correlation for each instance of tools (plus self) and for the reference plane.
+        
+        :param list[Tools] tools: List of instance of Tools
+        :param int Nr: Number of points for the radial correlation
+        :param float Zref: Reference plane
+        :param float eps: Relative error accepted for the reference plane
+        :param float index: Relative index wanted
+        :param int start: First time step to use
+
+        """
+        corr = np.zeros((len(tools)+1,Nr))
+        r,corr[0,:],ind = self.radial_correlation(Nr,Zref,eps,figure=False,index=index,start=start)
+        for i in range(len(tools)):
+            r,corr[i+1,:],ind = tools[i].radial_correlation(Nr,Zref,eps,figure=False,index=index,start=start)
+        
+        plt.figure()
+        plt.plot(r,corr[0,:],label=self.name_id)
+        for i in range(len(tools)):
+            plt.plot(r,corr[i+1,:],label=tools[i].name_id)
+
+        plt.grid(True)
+        plt.xlabel('$\Delta R$ [m]')
+        plt.ylabel('Correlation')
+        plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+           ncol=2, mode="expand", borderaxespad=0.)
+
+        plt.show()
+
+    def time_correlation(self,figure=True,fib=3,dt=1.56569e-8,start=40,cut=30):
+        """
+        Compute the time correlation and can show it.
+        :param bool figure: Choice between returning the value and plotting
+        :param int fib: Index of the fiber
+        :param float dt: Step size between each image
+        :param int start: Time step at which starting the correlation
+        :param int cut: Interval to return ([-cut,cut]). Cut is in time step unit (therefore int)
+
+        :return: (if figure==False) Time and the associated value of correlation
+        :rtype: tuple(np.array[2*cut+1],np.array[2*cut+1])
+        """
+        def autocorrelate(I):
+            Nt = I.shape[0]
+            corr = np.zeros(2*Nt-1)
+            for i in range(corr.shape[0]):
+                tau = i-Nt+1
+                N = np.minimum(0,tau)
+                M = np.maximum(Nt,Nt+tau)
+                inda = -N
+                indb = 2*Nt-M
+                indc = M-Nt
+                indd = N+Nt
+                std = np.sum(I[inda:indb]**2)*np.sum(I[indc:indd]**2)
+                corr[i] = np.sum(I[inda:indb]*I[indc:indd])/np.sqrt(std)
+            return corr
+        
+        Nt = self.I.shape[0]-start
+        corr = np.zeros(Nt)
+        t = np.arange(-Nt+1,Nt)*dt
+
+        corr = autocorrelate(self.I[start:,fib])
+        lim1 = Nt-cut
+        lim2 = Nt+cut
+        if not figure:
+            return t[lim1:lim2],corr[lim1:lim2]
+        else:
+            fig = plt.figure()
+            plt.grid(True)
+            plt.plot(t[lim1:lim2],corr[lim1:lim2])
+            plt.xlabel('$\Delta t$ [m]',fontsize=15)
+            plt.ylabel('Correlation')
+            plt.show()
+
+
+    def comparison_time_correlation(self,tools,fib=3,dt=1.56569e-8,start=40,cut=30):
+        """
+        Plot a comparison of the time correlation for each instance of tools (plus self)
+        
+        :param list[Tools] tools: List of Tools that will be computed and displayed
+        :param int fib: Index of the fiber
+        :param float dt: Step size between each image
+        :param int start: Time step at which starting the correlation
+        :param int cut: Interval to return ([-cut,cut]). Cut is in time step unit (therefore int)
+        """
+        corr = np.zeros((len(tools)+1,2*cut))
+        r,corr[0,:] = self.time_correlation(figure=False,fib=fib,dt=dt,start=start,cut=cut)
+        for i in range(len(tools)):
+            r,corr[i+1,:] = tools[i].time_correlation(figure=False,fib=fib,dt=dt,start=start,cut=cut)
+
+        plt.figure()
+        plt.plot(r,corr[0,:],label=self.name_id)
+        for i in range(len(tools)):
+            plt.plot(r,corr[i+1,:],label=tools[i].name_id)
+        plt.grid(True)
+        plt.xlabel('$\Delta t$ [s]')
+        plt.ylabel('Correlation')
+        plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+           ncol=2, mode="expand", borderaxespad=0.)
+
+        plt.show()
 
 def put_two_files_together(name1,name2,outputname):
     """ When doing two simulations on a different time intervals,
@@ -1014,7 +1226,7 @@ def check_field_line_integration(R=2.23,Z=0.01,phi=0.1,Nrot=10,fwd=True,data_nam
 
     
 def check_geometry(minorR=0.67,majorR=1.67):
-    """ Plot the geometry readed by the synthetic diagnostics
+    """ Plot the geometry read by the synthetic diagnostics
     The default Tokamak is the D3D (only a very simple model of the tokamak
     is considered)
 
@@ -1118,7 +1330,7 @@ def compute_beam_config(Rsource,phisource, Rtan,R=np.array([])):
 
 def interpolation_toroidal_plane(phi=-2.38,t=130,Nr=1000,Nz=1000,R=[1.82,2.3],Z=[-0.25,0.25]):
     """ Create a R-Z mesh and interpolate the data on it.
-    Is usefull for checking if the data are well interpolated
+    Is useful for checking if the data are well interpolated
 
     :param float phi: Toroidal plane to compute
     :param int t: Time step

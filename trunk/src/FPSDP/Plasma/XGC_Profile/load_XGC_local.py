@@ -402,7 +402,7 @@ class XGC_Loader_local():
         na_valid_idx = np.zeros(nane.shape,dtype=bool)
         na_valid_idx[ind2] = np.absolute(nane[ind2])<= np.absolute(ne[ind2])
         ne[na_valid_idx] += nane[na_valid_idx]
-        ne[~ind | ~ind2] = self.ne_min/10
+        ne[~ind | ~ind2] = ne0[~ind | ~ind2]
         return ne
     
     def compute_interpolant(self):

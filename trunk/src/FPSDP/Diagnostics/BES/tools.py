@@ -376,7 +376,7 @@ class Tools:
             return corr,fft_
 
     def radial_dep_correlation(self,Nr=40,Zref=0.01,eps=0.4,figure=True):
-        """ Show the characteristic length of the radial correlation length as a function
+        """ Show the characteristic length of the vertical correlation length as a function
         of the radial position
 
         :param int Nr: Number of points for the discretization
@@ -457,34 +457,6 @@ class Tools:
         plt.show()
 
         
-    def compute_PSF_constant(self,tool2,v=30,threshold=True,lim=1):
-        """ Compute a simple PSF given by the relation :math:`C\frac{\tilde{I}}{I} = \frac{\tilde{n}_e}{n_e}`
-        C is computed by doing the average of the ratio of self/tool2 of each point (for having a PSF, self should
-        be the raw density fluctuation and tool2 the BES result)
-
-        :param Tools tool2: Second instance of Tools
-        """
-
-        C = np.zeros(self.psin.shape)
-        lim1 = lim*np.std(self.I,axis=0)
-        lim2 = lim*np.std(tool2.I,axis=0)
-        for i in range(self.psin.shape[0]):
-            ind = (np.abs(self.I[:,i]) > lim1[i]) & (np.abs(tool2.I[:,i]) > lim2[i])
-            if np.sum(ind) != 0:
-                C[i] = np.sum(self.I[ind,i]/tool2.I[ind,i])/np.sum(ind)
-
-        if threshold:
-            v = np.linspace(0,5,v)
-        
-        plt.figure()
-        plt.tricontourf(self.R,self.Z,C,v)
-        plt.colorbar()
-        plt.plot(self.R,self.Z,'xk')
-        plt.xlabel('R [m]')
-        plt.ylabel('Z [m]')
-        plt.tricontour(self.R,self.Z,self.psin,[1])
-        plt.show()
-
 
 def put_two_files_together(name1,name2,outputname):
     """ When doing two simulations on a different time intervals,
@@ -1144,7 +1116,7 @@ def compute_beam_config(Rsource,phisource, Rtan,R=np.array([])):
 
 
 
-def interpolation_toroidal_plane(phi=-2.58,t=130,Nr=1000,Nz=1000,R=[1.82,2.3],Z=[-0.25,0.25]):
+def interpolation_toroidal_plane(phi=-2.38,t=130,Nr=1000,Nz=1000,R=[1.82,2.3],Z=[-0.25,0.25]):
     """ Create a R-Z mesh and interpolate the data on it.
     Is usefull for checking if the data are well interpolated
 
@@ -1159,6 +1131,7 @@ def interpolation_toroidal_plane(phi=-2.58,t=130,Nr=1000,Nz=1000,R=[1.82,2.3],Z=
     bes = bes_.BES(name)
     
     bes.beam.t_ = t-1 # will be increase in compute_beam_on_mesh
+    print bes.beam.data.shift
     bes.beam.data.current = t
     bes.beam.data.load_next_time_step(increase=False)
 
@@ -1221,4 +1194,132 @@ def solid_angle_evolution(Rmax=2,Zmax=0.1,Nr=80,Nz=100,fib=4,v=40):
     plt.ylabel('Solid Angle')
 
     
+    plt.show()
+
+
+
+def compute_scaling_factor(ne_fluc=0.1,T_fluc=0.01,radial=True,Radius=[1.67,0.67],Nr=100,graph=True,xgc=None):
+    """
+    Compute the scaling factor relating the density fluctuations to the BES fluctuations: :math:`C\frac{\tilde{I}}{I}=\frac{\tilde{n}_e}{n_e}`
+    This code is more or less a copy of the BES code, therefore it should be changed if the main code is changed
+
+    :param float ne_fluc: Ratio of density fluctations
+    :param float T_fluc: Ratio of temperature fluctuations
+    :param bool radial: Choice between real focus point or a radial analysis (on the midplane)
+    :param list[float,float] Radius: Major and minor radius of the tokamak (default is D3D, useful only if radial is True) 
+    :param int Nr: Number of fiber (useful only if radial is True)
+    :param bool graph: Choice bwteen return the values or ploting the graph
+    :param load_XGC_local xgc: Choice between loading a new XGC or using an existing one.
+    :return: Position (R or (R,Z)), the coefficient C and the difference between I_fl and I
+    :rtype: (np.array[Nr])*3 or (np.array[Nr])*4
+    """
+    import FPSDP.Maths.Integration as integ
+
+    if xgc == None:
+        if radial:
+            bes = bes_.BES(name,radial_mesh=[Radius[0],Radius[1],Nr])
+        else:
+            bes = bes_.BES(name)
+        bes.beam.eq = True
+        bes.beam.compute_beam_on_mesh()
+    else:
+        bes = xgc
+    C = np.zeros(bes.pos_foc.shape[0])
+    dI = np.zeros(bes.pos_foc.shape[0])
+    for fib in range(bes.pos_foc.shape[0]):
+            # first define the quadrature formula
+            quad = integ.integration_points(1,'GL2') # Gauss-Legendre order 4
+            I = 0.0
+            # compute the distance from the origin of the beam
+            dist = np.dot(bes.pos_foc[fib,:] - bes.beam.pos,bes.beam.direc)
+            width = bes.beam.get_width(dist)
+            # compute the average beam width of the beam
+            width = (width[0]*np.sum(bes.op_direc[fib,0:2]) + width[1]*bes.op_direc[fib,2])*bes.inter
+            width /= np.abs(np.dot(bes.beam.direc,bes.op_direc[fib,:]))
+            # limit of the intervals
+            border = np.linspace(-width*bes.inter,width*bes.inter,bes.Nint)
+            # value inside the intervals
+            Z = 0.5*(border[:-1] + border[1:])
+            # half size of one interval
+            ba2 = 0.5*(border[1:]-border[:-1])
+            I = 0.0
+            Ifl = 0.0
+            for i,z in enumerate(Z):
+                # distance of the plane from the lense
+                pt = z + ba2[i]*quad.pts + bes.dist[fib]
+                zer = np.zeros(pt.shape[0])
+                pt = np.array([zer,zer,pt]).T
+                x = bes.to_cart_coord(pt,fib)
+                fil = bes.get_filter(x)
+                nb = bes.beam.get_beam_density(x)
+                ne, T = bes.beam.get_quantities(x,0,['ne','Ti'],eq=True)
+                for k in bes.beam.coll_emis:
+                    file_nber = k[0]
+                    beam_nber = k[1]
+                    temp_eq = bes.beam.collisions.get_emission(
+                        bes.beam.beam_comp[beam_nber],ne,bes.beam.mass_b[beam_nber],T,file_nber)
+                    I += np.sum(fil[beam_nber]*temp_eq*nb[beam_nber]*ne*quad.w)*ba2[i]
+                    ne_fl = ne*(1.0+ne_fluc)
+                    T_fl = T*(1.0+T_fluc)
+                    temp_fl = bes.beam.collisions.get_emission(
+                        bes.beam.beam_comp[beam_nber],ne_fl,bes.beam.mass_b[beam_nber],T_fl,file_nber)
+                    Ifl += np.sum(fil[beam_nber]*temp_fl*nb[beam_nber]*ne_fl*quad.w)*ba2[i]
+            C[fib] = ne_fluc/(Ifl/I-1)
+            dI = Ifl-I
+    R = np.sqrt(np.sum(bes.pos_foc**2,axis=1))
+    if graph:
+        if radial:
+            plt.figure()
+            plt.plot(R,C)
+            plt.xlabel('R[m]')
+            plt.ylabel('Scaling Factor')
+        else:
+            Z = bes.pos_foc[:,2]
+            plt.figure()
+            plt.tricontourf(R,Z,C,30)
+            plt.colorbar()
+            plt.title('Scaling Factor')
+            plt.xlabel('R[m]')
+            plt.ylabel('Z[m]')
+        plt.show()
+    else:
+        if radial:
+            return R,C,dI
+        else:
+            return R,Z,C,dI
+
+def scaling_dependency(NT=20,Nn=10,Radius=1.67):
+    """
+    Use the function :func:`compute_scaling_factor` for computing the dependency on the temperature and density fluctuations
+    """
+    bes = bes_.BES(name,radial_mesh=[Radius,Radius+1,1])
+    bes.beam.eq = True
+    bes.beam.compute_beam_on_mesh()
+
+    T = np.linspace(-0.15,0.15,NT)
+    ne = np.linspace(0.05,0.2,Nn)
+    C = np.zeros((NT,Nn))
+    dI = np.zeros((NT,Nn))
+    for i,t in enumerate(T):
+        for j,n in enumerate(ne):
+            print "Step number: ", 1 + i*Nn + j," / ", Nn*NT
+            temp = compute_scaling_factor(n,t,graph=False,xgc=bes)
+            C[i,j] = temp[1]
+            R = temp[0]
+            dI[i,j] = temp[2]
+
+    #T,ne = np.meshgrid(T,ne)
+    plt.figure()
+    plt.contourf(T,ne,C.T,30)
+    plt.xlabel('$\Delta T/T$')
+    plt.ylabel('$\Delta n_e/n_e$')
+    plt.colorbar()
+
+    plt.figure()
+    #plt.title('dI')
+    #plt.contourf(T,ne,dI.T,30)
+    plt.contourf(T,ne,(ne/C).T,30)
+    plt.xlabel('$\Delta T/T$')
+    plt.ylabel('$\Delta n_e/n_e$')
+    plt.colorbar()
     plt.show()

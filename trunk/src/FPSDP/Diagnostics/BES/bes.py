@@ -48,6 +48,9 @@ class BES:
 
     :param str input_file: Name of the config file
     :param bool multiprocessing: Choice between the serial code or the parallel one
+    :param list[] radial_mesh: Use input focus point or create an array on the midplane.\
+    The two first values are the major and minor radius of the tokamak and the last one is the number of focus point
+
     :var str self.cfg_fil: Name of the config file
     :var bool self.multiprocessing: Choice between the serial code and the parallel one
     :var np.array[3] self.pos_lens: Position of the lens (in the cartesian system) in meter
@@ -159,7 +162,7 @@ class BES:
 
     """
 
-    def __init__(self,input_file, multiprocessing=False):
+    def __init__(self,input_file, multiprocessing=False, radial_mesh=None):
         """ load all the data from the input file"""
         self.cfg_file = input_file                                           #!
         if not exists(self.cfg_file):
@@ -186,7 +189,7 @@ class BES:
 
         if self.Nint/self.inter < 2:
             print 'WARNING: The accuracy of the optical integral is assumed to be too small'
-        
+
         R = json.loads(config.get('Optics','R'))
         R = np.array(R)
         phi = json.loads(config.get('Optics','phi'))
@@ -197,13 +200,18 @@ class BES:
         name = self.data_path + 'xgc.3d.' + str(start).zfill(5)+'.h5'
         nber_plane = h5.File(name,'r')
         nphi = nber_plane['nphi'][:]
-        shift = np.mean(phi) - 2*np.pi*plane/nphi[0]
+        self.phiav = np.mean(phi)
+        shift = self.phiav - 2*np.pi*plane/nphi[0]
 
-        
-        self.pos_foc = np.zeros((len(Z),3))                                  #!
-        self.pos_foc[:,0] = R*np.cos(phi)
-        self.pos_foc[:,1] = R*np.sin(phi)
-        self.pos_foc[:,2] = Z
+        if radial_mesh == None:
+            self.pos_foc = np.zeros((len(Z),3))                                  #!
+            self.pos_foc[:,0] = R*np.cos(phi)
+            self.pos_foc[:,1] = R*np.sin(phi)
+            self.pos_foc[:,2] = Z
+        else:
+            R = np.linspace(radial_mesh[0],radial_mesh[0]+radial_mesh[1],radial_mesh[2])
+            self.pos_foc = np.array([R*np.cos(self.phiav),R*np.sin(self.phiav),
+                                     np.zeros(radial_mesh[2])]).T
         self.op_direc = self.pos_foc-self.pos_lens                           #!
         
         self.dist = np.sqrt(np.sum(self.op_direc**2,axis=1))
@@ -218,7 +226,7 @@ class BES:
 
         self.type_int = config.get('Optics','type_int')                      #!
         
-        self.lim_op = np.zeros((len(Z),2))                                   #!
+        self.lim_op = np.zeros((self.pos_foc.shape[0],2))                    #!
         self.lim_op[:,0] = self.dist*self.rad_lens/(self.rad_lens+self.rad_foc)
         self.lim_op[:,1] = self.dist*self.rad_lens/(self.rad_lens-self.rad_foc)
 
@@ -591,7 +599,7 @@ class BES:
         :rtype: np.array[N]
         """
         R = np.sqrt(np.sum(self.pos_foc[:,0:2]**2,axis=1))
-        return self.beam.data.psi_interp(self.pos_foc[:,2],R)/self.beam.data.psi_x
+        return self.beam.data.psi_interp(R,self.pos_foc[:,2])/self.beam.data.psi_x
         
     def intensity_para(self,i):
         """ Same as :func:`intensity <FPSDP.Diagnostics.BES.bes.BES.intensity>`, but have only one argument.
@@ -616,9 +624,8 @@ class BES:
         """
         # use the three basis vectors for computing the vectors in the
         # cartesian coordinate
-        if len(pos.shape) == 1:
-            pos = pos[np.newaxis,:]
-            
+        pos = np.atleast_1d(pos)
+                            
         ret = np.zeros(pos.shape)
         ret[:,0] = self.pos_lens[0] + self.op_direc[fiber_nber,0]*pos[:,2]
         ret[:,0] += self.perp1[fiber_nber,0]*pos[:,0] + self.perp2[fiber_nber,0]*pos[:,1]
@@ -1283,7 +1290,7 @@ class BES_ideal:
         :rtype: np.array[N]
         """
         R = np.sqrt(np.sum(self.pos_foc[:,0:2]**2,axis=1))
-        return self.data.psi_interp(self.pos_foc[:,2],R)/self.data.psi_x
+        return self.data.psi_interp(R,self.pos_foc[:,2])/self.data.psi_x
 
     def intensity(self,t_,fiber_nber):
         """ Compute the light received by the fiber

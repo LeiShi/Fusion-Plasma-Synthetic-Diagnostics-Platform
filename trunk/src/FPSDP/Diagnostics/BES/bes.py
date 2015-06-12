@@ -131,7 +131,7 @@ class BES:
        // XGC_LOADER_local.LOAD_NEXT_TIME_STEP
        "XGC_Loader_local.load_next_time_step"->"XGC_Loader_local.load_fluctuations_3D_all"[lhead=cluster_next];
        subgraph cluster_next { label="XGC_Loader_local.load_next_time_step"; "XGC_Loader_local.load_fluctuations_3D_all"->
-       "XGC_Loader_local.calc_total_ne_3D"->"XGC_Loader_local.compute_interpolant"[color="red"];}
+       "XGC_Loader_local.compute_interpolant"[color="red"];}
 
        // BEAM.SET_DATA
        "Beam1D.set_data"->"Beam1D.create_mesh" [lhead=cluster_set_data];    
@@ -155,7 +155,7 @@ class BES:
        // XGC_LOADER_local.INTERPOLATE_DATA
        "XGC_Loader_local.interpolate_data"->B [lhead=cluster_interpolate];
        subgraph cluster_interpolate { label="XGC_Loader_local.interpolate_data"; B->
-       "XGC_Loader_local.find_interp_positions"[color="red"];
+       "XGC_Loader_local.find_interp_positions"->"XGC_Loader_local.calc_total_ne_3D"[color="red"];
        }
 
        }    
@@ -508,12 +508,11 @@ class BES:
 
            // BES.LIGHT_FROM_PLANE
            "BES.light_from_plane"->Bint[lhead=cluster_light]
-           subgraph cluster_light { label="BES.light_from_plane"; Bint->"BES.get_emis_from"[color="red"]}
+           subgraph cluster_light { label="BES.light_from_plane"; Bint->"BES.get_emis_from"->"BES.get_solid_angle"->"BES.get_filter"[color="red"]}
 
            // BES.GET_EMIS_FROM
            "BES.get_emis_from"->"BES.to_cart_coord"[lhead=cluster_emis_from];
-           subgraph cluster_emis_from { label="BES.get_emis_from"; "BES.to_cart_coord"->"Beam1D.get_emis_lifetime"
-           ->"BES.get_solid_angle"->"BES.filter"[color="red"];
+           subgraph cluster_emis_from { label="BES.get_emis_from"; "BES.to_cart_coord"->"Beam1D.get_emis_lifetime"[color="red"];
            "BES.to_cart_coord"->"Beam1D.get_emis"->"BES.get_solid_angle"[color="red"];
            }
 

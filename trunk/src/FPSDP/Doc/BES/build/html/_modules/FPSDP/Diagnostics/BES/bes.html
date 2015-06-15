@@ -98,6 +98,9 @@
 
 <span class="sd">    :param str input_file: Name of the config file</span>
 <span class="sd">    :param bool multiprocessing: Choice between the serial code or the parallel one</span>
+<span class="sd">    :param list[] radial_mesh: Use input focus point or create an array on the midplane.\</span>
+<span class="sd">    The two first values are the major and minor radius of the tokamak and the last one is the number of focus point</span>
+
 <span class="sd">    :var str self.cfg_fil: Name of the config file</span>
 <span class="sd">    :var bool self.multiprocessing: Choice between the serial code and the parallel one</span>
 <span class="sd">    :var np.array[3] self.pos_lens: Position of the lens (in the cartesian system) in meter</span>
@@ -178,7 +181,7 @@
 <span class="sd">       // XGC_LOADER_local.LOAD_NEXT_TIME_STEP</span>
 <span class="sd">       &quot;XGC_Loader_local.load_next_time_step&quot;-&gt;&quot;XGC_Loader_local.load_fluctuations_3D_all&quot;[lhead=cluster_next];</span>
 <span class="sd">       subgraph cluster_next { label=&quot;XGC_Loader_local.load_next_time_step&quot;; &quot;XGC_Loader_local.load_fluctuations_3D_all&quot;-&gt;</span>
-<span class="sd">       &quot;XGC_Loader_local.calc_total_ne_3D&quot;-&gt;&quot;XGC_Loader_local.compute_interpolant&quot;[color=&quot;red&quot;];}</span>
+<span class="sd">       &quot;XGC_Loader_local.compute_interpolant&quot;[color=&quot;red&quot;];}</span>
 
 <span class="sd">       // BEAM.SET_DATA</span>
 <span class="sd">       &quot;Beam1D.set_data&quot;-&gt;&quot;Beam1D.create_mesh&quot; [lhead=cluster_set_data];    </span>
@@ -202,14 +205,14 @@
 <span class="sd">       // XGC_LOADER_local.INTERPOLATE_DATA</span>
 <span class="sd">       &quot;XGC_Loader_local.interpolate_data&quot;-&gt;B [lhead=cluster_interpolate];</span>
 <span class="sd">       subgraph cluster_interpolate { label=&quot;XGC_Loader_local.interpolate_data&quot;; B-&gt;</span>
-<span class="sd">       &quot;XGC_Loader_local.find_interp_positions&quot;[color=&quot;red&quot;];</span>
+<span class="sd">       &quot;XGC_Loader_local.find_interp_positions&quot;-&gt;&quot;XGC_Loader_local.calc_total_ne_3D&quot;[color=&quot;red&quot;];</span>
 <span class="sd">       }</span>
 
 <span class="sd">       }    </span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">input_file</span><span class="p">,</span> <span class="n">multiprocessing</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">input_file</span><span class="p">,</span> <span class="n">multiprocessing</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">radial_mesh</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; load all the data from the input file&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cfg_file</span> <span class="o">=</span> <span class="n">input_file</span>                                           <span class="c">#!</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg_file</span><span class="p">):</span>
@@ -236,7 +239,7 @@
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nint</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">inter</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
             <span class="k">print</span> <span class="s">&#39;WARNING: The accuracy of the optical integral is assumed to be too small&#39;</span>
-        
+
         <span class="n">R</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Optics&#39;</span><span class="p">,</span><span class="s">&#39;R&#39;</span><span class="p">))</span>
         <span class="n">R</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">R</span><span class="p">)</span>
         <span class="n">phi</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Optics&#39;</span><span class="p">,</span><span class="s">&#39;phi&#39;</span><span class="p">))</span>
@@ -247,13 +250,18 @@
         <span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_path</span> <span class="o">+</span> <span class="s">&#39;xgc.3d.&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">start</span><span class="p">)</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.h5&#39;</span>
         <span class="n">nber_plane</span> <span class="o">=</span> <span class="n">h5</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="s">&#39;r&#39;</span><span class="p">)</span>
         <span class="n">nphi</span> <span class="o">=</span> <span class="n">nber_plane</span><span class="p">[</span><span class="s">&#39;nphi&#39;</span><span class="p">][:]</span>
-        <span class="n">shift</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">plane</span><span class="o">/</span><span class="n">nphi</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">phiav</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
+        <span class="n">shift</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phiav</span> <span class="o">-</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">plane</span><span class="o">/</span><span class="n">nphi</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
-        
-        <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">Z</span><span class="p">),</span><span class="mi">3</span><span class="p">))</span>                                  <span class="c">#!</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">R</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">R</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">Z</span>
+        <span class="k">if</span> <span class="n">radial_mesh</span> <span class="o">==</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">Z</span><span class="p">),</span><span class="mi">3</span><span class="p">))</span>                                  <span class="c">#!</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">R</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">R</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">Z</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">R</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">radial_mesh</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">radial_mesh</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="n">radial_mesh</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">radial_mesh</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">R</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phiav</span><span class="p">),</span><span class="n">R</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phiav</span><span class="p">),</span>
+                                     <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">radial_mesh</span><span class="p">[</span><span class="mi">2</span><span class="p">])])</span><span class="o">.</span><span class="n">T</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">op_direc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_lens</span>                           <span class="c">#!</span>
         
         <span class="bp">self</span><span class="o">.</span><span class="n">dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">op_direc</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
@@ -268,7 +276,7 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">type_int</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;Optics&#39;</span><span class="p">,</span><span class="s">&#39;type_int&#39;</span><span class="p">)</span>                      <span class="c">#!</span>
         
-        <span class="bp">self</span><span class="o">.</span><span class="n">lim_op</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">Z</span><span class="p">),</span><span class="mi">2</span><span class="p">))</span>                                   <span class="c">#!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lim_op</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="mi">2</span><span class="p">))</span>                    <span class="c">#!</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">lim_op</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_lens</span><span class="o">/</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_lens</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_foc</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">lim_op</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_lens</span><span class="o">/</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_lens</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_foc</span><span class="p">)</span>
 
@@ -550,13 +558,12 @@
 
 <span class="sd">           // BES.LIGHT_FROM_PLANE</span>
 <span class="sd">           &quot;BES.light_from_plane&quot;-&gt;Bint[lhead=cluster_light]</span>
-<span class="sd">           subgraph cluster_light { label=&quot;BES.light_from_plane&quot;; Bint-&gt;&quot;BES.get_emis_from&quot;[color=&quot;red&quot;]}</span>
+<span class="sd">           subgraph cluster_light { label=&quot;BES.light_from_plane&quot;; Bint-&gt;&quot;BES.get_emis_from&quot;-&gt;&quot;BES.get_solid_angle&quot;-&gt;&quot;BES.get_filter&quot;[color=&quot;red&quot;]}</span>
 
 <span class="sd">           // BES.GET_EMIS_FROM</span>
 <span class="sd">           &quot;BES.get_emis_from&quot;-&gt;&quot;BES.to_cart_coord&quot;[lhead=cluster_emis_from];</span>
-<span class="sd">           subgraph cluster_emis_from { label=&quot;BES.get_emis_from&quot;; &quot;BES.to_cart_coord&quot;-&gt;&quot;Beam1D.get_emis_lifetime&quot;</span>
-<span class="sd">           -&gt;&quot;BES.get_solid_angle&quot;-&gt;&quot;BES.filter&quot;[color=&quot;red&quot;];</span>
-<span class="sd">           &quot;BES.to_cart_coord&quot;-&gt;&quot;Beam1D.get_emis&quot;-&gt;&quot;BES.get_solid_angle&quot;[color=&quot;red&quot;];</span>
+<span class="sd">           subgraph cluster_emis_from { label=&quot;BES.get_emis_from&quot;; &quot;BES.to_cart_coord&quot;-&gt;&quot;Beam1D.get_emis_lifetime&quot;[color=&quot;red&quot;];</span>
+<span class="sd">           &quot;BES.to_cart_coord&quot;-&gt;&quot;Beam1D.get_emis&quot;[color=&quot;red&quot;];</span>
 <span class="sd">           }</span>
 
 <span class="sd">           // BEAM1D.GET_EMIS_LIFETIME</span>
@@ -579,7 +586,8 @@
 <span class="sd">           &quot;XGC_Loader_local.interpolate_data&quot;-&gt; &quot;load_XGC_local.get_interp_planes_local&quot;[lhead=cluster_interpolate];</span>
 <span class="sd">           </span>
 <span class="sd">           subgraph cluster_interpolate { label=&quot;XGC_Loader_local.interpolate_data&quot;; </span>
-<span class="sd">           &quot;load_XGC_local.get_interp_planes_local&quot;-&gt;&quot;XGC_Loader_local.find_interp_positions&quot;[color=&quot;red&quot;];</span>
+<span class="sd">           &quot;load_XGC_local.get_interp_planes_local&quot;-&gt;&quot;XGC_Loader_local.find_interp_positions&quot;-&gt;</span>
+<span class="sd">           &quot;XGC_Loader_local.calc_total_ne_3D&quot;[color=&quot;red&quot;];</span>
 <span class="sd">           }</span>
 
 
@@ -641,7 +649,7 @@
 <span class="sd">        :rtype: np.array[N]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">R</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">psi_interp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">2</span><span class="p">],</span><span class="n">R</span><span class="p">)</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">psi_x</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">psi_interp</span><span class="p">(</span><span class="n">R</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">2</span><span class="p">])</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">beam</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">psi_x</span>
         </div>
 <div class="viewcode-block" id="BES.intensity_para"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.bes.html#FPSDP.Diagnostics.BES.bes.BES.intensity_para">[docs]</a>    <span class="k">def</span> <span class="nf">intensity_para</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">i</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Same as :func:`intensity &lt;FPSDP.Diagnostics.BES.bes.BES.intensity&gt;`, but have only one argument.</span>
@@ -666,9 +674,8 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># use the three basis vectors for computing the vectors in the</span>
         <span class="c"># cartesian coordinate</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">pos</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span>
-            
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+                            
         <span class="n">ret</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
         <span class="n">ret</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos_lens</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">op_direc</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">pos</span><span class="p">[:,</span><span class="mi">2</span><span class="p">]</span>
         <span class="n">ret</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">perp1</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">pos</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">perp2</span><span class="p">[</span><span class="n">fiber_nber</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">pos</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span>
@@ -839,6 +846,7 @@
 <div class="viewcode-block" id="BES.light_from_plane"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.bes.html#FPSDP.Diagnostics.BES.bes.BES.light_from_plane">[docs]</a>    <span class="k">def</span> <span class="nf">light_from_plane</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">z</span><span class="p">,</span> <span class="n">t_</span><span class="p">,</span> <span class="n">fiber_nber</span><span class="p">,</span><span class="n">zind</span><span class="p">,</span><span class="n">comp_eps</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">r&quot;&quot;&quot; Compute the light from one plane using a method of order 10 (see report or</span>
 <span class="sd">        Abramowitz and Stegun) or by making the assumption of a constant emission on the plane.</span>
+<span class="sd">        Can be changed easily to the 4th or 6th order methods shown in the graphic</span>
 <span class="sd">        </span>
 <span class="sd">        .. math::</span>
 <span class="sd">           I_\text{plane} = \frac{\iint_D f(x) \mathrm{d}\sigma}{\iint_D \Omega(x)\mathrm{d}\sigma}</span>
@@ -854,13 +862,40 @@
 <span class="sd">        :math:`\frac{16\pm\sqrt{6}}{360}` for the innermost circle (plus sign) and the outermost circle (minus sign)</span>
 
 <span class="sd">        .. tikz::</span>
-<span class="sd">           \draw (0,0) circle(3);</span>
+
+<span class="sd">           % method order 10</span>
+<span class="sd">           \draw (4,0) circle(1.5);</span>
 <span class="sd">           \foreach \i in {1,...,10}</span>
 <span class="sd">           {</span>
-<span class="sd">              \fill ({2.757*cos(36*\i)},{2.757*sin(36*\i)}) circle(2pt);</span>
-<span class="sd">              \fill ({1.788*cos(36*\i)},{1.788*sin(36*\i)}) circle(2pt);</span>
+<span class="sd">             \fill ({4+1.378*cos(36*\i)},{1.378*sin(36*\i)}) circle(2pt);</span>
+<span class="sd">             \fill ({4+0.894*cos(36*\i)},{0.894*sin(36*\i)}) circle(2pt);</span>
 <span class="sd">           }</span>
+<span class="sd">           \fill (4,0) circle(2pt);</span>
+
+<span class="sd">           \node at (4,-2) {Method of Order 10};</span>
+
+<span class="sd">           % method order 4</span>
+<span class="sd">           \draw (-4,0) circle(1.5);</span>
+<span class="sd">           \fill (-4.75,0.75) circle(2pt);</span>
+<span class="sd">           \fill (-4.75,-0.75) circle(2pt);</span>
+<span class="sd">           \fill (-3.25,0.75) circle(2pt);</span>
+<span class="sd">           \fill (-3.25,-0.75) circle(2pt);</span>
+
+<span class="sd">           \node at (-4,-2) {Method of Order 4};</span>
+
+<span class="sd">           % method order 6</span>
+<span class="sd">           \draw (0,0) circle(1.5);</span>
 <span class="sd">           \fill (0,0) circle(2pt);</span>
+<span class="sd">           \fill (1.2247,0) circle(2pt);</span>
+<span class="sd">           \fill (-1.2247,0) circle(2pt);</span>
+<span class="sd">           \fill (0.6123,1.0606) circle(2pt);</span>
+<span class="sd">           \fill (0.6123,-1.0606) circle(2pt);</span>
+<span class="sd">           \fill (-0.6123,1.0606) circle(2pt);</span>
+<span class="sd">           \fill (-0.6123,-1.0606) circle(2pt);</span>
+
+<span class="sd">           \node at (0,-2) {Method of Order 6};</span>
+<span class="sd">        </span>
+<span class="sd">        </span>
 
 <span class="sd">        :param np.array[N] z: Distance from the fiber along the sightline</span>
 <span class="sd">        :param int t_: Time step to compute (is not important for the data loader, but is used as a check)</span>
@@ -1333,7 +1368,7 @@
 <span class="sd">        :rtype: np.array[N]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">R</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">psi_interp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">2</span><span class="p">],</span><span class="n">R</span><span class="p">)</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">psi_x</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">psi_interp</span><span class="p">(</span><span class="n">R</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_foc</span><span class="p">[:,</span><span class="mi">2</span><span class="p">])</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">psi_x</span>
 </div>
 <div class="viewcode-block" id="BES_ideal.intensity"><a class="viewcode-back" href="../../../../FPSDP.Diagnostics.BES.bes.html#FPSDP.Diagnostics.BES.bes.BES_ideal.intensity">[docs]</a>    <span class="k">def</span> <span class="nf">intensity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">t_</span><span class="p">,</span><span class="n">fiber_nber</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Compute the light received by the fiber</span>

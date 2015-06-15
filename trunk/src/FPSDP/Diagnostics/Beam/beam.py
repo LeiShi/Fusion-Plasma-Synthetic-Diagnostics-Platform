@@ -302,7 +302,7 @@ class Beam1D:
                     # integration point
                     pt = quad.pts[:,np.newaxis]*diff + av
                     # compute all the values needed for the integral
-                    ne, T = self.get_quantities(pt,self.t_,['ne','Ti'],self.eq,check=False)
+                    ne, T = self.get_quantities(pt,self.t_,['ne','Te'],self.eq,check=False)
                     
                     # attenuation coefficient from adas
                     S = self.collisions.get_attenutation(
@@ -393,7 +393,7 @@ class Beam1D:
         if len(pos.shape) == 1:
             pos = pos[np.newaxis,:]
         emis = np.zeros((len(self.beam_comp),pos.shape[0]))
-        n_e,Ti = self.get_quantities(pos,t_,['ne','Ti'])
+        n_e,Te = self.get_quantities(pos,t_,['ne','Te'])
         # loop over all the type of collisions
         n_b = self.get_beam_density(pos)
         for k in self.coll_emis:
@@ -401,7 +401,7 @@ class Beam1D:
             beam_nber = k[1]
             # compute the emission coefficient
             emis[beam_nber,:] += self.collisions.get_emission(
-                self.beam_comp[beam_nber],n_e,self.mass_b[beam_nber],Ti,file_nber)
+                self.beam_comp[beam_nber],n_e,self.mass_b[beam_nber],Te,file_nber)
         # compute the emissivity
         emis = emis*n_e*n_b
         return emis
@@ -430,7 +430,7 @@ class Beam1D:
         quad = integ.integration_points(1,'GL2') # Gauss-Legendre order 2
         emis = np.zeros((len(self.beam_comp),pos.shape[0]))
         # avoid the computation at each time
-        ne_in, Ti_in,Te_in = self.get_quantities(pos,t_,['ne','Ti','Te'])
+        ne_in, Te_in = self.get_quantities(pos,t_,['ne','Te'])
         
         #nb_in = self.get_beam_density(pos)
         for k in self.coll_emis:
@@ -462,17 +462,17 @@ class Beam1D:
             x = pos[:,np.newaxis,np.newaxis,:] \
                 - pt[...,np.newaxis]*self.direc
 
-            n_e, Ti = self.get_quantities(x,t_,['ne','Ti'])
+            n_e, Te = self.get_quantities(x,t_,['ne','Te'])
 
             n_e = np.reshape(n_e,pt.shape)
-            Ti = np.reshape(Ti,pt.shape)
+            Te = np.reshape(Te,pt.shape)
 
             n_b = self.get_beam_density(x)[beam_nber,...]
             n_b = np.reshape(n_b,pt.shape)
         
             
             f = self.collisions.get_emission(self.beam_comp[beam_nber],n_e.flatten()
-                                             ,self.mass_b[beam_nber],Ti.flatten(),file_nber)
+                                             ,self.mass_b[beam_nber],Te.flatten(),file_nber)
             f = np.reshape(f,pt.shape)
 
             # should be change if l depends on position

@@ -89,6 +89,7 @@ class Tools:
 
     def fluctuations_picture(self,timestep,v=40,total=False):
         """ Plot a graph of the fluctuation
+
         :param int timestep: Index of the timestep
         :param int v: Number of ticks for the colorbar
         :param bool total: Choice between total intensity or only fluctuation
@@ -111,6 +112,7 @@ class Tools:
 
     def fluctuations_movie(self,v=40,name_movie='movie_fl.mp4'):
         """ Make a movie from the data and save it in movie_fl.mp4
+
         :param int v: Number of ticks for the colorbar
         :param str name_movie: Name of the movie that will be saved
         """
@@ -202,6 +204,7 @@ class Tools:
     def comparison_movie(self,tool2,v=40,name_movie='movie_comp.mp4',interpolation=False):
         """ Make a movie from the data and save it in movie_comp.mp4
         self should be the density fluctuation
+        
         :param Tools tool2: BES images
         :param int v: Number of ticks for the colorbar
         :param str name_movie: Name of the output movie
@@ -394,6 +397,7 @@ class Tools:
         """
         ind = np.abs((self.R - Rref)/Rref) < eps
         N = np.sum(ind)
+        print N
         corr = np.zeros(Nz)
         z = np.linspace(np.min(self.Z[ind]),np.max(self.Z[ind]),Nz)
         Z_temp = self.Z[ind]
@@ -432,8 +436,10 @@ class Tools:
         def decay(x,sigma):
             """
             Assumption shape of the decay
+
             :param np.array[N] x: position
             :param sigma: parameter
+
             :return: Expected value
             :rtype: np.array[N]
             """
@@ -441,8 +447,10 @@ class Tools:
         def get_correlation_length(z,corr):
             """
             Compute the correlation using the assumption in :func:`decay`
+
             :param np.array[N] z: Coordinate of the correlation
             :param np.array[N] corr: Correlation
+
             :return: Correlation length
             :rtype: float
             """
@@ -598,9 +606,10 @@ class Tools:
 
         plt.show()
 
-    def time_correlation(self,figure=True,fib=3,dt=1.56569e-8,start=40,cut=30):
+    def time_correlation(self,figure=True,fib=3,dt=1.56569e-6,start=40,cut=30):
         """
         Compute the time correlation and can show it.
+
         :param bool figure: Choice between returning the value and plotting
         :param int fib: Index of the fiber
         :param float dt: Step size between each image
@@ -635,15 +644,20 @@ class Tools:
         if not figure:
             return t[lim1:lim2],corr[lim1:lim2]
         else:
+            import matplotlib.ticker as mtick
             fig = plt.figure()
             plt.grid(True)
             plt.plot(t[lim1:lim2],corr[lim1:lim2])
-            plt.xlabel('$\Delta t$ [m]',fontsize=15)
+            plt.xlabel('$\Delta t$ [s]',fontsize=15)
             plt.ylabel('Correlation')
+            ax = plt.gca()
+            ax.xaxis.set_major_formatter(mtick.FormatStrFormatter('%.2e'))
             plt.show()
 
 
-    def comparison_time_correlation(self,tools,fib=3,dt=1.56569e-8,start=40,cut=30):
+
+
+    def comparison_time_correlation(self,tools,fib=3,dt=1.56569e-6,start=40,cut=30):
         """
         Plot a comparison of the time correlation for each instance of tools (plus self)
         
@@ -658,6 +672,8 @@ class Tools:
         for i in range(len(tools)):
             r,corr[i+1,:] = tools[i].time_correlation(figure=False,fib=fib,dt=dt,start=start,cut=cut)
 
+            
+        import matplotlib.ticker as mtick
         plt.figure()
         plt.plot(r,corr[0,:],label=self.name_id)
         for i in range(len(tools)):
@@ -667,7 +683,8 @@ class Tools:
         plt.ylabel('Correlation')
         plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
            ncol=2, mode="expand", borderaxespad=0.)
-
+        ax = plt.gca()
+        ax.xaxis.set_major_formatter(mtick.FormatStrFormatter('%.2e'))
         plt.show()
 
 def put_two_files_together(name1,name2,outputname):
@@ -1411,7 +1428,7 @@ def solid_angle_evolution(Rmax=2,Zmax=0.1,Nr=80,Nz=100,fib=4,v=40):
 
 
 def compute_scaling_factor(ne_fluc=0.1,T_fluc=0.01,radial=True,Radius=[1.67,0.67],Nr=100,graph=True,xgc=None):
-    """
+    r"""
     Compute the scaling factor relating the density fluctuations to the BES fluctuations: :math:`C\frac{\tilde{I}}{I}=\frac{\tilde{n}_e}{n_e}`
     This code is more or less a copy of the BES code, therefore it should be changed if the main code is changed
 
@@ -1422,6 +1439,7 @@ def compute_scaling_factor(ne_fluc=0.1,T_fluc=0.01,radial=True,Radius=[1.67,0.67
     :param int Nr: Number of fiber (useful only if radial is True)
     :param bool graph: Choice bwteen return the values or ploting the graph
     :param load_XGC_local xgc: Choice between loading a new XGC or using an existing one.
+    
     :return: Position (R or (R,Z)), the coefficient C and the difference between I_fl and I
     :rtype: (np.array[Nr])*3 or (np.array[Nr])*4
     """

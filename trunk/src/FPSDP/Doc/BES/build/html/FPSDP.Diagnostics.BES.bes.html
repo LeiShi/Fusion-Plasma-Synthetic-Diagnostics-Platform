@@ -66,7 +66,7 @@ structure of the diagnostics and just take density value at the focus points (<a
 <h1>Beam Emission Spectroscopy<a class="headerlink" href="#beam-emission-spectroscopy" title="Permalink to this headline">¶</a></h1>
 <dl class="class">
 <dt id="FPSDP.Diagnostics.BES.bes.BES">
-<em class="property">class </em><tt class="descclassname">FPSDP.Diagnostics.BES.bes.</tt><tt class="descname">BES</tt><big>(</big><em>input_file</em>, <em>multiprocessing=False</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">FPSDP.Diagnostics.BES.bes.</tt><tt class="descname">BES</tt><big>(</big><em>input_file</em>, <em>multiprocessing=False</em>, <em>radial_mesh=None</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES" title="Permalink to this definition">¶</a></dt>
 <dd><p>Class computing the image of all the fibers.</p>
 <p>Load the parameter from a config file (example in <a class="reference download internal" href="_downloads/bes.in"><tt class="xref download docutils literal"><span class="pre">bes.in</span></tt></a>
 with a lot of comments for explaining all the parameters) and create everything from it.
@@ -79,6 +79,7 @@ each fiber (number of photons per second).</p>
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>input_file</strong> (<em>str</em>) &#8211; Name of the config file</li>
 <li><strong>multiprocessing</strong> (<em>bool</em>) &#8211; Choice between the serial code or the parallel one</li>
+<li><strong>radial_mesh</strong> (<em>list[]</em>) &#8211; Use input focus point or create an array on the midplane.    The two first values are the major and minor radius of the tokamak and the last one is the number of focus point</li>
 </ul>
 </td>
 </tr>
@@ -124,7 +125,7 @@ each fiber (number of photons per second).</p>
 <p>The following graph shows the most important call during the initialization of the BES class.
 The red arrows show the call order and the black ones show what is inside the function.</p>
 <p class="graphviz">
-<img src="_images/graphviz-7179719639d9278cd1fb5522f81e22529f6e9ce7.png" alt="digraph bes_init{
+<img src="_images/graphviz-bc70334a4c5ee980286d463c51f508176743da9a.png" alt="digraph bes_init{
 compound=true;
 // BES.__INIT__
 
@@ -159,7 +160,7 @@ subgraph cluster_XGC { label=&quot;XGC_Loader_local.__init__&quot;; &quot;XGC_Lo
 // XGC_LOADER_local.LOAD_NEXT_TIME_STEP
 &quot;XGC_Loader_local.load_next_time_step&quot;-&gt;&quot;XGC_Loader_local.load_fluctuations_3D_all&quot;[lhead=cluster_next];
 subgraph cluster_next { label=&quot;XGC_Loader_local.load_next_time_step&quot;; &quot;XGC_Loader_local.load_fluctuations_3D_all&quot;-&gt;
-&quot;XGC_Loader_local.calc_total_ne_3D&quot;-&gt;&quot;XGC_Loader_local.compute_interpolant&quot;[color=&quot;red&quot;];}
+&quot;XGC_Loader_local.compute_interpolant&quot;[color=&quot;red&quot;];}
 
 // BEAM.SET_DATA
 &quot;Beam1D.set_data&quot;-&gt;&quot;Beam1D.create_mesh&quot; [lhead=cluster_set_data];    
@@ -183,7 +184,7 @@ subgraph cluster_compute_beam { label=&quot;Beam1D.compute_beam_on_mesh&quot;; &
 // XGC_LOADER_local.INTERPOLATE_DATA
 &quot;XGC_Loader_local.interpolate_data&quot;-&gt;B [lhead=cluster_interpolate];
 subgraph cluster_interpolate { label=&quot;XGC_Loader_local.interpolate_data&quot;; B-&gt;
-&quot;XGC_Loader_local.find_interp_positions&quot;[color=&quot;red&quot;];
+&quot;XGC_Loader_local.find_interp_positions&quot;-&gt;&quot;XGC_Loader_local.calc_total_ne_3D&quot;[color=&quot;red&quot;];
 }
 
 }" />
@@ -311,7 +312,7 @@ This function should be the only one used outside the class.</p>
 The red arrows show the call order and the black ones show what is inside the function.
 When two red arrows comes from the same point, it means that a if condition is present.</p>
 <p class="graphviz">
-<img src="_images/graphviz-a8ced46aa36ed71ffa834b3531bc9418ed58f3f6.png" alt="digraph get_bes{
+<img src="_images/graphviz-89aad4480697a334d84973059306037bf6822222.png" alt="digraph get_bes{
 compound=true;
 
 // list of variable that will be present at least twice
@@ -348,13 +349,12 @@ subgraph cluster_intensity { label=&quot;BES.intensity&quot;; Aint-&gt;&quot;BES
 
 // BES.LIGHT_FROM_PLANE
 &quot;BES.light_from_plane&quot;-&gt;Bint[lhead=cluster_light]
-subgraph cluster_light { label=&quot;BES.light_from_plane&quot;; Bint-&gt;&quot;BES.get_emis_from&quot;[color=&quot;red&quot;]}
+subgraph cluster_light { label=&quot;BES.light_from_plane&quot;; Bint-&gt;&quot;BES.get_emis_from&quot;-&gt;&quot;BES.get_solid_angle&quot;-&gt;&quot;BES.get_filter&quot;[color=&quot;red&quot;]}
 
 // BES.GET_EMIS_FROM
 &quot;BES.get_emis_from&quot;-&gt;&quot;BES.to_cart_coord&quot;[lhead=cluster_emis_from];
-subgraph cluster_emis_from { label=&quot;BES.get_emis_from&quot;; &quot;BES.to_cart_coord&quot;-&gt;&quot;Beam1D.get_emis_lifetime&quot;
--&gt;&quot;BES.get_solid_angle&quot;-&gt;&quot;BES.filter&quot;[color=&quot;red&quot;];
-&quot;BES.to_cart_coord&quot;-&gt;&quot;Beam1D.get_emis&quot;-&gt;&quot;BES.get_solid_angle&quot;[color=&quot;red&quot;];
+subgraph cluster_emis_from { label=&quot;BES.get_emis_from&quot;; &quot;BES.to_cart_coord&quot;-&gt;&quot;Beam1D.get_emis_lifetime&quot;[color=&quot;red&quot;];
+&quot;BES.to_cart_coord&quot;-&gt;&quot;Beam1D.get_emis&quot;[color=&quot;red&quot;];
 }
 
 // BEAM1D.GET_EMIS_LIFETIME
@@ -377,7 +377,8 @@ subgraph cluster_quantities { label=&quot;Beam1D.get_quantities&quot;; &quot;XGC
 &quot;XGC_Loader_local.interpolate_data&quot;-&gt; &quot;load_XGC_local.get_interp_planes_local&quot;[lhead=cluster_interpolate];
 
 subgraph cluster_interpolate { label=&quot;XGC_Loader_local.interpolate_data&quot;; 
-&quot;load_XGC_local.get_interp_planes_local&quot;-&gt;&quot;XGC_Loader_local.find_interp_positions&quot;[color=&quot;red&quot;];
+&quot;load_XGC_local.get_interp_planes_local&quot;-&gt;&quot;XGC_Loader_local.find_interp_positions&quot;-&gt;
+&quot;XGC_Loader_local.calc_total_ne_3D&quot;[color=&quot;red&quot;];
 }
 
 
@@ -693,7 +694,8 @@ Use the variable <tt class="xref std std-keyword docutils literal"><span class="
 <dt id="FPSDP.Diagnostics.BES.bes.BES.light_from_plane">
 <tt class="descname">light_from_plane</tt><big>(</big><em>z</em>, <em>t_</em>, <em>fiber_nber</em>, <em>zind</em>, <em>comp_eps=False</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/bes.html#BES.light_from_plane"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.bes.BES.light_from_plane" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compute the light from one plane using a method of order 10 (see report or
-Abramowitz and Stegun) or by making the assumption of a constant emission on the plane.</p>
+Abramowitz and Stegun) or by making the assumption of a constant emission on the plane.
+Can be changed easily to the 4th or 6th order methods shown in the graphic</p>
 <div class="math">
 \[I_\text{plane} = \frac{\iint_D f(x) \mathrm{d}\sigma}{\iint_D \Omega(x)\mathrm{d}\sigma}
 \approx \frac{\sum_i \omega_i f(x_i)}{\sum_i \omega_i \Omega(x_i)}\]</div>
@@ -704,13 +706,37 @@ of the quadrature formula.</p>
 <p>The points are given in the figure below and the weights are <span class="math">\(\frac{1}{9}\)</span> for the center,
 <span class="math">\(\frac{16\pm\sqrt{6}}{360}\)</span> for the innermost circle (plus sign) and the outermost circle (minus sign)</p>
 <div class="figure">
-<p><img src="_images/tikz-1255f245afcc07739b5066ff37808ff51540170f.png" alt="\draw (0,0) circle(3);
+<p><img src="_images/tikz-07d8fd80efca7c901255484d9870daa927beff30.png" alt="% method order 10
+\draw (4,0) circle(1.5);
 \foreach \i in {1,...,10}
 {
-   \fill ({2.757*cos(36*\i)},{2.757*sin(36*\i)}) circle(2pt);
-   \fill ({1.788*cos(36*\i)},{1.788*sin(36*\i)}) circle(2pt);
+  \fill ({4+1.378*cos(36*\i)},{1.378*sin(36*\i)}) circle(2pt);
+  \fill ({4+0.894*cos(36*\i)},{0.894*sin(36*\i)}) circle(2pt);
 }
-\fill (0,0) circle(2pt);" /></p>
+\fill (4,0) circle(2pt);
+
+\node at (4,-2) {Method of Order 10};
+
+% method order 4
+\draw (-4,0) circle(1.5);
+\fill (-4.75,0.75) circle(2pt);
+\fill (-4.75,-0.75) circle(2pt);
+\fill (-3.25,0.75) circle(2pt);
+\fill (-3.25,-0.75) circle(2pt);
+
+\node at (-4,-2) {Method of Order 4};
+
+% method order 6
+\draw (0,0) circle(1.5);
+\fill (0,0) circle(2pt);
+\fill (1.2247,0) circle(2pt);
+\fill (-1.2247,0) circle(2pt);
+\fill (0.6123,1.0606) circle(2pt);
+\fill (0.6123,-1.0606) circle(2pt);
+\fill (-0.6123,1.0606) circle(2pt);
+\fill (-0.6123,-1.0606) circle(2pt);
+
+\node at (0,-2) {Method of Order 6};" /></p>
 </div><table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />

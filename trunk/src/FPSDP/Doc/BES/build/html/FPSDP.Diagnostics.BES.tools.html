@@ -65,7 +65,7 @@ It can be a good start to understand how the code works.</p>
 <dt id="FPSDP.Diagnostics.BES.tools.Tools">
 <em class="property">class </em><tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">Tools</tt><big>(</big><em>I</em>, <em>R</em>, <em>Z</em>, <em>psin</em>, <em>name_id</em>, <em>I_fluc=False</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools" title="Permalink to this definition">¶</a></dt>
 <dd><p>Defines a few tools for doing some computations on the BES image</p>
-<p>Two different methods of initalization have been made:
+<p>Two different methods of initialization have been made:
 The first one is the usual __init__ function that take as input the photon radiance, the R,Z coordinates
 and the psin value, and the second one read a npz file with a standard order and calls the __init__ method.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -88,11 +88,21 @@ and the psin value, and the second one read a npz file with a standard order and
 <dt id="FPSDP.Diagnostics.BES.tools.Tools.comparison_movie">
 <tt class="descname">comparison_movie</tt><big>(</big><em>tool2</em>, <em>v=40</em>, <em>name_movie='movie_comp.mp4'</em>, <em>interpolation=False</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools.comparison_movie"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools.comparison_movie" title="Permalink to this definition">¶</a></dt>
 <dd><p>Make a movie from the data and save it in movie_comp.mp4
-self should be the density fluctuation
-:param Tools tool2: BES images
-:param int v: Number of ticks for the colorbar
-:param str name_movie: Name of the output movie
-:param bool interpolation: Choice of making an interpolation on a grid</p>
+self should be the density fluctuation</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>tool2</strong> (<em>Tools</em>) &#8211; BES images</li>
+<li><strong>v</strong> (<em>int</em>) &#8211; Number of ticks for the colorbar</li>
+<li><strong>name_movie</strong> (<em>str</em>) &#8211; Name of the output movie</li>
+<li><strong>interpolation</strong> (<em>bool</em>) &#8211; Choice of making an interpolation on a grid</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
@@ -116,8 +126,73 @@ self should be the density fluctuation
 </dd></dl>
 
 <dl class="method">
-<dt id="FPSDP.Diagnostics.BES.tools.Tools.comparison_radial_correlation_lenght">
-<tt class="descname">comparison_radial_correlation_lenght</tt><big>(</big><em>tool2</em>, <em>Nr=40</em>, <em>Zref=0.01</em>, <em>eps=0.4</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools.comparison_radial_correlation_lenght"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools.comparison_radial_correlation_lenght" title="Permalink to this definition">¶</a></dt>
+<dt id="FPSDP.Diagnostics.BES.tools.Tools.comparison_radial_correlation">
+<tt class="descname">comparison_radial_correlation</tt><big>(</big><em>tools</em>, <em>Nr=100</em>, <em>Zref=0.01195</em>, <em>eps=0.03</em>, <em>index=0.5</em>, <em>start=40</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools.comparison_radial_correlation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools.comparison_radial_correlation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot the radial correlation for each instance of tools (plus self) and for the reference plane.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>tools</strong> (<em>list[Tools]</em>) &#8211; List of instance of Tools</li>
+<li><strong>Nr</strong> (<em>int</em>) &#8211; Number of points for the radial correlation</li>
+<li><strong>Zref</strong> (<em>float</em>) &#8211; Reference plane</li>
+<li><strong>eps</strong> (<em>float</em>) &#8211; Relative error accepted for the reference plane</li>
+<li><strong>index</strong> (<em>float</em>) &#8211; Relative index wanted</li>
+<li><strong>start</strong> (<em>int</em>) &#8211; First time step to use</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.tools.Tools.comparison_time_correlation">
+<tt class="descname">comparison_time_correlation</tt><big>(</big><em>tools</em>, <em>fib=3</em>, <em>dt=1.56569e-06</em>, <em>start=40</em>, <em>cut=30</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools.comparison_time_correlation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools.comparison_time_correlation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot a comparison of the time correlation for each instance of tools (plus self)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>tools</strong> (<em>list[Tools]</em>) &#8211; List of Tools that will be computed and displayed</li>
+<li><strong>fib</strong> (<em>int</em>) &#8211; Index of the fiber</li>
+<li><strong>dt</strong> (<em>float</em>) &#8211; Step size between each image</li>
+<li><strong>start</strong> (<em>int</em>) &#8211; Time step at which starting the correlation</li>
+<li><strong>cut</strong> (<em>int</em>) &#8211; Interval to return ([-cut,cut]). Cut is in time step unit (therefore int)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.tools.Tools.comparison_vertical_correlation">
+<tt class="descname">comparison_vertical_correlation</tt><big>(</big><em>tools</em>, <em>Nz=40</em>, <em>Rref=2.2236</em>, <em>eps=0.0008</em>, <em>index=0.5</em>, <em>start=40</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools.comparison_vertical_correlation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools.comparison_vertical_correlation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show the vertical correlation as a function of the distance for each instance in tools 
+(plus self).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>tools</strong> (<em>list[Tools]</em>) &#8211; List of Tools instance</li>
+<li><strong>Nz</strong> (<em>int</em>) &#8211; Number of points for the discretization</li>
+<li><strong>Rref</strong> (<em>float</em>) &#8211; Reference radius</li>
+<li><strong>eps</strong> (<em>float</em>) &#8211; Relative interval accepted for Rref</li>
+<li><strong>start</strong> (<em>int</em>) &#8211; First time step to use</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.tools.Tools.comparison_vertical_correlation_length">
+<tt class="descname">comparison_vertical_correlation_length</tt><big>(</big><em>tools</em>, <em>Nz=40</em>, <em>Nr=100</em>, <em>eps=0.0005</em>, <em>start=40</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools.comparison_vertical_correlation_length"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools.comparison_vertical_correlation_length" title="Permalink to this definition">¶</a></dt>
 <dd><p>Show the characteristic length of the radial correlation length as a function
 of the radial position for two different diagnostics.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -125,11 +200,11 @@ of the radial position for two different diagnostics.</p>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>tool2</strong> (<em>Tools</em>) &#8211; Second instance of the Tools class</li>
-<li><strong>Nr</strong> (<em>int</em>) &#8211; Number of points for the discretization</li>
-<li><strong>Zref</strong> (<em>fload</em>) &#8211; Horizontal plane wanted</li>
-<li><strong>eps</strong> (<em>float</em>) &#8211; Relative interval accepted for Zref</li>
+<li><strong>tools</strong> (<em>list[Tools]</em>) &#8211; List of Tools instance</li>
+<li><strong>Nz</strong> (<em>int</em>) &#8211; Number of points for the discretization</li>
+<li><strong>eps</strong> (<em>float</em>) &#8211; Relative interval accepted for Rref</li>
 <li><strong>figure</strong> (<em>bool</em>) &#8211; Choice between plot or computing</li>
+<li><strong>start</strong> (<em>int</em>) &#8211; First time step to use</li>
 </ul>
 </td>
 </tr>
@@ -139,7 +214,7 @@ of the radial position for two different diagnostics.</p>
 
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.tools.Tools.crosscorrelation">
-<tt class="descname">crosscorrelation</tt><big>(</big><em>Nr=60</em>, <em>Nz=70</em>, <em>dr_max=0.1</em>, <em>dz_max=0.03</em>, <em>dkr_max=300</em>, <em>dkz_max=300</em>, <em>graph='3d'</em>, <em>figure=True</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools.crosscorrelation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools.crosscorrelation" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">crosscorrelation</tt><big>(</big><em>Nr=60</em>, <em>Nz=70</em>, <em>dr_max=0.1</em>, <em>dz_max=0.03</em>, <em>dkr_max=300</em>, <em>dkz_max=300</em>, <em>graph='3d'</em>, <em>figure=True</em>, <em>start=40</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools.crosscorrelation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools.crosscorrelation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot or just compute the shape of the crosscorrelation from the point R[0],Z[0]</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -154,6 +229,7 @@ of the radial position for two different diagnostics.</p>
 <li><strong>dkz_max</strong> (<em>float</em>) &#8211; Distance max to show in the figure for the Fourier space crosscorrelation</li>
 <li><strong>graph</strong> (<em>str</em>) &#8211; Choice between surface or contourf graph (&#8216;2d&#8217;)</li>
 <li><strong>figure</strong> (<em>bool</em>) &#8211; Choice between plot or computing</li>
+<li><strong>start</strong> (<em>int</em>) &#8211; First time step to use</li>
 </ul>
 </td>
 </tr>
@@ -170,18 +246,38 @@ of the radial position for two different diagnostics.</p>
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.tools.Tools.fluctuations_movie">
 <tt class="descname">fluctuations_movie</tt><big>(</big><em>v=40</em>, <em>name_movie='movie_fl.mp4'</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools.fluctuations_movie"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools.fluctuations_movie" title="Permalink to this definition">¶</a></dt>
-<dd><p>Make a movie from the data and save it in movie_fl.mp4
-:param int v: Number of ticks for the colorbar
-:param str name_movie: Name of the movie that will be saved</p>
+<dd><p>Make a movie from the data and save it in movie_fl.mp4</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>v</strong> (<em>int</em>) &#8211; Number of ticks for the colorbar</li>
+<li><strong>name_movie</strong> (<em>str</em>) &#8211; Name of the movie that will be saved</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.tools.Tools.fluctuations_picture">
 <tt class="descname">fluctuations_picture</tt><big>(</big><em>timestep</em>, <em>v=40</em>, <em>total=False</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools.fluctuations_picture"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools.fluctuations_picture" title="Permalink to this definition">¶</a></dt>
-<dd><p>Plot a graph of the fluctuation
-:param int timestep: Index of the timestep
-:param int v: Number of ticks for the colorbar
-:param bool total: Choice between total intensity or only fluctuation</p>
+<dd><p>Plot a graph of the fluctuation</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>timestep</strong> (<em>int</em>) &#8211; Index of the timestep</li>
+<li><strong>v</strong> (<em>int</em>) &#8211; Number of ticks for the colorbar</li>
+<li><strong>total</strong> (<em>bool</em>) &#8211; Choice between total intensity or only fluctuation</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="classmethod">
@@ -211,7 +307,7 @@ of the radial position for two different diagnostics.</p>
 
 <dl class="method">
 <dt id="FPSDP.Diagnostics.BES.tools.Tools.interpolate">
-<tt class="descname">interpolate</tt><big>(</big><em>Nr</em>, <em>Nz</em>, <em>I</em>, <em>timestep=None</em>, <em>kind='linear'</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools.interpolate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools.interpolate" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">interpolate</tt><big>(</big><em>Nr</em>, <em>Nz</em>, <em>I</em>, <em>timestep=None</em>, <em>kind='linear'</em>, <em>start=40</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools.interpolate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools.interpolate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Interpolate all the data on a spatial mesh and create this mesh.
 The interpolation is done for each timestep</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -237,19 +333,75 @@ The interpolation is done for each timestep</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="FPSDP.Diagnostics.BES.tools.Tools.radial_dep_correlation">
-<tt class="descname">radial_dep_correlation</tt><big>(</big><em>Nr=40</em>, <em>Zref=0.01</em>, <em>eps=0.4</em>, <em>figure=True</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools.radial_dep_correlation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools.radial_dep_correlation" title="Permalink to this definition">¶</a></dt>
-<dd><p>Show the characteristic length of the radial correlation length as a function
+<dt id="FPSDP.Diagnostics.BES.tools.Tools.radial_correlation">
+<tt class="descname">radial_correlation</tt><big>(</big><em>Nr=100</em>, <em>Zref=0.01195</em>, <em>eps=0.03</em>, <em>figure=True</em>, <em>index=0.5</em>, <em>start=40</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools.radial_correlation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools.radial_correlation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Radial correlation for the reference plane.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>Nr</strong> (<em>int</em>) &#8211; Number of points for the radial correlation</li>
+<li><strong>Zref</strong> (<em>float</em>) &#8211; Reference plane</li>
+<li><strong>eps</strong> (<em>float</em>) &#8211; Relative error accepted for the reference plane</li>
+<li><strong>index</strong> (<em>float</em>) &#8211; Relative index wanted</li>
+<li><strong>figure</strong> (<em>bool</em>) &#8211; Choice between returning the value and plotting</li>
+<li><strong>start</strong> (<em>int</em>) &#8211; First time step to use</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">(if figure == False) Distance from the reference point, correlation and index used from the fiber</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">tuple(np.array[Nr],np.array[Nr],np.array(shape=Nfib,dtype=bool))</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.tools.Tools.time_correlation">
+<tt class="descname">time_correlation</tt><big>(</big><em>figure=True</em>, <em>fib=3</em>, <em>dt=1.56569e-06</em>, <em>start=40</em>, <em>cut=30</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools.time_correlation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools.time_correlation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the time correlation and can show it.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>figure</strong> (<em>bool</em>) &#8211; Choice between returning the value and plotting</li>
+<li><strong>fib</strong> (<em>int</em>) &#8211; Index of the fiber</li>
+<li><strong>dt</strong> (<em>float</em>) &#8211; Step size between each image</li>
+<li><strong>start</strong> (<em>int</em>) &#8211; Time step at which starting the correlation</li>
+<li><strong>cut</strong> (<em>int</em>) &#8211; Interval to return ([-cut,cut]). Cut is in time step unit (therefore int)</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">(if figure==False) Time and the associated value of correlation</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">tuple(np.array[2*cut+1],np.array[2*cut+1])</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="FPSDP.Diagnostics.BES.tools.Tools.vertical_correlation">
+<tt class="descname">vertical_correlation</tt><big>(</big><em>Nz=40</em>, <em>Rref=2.2236</em>, <em>eps=0.0008</em>, <em>figure=True</em>, <em>index=0.5</em>, <em>start=40</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#Tools.vertical_correlation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.Tools.vertical_correlation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show the characteristic length of the vertical correlation length as a function
 of the radial position</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>Nr</strong> (<em>int</em>) &#8211; Number of points for the discretization</li>
-<li><strong>Zref</strong> (<em>fload</em>) &#8211; Horizontal plane wanted</li>
-<li><strong>eps</strong> (<em>float</em>) &#8211; Relative interval accepted for Zref</li>
+<li><strong>Nz</strong> (<em>int</em>) &#8211; Number of points for the discretization</li>
+<li><strong>Rref</strong> (<em>fload</em>) &#8211; Horizontal plane wanted</li>
+<li><strong>eps</strong> (<em>float</em>) &#8211; Relative interval accepted for Rref</li>
 <li><strong>figure</strong> (<em>bool</em>) &#8211; Choice between plot or computing</li>
+<li><strong>start</strong> (<em>int</em>) &#8211; First time step to use</li>
 </ul>
 </td>
 </tr>
@@ -441,7 +593,7 @@ on Nrot tour and plot the value of <span class="math">\(\psi_n\)</span> at each 
 <dl class="function">
 <dt id="FPSDP.Diagnostics.BES.tools.check_geometry">
 <tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">check_geometry</tt><big>(</big><em>minorR=0.67</em>, <em>majorR=1.67</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#check_geometry"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.check_geometry" title="Permalink to this definition">¶</a></dt>
-<dd><p>Plot the geometry readed by the synthetic diagnostics
+<dd><p>Plot the geometry read by the synthetic diagnostics
 The default Tokamak is the D3D (only a very simple model of the tokamak
 is considered)</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -479,10 +631,40 @@ is considered)</p>
 </dd></dl>
 
 <dl class="function">
+<dt id="FPSDP.Diagnostics.BES.tools.compute_scaling_factor">
+<tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">compute_scaling_factor</tt><big>(</big><em>ne_fluc=0.1, T_fluc=0.01, radial=True, Radius=[1.67, 0.67], Nr=100, graph=True, xgc=None</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#compute_scaling_factor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.compute_scaling_factor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the scaling factor relating the density fluctuations to the BES fluctuations: <span class="math">\(C\frac{\tilde{I}}{I}=\frac{\tilde{n}_e}{n_e}\)</span>
+This code is more or less a copy of the BES code, therefore it should be changed if the main code is changed</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>ne_fluc</strong> (<em>float</em>) &#8211; Ratio of density fluctations</li>
+<li><strong>T_fluc</strong> (<em>float</em>) &#8211; Ratio of temperature fluctuations</li>
+<li><strong>radial</strong> (<em>bool</em>) &#8211; Choice between real focus point or a radial analysis (on the midplane)</li>
+<li><strong>Radius</strong> (<em>list[float,float]</em>) &#8211; Major and minor radius of the tokamak (default is D3D, useful only if radial is True)</li>
+<li><strong>Nr</strong> (<em>int</em>) &#8211; Number of fiber (useful only if radial is True)</li>
+<li><strong>graph</strong> (<em>bool</em>) &#8211; Choice bwteen return the values or ploting the graph</li>
+<li><strong>xgc</strong> (<em>load_XGC_local</em>) &#8211; Choice between loading a new XGC or using an existing one.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Position (R or (R,Z)), the coefficient C and the difference between I_fl and I</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">(np.array[Nr])*3 or (np.array[Nr])*4</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
 <dt id="FPSDP.Diagnostics.BES.tools.interpolation_toroidal_plane">
-<tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">interpolation_toroidal_plane</tt><big>(</big><em>phi=-2.58, t=130, Nr=1000, Nz=1000, R=[1.82, 2.3], Z=[-0.25, 0.25]</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#interpolation_toroidal_plane"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.interpolation_toroidal_plane" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">interpolation_toroidal_plane</tt><big>(</big><em>phi=-2.38, t=130, Nr=1000, Nz=1000, R=[1.82, 2.3], Z=[-0.25, 0.25]</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#interpolation_toroidal_plane"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.interpolation_toroidal_plane" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a R-Z mesh and interpolate the data on it.
-Is usefull for checking if the data are well interpolated</p>
+Is useful for checking if the data are well interpolated</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -506,6 +688,12 @@ Is usefull for checking if the data are well interpolated</p>
 <tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">put_two_files_together</tt><big>(</big><em>name1</em>, <em>name2</em>, <em>outputname</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#put_two_files_together"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.put_two_files_together" title="Permalink to this definition">¶</a></dt>
 <dd><p>When doing two simulations on a different time intervals,
 this function can be used to put the output in one file.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="FPSDP.Diagnostics.BES.tools.scaling_dependency">
+<tt class="descclassname">FPSDP.Diagnostics.BES.tools.</tt><tt class="descname">scaling_dependency</tt><big>(</big><em>NT=20</em>, <em>Nn=10</em>, <em>Radius=1.67</em><big>)</big><a class="reference internal" href="_modules/FPSDP/Diagnostics/BES/tools.html#scaling_dependency"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#FPSDP.Diagnostics.BES.tools.scaling_dependency" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use the function <a class="reference internal" href="#FPSDP.Diagnostics.BES.tools.compute_scaling_factor" title="FPSDP.Diagnostics.BES.tools.compute_scaling_factor"><tt class="xref py py-func docutils literal"><span class="pre">compute_scaling_factor()</span></tt></a> for computing the dependency on the temperature and density fluctuations</p>
 </dd></dl>
 
 <dl class="function">

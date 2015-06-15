@@ -513,7 +513,7 @@ class BES:
            // BES.GET_EMIS_FROM
            "BES.get_emis_from"->"BES.to_cart_coord"[lhead=cluster_emis_from];
            subgraph cluster_emis_from { label="BES.get_emis_from"; "BES.to_cart_coord"->"Beam1D.get_emis_lifetime"[color="red"];
-           "BES.to_cart_coord"->"Beam1D.get_emis"->"BES.get_solid_angle"[color="red"];
+           "BES.to_cart_coord"->"Beam1D.get_emis"[color="red"];
            }
 
            // BEAM1D.GET_EMIS_LIFETIME
@@ -536,7 +536,8 @@ class BES:
            "XGC_Loader_local.interpolate_data"-> "load_XGC_local.get_interp_planes_local"[lhead=cluster_interpolate];
            
            subgraph cluster_interpolate { label="XGC_Loader_local.interpolate_data"; 
-           "load_XGC_local.get_interp_planes_local"->"XGC_Loader_local.find_interp_positions"[color="red"];
+           "load_XGC_local.get_interp_planes_local"->"XGC_Loader_local.find_interp_positions"->
+           "XGC_Loader_local.calc_total_ne_3D"[color="red"];
            }
 
 
@@ -795,6 +796,7 @@ class BES:
     def light_from_plane(self,z, t_, fiber_nber,zind,comp_eps=False):
         r""" Compute the light from one plane using a method of order 10 (see report or
         Abramowitz and Stegun) or by making the assumption of a constant emission on the plane.
+        Can be changed easily to the 4th or 6th order methods shown in the graphic
         
         .. math::
            I_\text{plane} = \frac{\iint_D f(x) \mathrm{d}\sigma}{\iint_D \Omega(x)\mathrm{d}\sigma}
@@ -810,13 +812,40 @@ class BES:
         :math:`\frac{16\pm\sqrt{6}}{360}` for the innermost circle (plus sign) and the outermost circle (minus sign)
 
         .. tikz::
-           \draw (0,0) circle(3);
+
+           % method order 10
+           \draw (4,0) circle(1.5);
            \foreach \i in {1,...,10}
            {
-              \fill ({2.757*cos(36*\i)},{2.757*sin(36*\i)}) circle(2pt);
-              \fill ({1.788*cos(36*\i)},{1.788*sin(36*\i)}) circle(2pt);
+             \fill ({4+1.378*cos(36*\i)},{1.378*sin(36*\i)}) circle(2pt);
+             \fill ({4+0.894*cos(36*\i)},{0.894*sin(36*\i)}) circle(2pt);
            }
+           \fill (4,0) circle(2pt);
+
+           \node at (4,-2) {Method of Order 10};
+
+           % method order 4
+           \draw (-4,0) circle(1.5);
+           \fill (-4.75,0.75) circle(2pt);
+           \fill (-4.75,-0.75) circle(2pt);
+           \fill (-3.25,0.75) circle(2pt);
+           \fill (-3.25,-0.75) circle(2pt);
+
+           \node at (-4,-2) {Method of Order 4};
+
+           % method order 6
+           \draw (0,0) circle(1.5);
            \fill (0,0) circle(2pt);
+           \fill (1.2247,0) circle(2pt);
+           \fill (-1.2247,0) circle(2pt);
+           \fill (0.6123,1.0606) circle(2pt);
+           \fill (0.6123,-1.0606) circle(2pt);
+           \fill (-0.6123,1.0606) circle(2pt);
+           \fill (-0.6123,-1.0606) circle(2pt);
+
+           \node at (0,-2) {Method of Order 6};
+        
+        
 
         :param np.array[N] z: Distance from the fiber along the sightline
         :param int t_: Time step to compute (is not important for the data loader, but is used as a check)

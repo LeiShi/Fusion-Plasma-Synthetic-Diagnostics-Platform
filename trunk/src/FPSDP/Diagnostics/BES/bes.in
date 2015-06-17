@@ -1,13 +1,13 @@
-# For double input, put .0 for assuring that the data is read as
+# For float input, put .0 to assure that the data is read as
 # a float
 
 [Beam geometry]
-# position of the beam (X,Y,Z) (in meter)
+# position of the beam (X,Y,Z) (in meters)
 # Z is for the height
 position = [-2.36511538, -1.3655, 0.0]
 # direction of the beam (X,Y,Z), it will be normalized in the code
 direction = [0.96910869, 0.24663402,0.0]
-# beam width (FWHM in meter)
+# beam width (FWHM in meters)
 # horizontal
 beam_width_h = 0.13
 # vertical
@@ -57,10 +57,10 @@ Nlt = 50
 # used in Beam1d.get_emis_lifetime()
 t_max = 8.0
 # Lifetime of the excited particles
-# (used for computing the limits of the mesh)
+# (used to compute the limits of the mesh)
 tau = 8e-9
-# true for using the equilibrium for the attenation
-# and false for using the equilibrium + fluctuation
+# true to use the equilibrium for the attenation
+# and false to use the equilibrium + fluctuation
 # Using the fluctuation increase the size of the mesh
 # used for the interpolation, therefore all the interpolaion
 # on the data will be a little bit longer
@@ -128,8 +128,8 @@ Nsolid = 80
 Nr = 10
 
 # type of integration for the emission
-# 1D for taking into account only the emission
-# of the central line or 2D for doing an integration
+# 1D to take into account only the emission
+# of the central line or 2D to do an integration
 # over the plane perpendicular to the central line
 type_int = 2D
 

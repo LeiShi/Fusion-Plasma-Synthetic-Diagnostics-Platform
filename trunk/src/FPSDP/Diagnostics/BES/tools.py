@@ -755,9 +755,11 @@ def beam_density(t=150):
     axarr[1].set_ylabel('Error')
     axarr[1].legend(['1st component','2nd component','3rd component'],loc=3)
     axarr[1].grid(True)
-    
-    axarr[0].plot(dl,nb_eq.T)
-    axarr[0].plot(dl,nb_fl.T)
+
+    color = 'bgr'
+    for i in range(bes.beam.beam_comp.shape[0]):
+        axarr[0].plot(dl,nb_eq[i,:],color[i])
+        axarr[0].plot(dl,nb_fl[i,:],'--'+color[i])
     axarr[0].grid(True)
     axarr[0].set_ylabel('Beam density [m$^{-3}$]')
     axarr[0].legend(['1st Eq','2nd Eq','3rd Eq'],loc=3)
@@ -780,7 +782,9 @@ def beam_density(t=150):
     tot = np.sum(nb_eq,axis=0)
     plt.plot(dl,(nb_eq/tot[np.newaxis,:]).T)
     tot = np.sum(nb_fl,axis=0)
-    plt.plot(dl,(nb_fl/tot[np.newaxis,:]).T)
+
+    plt.gca().set_color_cycle(None)
+    plt.plot(dl,(nb_fl/tot[np.newaxis,:]).T,'--')
     plt.legend(['1st Eq','2nd Eq','3rd Eq'],loc=2)
     plt.xlabel('Distance [m]')
     plt.ylabel('Ratio')
@@ -1136,7 +1140,7 @@ def check_convergence_solid_angle_to_analy(R=0.5,Z=0.1,radius=0.4,Nth=100,Nr=10)
     plt.figure()
     plt.title('Verification of the Solid Angle Computation')
     plt.grid(True)
-    plt.plot(phi,np.abs((solid-analytical)/analytical),'x')
+    plt.plot(phi,np.abs((solid-analytical)/analytical),'-')
     plt.xlabel('Cosine of the Intersection Angle')
     plt.ylabel('Error')
     plt.show()
@@ -1412,8 +1416,15 @@ def solid_angle_evolution(Rmax=2,Zmax=0.1,Nr=80,Nz=100,fib=4,v=40):
     #v = np.linspace(0,0.1,v)
     plt.contourf(Z,R,eps,v)
     plt.plot([0, 0],np.array([-1,1])*bes.rad_foc[fib],'-k')
-    plt.xlabel('Distance from the central line')
-    plt.ylabel('Distance from the focus point along the central line')
+    plt.ylabel('Distance from the central line')
+    plt.xlabel('Distance from the focus point along the central line')
+    a = bes.rad_foc[fib]/(bes.lim_op[fib,0]-bes.dist[fib])
+    b = bes.rad_foc[fib]/(bes.lim_op[fib,1]-bes.dist[fib])
+    zmax = Zmax*bes.dist[fib]
+    plt.plot([-zmax,zmax],[-a*zmax-bes.rad_foc[fib],a*zmax-bes.rad_foc[fib]],'--k')
+    plt.plot([-zmax,zmax],[a*zmax+bes.rad_foc[fib],-a*zmax+bes.rad_foc[fib]],'--k')
+    plt.plot([-zmax,zmax],[b*zmax+bes.rad_foc[fib],-b*zmax+bes.rad_foc[fib]],'--k')
+    plt.plot([-zmax,zmax],[-b*zmax-bes.rad_foc[fib],b*zmax-bes.rad_foc[fib]],'--k')
     plt.colorbar()
     plt.title('Solid Angle')
 
@@ -1495,7 +1506,7 @@ def compute_scaling_factor(ne_fluc=0.1,T_fluc=0.01,radial=True,Radius=[1.67,0.67
                         bes.beam.beam_comp[beam_nber],ne_fl,bes.beam.mass_b[beam_nber],T_fl,file_nber)
                     Ifl += np.sum(fil[beam_nber]*temp_fl*nb[beam_nber]*ne_fl*quad.w)*ba2[i]
             C[fib] = ne_fluc/(Ifl/I-1)
-            dI = Ifl-I
+            dI = (Ifl-I)/I
     R = np.sqrt(np.sum(bes.pos_foc**2,axis=1))
     if graph:
         if radial:
@@ -1514,11 +1525,11 @@ def compute_scaling_factor(ne_fluc=0.1,T_fluc=0.01,radial=True,Radius=[1.67,0.67
         plt.show()
     else:
         if radial:
-            return R,C,dI
+            return R,C,dI,I
         else:
-            return R,Z,C,dI
+            return R,Z,C,dI,I
 
-def scaling_dependency(NT=20,Nn=10,Radius=1.67):
+def scaling_dependency(NT=100,Nn=100,Radius=1.67):
     """
     Use the function :func:`compute_scaling_factor` for computing the dependency on the temperature and density fluctuations
     """
@@ -1527,7 +1538,7 @@ def scaling_dependency(NT=20,Nn=10,Radius=1.67):
     bes.beam.compute_beam_on_mesh()
 
     T = np.linspace(-0.15,0.15,NT)
-    ne = np.linspace(0.05,0.2,Nn)
+    ne = np.linspace(-0.2,0.2,Nn)
     C = np.zeros((NT,Nn))
     dI = np.zeros((NT,Nn))
     for i,t in enumerate(T):
@@ -1540,7 +1551,8 @@ def scaling_dependency(NT=20,Nn=10,Radius=1.67):
 
     #T,ne = np.meshgrid(T,ne)
     plt.figure()
-    plt.contourf(T,ne,C.T,30)
+    v = np.linspace(1,3,40)
+    plt.contourf(T,ne,C.T,v)
     plt.xlabel('$\Delta T/T$')
     plt.ylabel('$\Delta n_e/n_e$')
     plt.colorbar()
@@ -1548,8 +1560,41 @@ def scaling_dependency(NT=20,Nn=10,Radius=1.67):
     plt.figure()
     #plt.title('dI')
     #plt.contourf(T,ne,dI.T,30)
-    plt.contourf(T,ne,(ne/C).T,30)
+    plt.contourf(T,ne,(ne/C).T,40)
     plt.xlabel('$\Delta T/T$')
     plt.ylabel('$\Delta n_e/n_e$')
     plt.colorbar()
+    plt.show()
+
+
+def scaling_dependency_density(Tref=0.2,Nn=100,Radius=1.67):
+    """
+    Use the function :func:`compute_scaling_factor` for computing the dependency on the temperature and density fluctuations
+    """
+    bes = bes_.BES(name,radial_mesh=[Radius,Radius+1,1])
+    bes.beam.eq = True
+    bes.beam.compute_beam_on_mesh()
+
+    ne = np.linspace(-0.2,0.2,Nn)
+    C = np.zeros(Nn)
+    dI = np.zeros(Nn)
+    for j,n in enumerate(ne):
+        print "Step number: ", 1 + j," / ", Nn
+        temp = compute_scaling_factor(n,Tref,graph=False,xgc=bes)
+        C[j] = temp[1]
+        R = temp[0]
+        dI[j] = temp[2]
+        
+    #T,ne = np.meshgrid(T,ne)
+    plt.figure()
+    plt.plot(ne,C)
+    plt.xlabel('$\Delta n_e/n_e$')
+    plt.ylabel('Scaling Factor')
+
+    plt.figure()
+    #plt.title('dI')
+    #plt.contourf(T,ne,dI.T,30)
+    plt.plot(ne,dI)
+    plt.xlabel('$\Delta n_e/n_e$')
+    plt.ylabel('Ratio of Intensity Fluctuation')
     plt.show()

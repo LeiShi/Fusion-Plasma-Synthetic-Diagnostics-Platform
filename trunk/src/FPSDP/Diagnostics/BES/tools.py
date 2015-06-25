@@ -1386,7 +1386,7 @@ def interpolation_toroidal_plane(phi=-2.38,t=130,Nr=1000,Nz=1000,R=[1.82,2.3],Z=
 
     plt.figure()
     plt.title('Electron Density')
-    plt.contourf(R,Z,ne)
+    plt.contourf(R,Z,ne,100)
     plt.xlabel('R-coordinate')
     plt.ylabel('Z-coordinate')
     plt.colorbar()

@@ -34,8 +34,8 @@ def dv_initialize(n_engine,profile = 'default'):
     dv = c[:]
     
     with dv.sync_imports():
-        import FPSDP.Diagnostics.Reflectometry.FWR2D.Postprocess as pp
-        import numpy as np
+        import FPSDP.Diagnostics.Reflectometry.FWR2D.Postprocess
+        import numpy 
     
     dv.execute('pp=FPSDP.Diagnostics.Reflectometry.FWR2D.Postprocess')
     dv.execute('np=numpy')

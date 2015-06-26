@@ -17,6 +17,8 @@ from scipy.optimize import curve_fit
 from scipy.integrate import dblquad
 from scipy.interpolate import interp2d
 
+from ..analysis import phase
+
 
 class Reflectometer_Output:
     """Class that deal with the raw output from synthetic reflectometry code(FWR2D / FWR3D)
@@ -286,6 +288,45 @@ def fitting_cross_correlation(cross_cor_arr,dx_arr,fitting_type = 'gaussian'):
     a,sigma_a2 = curve_fit(fit_func,dx_arr,cross_cor_arr)
 
     return (a,np.sqrt(sigma_a2))
+    
+def remove_average_field(E_ref):
+    """calculate the perturbed reflected signal by removing average signal for each cross section.
+    """    
+    E =E_ref - np.mean(E_ref,axis = 1,keepdims = True)
+    return E
+
+def average_phase(sig):
+    """ calculate the averaged phase of a series of complex signals. The phase for each signal is determined as follows:
+        1) np.angle is used to get the phase of the signal in range (-pi,pi], let's call it raw_phase
+        2) 3 possible phases are considered, [raw_phase, raw_phase + 2pi, raw_phase - 2pi]
+        3) the one closest to the average phase of previous signals is chosen to be the phase of this signal.
+        
+        This algorithm can minimize the sum of absolute difference between each signal's phase and the final averaged phase.
+    """
+    assert(len(sig.shape)==1) #assume the signal array is 1D    
+    raw_phase = np.angle(sig)
+    avg_phase = raw_phase[0] # first signal's phase is chosen as it's raw phase
+    i=1
+    while(i< len(sig)):
+        ph = raw_phase[i]
+        phase_opt = np.array([ph-2*np.pi,ph,ph+2*np.pi])
+        ph_chosen = ph + (np.argmin(np.abs(phase_opt-avg_phase))-1) * 2 * np.pi
+        avg_phase = np.average([avg_phase,ph_chosen],weights=[i,1])
+        i+=1
+    return avg_phase    
+
+def remove_average_phase(E_ref):
+    """ Rotate the whole reflected signal from each cross section clockwisely by the amount of their averaged phase, so the resulted signals have zero mean phase.
+    """    
+    
+    nf,nt,nc = E_ref.shape
+    E = np.empty_like(E_ref)
+    for i in range(nf):
+        for j in range(nt):
+            ph0 = average_phase(E_ref[i,j,:])
+            E[i,j,:] = E_ref[i,j,:] * np.exp(-1j*ph0)
+            
+    return E
     
 ### Debug Codes ###
 

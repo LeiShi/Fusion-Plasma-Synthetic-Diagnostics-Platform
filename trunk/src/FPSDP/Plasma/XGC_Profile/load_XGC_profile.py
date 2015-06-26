@@ -1445,7 +1445,7 @@ class XGC_Loader():
                 dne.units = 'per cubic meter'
                 
                 ne = f.createVariable('ne','d',('z_dim','r_dim'))
-                ne[:,:] = self.ne0_on_grid[i,j,:,:] + dne[:,:]
+                ne[:,:] = self.ne0_on_grid[:,:] + dne[:,:]
                 ne.units = 'per cubic meter'
 
                 te = f.createVariable('te','d',('z_dim','r_dim'))

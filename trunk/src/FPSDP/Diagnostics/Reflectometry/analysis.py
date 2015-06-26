@@ -66,21 +66,25 @@ def Coherent_Signal(sig):
     g = <sig>/sqrt(<|sig|^2>)
 
     where <...> denotes the emsemble average, which in this case, is calculated by averaging over all time steps(whole array). And sig is the signal.
+    *NOTE: sig will be preprocessed so that the average phase is 0. Then real and imag parts of g has clear physical meanings.
 
     input: 
         sig: array-like, complex or real. The time series or whole ensemble of the  signal.
     """
     
+    #ph,dph = phase(sig)    
+    #ph0 = np.average(ph)
     #rename the signal to a shorter form
-    M = sig
+    #M = sig*np.exp(-1j*ph0) #shift the whole signal by its average phase, so the new signal has zero mean phase
 
+    M = sig
     M_bar = np.average(M)
 
     M2_bar = np.average(M*np.conj(M))
 
     return M_bar/np.sqrt(M2_bar)
 
-def Cross_Correlation(sig1,sig2,mode='REF'):
+def Cross_Correlation(sig1,sig2,mode='None'):
     """Calculate the cross correlation between 2 series of signals
 
     cross correlation function is defined as:
@@ -98,11 +102,20 @@ def Cross_Correlation(sig1,sig2,mode='REF'):
     """
     
     assert(sig1.shape == sig2.shape)
-    assert(mode in ['REF','NORM'])
+    assert(mode in ['REF','NORM','None'])
     #remove the mean value to get the fluctuating part of the two signal
     if (mode == 'NORM'):
         sig1 = sig1-np.mean(sig1)
-        sig2 = sig2-np.mean(sig2)    
+        sig2 = sig2-np.mean(sig2) 
+    elif (mode == 'REF'):
+        ph,dph = phase(sig1)
+        ph0 = np.average(ph)
+        sig1 *= np.exp(-1j*ph0)
+        ph,dph = phase(sig2)
+        ph0 = np.average(ph)
+        sig2 *= np.exp(-1j*ph0)
+    else:
+        pass
     
         
     sig1_2_bar = np.average(sig1 * np.conj(sig1))
@@ -113,7 +126,7 @@ def Cross_Correlation(sig1,sig2,mode='REF'):
     
     return r
 
-def Cross_Correlation_by_fft(sig1,sig2,mode = 'REF'):
+def Cross_Correlation_by_fft(sig1,sig2,mode = 'None'):
     """Calculate the cross correlation using fft method. Details can be found in ref.[1] and in Appendix part of ref.[2]
     
     The strength of calculating cross_correlation using fft method, is that it can obtain all time delayed correlations automatically, with a very fast calculation.
@@ -131,12 +144,20 @@ def Cross_Correlation_by_fft(sig1,sig2,mode = 'REF'):
     """
     assert(sig1.shape == sig2.shape)    
     assert(mode in ['REF','NORM'])
-    
+
     if(mode == 'NORM'):
         #remove mean value of the two signals
         sig1 = sig1-np.mean(sig1)
         sig2 = sig2-np.mean(sig2)    
-        
+    elif (mode == 'REF'):
+        ph,dph = phase(sig1)
+        ph0 = np.average(ph)
+        sig1 *= np.exp(-1j*ph0)
+        ph,dph = phase(sig2)
+        ph0 = np.average(ph)
+        sig2 *= np.exp(-1j*ph0)  
+    else:
+        pass
     
     f1 = np.fft.fft(sig1)
     f2 = np.fft.fft(sig2)

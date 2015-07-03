@@ -81,11 +81,12 @@ class XGC_Loader_local():
     :param float dphi: Size of the step for the field line integration (in radian)
     :param float shift: Shift for phi (default value assumed that plane number 0 is at phi=0)
     :param str kind: Order of the interpolation method (linear or cubic))
+    :param int plane: Index of the plane where the shift needs to be done
 
     For more detail about the shift, look at the code in :func:`get_interp_planes_local <FPSDP.Plasma.XGC_Profile.load_XGC_local.get_interp_planes_local>`
     """
 
-    def __init__(self,xgc_path,t_start,t_end,dt,limits,dphi,shift=0,kind='linear'):
+    def __init__(self,xgc_path,t_start,t_end,dt,limits,dphi,shift=0,kind='linear',plane=0):
         """Copy all the input values and call all the functions that compute the equilibrium and the first
         time step.
         """
@@ -129,6 +130,10 @@ class XGC_Loader_local():
         R = np.sqrt(x**2 + y**2)
         self.Rmin = np.min(R)
         self.Rmax = np.max(R)
+        self.load_mesh_psi_3D()
+        print 'mesh and psi loaded.'
+        self.shift -= 2*np.pi*plane/self.n_plane
+
         phi = np.array([[self.Xmin,self.Ymin],[self.Xmin,self.Ymax],
                         [self.Xmax,self.Ymin],[self.Xmax,self.Ymax]])
         
@@ -142,8 +147,6 @@ class XGC_Loader_local():
         self.Phimax = np.max(phi)
 
         self.dphi = dphi
-        self.load_mesh_psi_3D()
-        print 'mesh and psi loaded.'
         
         self.load_B_3D()
         print 'B loaded.'

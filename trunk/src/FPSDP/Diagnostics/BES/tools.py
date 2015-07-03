@@ -184,7 +184,7 @@ class Tools:
         axarr[1].set_title(self.name_id)
         
         axarr[1].set_yticklabels([])
-        plt.suptitle('Timestep : {}'.format(timestep))
+        #plt.suptitle('Timestep : {}'.format(timestep))
         
         axarr[0].plot(tool2.R,tool2.Z,'x')
         tri0 = axarr[0].tricontourf(tool2.R,tool2.Z,I2[timestep,:],v2)
@@ -422,7 +422,7 @@ class Tools:
             plt.show()
 
 
-    def comparison_vertical_correlation_length(self,tools,Nz=40,Nr=100,eps=0.0005,start=40):
+    def comparison_vertical_correlation_length(self,tools,Nz=40,Nr=100,eps=0.0005,start=40,lval=0):
         """ Show the characteristic length of the radial correlation length as a function
         of the radial position for two different diagnostics.
 
@@ -489,6 +489,10 @@ class Tools:
             corr.append(temp_corr)
             
         r0 = np.linspace(np.min(self.R),np.max(self.R),Nr)
+        r = np.array(r)
+        for i in range(len(tools)+1):
+            if lval[i] != 0:
+                corr[np.argmax(np.abs(r-2.255)/2.255 < eps)][i] = lval[i]
         corr = np.array(corr)
         k = 1
         tck = splrep(r,100*corr[:,0],k=k)

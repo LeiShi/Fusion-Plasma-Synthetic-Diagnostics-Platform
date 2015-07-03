@@ -196,12 +196,11 @@ class BES:
         Z = json.loads(config.get('Optics','Z'))
         plane = json.loads(config.get('Optics','plane'))
         # compute the value of phi in radian
-        print 'should be changed if use another code than xgc'
         name = self.data_path + 'xgc.3d.' + str(start).zfill(5)+'.h5'
         nber_plane = h5.File(name,'r')
         nphi = nber_plane['nphi'][:]
         self.phiav = np.mean(phi)
-        shift = self.phiav - 2*np.pi*plane/nphi[0]
+        shift = self.phiav
 
         if radial_mesh == None:
             self.pos_foc = np.zeros((len(Z),3))                                  #!

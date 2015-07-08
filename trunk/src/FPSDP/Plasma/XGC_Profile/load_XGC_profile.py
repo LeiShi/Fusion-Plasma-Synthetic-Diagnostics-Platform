@@ -78,7 +78,7 @@ def find_interp_positions_v2_upgrade(my_xgc,Nstep = 10):
     if(my_xgc.CO_DIR):
         phiFWD = np.where(nextplane == 0,np.pi*2 - Phiwant, phi_planes[nextplane]-Phiwant)
         phiBWD = phi_planes[prevplane]-Phiwant
-        FWD_sign = 1
+        FWD_sign = 1  # Forward and backward signs define the direction along field line is the direction of increasing phi or not.
         BWD_sign = -1
     else:
         phiFWD = phi_planes[nextplane]-Phiwant
@@ -97,9 +97,7 @@ def find_interp_positions_v2_upgrade(my_xgc,Nstep = 10):
     # check which index need to be integrated
     ind = np.ones(Rwant.shape,dtype=bool)
     # Coefficient of the Runge-Kutta method
-    a,b,c = runge_kutta_explicit(3)
-    # Number of stage for the method
-    Nstage = b.shape[0]
+    a,b,c,Nstage = runge_kutta_explicit(2)
     # forward step
     while ind.any():
         # size of the next step for each position
@@ -1260,7 +1258,7 @@ class XGC_Loader():
         dne_ad_exceed_tol_idx = np.where(dne_ad_error > tol)
         nane_exceed_tol_idx = np.where(nane_error > tol)
 
-        #Sometimes, tolerance is exceeded because the original data is too small. Check for these cases, an warning is raised only if the original data is greater than 1e-5 * the max value in original data.
+        #Sometimes, tolerance is exceeded because the original data is too small. Check for these cases, an warning is raised only if the original data is greater than 1e-2 * the max value in original data.
 
         dne_ad_true_violate_idx = np.where(np.abs(dne_ad_in[dne_ad_exceed_tol_idx]) > np.max(np.abs(dne_ad_in))*1e-2 )
         nane_true_violate_idx = np.where(np.abs(nane_in[nane_exceed_tol_idx]) > np.max(np.abs(nane_in))*1e-2 )

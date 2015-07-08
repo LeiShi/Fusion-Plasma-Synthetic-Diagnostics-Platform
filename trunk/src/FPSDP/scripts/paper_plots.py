@@ -575,11 +575,11 @@ class Plot7(Picture):
             E2d_c = 4       
         
         self.c_2d = []
-        self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[0]))
-        self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[1]))
-        self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[2]))
-        self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[3]))
-        self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[4]))
+        self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[0],'NORM'))
+        self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[1],'NORM'))
+        self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[2],'NORM'))
+        self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[3],'NORM'))
+        self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[4],'NORM'))
         
         
         # And g-factors from FWR3D
@@ -596,6 +596,7 @@ class Plot7(Picture):
         
         E3d = [E55_3d,E575_3d,E60_3d,E625_3d,E675_3d]
         
+
         if center == 67.5:
             E3d_c = 4
         elif center == 62.5:
@@ -608,11 +609,11 @@ class Plot7(Picture):
             E3d_c = 4          
         
         self.c_3d = []
-        self.c_3d.append(Cross_Correlation(E3d[E3d_c],E3d[0]))
-        self.c_3d.append(Cross_Correlation(E3d[E3d_c],E3d[1]))
-        self.c_3d.append(Cross_Correlation(E3d[E3d_c],E3d[2]))
-        self.c_3d.append(Cross_Correlation(E3d[E3d_c],E3d[3]))
-        self.c_3d.append(Cross_Correlation(E3d[E3d_c],E3d[4]))
+        self.c_3d.append(Cross_Correlation(E3d[E3d_c],E3d[0],'NORM'))
+        self.c_3d.append(Cross_Correlation(E3d[E3d_c],E3d[1],'NORM'))
+        self.c_3d.append(Cross_Correlation(E3d[E3d_c],E3d[2],'NORM'))
+        self.c_3d.append(Cross_Correlation(E3d[E3d_c],E3d[3],'NORM'))
+        self.c_3d.append(Cross_Correlation(E3d[E3d_c],E3d[4],'NORM'))
         
                
         # Gaussian fit of the cross-correlations 

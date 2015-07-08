@@ -139,8 +139,6 @@ def make_dirs(f_arr = freqs_chosen,t_arr = time_arr, nc = n_cross_section):
                     mi.eps_out = full_out
                     mi.eps_1d_out = full_out
                     mi.vac_out = full_out
-                    mi.para_out = full_out
-                    mi.pp_out = full_out
                     #mi.fullw_out = full_out
 
                     mi.nproc_x = nproc_x

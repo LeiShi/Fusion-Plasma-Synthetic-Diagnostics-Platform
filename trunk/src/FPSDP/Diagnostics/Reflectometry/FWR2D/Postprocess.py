@@ -98,7 +98,12 @@ class Reflectometer_Output:
             y = np.copy(f.variables['a_y'].data)
             z = np.copy(f.variables['a_z'].data)
             z_idx = f.dimensions['a_nz']/2 -1
-            E_ref = np.copy(f.variables['a_Er'][1,z_idx,:] + 1j*f.variables['a_Ei'][1,z_idx,:])
+            
+            #FWR2D output doesn't include the central ray WKB phase advance in paraxial region. The complete result needs to /
+            #take into account this additional phase
+            ephi_wkb = f.variables['p_phaser'][...] + 1j * f.variables['p_phasei'][...]
+            D_ephi = ephi_wkb[0]/ephi_wkb[-1]
+            E_ref = np.copy(f.variables['a_Er'][1,z_idx,:] + 1j*f.variables['a_Ei'][1,z_idx,:])*D_ephi**2
             f.close()
 
             receiver = c5.C5_reader(rec_file)

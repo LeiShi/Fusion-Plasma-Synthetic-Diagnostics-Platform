@@ -61,6 +61,7 @@ waiting=0
 while(len(c) < desired_engine_num and waiting<=86400):#check if the engines are ready, if the engines are not ready after 1 min, something might be wrong. Exit and raise an exception.
     time.sleep(10)
     waiting += 10
+    print('Waiting for connecting engines: {0} requested, {1} connected. {2}s passed. '.format(desired_engine_num,len(c),waiting))
 
 if(len(c) != desired_engine_num):
     raise Exception('usable engine number is not the same as the desired engine number! usable:{0}, desired:{1}.\nCheck your cluster status and the desired number set in the Driver script.'.format(len(c),desired_engine_num))

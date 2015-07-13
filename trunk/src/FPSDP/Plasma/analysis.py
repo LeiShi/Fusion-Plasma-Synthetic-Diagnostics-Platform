@@ -256,10 +256,10 @@ def gaussian_correlation_func(dx,lambda_n):
 
 #General property calculations
 def get_frequencies(prof_loader):
-    """calculate the relevant frequencies along the plasma midplane,return them as a dictionary
+    """calculate the relevant frequencies on 2D equilibrium plasma,return them as a dictionary
     
     arguments:
-        time_eval: boolean, a flag for time evolution. Default to be False
+
     
     return: dictionary contains all the frequency arrays
         keywords: 'f_pi','f_pe','f_ci','f_ce','f_uh','f_lh','f_lx','f_ux'
@@ -267,31 +267,21 @@ def get_frequencies(prof_loader):
     using formula in Page 28, NRL_Formulary, 2011 and Section 2-3, Eqn.(7-9), Waves in Plasmas, Stix.
     """
     if(isinstance(prof_loader.grid,Cartesian2D) ):#2D mesh
-        ne = prof_loader.ne_on_grid[0,0,:,:]*1e-6 #convert into cgs unit
+        ne = prof_loader.ne0_on_grid[:,:]*1e-6 #convert into cgs unit
         ni = ne #D plasma assumed,ignore the impurity. 
         mu = 2 # mu=m_i/m_p, in D plasma, it's 2
         B = prof_loader.B_on_grid[:,:]*1e4 #convert to cgs unit
     else:#3D mesh
-        if(not prof_loader.Equilibrium_Only): # has fluctuation info
-            Zmid = (prof_loader.grid.NZ-1)/2
-            ne = prof_loader.ne_on_grid[0,0,Zmid,:,:]*1e-6
-            ni = ne
-            mu = 2
-            if(prof_loader.equilibrium_mesh == '3D'):
-                B = prof_loader.B_on_grid[Zmid,:,:]*1e4
-            else:
-                B = prof_loader.B_on_grid[:,:]*1e4
-        else: #equilibrium only
-            #Ymid = (prof_loader.grid.NY-1)/2
-            Zmid = (prof_loader.grid.NZ-1)/2
-            if(prof_loader.equilibrium_mesh == '3D'):
-                B = prof_loader.B_on_grid[Zmid,:,:]*1e4
-                ne = prof_loader.ne0_on_grid[Zmid,:,:]*1e-6
-            else:
-                B = prof_loader.B_on_grid[:,:]*1e4
-                ne = prof_loader.ne0_on_grid[:,:]*1e-6
-                ni = ne
-                mu = 2
+        #Ymid = (prof_loader.grid.NY-1)/2
+        Zmid = (prof_loader.grid.NZ-1)/2
+        if(prof_loader.equilibrium_mesh == '3D'):
+            B = prof_loader.B_on_grid[Zmid,:,:]*1e4
+            ne = prof_loader.ne0_on_grid[Zmid,:,:]*1e-6
+        else:
+            B = prof_loader.B_on_grid[:,:]*1e4
+            ne = prof_loader.ne0_on_grid[:,:]*1e-6
+        ni = ne
+        mu = 2
             
             
     f_pi = 2.1e2*mu**(-0.5)*np.sqrt(ni)
@@ -322,7 +312,7 @@ def get_ref_pos(prof_loader,freqs,mode = 'O'):
         freqs:sequence of floats, all the probing frequencies in GHz.
         mode: 'O' or 'X', indication of the wave polarization.
     return:
-        2D array of floats,in the shape of (time_steps,freqs). R coordinates of all the estimated reflection position on mid plane, for each timestep and frequency.
+        2D array of floats,in the shape of (NY,freqs). R coordinates of all the estimated reflection positions of frequencies, for all Y values.
     """
     if(isinstance(prof_loader.grid,Cartesian2D)):
         R = prof_loader.grid.R1D
@@ -343,20 +333,22 @@ def get_ref_pos(prof_loader,freqs,mode = 'O'):
     ref_idx = np.zeros((cutoff.shape[0],freqs.shape[0]))
     ref_pos = np.zeros((cutoff.shape[0],freqs.shape[0]))
 
-    for j in range(cutoff.shape[0]):
+    for j in range(cutoff.shape[0]): # loop through all Y values
         for i in range(len(freqs)):
-
-            ref_idx[j,i] = np.max(np.where(cutoff[j,:] > freqs[i])[0])#The right most index where the wave has been cutoff
-
-            #linearly interpolate the wave frequency to the cutoff frequency curve, to find the reflected location
-            f1 = cutoff[j,ref_idx[j,i]+1]
-            f2 = cutoff[j,ref_idx[j,i]]
-            f3 = freqs[i]
-        
-            R1 = R[ref_idx[j,i]+1]
-            R2 = R[ref_idx[j,i]]
-        
-            ref_pos[j,i] = R2 + (f2-f3)/(f2-f1)*(R1-R2)
+            if(any(cutoff[j,:] > freqs[i])): # exist cutoff location within loading area
+                ref_idx[j,i] = np.max(np.where(cutoff[j,:] > freqs[i])[0])#The right most index where the wave has been cutoff
+    
+                #linearly interpolate the wave frequency to the cutoff frequency curve, to find the reflected location
+                f1 = cutoff[j,ref_idx[j,i]+1]
+                f2 = cutoff[j,ref_idx[j,i]]
+                f3 = freqs[i]
+            
+                R1 = R[ref_idx[j,i]+1]
+                R2 = R[ref_idx[j,i]]
+            
+                ref_pos[j,i] = R2 + (f2-f3)/(f2-f1)*(R1-R2)
+            else: # no cutoff in this Y location
+                ref_pos[j,i] = -np.inf #set the reflection at negative infinity.
         
     
     return ref_pos

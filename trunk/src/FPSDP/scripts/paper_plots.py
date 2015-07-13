@@ -22,8 +22,10 @@ from FPSDP.Diagnostics.Reflectometry.FWR2D.Postprocess import fitting_cross_corr
 
 import pickle
 
-with open('/p/gkp/lshi/XGC1_NSTX_Case/FullF_XGC_ti191_output/ref_pos.pck','r') as f:
-    ref_pos = pickle.load(f)
+with open('/p/gkp/lshi/XGC1_NSTX_Case/FullF_XGC_ti191_output/new_ref_pos.pck','r') as f:
+    ref_pos,freqs = pickle.load(f)
+Z_mid = (ref_pos.shape[0]-1)/2
+ref_pos_mid = ref_pos[Z_mid,:]
     
 class Picture:
     """base class for paper pictures, contains abstract methods and components' names
@@ -331,12 +333,14 @@ class Plot6(Picture):
     def prepare(self,t_exp = 0.001):
         
         #prepare the cut-off locations on the mid-plane
-        self.x55 = ref_pos[8]
-        self.x575 = ref_pos[9]
-        self.x60 = ref_pos[10]
-        self.x625 = ref_pos[11]
-        self.x675 = ref_pos[12]
-        self.x = [self.x55,self.x575,self.x60,self.x625,self.x675]
+        self.x55 = ref_pos_mid[8]
+        self.x575 = ref_pos_mid[9]
+        self.x60 = ref_pos_mid[10]
+        self.x625 = ref_pos_mid[11]
+        self.x675 = ref_pos_mid[14]
+        self.x65 = ref_pos_mid[12]
+        self.x665 = ref_pos_mid[13]
+        self.x = [self.x55,self.x575,self.x60,self.x625,self.x675,self.x65,self.x665]
         
         #First, we get experimental g factors ready
         self.t_sections = [[0.632,0.633],[0.6334,0.6351],[0.636,0.6385]]
@@ -408,13 +412,21 @@ class Plot6(Picture):
         E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC/E_out_67.5.sav.npy'
         E675_2d = np.load(E_file)
         E675_2d = remove_average_phase(E675_2d)
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC_add_two_channels/E_out_65.0.sav.npy'
+        E65_2d = np.load(E_file)
+        E65_2d = remove_average_phase(E65_2d)
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC_add_two_channels/E_out_66.5.sav.npy'
+        E665_2d = np.load(E_file)
+        E665_2d = remove_average_phase(E665_2d)
         
         self.g55_2d = Coherent_Signal(E55_2d.flatten())
         self.g575_2d = Coherent_Signal(E575_2d.flatten())
         self.g60_2d = Coherent_Signal(E60_2d.flatten())
         self.g625_2d = Coherent_Signal(E625_2d.flatten())
         self.g675_2d = Coherent_Signal(E675_2d.flatten())
-        self.g_2d = [self.g55_2d,self.g575_2d,self.g60_2d,self.g625_2d,self.g675_2d]
+        self.g65_2d = Coherent_Signal(E65_2d.flatten())
+        self.g665_2d = Coherent_Signal(E665_2d.flatten())
+        self.g_2d = [self.g55_2d,self.g575_2d,self.g60_2d,self.g625_2d,self.g675_2d,self.g65_2d,self.g665_2d]
         
         # And g-factors from FWR3D
         E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/3DRUNS/RUN_NEWAll_16_cross_16_time_55GHz/E_out.sav.npy'
@@ -459,9 +471,9 @@ class Plot6(Picture):
             
         self.fig = plt.figure()
         self.subfig = self.fig.add_subplot(111)
-        self.g_exp_line = self.subfig.errorbar(self.x ,self.g_exp[1],yerr=self.g_exp[2],ecolor = color_exp,linewidth = 1,marker = marker_exp,label = 'EXP')
-        self.g_2d_line = self.subfig.plot(self.x,np.abs(self.g_2d),ls_2d,marker = marker_2d,linewidth = 1,label = 'FWR2D')
-        self.g_3d_line = self.subfig.plot(self.x,np.abs(self.g_3d),ls_3d,marker = marker_3d,linewidth = 1,label = 'FWR3D')        
+        self.g_exp_line = self.subfig.errorbar(self.x[:5] ,self.g_exp[1],yerr=self.g_exp[2],ecolor = color_exp,linewidth = 1,marker = marker_exp,label = 'EXP')
+        self.g_2d_line = self.subfig.errorbar(self.x[:7],np.abs(self.g_2d),yerr = 1./16, fmt = ls_2d,marker = marker_2d,linewidth = 1,label = 'FWR2D')
+        self.g_3d_line = self.subfig.errorbar(self.x[:5],np.abs(self.g_3d),yerr = 1./16, fmt = ls_3d,marker = marker_3d,linewidth = 1,label = 'FWR3D')        
         
         self.subfig.legend(loc = 'best', prop = {'size':14})
         
@@ -486,7 +498,7 @@ class Plot7(Picture):
     def prepare(self,center = 62.5,t_exp = 0.001): 
         #prepare the cut-off locations on the mid-plane
         if center == 67.5:
-            channel_c = 12    
+            channel_c = 14    
         elif center == 62.5:
             channel_c = 11
         elif center == 60:
@@ -494,14 +506,16 @@ class Plot7(Picture):
         elif center == 55:
             channel_c = 8
         else:
-            channel_c = 12
+            channel_c = 14
             
-        self.x55 = (ref_pos[8]-ref_pos[channel_c])
-        self.x575 = (ref_pos[9]-ref_pos[channel_c])
-        self.x60 = (ref_pos[10]-ref_pos[channel_c])
-        self.x625 = (ref_pos[11]-ref_pos[channel_c])
-        self.x675 = (ref_pos[12]-ref_pos[channel_c])
-        self.x = [self.x55,self.x575,self.x60,self.x625,self.x675]    
+        self.x55 = (ref_pos_mid[8]-ref_pos_mid[channel_c])
+        self.x575 = (ref_pos_mid[9]-ref_pos_mid[channel_c])
+        self.x60 = (ref_pos_mid[10]-ref_pos_mid[channel_c])
+        self.x625 = (ref_pos_mid[11]-ref_pos_mid[channel_c])
+        self.x675 = (ref_pos_mid[14]-ref_pos_mid[channel_c])
+        self.x65 = (ref_pos_mid[12]-ref_pos_mid[channel_c])
+        self.x665 = (ref_pos_mid[13]-ref_pos_mid[channel_c])
+        self.x = [self.x55,self.x575,self.x60,self.x625,self.x675,self.x65,self.x665]    
         
         #First, we get experimental g factors ready
         
@@ -531,7 +545,7 @@ class Plot7(Picture):
         sig625_filt = band_pass_filter(sig625,dt,self.f_low,self.f_high)
         sig675_filt = band_pass_filter(sig675,dt,self.f_low,self.f_high)
         
-        #prepare the g-factors,keep them complex until we draw them
+        #prepare the gamma-factors,keep them complex until we draw them
         if center == 67.5:
             sig_c = sig675_filt
         elif center == 62.5:
@@ -549,7 +563,7 @@ class Plot7(Picture):
         self.c675 = Cross_Correlation(sig_c,sig675_filt,'NORM')
         self.c_exp = [self.c55,self.c575,self.c60,self.c625,self.c675]
         
-        # Now, we prepare the g factors from FWR2D
+        # Now, we prepare the gamma factors from FWR2D
         E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC/E_out_55.sav.npy'
         E55_2d = remove_average_field(remove_average_phase((np.load(E_file))))[:,:120,:].flatten()
         E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC/E_out_57.5.sav.npy'
@@ -558,10 +572,14 @@ class Plot7(Picture):
         E60_2d = remove_average_field(remove_average_phase((np.load(E_file))))[:,:120,:].flatten()
         E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC/E_out_62.5.sav.npy'
         E625_2d = remove_average_field(remove_average_phase((np.load(E_file))))[:,:120,:].flatten()
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC_add_two_channels/E_out_65.0.sav.npy'
+        E650_2d = remove_average_field(remove_average_phase((np.load(E_file))))[:,:120,:].flatten()
+        E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC_add_two_channels/E_out_66.5.sav.npy'
+        E665_2d = remove_average_field(remove_average_phase((np.load(E_file))))[:,:120,:].flatten()        
         E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/RUNS/RUN_NSTX_139047_All_Channel_All_Time_MULTIPROC/E_out_67.5.sav.npy'
         E675_2d = remove_average_field(remove_average_phase((np.load(E_file))))[:,:120,:].flatten()
         
-        E2d = [E55_2d,E575_2d,E60_2d,E625_2d,E675_2d]
+        E2d = [E55_2d,E575_2d,E60_2d,E625_2d,E675_2d,E650_2d,E665_2d]
         
         if center == 67.5:
             E2d_c = 4
@@ -580,9 +598,12 @@ class Plot7(Picture):
         self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[2],'NORM'))
         self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[3],'NORM'))
         self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[4],'NORM'))
+        self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[5],'NORM'))
+        self.c_2d.append(Cross_Correlation(E2d[E2d_c],E2d[6],'NORM'))
         
         
-        # And g-factors from FWR3D
+        
+        # And gamma-factors from FWR3D
         E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/3DRUNS/RUN_NEWAll_16_cross_16_time_55GHz/E_out.sav.npy'
         E55_3d = remove_average_field(remove_average_phase((np.load(E_file)))).flatten()
         E_file = '/p/gkp/lshi/XGC1_NSTX_Case/Correlation_Runs/3DRUNS/RUN_NEWAll_16_cross_16_time_57.5GHz/E_out.sav.npy'
@@ -617,9 +638,9 @@ class Plot7(Picture):
         
                
         # Gaussian fit of the cross-correlations 
-        self.a_exp,self.sa_exp = fitting_cross_correlation(np.abs(self.c_exp),self.x,'gaussian')
-        self.a_2d,self.sa_2d = fitting_cross_correlation(np.abs(self.c_2d),self.x,'gaussian')
-        self.a_3d,self.sa_3d = fitting_cross_correlation(np.abs(self.c_3d),self.x,'gaussian')
+        self.a_exp,self.sa_exp = fitting_cross_correlation(np.abs(self.c_exp),self.x[:5],'gaussian')
+        self.a_2d,self.sa_2d = fitting_cross_correlation(np.abs(self.c_2d),self.x[:7],'gaussian')
+        self.a_3d,self.sa_3d = fitting_cross_correlation(np.abs(self.c_3d),self.x[:5],'gaussian')
         
         self.xmax = 2*np.sqrt(np.max((np.abs(self.a_exp),np.abs(self.a_2d),np.abs(self.a_3d))))
         self.x_fit = np.linspace(-self.xmax,self.xmax,500)
@@ -628,9 +649,9 @@ class Plot7(Picture):
         self.fit_3d = gaussian_fit(self.x_fit,self.a_3d)
         
         #Exponential fit of the cross-correlations
-        self.e_exp,self.se_exp = fitting_cross_correlation(np.abs(self.c_exp),self.x,'exponential')
-        self.e_2d,self.se_2d = fitting_cross_correlation(np.abs(self.c_2d),self.x,'exponential')
-        self.e_3d,self.se_3d = fitting_cross_correlation(np.abs(self.c_3d),self.x,'exponential')
+        self.e_exp,self.se_exp = fitting_cross_correlation(np.abs(self.c_exp),self.x[:5],'exponential')
+        self.e_2d,self.se_2d = fitting_cross_correlation(np.abs(self.c_2d),self.x[:7],'exponential')
+        self.e_3d,self.se_3d = fitting_cross_correlation(np.abs(self.c_3d),self.x[:5],'exponential')
         
         self.xmax_e = 2*np.max((np.abs(self.e_exp),np.abs(self.e_2d),np.abs(self.e_3d)))
         self.x_fit_e = np.linspace(-self.xmax,self.xmax_e,500)
@@ -665,9 +686,9 @@ class Plot7(Picture):
             
         self.fig = plt.figure()
         self.subfig = self.fig.add_subplot(111)
-        self.c_exp_dots = self.subfig.scatter(self.x ,np.abs(self.c_exp),c = c_exp,marker = marker_exp,label = 'EXP')
-        self.c_2d_dots = self.subfig.scatter(self.x,np.abs(self.c_2d),c=c_2d, marker = marker_2d,label = 'FWR2D')
-        self.c_3d_dots = self.subfig.scatter(self.x,np.abs(self.c_3d),c = c_3d, marker = marker_3d,label = 'FWR3D')        
+        self.c_exp_dots = self.subfig.scatter(self.x[:5] ,np.abs(self.c_exp),c = c_exp,marker = marker_exp,label = 'EXP')
+        self.c_2d_dots = self.subfig.errorbar(self.x[:7],np.abs(self.c_2d),yerr = 1./16, mfc=c_2d, fmt = marker_2d,label = 'FWR2D')
+        self.c_3d_dots = self.subfig.errorbar(self.x[:5],np.abs(self.c_3d),yerr = 1./16, mfc = c_3d, fmt = marker_3d,label = 'FWR3D')        
         
         if(Gaussian_fit):
             self.c_exp_fit_line = self.subfig.plot(self.x_fit,self.fit_exp,ls_exp,label = 'EXP FIT')

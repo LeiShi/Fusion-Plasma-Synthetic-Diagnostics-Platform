@@ -12,8 +12,8 @@ import itertools
 import shlex
 from string import whitespace
 
-from f90nml.fpy import pyfloat, pycomplex, pybool, pystr
-from f90nml.namelist import NmlDict
+from .fpy import pyfloat, pycomplex, pybool, pystr
+from .namelist import NmlDict
 
 
 class Parser(object):

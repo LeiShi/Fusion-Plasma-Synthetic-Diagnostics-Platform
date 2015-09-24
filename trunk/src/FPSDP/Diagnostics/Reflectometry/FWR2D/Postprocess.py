@@ -9,7 +9,7 @@ Advanced Postprocesses:
     Correlation reflectometry analysis,
     Frequency spectrum analysis,
 """
-import Code5 as c5
+from ....IO import Code5 as c5
 
 import numpy as np
 import scipy.io.netcdf as nc

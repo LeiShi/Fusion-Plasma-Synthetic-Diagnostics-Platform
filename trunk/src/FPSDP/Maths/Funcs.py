@@ -2,7 +2,7 @@
 """
 import scipy as sp
 import numpy as np
-import FPSDP.Maths.Integration as integ
+from . import Integration as integ
 
 
 def heuman(phi,m):
@@ -405,4 +405,68 @@ def sweeping_correlation(s1,s2,dt=1,nt_min=100):
             s2_moved = s2[:-delta_t,...]
             SCorrelation[i] = np.average(s1_moved*np.conj(s2_moved),axis=0)/np.sqrt(np.average(s1_moved*np.conj(s1_moved),axis=0) * np.average(s2_moved*np.conj(s2_moved), axis=0))
     return SCorrelation
+    
+    
+class poly3_curve:
+    """Third order polynomial curve for connecting two points (x1,y1) and (x2,y2), given the constraints of the derivatives at these points, yp1,yp2.
+    
+    """
+    def __init__(self,x1,y1,x2,y2,yp1 = 0,yp2 = 0):
+        """
+        :param double x1: first x location
+        :param double y1: value at *x1*
+        :param double yp1: derivative at *x1*
+        :param double x2: second x location
+        :param double y2: value at *x2*
+        :param double yp2: derivative at *x2*
+        
+        Create Attribute:
+            :var poly: the third order polynomial that connects the two given points (x1,y1) and (x2,y2)
+            :vartype poly: numpy.poly1d object
+        """
+        assert not x1==x2
+        
+        if (x1<x2):
+            self.x1 = x1
+            self.x2 = x2
+            self.y1 = y1
+            self.y2 = y2
+        else:
+            self.x1 = x2
+            self.x2 = x1
+            self.y1 = y2
+            self.y2 = y1
+        
+        
+        x13 = x1**3
+        x12 = x1**2
+        x23 = x2**3
+        x22 = x2**2                
+        
+        a = np.array([[x13,x12,x1,1],[x23,x22,x2,1],[3*x12,2*x1,1,0],[3*x22,2*x2,1,0]])
+        b = np.array([y1,y2,yp1,yp2])
+        coef = np.linalg.solve(a,b)
+        self.poly = np.poly1d(coef)
+        
+    def __call__(self,x):
+        """ Evaluate polynomial values at points given by x. Connection only used at points in between, outside ones are assumed flat.
+        x1 < x < x2, y = poly(x);
+        x<=x1, y=y1
+        x>=x2, y=y2
+        
+        :param x: locations for evaluation
+        :type x: ndarray of double
+        """
+        x = np.array(x)
+        y = np.empty_like(x)
+        y[x<= self.x1] = self.y1
+        y[x>= self.x2] = self.y2
+        mask_between = np.all([x>self.x1,x<self.x2],axis=0)
+        y[mask_between] = self.poly(x[mask_between])
+        
+        return y
+        
+        
+        
+        
 

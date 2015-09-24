@@ -19,6 +19,7 @@ from FPSDP.Diagnostics.Reflectometry.analysis import phase, magnitude, Coherent_
 from FPSDP.Diagnostics.Reflectometry.NSTX.nstx import band_pass_filter
 from FPSDP.Maths.Funcs import band_pass_box, sweeping_correlation
 from FPSDP.Diagnostics.Reflectometry.FWR2D.Postprocess import fitting_cross_correlation,gaussian_fit,exponential_fit,remove_average_phase, remove_average_field
+from FPSDP.Maths.SpectraAnalysis import spectrum
 
 import pickle
 
@@ -150,6 +151,7 @@ class Plot3(Picture):
         dt = time[1]-time[0]
         
         #get the fft frequency array         
+        '''        
         self.freqs_nstx = np.fft.rfftfreq(n,dt)
         idx_low,idx_high = np.searchsorted(self.freqs_nstx,[self.f_low_norm,self.f_high_norm]) #note that only first half of the frequency array is holding positive frequencies. The rest are negative ones.
         
@@ -162,6 +164,8 @@ class Plot3(Picture):
         
         #normalize the spectrum to make the in-range total energy be 1
         self.power_density_nstx /= total_power_in_range
+        '''
+        self.spectrum_nstx,self.power_density_nstx,self.freqs_nstx = spectrum(ph,dt,True)
         print('Experimental data ready.')
         
         ref2d = fwr_pp.load_2d([self.channel_freq],np.arange(100,220,1))
@@ -170,6 +174,7 @@ class Plot3(Picture):
         dt_fwr = 1e-6
         time_fwr = np.arange(100,220,1)*dt_fwr
         n_fwr = len(time_fwr)
+        '''        
         #similar normalization method for FWR results, temporary variables are reused for fwr quantities
         self.freqs_fwr = np.fft.rfftfreq(n_fwr,dt_fwr)
         idx_low,idx_high = np.searchsorted(self.freqs_fwr,[self.f_low_norm,self.f_high_norm]) #note that only first half of the frequency array is holding positive frequencies. The rest are negative ones.
@@ -181,6 +186,8 @@ class Plot3(Picture):
         total_power_in_range = 0.5*df*np.sum(pd_in_range[:-1]+pd_in_range[1:]) #trapezoidal formula of integration is used here.
         
         self.power_density_fwr /= total_power_in_range
+        '''
+        self.spectrum_fwr,self.power_density_fwr,self.freqs_fwr = spectrum(ph_fwr,dt_fwr,True)
         print('FWR data ready.')
         
     def show(self,black_white = False):

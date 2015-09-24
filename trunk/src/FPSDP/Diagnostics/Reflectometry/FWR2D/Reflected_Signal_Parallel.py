@@ -12,7 +12,7 @@ useful when have multiple frequencies and time steps to analyse
 #using IPython multiprocessing modules, need ipcluster to be started.
 import time
 from IPython.parallel import Client
-import FPSDP.Diagnostics.Reflectometry.FWR2D.Postprocess as pp
+import .Postprocess as pp
 import numpy as np
 
 def dv_initialize(n_engine,profile = 'default'):

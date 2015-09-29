@@ -14,6 +14,8 @@ Created on Mon Sep 21 14:07:39 2015
 """
 import numpy as np
 import json
+import re
+import os
 from ...Geometry.Grid import Cartesian2D, Cartesian3D
 from ...IO import f90nml
 from ...Maths.Funcs import poly3_curve
@@ -265,7 +267,8 @@ class GTC_Loader:
         self.ne0_interp = interp1d(self.a_1D,self.ne0_1D)
         self.Te0_interp = interp1d(self.a_1D,self.Te0_1D)
         
-    def 
+    def load_2D_fluc(self,fname_pattern = r'snap(\d+)_fpsdp.json'):
+        
         
         
         

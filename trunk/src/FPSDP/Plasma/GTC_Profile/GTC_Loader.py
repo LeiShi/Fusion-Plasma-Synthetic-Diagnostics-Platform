@@ -41,11 +41,39 @@ def get_interp_planes(loader):
 def calculate_needed_planes(my_gtc):
     pass
 
+def check_time_availability(path,required_times,fname_pattern):
+    """
+    We use regular expression to extract the time step information from file names. Note that if non-default file names are used, we need to modify the regular expression pattern.
+    More information about regular expression module in python, check out the documentation :https://docs.python.org/2/library/re.html 
+    
+    :param string path: the path within which file names are being checked
+    :param required_times: time steps that are expected to be existing
+    :type required_times: python or numpy array of int.
+    :param fname_pattern: regular expression pattern that fits the filenames, and extract the time information with the group name *time*.        
+    :type fname_pattern: raw string
+    """
+    
+    fname_re = re.compile(fname_pattern)
+    fnames = os.listdir(path)
+    time_all = []
+    for name in fnames:
+        m = fname_re.match(name)
+        if m:
+            time_all.append(int(m.group('time')))
+        
+    time_all = np.sort(time_all)
+    for t in required_times:
+        if t not in time_all:
+            raise GTC_Loader_Error(('Time {} not available!'.format(t),time_all))
+    print 'All time available.'
+    return time_all
+    
+
 class GTC_Loader_Error(Exception):
     def __init__(self,message):
         self.message = message
     def __str__(self):
-        return self.message
+        return str(self.message)
 
 class GTC_Loader:
     """Main class for loading GTC data. 
@@ -54,48 +82,86 @@ class GTC_Loader:
     on the mesh will be ready to use.
     """
     
-    def __init__(self,gtc_path,grid,tstart,tend,tstep):
+    def __init__(self,gtc_path,grid,tsteps,fname_pattern_2D = r'snap(?P<time>\d+)_fpsdp.json', fname_pattern_3D = r'PHI_(?P<time>\d+)_\d+.ncd', Mode = 'Full'):
+        """Initialize a GTC loader with the following parameters:
+        
+            :param string gtc_path: The path where GTC output files are located. 
+            :param grid: User defined spatial grid. All GTC data will be interpolated onto this grid.
+            :type grid: FPSDP.Geometry.Grid object. Only Cartesian2D and Cartesian3D are supported for now.
+            :param tsteps: time steps requested. Use GTC simulation step counting. Will be checked at the beginning to make sure all requested time steps have been outputted. 
+            :type tsteps: list or 1D numpy array of int
+            :param fname_pattern_2D: (Optional) Regular Expression to fit 2D output files. Do not change unless you have changed the output file name convention.
+            :type fname_pattern_2D: raw string
+            :param fname_pattern_3D: (Optional) Regular Expression to fit 3D output files. Do not change unless you have changed the output file name convention.
+            :type fname_pattern_3D: raw string
+            :param string Mode:(Optional) choice among 3 possible iniialization modes: 
+                **full**(Default): load both equilibrium and fluctuations, and interpolate them on given *grid*
+                **eq_only**: load only equilibrium, and interpolate it on given *grid*
+                **least**: DO NOT load any GTC output files, only initialize the loader with initial parameters. This mode is mainly used for debug.
+        """        
+        
+        
+        self.path = gtc_path
+        self.grid = grid
+        self.tsteps = tsteps
+        
         if isinstance(grid, Cartesian2D):
             print('2D grid detected.')
             self.dimension = 2
+            #First, use :py:func:`check_time_availability` to analyze the existing files and check if all required time steps are available.
+            #If any requested time steps are not there, raise an error and print out all existing time steps.
+            try:
+                self.time_all = check_time_availability(self.path,self.tsteps,fname_pattern_2D)
+            except GTC_Loader_Error as e:
+                print e.message[0]
+                print 'Available time steps are:'
+                print str(e.message[1])
+                raise 
         elif isinstance(grid, Cartesian3D):
             print('3D grid detected.')
             self.dimension = 3
+            try:
+                self.time_all = check_time_availability(os.path.join(self.path,'phi_dir'),self.tsteps,fname_pattern_3D)
+            except GTC_Loader_Error as e:
+                print e.message[0]
+                print 'Available time steps are:'
+                print str(e.message[1])
+                raise 
         else:
             raise(GTC_Loader_Error('Invalid grid: Only Cartesian2D or Cartesian3D grids are supported.'))
             
-        self.path = gtc_path
-        self.grid = grid
         
-        #read gtc.in.out and gtc.out, obtain run specifications like: adiabatic/non-adiabatic electrons, electrostatic/electromagnetic, time step, ion gyro-radius, and snap output frequency.
-        self.load_gtc_specifics() 
+        if (Mode == 'full' or Mode == 'eq_only')
+            #read gtc.in.out and gtc.out, obtain run specifications like: adiabatic/non-adiabatic electrons, electrostatic/electromagnetic, time step, ion gyro-radius, and snap output frequency.
+            self.load_gtc_specifics() 
         
-        # read grid_fpsdp.json, create triangulated mesh on GTC grids and extended grids for equilibrium.
-        self.load_grid() 
+            # read grid_fpsdp.json, create triangulated mesh on GTC grids and extended grids for equilibrium.
+            self.load_grid() 
         
-        #read equilibriumB_fpsdp.json and equilibrium1D_fpsdp.json, create interpolators for B_phi,B_R,B_Z on extended grids, and interpolators for equilibrium density and temperature over 'a'.
-        self.load_equilibrium() 
+            #read equilibriumB_fpsdp.json and equilibrium1D_fpsdp.json, create interpolators for B_phi,B_R,B_Z on extended grids, and interpolators for equilibrium density and temperature over 'a'.
+            self.load_equilibrium() 
         
-        #interpolate equilibrium quantities
-        self.interpolate_eq()
-        
-        #For fluctuations, 2D and 3D loaders are different
-        if(self.dimension == 2):
-            #2D is simple, read snap{time}_fpsdp.json and interpolate the data onto 2D grid
-            self.load_fluctuations_2D()
-            self.interpolate_fluc_2D()
+            #interpolate equilibrium quantities
+            self.interpolate_eq()
             
-        if(self.dimension == 3):
-            #3D is much harder to do. First, we calculate the needed cross-section numbers
-            # get interpolation plane numbers for each grid point
-            self.prevplane,self.nextplane = get_interp_planes(self)
-            # calculate needed planes
-            planes = calculate_needed_planes(self)
-            # load fluctuations on those cross-sections            
-            self.load_fluctuations_3D(planes)
-
-            # interpolate onto our 3D mesh
-            self.interpolate_fluc_3D()
+            if(Mode == 'full'):
+                #For fluctuations, 2D and 3D loaders are different
+                if(self.dimension == 2):
+                    #2D is simple, read snap{time}_fpsdp.json and interpolate the data onto 2D grid
+                    self.load_fluctuations_2D()
+                    self.interpolate_fluc_2D()
+                    
+                if(self.dimension == 3):
+                    #3D is much harder to do. First, we calculate the needed cross-section numbers
+                    # get interpolation plane numbers for each grid point
+                    self.prevplane,self.nextplane = get_interp_planes(self)
+                    # calculate needed planes
+                    planes = calculate_needed_planes(self)
+                    # load fluctuations on those cross-sections            
+                    self.load_fluctuations_3D(planes)
+        
+                    # interpolate onto our 3D mesh
+                    self.interpolate_fluc_3D()
             
     def load_gtc_specifics(self):
         """ read relevant GTC simulation settings from gtc.in.out and gtc.out files.
@@ -166,12 +232,12 @@ class GTC_Loader:
             
         self.R_gtc = np.array(raw_grids['R_gtc'])
         self.Z_gtc = np.array(raw_grids['Z_gtc'])
-        self.points_gtc = np.transpose(np.array([self.R_gtc,self.Z_gtc]))
+        self.points_gtc = np.transpose(np.array([self.Z_gtc,self.R_gtc]))
         self.a_gtc = np.array(raw_grids['a_gtc'])
         self.theta_gtc = np.array(raw_grids['theta_gtc'])
         self.R_eq = np.array(raw_grids['R_eq'])
         self.Z_eq = np.array(raw_grids['Z_eq'])
-        self.points_eq = np.transpose(np.array([self.R_eq,self.Z_eq]))
+        self.points_eq = np.transpose(np.array([self.Z_eq,self.R_eq]))
         self.a_eq = np.array(raw_grids['a_eq'])
         self.R_LCFS = np.array(raw_grids['R_LCFS'])
         self.Z_LCFS = np.array(raw_grids['Z_LCFS'])
@@ -267,7 +333,85 @@ class GTC_Loader:
         self.ne0_interp = interp1d(self.a_1D,self.ne0_1D)
         self.Te0_interp = interp1d(self.a_1D,self.Te0_1D)
         
-    def load_2D_fluc(self,fname_pattern = r'snap(\d+)_fpsdp.json'):
+    def load_fluctuations_2D(self):
+        """ Read fluctuation data from **snap{time}_fpsdp.json** files
+        Read data into an array with shape (NT,Ngrid_gtc), NT the number of requested timesteps, corresponds to *self.tstep*, Ngrid_gtc is the GTC grid number on each cross-section.
+        Create Attribute:
+            :var phi: fluctuating electro-static potential on GTC grid for each requested time step, unit: V
+            :vartype phi: double array with shape (NT,Ngrid_gtc)
+            :var Te: electron temperature fluctuation, unit: keV
+            :vartype Te: double array with shape (NT,Ngrid_gtc)
+            if *HaveElectron*:
+            :var nane: non-adiabatic electron density fluctuation, unit: :math:`m^{-3}`
+            :vartype nane: double array with shape (NT,Ngrid_gtc)                
+            if *isEM*:
+            :var A_par: parallel vector potential fluctuation
+            :vartype A_par:double array with shape (NT,Ngrid_gtc)
+            
+        """
+        NT = len(self.tsteps)
+        Ngrid_gtc = len(self.R_gtc)
+        self.phi = np.empty((NT,Ngrid_gtc))
+        self.Te = np.empty_like(self.phi)        
+        if self.HaveElectron:
+            self.nane = np.empty_like(self.phi)
+        if self.isEM:
+            self.Apar = np.empty_like(self.phi)
+        
+        for i in range(NT):
+            snap_fname = os.path.join(self.path,'snap{0:0>7}_fpsdp.json'.format(self.tsteps[i]))
+            with open(snap_fname,'r') as snap_file:
+                raw_snap = json.load(snap_file)
+            
+            self.phi[i] = np.array(raw_snap['phi'])
+            self.Te[i] = np.array(raw_snap['dTe'])
+            if self.HaveElectron:
+                self.nane[i] = np.array(raw_snap['dne'])
+            if self.isEM:
+                self.Apar[i] = np.array(raw_snap['dAp'])
+                
+        
+                
+        
+    def interpolate_fluc_2D(self):
+        """Interpolate 2D fluctuations onto given Cartesian grid. Grids outside the GTC simulation domain will be given 0.
+        
+        """
+        NT = len(self.tsteps)
+        NZ = self.grid.NZ
+        NR = self.grid.NR
+        
+        points_on_grid =np.transpose( np.array([self.grid.Z2D,self.grid.R2D]), (1,2,0))        
+        
+        self.phi_on_grid = np.empty((NT,NZ,NR))
+        self.Te_on_grid = np.empty_like(self.phi_on_grid)
+        if self.HaveElectron:
+            self.nane_on_grid = np.empty_like(self.phi_on_grid)
+        if self.isEM:
+            self.Apar_on_grid = np.empty_like(self.phi_on_grid)
+        for i in range(NT):
+            phi_interp = LinearNDInterpolator(self.Delaunay_gtc,self.phi[i],fill_value = 0)
+            self.phi_on_grid[i] = phi_interp(points_on_grid)
+            Te_interp = LinearNDInterpolator(self.Delaunay_gtc,self.Te[i],fill_value = 0)
+            self.Te_on_grid[i] = Te_interp(points_on_grid)
+            if self.HaveElectron:
+                nane_interp = LinearNDInterpolator(self.Delaunay_gtc,self.nane[i],fill_value = 0)
+                self.nane_on_grid[i] = nane_interp(points_on_grid)
+            if self.isEM:   
+                Apar_interp = LinearNDInterpolator(self.Delaunay_gtc,self.Apar[i],fill_value = 0)
+                self.Apar_on_grid[i] = Apar_interp(points_on_grid)
+            
+    def interpolate_eq(self):
+        """Interpolate equilibrium quantities on given grid. Grids outside Equilibrium mesh(i.e. outside LCFS) will be assigned approximate *a* (flux surface label) coordinates, and use 3rd order polynomial decay.
+        """
+        
+        
+        
+        
+        
+        
+            
+        
         
         
         

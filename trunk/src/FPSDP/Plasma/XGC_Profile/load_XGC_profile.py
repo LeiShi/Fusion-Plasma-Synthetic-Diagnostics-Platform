@@ -1,33 +1,20 @@
 
 """Load XGC output data, interpolate electron density perturbation onto desired Cartesian grid mesh. 
 """
-from ...Geometry.Grid import Cartesian2D,Cartesian3D
-from ...IO.IO_funcs import parse_num
+from ...Geometry.Grid import Cartesian2D,Cartesian3D, DelaunayTriFinder
+from ...IO.IO_funcs import load_m
 from ...Maths.RungeKutta import runge_kutta_explicit
 
 import numpy as np
 import h5py as h5
-from scipy.interpolate import griddata
-from scipy.interpolate import CloughTocher2DInterpolator
-from scipy.interpolate import interp1d
-from scipy.interpolate import RectBivariateSpline
+from scipy.spatial import Delaunay, ConvexHull
+from matplotlib.tri import Triangulation
+from matplotlib.tri import CubicTriInterpolator as cubic_interp
+from scipy.interpolate import griddata,CloughTocher2DInterpolator,interp1d,RectBivariateSpline
 import scipy.io.netcdf as nc
-import pickle
+#import pickle
 
 # some external functions
-def load_m(fname):
-    """load the whole .m file and return a dictionary contains all the entries.
-    """
-    f = open(fname,'r')
-    result = {}
-    for line in f:
-        words = line.split('=')
-        key = words[0].strip()
-        value = words[1].strip(' ;\n')
-        result[key]= parse_num(value)
-    f.close()
-    return result
-
 
 def get_interp_planes(my_xgc):
     """Get the plane numbers used for interpolation for each point 
@@ -301,10 +288,11 @@ def find_interp_positions_v1(my_xgc):
     """Find the interpolation R-Z positions on previous and next planes for 3D mesh  given by my_xgc.grid.
 
     Argument:
-    my_xgc: XGC_Loader object, containing all the detailed information for the XGC output data and desired Cartesian mesh data
+    :param my_xgc: containing all the detailed information for the XGC output data and desired Cartesian mesh data
+    :type my_xgc: :py:class:`XGC_Loader` object
     
-    returns:
-    double array with shape (2,3,NZ,NY,NX), contains the R and Z values on both planes that should be used to interpolate. the last 3 dimensions corresponds to each desired mesh point, the first 2 dimensions contains the 2 pairs of (Z,R,portion) values. The previous plane interpolation point is stored in [0,:,...], with order (Z,R,portion), the next plane point in [1,:,...]
+    :return:  the R and Z values on both planes that should be used to interpolate. the last 3 dimensions corresponds to each desired mesh point, the first 2 dimensions contains the 2 pairs of (Z,R,portion) values. The previous plane interpolation point is stored in [0,:,...], with order (Z,R,portion), the next plane point in [1,:,...]
+    :rtype: double array with shape (2,3,NZ,NY,NX),
 
     Note: previous plane means the magnetic field line comes from this plane and go through the desired mesh point, next plane means this magnetic field line lands on this plane. In XGC output files,  these planes are not necessarily stored in increasing index ordering. Direction of toroidal field determines this.  
     """
@@ -424,20 +412,21 @@ class XGC_Loader():
     """Loader for a given set of XGC output files
     """
 
-    def __init__(self,xgc_path,grid,t_start,t_end,dt,dn_amplifier = 1.0, n_cross_section = 1,equilibrium_mesh = '2D',Equilibrium_Only = False,Full_Load = True, Fluc_Only = True,Fluc_Filtering = False,
+    def __init__(self,xgc_path,grid,time_steps,dn_amplifier = 1.0, n_cross_section = 1,equilibrium_mesh = '2D',Equilibrium_Only = False,Full_Load = True, Fluc_Only = True,Fluc_Filtering = False,
                  load_ions = False):
         """The main caller of all functions to prepare a loaded XGC profile.
 
-        Inputs:
-            xgc_path:string, the directory of all the XGC output files
-            grid:FPSDP.Geometry.Grid.Cartesian2D or Cartesian3D object, a user defined mesh object, find the corresponding module for details.
-            tstart,tend,dt: int, the timesteps used for loading, NOTE: the time series created here MUST be a subseries of the original file numbers.
-            dn_amplifier: double, the multiplier used to artificially change the fluctuation level, default to be 1, i.e. use original fluctuation data read from XGC output.
-            n_cross_section: int, number of cross sections loaded for each time step, default to be 1, i.e. use only data on(near) number 0 cross-section. NOTE: this number can not be larger than the total cross-section used in the XGC simulation.
-            equilibrium_mesh: string, a flag to choose from '2D' or '3D' equilibrium output style. Current FWR3D code read '2D' equilibrium data.
-            Full_Load: boolean, A flag for debugging, default to be True, i.e. load all data when initializing, if set to be False, then only constants are set, no loading functions will be called during initialization, programmer can call them one by one afterwards.
-            Fluc_Only: boolean, A flag determining fluctuation loading method. Default to be True. Fluc_Only == True uses newer loading method to remove equilibrium relaxation effects. Fluc_Only == False uses old version and load all the calculated density deviations from the equilibrium.
-            Fluc_Filtering: Boolean, A flag determining whether filter out the fluctuations that are larger than background equilibrium. If True, fluctuations will be filtered. Default to be False.
+            :param string xgc_path: the directory of all the XGC output files
+            :param grid: a user defined mesh object, 
+            :type grid:py:class:`~FPSDP.Geometry.Grid.Cartesian2D` or :py:class:`~FPSDP.Geometry.Grid.Cartesian3D` object 
+            :param time_steps: the timesteps used for loading, NOTE: the time steps MUST be a subseries of the original file numbers.
+            :type time_steps: numpy array of int             
+            :param double dn_amplifier: the multiplier used to artificially change the fluctuation level, default to be 1, i.e. use original fluctuation data read from XGC output.
+            :param int n_cross_section: number of cross sections loaded for each time step, default to be 1, i.e. use only data on(near) number 0 cross-section. NOTE: this number can not be larger than the total cross-section used in the XGC simulation.
+            :param string equilibrium_mesh: a flag to choose from '2D' or '3D' equilibrium output style. Current FWR3D code read '2D' equilibrium data.
+            :param boolean Full_Load: A flag for debugging, default to be True, i.e. load all data when initializing, if set to be False, then only constants are set, no loading functions will be called during initialization, programmer can call them one by one afterwards.
+            :param boolean Fluc_Only: A flag determining fluctuation loading method. Default to be True. Fluc_Only == True uses newer loading method to remove equilibrium relaxation effects. Fluc_Only == False uses old version and load all the calculated density deviations from the equilibrium.
+            :param boolean Fluc_Filtering: A flag determining whether filter out the fluctuations that are larger than background equilibrium. If True, fluctuations will be filtered. Default to be False.
         """
 
         print 'Loading XGC output data'
@@ -445,7 +434,7 @@ class XGC_Loader():
         self.xgc_path = xgc_path
         self.mesh_file = xgc_path + 'xgc.mesh.h5'
         self.bfield_file = xgc_path + 'xgc.bfield.h5'
-        self.time_steps = np.arange(t_start,t_end+1,dt)
+        self.time_steps = time_steps
         self.nt = len(self.time_steps)
         self.grid = grid
         self.dn_amplifier = dn_amplifier #
@@ -462,7 +451,6 @@ class XGC_Loader():
         print 'from directory:'+ self.xgc_path
         self.unit_dic = load_m(self.unit_file)
         self.tstep = self.unit_dic['sml_dt']*self.unit_dic['diag_1d_period']
-        self.dt = self.tstep * dt
         self.t = self.time_steps * self.tstep
 
         if isinstance(grid, Cartesian2D):
@@ -499,7 +487,7 @@ class XGC_Loader():
             elif self.dimension == 3:
                 print '3D grid detected.'
                 
-                grid.ToCylindrical()
+                self.grid.ToCylindrical()
                 print 'cynlindrical coordinates created.'
                 
                 self.load_mesh_psi_3D()
@@ -616,10 +604,13 @@ class XGC_Loader():
         """
         mesh = h5.File(self.mesh_file,'r')
         RZ = mesh['coordinates']['values']
-        Rpts =RZ[:,0]
-        Zpts = RZ[:,1]
+        Rpts =np.copy(RZ[:,0])
+        Zpts = np.copy(RZ[:,1])
         mesh.close()
         self.points = np.array([Zpts,Rpts]).transpose()
+        self.Delaunay = Delaunay(self.points)
+        self.triangulation = Triangulation(Zpts,Rpts,triangles = self.Delaunay.simplices)
+        self.trifinder =  DelaunayTriFinder(self.Delaunay, self.triangulation)
         self.mesh = {'R':Rpts, 'Z':Zpts}
         return 0
 
@@ -630,8 +621,8 @@ class XGC_Loader():
         Note that choose R as the 2nd variable in order to store it in the fastest dimension later
         """
         mesh = h5.File(self.mesh_file,'r')
-        self.psi = mesh['psi'][...]
-        self.psi_interp = CloughTocher2DInterpolator(self.points, self.psi,fill_value=np.max(self.psi))
+        self.psi = np.copy(mesh['psi'][...])
+        self.psi_interp = cubic_interp(self.triangulation,self.psi, trifinder = self.trifinder)
         mesh.close()
         return 0
 
@@ -640,11 +631,13 @@ class XGC_Loader():
         """
         mesh = h5.File(self.mesh_file,'r')
         RZ = mesh['coordinates']['values']
-        Rpts =RZ[:,0]
-        Zpts = RZ[:,1]
+        Rpts =np.copy(RZ[:,0])
+        Zpts = np.copy(RZ[:,1])
         self.points = np.array([Zpts,Rpts]).transpose()
         self.mesh = {'R':Rpts, 'Z':Zpts}
-
+        self.Delaunay = Delaunay(self.points)
+        self.triangulation = Triangulation(Zpts,Rpts,triangles = self.Delaunay.simplices)
+        self.trifinder =  DelaunayTriFinder(self.Delaunay, self.triangulation)
         self.nextnode = mesh['nextnode'][...]
         
         self.prevnode = np.zeros(self.nextnode.shape)
@@ -655,8 +648,8 @@ class XGC_Loader():
             else:
                 self.prevnode[i] = -1
         
-        self.psi = mesh['psi'][...]
-        self.psi_interp = CloughTocher2DInterpolator(self.points, self.psi, fill_value=np.max(self.psi))
+        self.psi = np.copy(mesh['psi'][...])
+        self.psi_interp = cubic_interp(self.triangulation, self.psi,  trifinder = self.trifinder)
 
         mesh.close()
 
@@ -677,26 +670,26 @@ class XGC_Loader():
         B_total is interpolated over Z,R plane on given 2D Cartesian grid
         """
         B_mesh = h5.File(self.bfield_file,'r')
-        self.B = B_mesh['node_data[0]']['values']
+        self.B = np.copy(B_mesh['node_data[0]']['values'])
         self.B_total = np.sqrt(self.B[:,0]**2 + self.B[:,1]**2 + self.B[:,2]**2)
-        self.B_interp = CloughTocher2DInterpolator(self.points, self.B_total, fill_value = np.sign(self.B_total[0])*np.min(np.absolute(self.B_total))) 
+        self.B_interp = cubic_interp(self.triangulation, self.B_total, trifinder = self.trifinder) 
         B_mesh.close()
         return 0
 
     def load_B_3D(self):
         """Load equilibrium magnetic field data
 
-        B_total is interpolated over Z,R plane on given 3D Cartesian grid, since B_0 is assumed symmetric along toroidal direction
+        B_R, B_Z and B_Phi are interpolated over Z,R plane on given 3D Cartesian grid, since B_0 is assumed symmetric along toroidal direction
         """
         B_mesh = h5.File(self.bfield_file,'r')
         B = B_mesh['node_data[0]']['values']
-        self.BR = B[:,0]
-        self.BZ = B[:,1]
-        self.BPhi = B[:,2]
+        self.BR = np.copy(B[:,0])
+        self.BZ = np.copy(B[:,1])
+        self.BPhi = np.copy(B[:,2])
 
-        self.BR_interp = CloughTocher2DInterpolator(self.points, self.BR, fill_value = np.inf) #use np.inf as a flag for outside points, deal with them later in interpolation function
-        self.BZ_interp = CloughTocher2DInterpolator(self.points, self.BZ, fill_value = np.inf)
-        self.BPhi_interp = CloughTocher2DInterpolator(self.points, self.BPhi, fill_value = np.sign(self.BPhi[0])*np.min(np.absolute(self.BPhi)))
+        self.BR_interp = cubic_interp(self.triangulation, self.BR, trifinder = self.trifinder) # outside points will be masked, deal with them later in interpolation function
+        self.BZ_interp = cubic_interp(self.triangulation, self.BZ, trifinder = self.trifinder)
+        self.BPhi_interp = cubic_interp(self.triangulation, self.BPhi, trifinder = self.trifinder)
 
         
         B_mesh.close()
@@ -1040,20 +1033,66 @@ class XGC_Loader():
             print('density fluctuations filtered.')
 
     def interpolate_all_on_grid_2D(self):
-        """ create all interpolated quantities on given grid.
+        """ create all interpolated quantities on given grid. 
+        Points outside the convex hull of XGC mesh points are approximated using the gradient at the closest boundary vertex, and keep to the linear order.
+        For any quantity *a*, the outside value is roughly:
+        
+            ..math::
+        
+                    a(Z_{out},R_{out}) = a_n + (Z_{out}-Z_n) \cdot \frac{\partial a}{\partial Z} + (R_{out}-R_n) \cdot \frac{\partial a}{\partial R}
+        where :math:`a_n` is the value at the nearest vertex.
+        
+        :math:`T_e` and :math:`n_e` are then interpolated on *psi* space using *psi* values on grid.
         """
         R2D = self.grid.R2D
         Z2D = self.grid.Z2D
 
         #psi on grid
         self.psi_on_grid = self.psi_interp(Z2D,R2D)
+        out_mask = np.copy(self.psi_on_grid.mask)
+        
+        Zout = Z2D[out_mask]
+        Rout = R2D[out_mask]
+        
+        #boundary points are obtained by applying ConvexHull on equilibrium grid points
+        hull = ConvexHull(self.points)
+        p_boundary = self.points[hull.vertices]
+        Z_boundary = p_boundary[:,0]
+        R_boundary = p_boundary[:,1]
+        
+        #Now let's calculate *psi* on outside points, first, get the nearest boundary point for each outside point
+        nearest_indices = []
+        for i in range(len(Zout)):
+            Z = Zout[i]
+            R = Rout[i]
+            nearest_indices.append (np.argmin((Z-Z_boundary)**2 + (R-R_boundary)**2) )
+            
+        # Then, calculate *psi* based on the gradient at these nearest points
+        Zn = Z_boundary[nearest_indices]
+        Rn = R_boundary[nearest_indices]
+        #The value *psi* and its gradiant at this nearest point can by easily obtained            
+        psi_n = self.psi_interp(Zn,Rn)            
+        gradpsi_Z,gradpsi_R = self.psi_interp.gradient(Zn,Rn)
+        
+        psi_out = psi_n + (Zout-Zn)*gradpsi_Z + (Rout-Rn)*gradpsi_R
+        
+        # Finally, assign these outside values to the original array
+        self.psi_on_grid[out_mask] = psi_out
 
         #B on grid
         self.B_on_grid = self.B_interp(Z2D,R2D)
-
-        #Te and Ti on grid
-        self.te_on_grid = self.te0_sp(self.psi_on_grid)
-        self.ti_on_grid = self.ti0_sp(self.psi_on_grid)
+        B_n = self.B_interp(Zn,Rn)
+        gradB_Z, gradB_R = self.B_interp.gradient(Zn,Rn)
+        B_out = B_n + (Zout-Zn)*gradB_Z + (Rout-Rn)*gradB_R
+        self.B_on_grid[out_mask] = B_out
+                
+        
+        
+        #Te0, Ti0, ne0 and ni0 on grid
+        self.te0_on_grid = self.te0_sp(self.psi_on_grid)
+        self.ti0_on_grid = self.ti0_sp(self.psi_on_grid)
+        self.ne0_on_grid = self.ne0_sp(self.psi_on_grid)
+        self.ni0_on_grid = self.ni0_sp(self.psi_on_grid)        
         
         #fluctuations 
         self.phi_on_grid = np.zeros((self.n_cross_section,len(self.time_steps),R2D.shape[0],R2D.shape[1]))
@@ -1064,17 +1103,16 @@ class XGC_Loader():
         if self.load_ions:
             self.dni_on_grid = np.zeros_like(self.phi_on_grid)
         
-        self.ne0_on_grid = griddata(self.points,self.ne0[:],(Z2D,R2D),method = 'linear',fill_value = 0)
-        self.ni0_on_grid = griddata(self.points,self.ni0[:],(Z2D,R2D),method = 'linear',fill_value = 0)
+
 
         for i in range(self.n_cross_section):
             for j in range(self.nt):
-                self.phi_on_grid[i,j,...] += griddata(self.points,self.phi[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
-                self.dne_ad_on_grid[i,j,...] += griddata(self.points,self.dne_ad[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
+                self.phi_on_grid[i,j,...] += CloughTocher2DInterpolator(self.Delaunay,self.phi[i,j,:],fill_value = 0)(np.array([Z2D,R2D]).transpose(1,2,0))
+                self.dne_ad_on_grid[i,j,...] += CloughTocher2DInterpolator(self.Delaunay,self.dne_ad[i,j,:],fill_value = 0)(np.array([Z2D,R2D]).transpose(1,2,0))
                 if(self.HaveElectron):
-                    self.nane_on_grid[i,j,...] += griddata(self.points,self.nane[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
+                    self.nane_on_grid[i,j,...] += CloughTocher2DInterpolator(self.Delaunay,self.nane[i,j,:],fill_value = 0)(np.array([Z2D,R2D]).transpose(1,2,0))
                 if(self.load_ions):
-                    self.dni_on_grid[i,j,...] += griddata(self.points,self.dni[i,j,:],(Z2D,R2D),method = 'cubic',fill_value = 0)
+                    self.dni_on_grid[i,j,...] += CloughTocher2DInterpolator(self.Delaunay,self.dni[i,j,:],fill_value = 0)(np.array([Z2D,R2D]).transpose(1,2,0))
 
         self.interp_check() # after the interpolation, check if the perturbations are interpolated within a reasonable error
 
@@ -1110,34 +1148,71 @@ class XGC_Loader():
             self.ni0_on_grid = self.ni0_sp(self.psi_on_grid)
         elif(self.equilibrium_mesh == '2D'):
             #interpolation on 2D mesh: (used in FWR3D, the FWR3D code will then rotate the whole equilibrium to get the values on 3D mesh.)
-            x1D = self.grid.X1D
-            y1D = self.grid.Y1D
-            x2D = np.zeros((self.grid.NY,self.grid.NX)) + x1D[np.newaxis,:]
-            y2D = np.zeros(x2D.shape) + y1D[:,np.newaxis]
+            R1D = self.grid.X1D
+            Z1D = self.grid.Y1D
+            R2D = np.zeros((self.grid.NY,self.grid.NX)) + R1D[np.newaxis,:]
+            Z2D = np.zeros_like(R2D) + Z1D[:,np.newaxis]
 
             #psi on 2D grid
-            self.psi_on_grid = self.psi_interp(y2D,x2D)
-
-            #B field on grid
-            self.BX_on_grid = self.BR_interp(y2D,x2D) #outside points will be set to np.inf
-            #now deal with outside points: for each horizontal line, the outside points will be set as the same value as the outmost point which has a valid value.            
-            for i in range(x2D.shape[0]):
-                bx_hor = self.BX_on_grid[i,:]
-                bx_hor[bx_hor==np.inf] = bx_hor[bx_hor != np.inf][-1]
-            self.BY_on_grid = self.BZ_interp(y2D,x2D)
-            for i in range(x2D.shape[0]):
-                by_hor = self.BY_on_grid[i,:]
-                by_hor[by_hor==np.inf] = by_hor[by_hor != np.inf][-1]
-            self.BZ_on_grid = self.BPhi_interp(y2D,x2D) #note that toroidal field outside points are filled with smallest BZ already
-            self.B_on_grid = np.sqrt(self.BX_on_grid**2 + self.BY_on_grid**2 + self.BZ_on_grid**2)
+            self.psi_on_grid = self.psi_interp(Z2D,R2D)
+            out_mask = np.copy(self.psi_on_grid.mask)
             
-            #Te and Ti on grid
-            self.te_on_grid = self.te0_sp(self.psi_on_grid)
-            self.ti_on_grid = self.ti0_sp(self.psi_on_grid)
-
-            #ne0 on grid
-            self.ne0_on_grid = self.ne0_sp(self.psi_on_grid)            
-            self.ni0_on_grid = self.ni0_sp(self.psi_on_grid)            
+            Zout = Z2D[out_mask]
+            Rout = R2D[out_mask]
+            
+            #boundary points are obtained by applying ConvexHull on equilibrium grid points
+            hull = ConvexHull(self.points)
+            p_boundary = self.points[hull.vertices]
+            Z_boundary = p_boundary[:,0]
+            R_boundary = p_boundary[:,1]
+            
+            #Now let's calculate *psi* on outside points, first, get the nearest boundary point for each outside point
+            nearest_indices = []
+            for i in range(len(Zout)):
+                Z = Zout[i]
+                R = Rout[i]
+                nearest_indices.append (np.argmin((Z-Z_boundary)**2 + (R-R_boundary)**2) )
+                
+            # Then, calculate *psi* based on the gradient at these nearest points
+            Zn = Z_boundary[nearest_indices]
+            Rn = R_boundary[nearest_indices]
+            #The value *psi* and its gradiant at this nearest point can by easily obtained            
+            psi_n = self.psi_interp(Zn,Rn)            
+            gradpsi_Z,gradpsi_R = self.psi_interp.gradient(Zn,Rn)
+            
+            psi_out = psi_n + (Zout-Zn)*gradpsi_Z + (Rout-Rn)*gradpsi_R
+            
+            # Finally, assign these outside values to the original array
+            self.psi_on_grid[out_mask] = psi_out
+    
+            #B on grid
+            self.BR_on_grid = self.BR_interp(Z2D,R2D)
+            BR_n = self.BR_interp(Zn,Rn)
+            gradBR_Z, gradBR_R = self.BR_interp.gradient(Zn,Rn)
+            BR_out = BR_n + (Zout-Zn)*gradBR_Z + (Rout-Rn)*gradBR_R
+            self.BR_on_grid[out_mask] = BR_out
+            
+            self.BZ_on_grid = self.BZ_interp(Z2D,R2D)
+            BZ_n = self.BZ_interp(Zn,Rn)
+            gradBZ_Z, gradBZ_R = self.BZ_interp.gradient(Zn,Rn)
+            BZ_out = BZ_n + (Zout-Zn)*gradBZ_Z + (Rout-Rn)*gradBZ_R
+            self.BZ_on_grid[out_mask] = BZ_out
+            
+            self.BPhi_on_grid = self.BPhi_interp(Z2D,R2D)
+            BPhi_n = self.BPhi_interp(Zn,Rn)
+            gradBPhi_Z, gradBPhi_R = self.BPhi_interp.gradient(Zn,Rn)
+            BPhi_out = BPhi_n + (Zout-Zn)*gradBPhi_Z + (Rout-Rn)*gradBPhi_R
+            self.BPhi_on_grid[out_mask] = BPhi_out
+            
+            self.B_on_grid = np.sqrt(self.BR_on_grid**2 + self.BZ_on_grid**2 + self.BPhi_on_grid**2)
+                    
+            
+            
+            #Te0, Ti0, ne0 and ni0 on grid
+            self.te0_on_grid = self.te0_sp(self.psi_on_grid)
+            self.ti0_on_grid = self.ti0_sp(self.psi_on_grid)
+            self.ne0_on_grid = self.ne0_sp(self.psi_on_grid)
+            self.ni0_on_grid = self.ni0_sp(self.psi_on_grid)       
         
         
         #ne fluctuations on 3D grid
@@ -1169,9 +1244,9 @@ class XGC_Loader():
                     #now interpolate adiabatic ne on each toroidal plane for the points using it as previous or next plane.
                     for j in range(len(self.planes)):
                         if(prev[prev_idx[j]].size != 0):
-                            prev[prev_idx[j]] = griddata(self.points,self.dne_ad[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'linear', fill_value = 0)
+                            prev[prev_idx[j]] = CloughTocher2DInterpolator(self.Delaunay,self.dne_ad[k,i,j,:], fill_value = 0)(np.array([interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]] ]).T )
                         if(next[next_idx[j]].size != 0):
-                            next[next_idx[j]] = griddata(self.points,self.dne_ad[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'linear', fill_value = 0)
+                            next[next_idx[j]] = CloughTocher2DInterpolator(self.Delaunay,self.dne_ad[k,i,j,:], fill_value = 0)(np.array([interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]] ]).T )
                     # on_grid adiabatic ne is then calculated by linearly interpolating values between these two planes
                 
                     self.dne_ad_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
@@ -1180,9 +1255,10 @@ class XGC_Loader():
                     if self.HaveElectron:
                         #non-adiabatic ne data as well:
                         for j in range(len(self.planes)):
-                            prev[prev_idx[j]] = griddata(self.points,self.nane[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
-                            next[next_idx[j]] = griddata(self.points,self.nane[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
-
+                            if(prev[prev_idx[j]].size != 0):
+                                prev[prev_idx[j]] = CloughTocher2DInterpolator(self.Delaunay,self.nane[k,i,j,:], fill_value = 0)(np.array([interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]] ]).T )
+                            if(next[next_idx[j]].size != 0):
+                                next[next_idx[j]] = CloughTocher2DInterpolator(self.Delaunay,self.nane[k,i,j,:], fill_value = 0)(np.array([interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]] ]).T )
                         self.nane_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
                         
                     """   NOW WE WORK WITH IONS   """
@@ -1193,9 +1269,10 @@ class XGC_Loader():
                         next = np.zeros(prev.shape)
   
                         for j in range(len(self.planes)):
-                           prev[prev_idx[j]] = griddata(self.points,self.dni[k,i,j,:],(interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]]),method = 'cubic', fill_value = 0)
-                           next[next_idx[j]] = griddata(self.points,self.dni[k,i,j,:],(interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]]),method = 'cubic', fill_value = 0)
-                           
+                            if(prev[prev_idx[j]].size != 0):
+                                prev[prev_idx[j]] = CloughTocher2DInterpolator(self.Delaunay,self.dni[k,i,j,:], fill_value = 0)(np.array([interp_positions[0,0][prev_idx[j]], interp_positions[0,1][prev_idx[j]] ]).T )
+                            if(next[next_idx[j]].size != 0):
+                                next[next_idx[j]] = CloughTocher2DInterpolator(self.Delaunay,self.dni[k,i,j,:], fill_value = 0)(np.array([interp_positions[1,0][next_idx[j]], interp_positions[1,1][next_idx[j]] ]).T )                           
                         self.dni_on_grid[k,i,...] = prev * interp_positions[1,2,...] + next * interp_positions[0,2,...]
 
 
@@ -1236,13 +1313,13 @@ class XGC_Loader():
 
         R_in_flag = np.logical_and( R>Rmin,R<Rmax )
         Z_in_flag = np.logical_and( Z>Zmin,Z<Zmax )
-        idx = np.where(np.logical_and(R_in_flag,Z_in_flag))
+        idx = np.logical_and(R_in_flag,Z_in_flag)
 
         R_in = R[idx]
         Z_in = Z[idx]
 
-        dne_ad_in = self.dne_ad[toroidal_cross,time,idx][0]
-        nane_in = self.nane[toroidal_cross,time,idx][0]
+        dne_ad_in = self.dne_ad[toroidal_cross,time,idx]
+        nane_in = self.nane[toroidal_cross,time,idx]
 
         dne_ad_back_interp = RectBivariateSpline(self.grid.Z1D,self.grid.R1D,self.dne_ad_on_grid[toroidal_cross,time,:,:])
         nane_back_interp = RectBivariateSpline(self.grid.Z1D,self.grid.R1D,self.nane_on_grid[toroidal_cross,time,:,:])
@@ -1318,9 +1395,9 @@ class XGC_Loader():
             'dne_ad_org':self.dne_ad,
             'X_origin':self.mesh['R'],
             'Y_origin':self.mesh['Z'],
-            'Te0':self.te_on_grid,
-            'Ti0':self.ti_on_grid,
-            'psi':self.psi_on_grid
+            'Te0':self.te0_on_grid,
+            'Ti0':self.ti0_on_grid,
+            'psi':self.psi_on_grid.data
             }
         if (self.HaveElectron):
             saving_dic['nane'] = self.nane_on_grid
@@ -1328,14 +1405,20 @@ class XGC_Loader():
         if (self.dimension == 2):
             saving_dic['X1D'] = self.grid.R1D
             saving_dic['Y1D'] = self.grid.Z1D
-            saving_dic['B0'] = self.B_on_grid
+            saving_dic['B0'] = self.B_on_grid.data
         else:
             saving_dic['X1D'] = self.grid.X1D
             saving_dic['Y1D'] = self.grid.Y1D
             saving_dic['Z1D'] = self.grid.Z1D
-            saving_dic['B0'] = self.BZ_on_grid
-            saving_dic['BX'] = self.BX_on_grid
-            saving_dic['BY'] =  self.BY_on_grid
+            
+            if self.equilibrium_mesh == '3D':            
+                saving_dic['B0'] = self.BZ_on_grid
+                saving_dic['BX'] = self.BX_on_grid
+                saving_dic['BY'] =  self.BY_on_grid
+            elif self.equilibrium_mesh == '2D':
+                saving_dic['B0'] = self.BPhi_on_grid.data
+                saving_dic['BR'] = self.BR_on_grid.data
+                saving_dic['BZ'] = self.BZ_on_grid.data
         np.savez(file_name,**saving_dic)
 
     def load(self, filename = 'xgc_profile.sav'):
@@ -1349,39 +1432,48 @@ class XGC_Loader():
         nefile = np.load(filename)
         if 'Z1D' in nefile.files:
             dimension = 3
+            if 'BR' in nefile.files:
+                equilibrium_mesh = '2D'
+            else:
+                equilibrium_mesh = '3D'
         else:
             dimension = 2
         if(dimension != self.dimension):
             raise XGC_Loader_Error('Geometry incompatible! Trying to load {0}d data onto {1}d grid.\nMake sure the geometry setup is the same as the data file.'.format(dimension,self.dimension))
-
+        if(equilibrium_mesh != self.equilibrium_mesh):
+            raise XGC_Loader_Error('Equilibrium mesh doesn\'t match! {0} mesh is expected while {1} mesh is loaded.'.format(self.equilibrium_mesh,equilibrium_mesh))
         #======== NEED MORE DETAILED GEOMETRY CHECKING HERE! CURRENT VERSION DOESN'T GUARANTEE SAME GRID. ERRORS WILL OCCUR WHEN READ SAVED FILE WITH A DIFFERENT GRID.
         #=============================================#
 
-        self.mesh = {'R':nefile['X_origin'],'Z':nefile['Y_origin']}
-        self.dne_ad = nefile['dne_ad_org']
-        self.ne0_on_grid = nefile['ne0']
-        self.dne_ad_on_grid = nefile['dne_ad']
+        self.mesh = {'R':np.copy(nefile['X_origin']),'Z':np.copy(nefile['Y_origin'])}
+        self.dne_ad = np.copy(nefile['dne_ad_org'])
+        self.ne0_on_grid = np.copy(nefile['ne0'])
+        self.dne_ad_on_grid = np.copy(nefile['dne_ad'])
 
         self.ne_on_grid = self.ne0_on_grid[np.newaxis,np.newaxis,:,:] + self.dne_ad_on_grid
 
         if 'nane' in nefile.files:
             self.HaveElectrons = True
-            self.nane = nefile['nane_org']
+            self.nane = np.copy(nefile['nane_org'])
             self.nane_on_grid = nefile['nane']
             self.ne_on_grid += self.nane_on_grid
 
-        self.psi_on_grid = nefile['psi']
-        self.te_on_grid = nefile['Te0']
-        self.ti_on_grid = nefile['Ti0']
+        self.psi_on_grid = np.copy(nefile['psi'])
+        self.te_on_grid = np.copy(nefile['Te0'])
+        self.ti_on_grid = np.copy(nefile['Ti0'])
 
         if dimension == 2:
-            self.B_on_grid = nefile['B0']
-        else:
-            self.BZ_on_grid = nefile['B0']
-            self.BX_on_grid = nefile['BX']
-            self.BY_on_grid = nefile['BY']
+            self.B_on_grid = np.copy(nefile['B0'])
+        elif equilibrium_mesh == '3D':
+            self.BZ_on_grid = np.copy(nefile['B0'])
+            self.BX_on_grid = np.copy(nefile['BX'])
+            self.BY_on_grid = np.copy(nefile['BY'])
             self.B_on_grid = np.sqrt(self.BX_on_grid**2 + self.BY_on_grid**2 + self.BZ_on_grid**2) 
-
+        elif equilibrium_mesh == '2D':
+            self.BPhi_on_grid = np.copy(nefile['B0'])
+            self.BR_on_grid = np.copy(nefile['BR'])
+            self.BZ_on_grid = np.copy(nefile['BZ'])
+            self.B_on_grid = np.sqrt(self.BPhi_on_grid**2 + self.BR_on_grid**2 + self.BZ_on_grid**2)
 
     def cdf_output(self,output_path,eq_file = 'equilibrium.cdf',filehead = 'fluctuation',WithBp=True):
         """

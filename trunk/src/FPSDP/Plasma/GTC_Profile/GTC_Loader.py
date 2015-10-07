@@ -248,8 +248,8 @@ class GTC_Loader:
         #use Delaunay Triangulation package provided by **scipy** to do the 2D triangulation on GTC mesh
         self.Delaunay_gtc = Delaunay(self.points_gtc)
         
-        #For equilibrium mesh, we use Triangulation package provided by **matplotlib** to do a cubic interpolation on *a* values. The points outside the convex hull of given set of points will be treated later.
-        self.triangulation_eq = triangulation(self.Z_eq,self.R_eq)
+        #For equilibrium mesh, we use Triangulation package provided by **matplotlib** to do a cubic interpolation on *a* values and B field. The points outside the convex hull of given set of points will be treated later.
+        self.triangulation_eq = triangulation.Triangulation(self.Z_eq,self.R_eq)
         
         #interpolate flux surface coordinate "a" onto grid_eq, save the interpolater for future use.
         #Default fill value is "nan", points outside eq mesh will be dealt with care
@@ -297,9 +297,9 @@ class GTC_Loader:
         self.B_R = np.array(raw_eqB['B_R'])
         self.B_Z = np.array(raw_eqB['B_Z'])
         
-        self.B_phi_interp = LinearNDInterpolator(self.Delaunay_eq,self.B_phi) #fill value is default to *nan*, this will be used as a flag of out_of_bound points, and will be dealt with later.
-        self.B_R_interp = LinearNDInterpolator(self.Delaunay_eq,self.B_R)
-        self.B_Z_interp = LinearNDInterpolator(self.Delaunay_eq,self.B_Z)
+        self.B_phi_interp = cubic_interp(self.triangulation_eq,self.B_phi) #outside points will be masked and dealt with later.
+        self.B_R_interp = cubic_interp(self.triangulation_eq,self.B_R)
+        self.B_Z_interp = cubic_interp(self.triangulation_eq,self.B_Z)
 
         #Now reading in 1D equilibrium quantities        
         eq1D_fname = self.path+'equilibrium1D_fpsdp.json'
@@ -335,6 +335,78 @@ class GTC_Loader:
         #set up interpolators using extrapolated samples, points outside the extended *a* range can be safely set to 0.
         self.ne0_interp = interp1d(self.a_1D,self.ne0_1D, bounds_error = False, fill_value = 0)
         self.Te0_interp = interp1d(self.a_1D,self.Te0_1D, bounds_error = False, fill_value = 0)
+        
+    def interpolate_eq(self):
+        """Interpolate equilibrium quantities on given grid. 
+        *B_R*, *B_Z*, *B_phi* and *a* are interpolated over (Z_eq,R_eq) mesh, and *ne0*, *Te0* are interpolated on *a* space.
+        For interpolation over (Z_eq,R_eq),Grid points outside Equilibrium mesh(i.e. outside LCFS) will be approximated using the following method:
+            For an outside point :math:`(Z_{out},R_{out})`, we search for the closest vertex on the convex hull of the interpolation set, :math:`(Z_n,R_n)`, and the corresponding :math:`a=a_n`. 
+            From the cubic interpolation, we can obtain the derivatives of *a* respect to Z and R at :math:`(Z_n,R_n)`, :math:`\partial a/\partial Z` and :math:`\partial a/\partial R`.
+            Now the *a* value at :math:`(Z_{out}, R_{out})` will be approximated by:
+                ..math::
+        
+                    a(Z_{out},R_{out}) = a_n + (Z_{out}-Z_n) \cdot \frac{\partial a}{\partial Z} + (R_{out}-R_n) \cdot \frac{\partial a}{\partial R}
+            
+            This first order approximation is good if :math:`(Z_{out},R_{out})` is not far from :math:`(Z_n,R_n)`. In our case, since we are assuming :math:`n_e` and :math:`T_e` are rapidly decaying in *a* outside the LCFS, this approximation is good enough.
+        """
+        
+        #outside points are obtained by examining the mask flag from the returned masked array of "cubic_interp"
+        Zwant = self.grid.Z2D
+        Rwant = self.grid.R2D        
+        self.a_on_grid = self.a_eq_interp(Zwant,Rwant)
+        out_mask = np.copy(self.a_on_grid.mask)
+        
+        Zout = Zwant[out_mask]
+        Rout = Rwant[out_mask]
+        
+        #boundary points are obtained by applying ConvexHull on equilibrium grid points
+        hull = ConvexHull(self.points_eq)
+        p_boundary = self.points_eq[hull.vertices]
+        Z_boundary = p_boundary[:,0]
+        R_boundary = p_boundary[:,1]
+        
+        #Now let's calculate *a* on outside points, first, get the nearest boundary point for each outside point
+        nearest_indices = []
+        for i in range(len(Zout)):
+            Z = Zout[i]
+            R = Rout[i]
+            nearest_indices.append (np.argmin((Z-Z_boundary)**2 + (R-R_boundary)**2) )
+            
+        # Then, calculate *a* based on the gradient at these nearest points
+        Zn = Z_boundary[nearest_indices]
+        Rn = R_boundary[nearest_indices]
+        #The value *a* and its gradiant at this nearest point can by easily obtained            
+        an = self.a_eq_interp(Zn,Rn)            
+        gradaZ,gradaR = self.a_eq_interp.gradient(Zn,Rn)
+        
+        a_out = an + (Zout-Zn)*gradaZ + (Rout-Rn)*gradaR
+        
+        # Finally, assign these outside values to the original array
+        self.a_on_grid[out_mask] = a_out
+        
+        #Now we are ready to interpolate ne and Te on our grid
+        self.ne0_on_grid = self.ne0_interp(self.a_on_grid)
+        self.Te0_on_grid = self.Te0_interp(self.a_on_grid)
+        
+        #B_R,B_Z and B_phi can be interpolated exactly like *a*
+        self.BR_on_grid = self.B_R_interp(Zwant,Rwant)
+        self.BZ_on_grid = self.B_Z_interp(Zwant,Rwant)
+        self.Bphi_on_grid = self.B_phi_interp(Zwant,Rwant)
+        
+        BRn = self.B_R_interp(Zn,Rn)
+        gradBR_Z, gradBR_R = self.B_R_interp.gradient(Zn,Rn)
+        BR_out = BRn + (Zout-Zn)*gradBR_Z + (Rout-Rn)*gradBR_R
+        self.BR_on_grid[out_mask] = BR_out
+        
+        BZn = self.B_Z_interp(Zn,Rn)
+        gradBZ_Z, gradBZ_R = self.B_Z_interp.gradient(Zn,Rn)
+        BZ_out = BZn + (Zout-Zn)*gradBZ_Z + (Rout-Rn)*gradBZ_R
+        self.BZ_on_grid[out_mask] = BZ_out
+        
+        Bphin = self.B_phi_interp(Zn,Rn)
+        gradBphi_Z, gradBphi_R = self.B_phi_interp.gradient(Zn,Rn)
+        Bphi_out = Bphin + (Zout-Zn)*gradBphi_Z + (Rout-Rn)*gradBphi_R
+        self.Bphi_on_grid[out_mask] = Bphi_out
         
     def load_fluctuations_2D(self):
         """ Read fluctuation data from **snap{time}_fpsdp.json** files
@@ -404,58 +476,7 @@ class GTC_Loader:
                 Apar_interp = LinearNDInterpolator(self.Delaunay_gtc,self.Apar[i],fill_value = 0)
                 self.Apar_on_grid[i] = Apar_interp(points_on_grid)
             
-    def interpolate_eq(self):
-        """Interpolate equilibrium quantities on given grid. Grid points outside Equilibrium mesh(i.e. outside LCFS) will be assigned approximate *a* (flux surface label) coordinates.
-        The way of doing that is as follows:
-        For an outside point :math:`(Z_{out},R_{out})`, we search for the closest vertex on the convex hull of the interpolation set, :math:`(Z_n,R_n)`, and the corresponding :math:`a=a_n`. 
-        From the cubic interpolation, we can obtain the derivatives of *a* respect to Z and R at :math:`(Z_n,R_n)`, :math:`\partial a/\partial Z` and :math:`\partial a/\partial R`.
-        Now the *a* value at :math:`(Z_{out}, R_{out})` will be approximated by:
-        ..math::
-        
-            a(Z_{out},R_{out}) = a_n + (Z_{out}-Z_n) \cdot \frac{\partial a}{\partial Z} + (R_{out}-R_n) \cdot \frac{\partial a}{\partial R}
-            
-        This first order approximation is good if :math:`(Z_{out},R_{out})` is not far from :math:`(Z_n,R_n)`. In our case, since we are assuming :math:`n_e` and :math:`T_e` are rapidly decaying in *a* outside the LCFS, this approximation is good enough.
-        """
-        
-        #outside points are obtained by examining the mask flag from the returned masked array of "cubic_interp"
-        Zwant = self.grid.Z2D
-        Rwant = self.grid.R2D        
-        self.a_on_grid = self.a_eq_interp(Zwant,Rwant)
-        out_mask = self.a_on_grid.mask
-        
-        Zout = Zwant[out_mask]
-        Rout = Rwant[out_mask]
-        
-        #boundary points are obtained by applying ConvexHull on equilibrium grid points
-        hull = ConvexHull(self.points_eq)
-        p_boundary = self.points_eq[hull.vertices]
-        Z_boundary = p_boundary[:,0]
-        R_boundary = p_boundary[:,1]
-        
-        #Now let's calculate *a* on outside points, first, get the nearest boundary point for each outside point
-        nearest_indices = []
-        for i in range(len(Zout)):
-            Z = Zout[i]
-            R = Rout[i]
-            nearest_indices.append (np.argmin((Z-Z_boundary)**2 + (R-R_boundary)**2) )
-            
-        # Then, calculate *a* based on the gradient at these nearest points
-        Zn = Z_boundary[nearest_indices]
-        Rn = R_boundary[nearest_indices]
-        #The value *a* and its gradiant at this nearest point can by easily obtained            
-        an = self.a_eq_interp(Zn,Rn)            
-        gradaZ,gradaR = self.a_eq_interp.gradient(Zn,Rn)
-        
-        a_out = an + (Zout-Zn)*gradaZ + (Rout-Rn)*gradaR
-        
-        # Finally, assign these outside values to the original array
-        self.a_on_grid[out_mask] = a_out
-        
-        #Now we are ready to interpolate ne and Te on our grid
-        self.ne0_on_grid = self.ne0_interp(self.a_on_grid)
-        self.Te0_on_grid = self.Te0_interp(self.a_on_grid)
-        
-        #NEED FURTHER WORK: B_R,B_Z,B_PHI should be treated similar to *a*.
+
         
             
         

@@ -12,10 +12,11 @@ grid2D = Grid.Cartesian2D(DownLeft = (-0.5,1.25),UpRight = (0.5,1.6),NR = 100, N
 grid3D = Grid.Cartesian3D(Xmin = 1.25,Xmax = 1.6,Ymin = -0.5, Ymax = 0.5, Zmin = -0.35, Zmax = 0.35, NX = 100,NY = 300,NZ = 100)
 
 def load(dimension,tstart,tend,tstep,full_load,fluc_only,eq_only):
+    time_steps = np.arange(tstart,tend+1,tstep)
     if dimension == 3:
-        xgc_nstx_139047 = xgc.XGC_Loader(xgc_path,grid3D,tstart,tend,tstep,dn_amplifier = 1,n_cross_section = 16, Equilibrium_Only = eq_only,Full_Load = full_load, Fluc_Only = fluc_only)
+        xgc_nstx_139047 = xgc.XGC_Loader(xgc_path,grid3D,time_steps,dn_amplifier = 1,n_cross_section = 16, Equilibrium_Only = eq_only,Full_Load = full_load, Fluc_Only = fluc_only)
     elif dimension == 2:
-        xgc_nstx_139047 = xgc.XGC_Loader(xgc_path,grid2D,tstart,tend,tstep,dn_amplifier = 1,n_cross_section = 1, Full_Load = full_load, Fluc_Only = fluc_only)
+        xgc_nstx_139047 = xgc.XGC_Loader(xgc_path,grid2D,time_steps,dn_amplifier = 1,n_cross_section = 1, Full_Load = full_load, Fluc_Only = fluc_only)
         
     return xgc_nstx_139047
 

@@ -12,6 +12,8 @@ import numpy as np
 from scipy.integrate import quadrature, quad
 from numpy.random import random
 
+from .Fluctuation import Fluctuation
+
 class Turbulence_Generation_Error(Exception):
     def __init__(self,msg):
         self.message = msg
@@ -49,7 +51,7 @@ class Auto_Correlation_Function(object):
     def __init__(self):
         self._func_set = False
     def set_func(self, func):
-        """ setting the correlation function. Note that the function must be a Python callable, and expect a 1-d array of floats as input.
+        """ setting the correlation function. A valid function must be even, and real valued. The function should be a Python callable, and expect a 1-d array of floats as input.
         """
         self._func = func
         self._func_set = True
@@ -211,4 +213,59 @@ class Exponential_Corr(Auto_Correlation_Function):
         """
         return Cauchy_Spec(rho=2*self.A, gamma = 1/(2*np.pi*self.tau_0))
         
+
+class Gaussian_Corr(Auto_Correlation_Function):
+    """Gaussian decay correlation function
+    ..math::
     
+        \psi(\tau) = A \rm{e}^{- \tau^2/\tau_0^2}        
+    """
+
+    def __init__(self,A, tau_0):
+        super(Gaussian_Corr, self).__init__()
+        func = lambda t: A*np.exp(-t**2/tau_0**2)
+        self.set_func(func)
+        self.A = A
+        self.tau_0 = tau_0
+        
+    def power_spectrum(self):
+        """ Gaussian correlation function corresponds to Gaussian power spectrum
+        ..math::
+
+            w(f) = 4\int_0^\infty \psi(\tau) \cos \; 2\pi f \tau \; \rm{d}\tau = 2 \sqrt{\pi} \tau_0 A \exp (-\pi^2 \tau_0^2 f^2)
+            
+        
+        """
+        return Gaussian_Spec(A = 2*np.sqrt(np.pi)*self.tau_0 * self.A, f0 = 1/(np.pi*self.tau_0))
+        
+class Gaussian_Spec(Power_Spectrum):
+    """ Gaussian shaped Power Spectrum
+    ..math::
+    
+        w(f) = A \rm{e}^{-f^2/f_0^2}
+    """
+    def __init__(self,A,f0):
+        super(Gaussian_Spec,self).__init__()
+        func = lambda f: A*np.exp(-f**2/f0**2)
+        self.set_func(func)
+        self.A = A
+        self.f0 = f0
+        
+    def auto_correlation_function(self):
+        """ Gaussian power spectrum corrsponds to Gaussian shaped auto-correlation function
+        
+        ..math::
+        
+            \psi(\tau) = \int_0^\infty w(f) \cos \; 2\pi f \tau \rm{d}f = \frac{\sqrt{\pi}f_0 A}{2} \exp(-\pi^2 f_0^2 \tau^2)
+        """
+        return Gaussian_Corr(A = np.sqrt(np.pi)*self.f0*self.A/2 , tau_0 = 1/(np.pi*self.f0))
+        
+
+
+#Now we have defined some common Auto-Correlation functions and Power Spectra, we are ready to produce fluctuations
+
+
+
+class Turbulence(Fluctuation):
+#Here we will use Fast Fourier Transform method to
+    pass

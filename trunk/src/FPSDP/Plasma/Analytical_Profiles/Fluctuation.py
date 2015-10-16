@@ -31,10 +31,10 @@ class Fluctuation(object):
     """
     __metaclass__ = ABCMeta
     
-    def __init__(self,t=0,dt = 1, grid=None):
-        self._t = t
-        self._dt = dt
+    def __init__(self, grid=None):
+
         self._grid = grid
+        
     @abstractmethod
     def realize(self, t=None, grid = None):
         if(t == None):
@@ -46,33 +46,7 @@ class Fluctuation(object):
         return self.realize(t,grid)
         
     
-    @property
-    def t(self):
-        """Current internal time
-        """
-        return self._t
-        
-    @t.setter
-    def t(self,value):
-        self._t = value
-        
-    @t.deler
-    def t(self):
-        del self._t
-        
-    @property
-    def dt(self):
-        """Default time incrementation between each call of realization
-        """
-        return self._dt
-        
-    @dt.setter
-    def dt(self,value):
-        self._dt = value
-        
-    @dt.deler
-    def dt(self):
-        del self._dt
+
         
     @property
     def grid(self):

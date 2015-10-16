@@ -1,7 +1,8 @@
 
 """Load XGC output data, interpolate electron density perturbation onto desired Cartesian grid mesh. 
 """
-from ...Geometry.Grid import Cartesian2D,Cartesian3D, DelaunayTriFinder
+from ...Geometry.Grid import Cartesian2D,Cartesian3D
+from ...Geometry.Support import DelaunayTriFinder
 from ...IO.IO_funcs import load_m
 from ...Maths.RungeKutta import runge_kutta_explicit
 

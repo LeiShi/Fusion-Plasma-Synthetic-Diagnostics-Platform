@@ -2,27 +2,33 @@
 """
 #moudle depends on numpy package
 import numpy as np
+from abc import ABCMeta, abstractmethod
 
-from matplotlib.tri import TriFinder
-from scipy.spatial import Delaunay
+
 
 
 class GridError(Exception):
-    def __init__(this,*p):
-        this.args = p
+    def __init__(self,*p):
+        self.args = p
 
-class Grid:
+class Grid(object):
     """Base class for all kinds of grids
-
-    contains name of the grid
     """
-    def __init__(this):
-        this._name = 'General Grids'
+    __metaclass__ = ABCMeta
+    def __init__(self):
+        self._name = 'General Grids'
+        
+    @abstractmethod    
+    def __str__(self):
+        return self._name
 
-    def tell(this):
-        return this._name
+class ExpGrid(Grid):
+    """Base class for grids using in loading experimental data, mainly for Cartesian coordinates in laboratory frame.
+    """
+    __metaclass__ = ABCMeta
+    
 
-class Cartesian2D(Grid):
+class Cartesian2D(ExpGrid):
     """Cartesian grids in 2D space. Generally corresponds a toroidal slice, i.e. R-Z plane. Rectangular shape assumed.
 
     Attributes:
@@ -36,34 +42,34 @@ class Cartesian2D(Grid):
 
         
     """
-    def __init__(this, **P):
+    def __init__(self, **P):
         """initialize the cartesian grid object.
 
         If either DownLeft or UpRight is not specified, a GridError exception will be raised.
         Either NR or ResN can be specified. If none or both, a GridError exception will be raised. Same as NZ and ResZ
         """
-        this._name = '2D Cartesian Grids'
+        self._name = '2D Cartesian Grids'
         try:
             if ( 'DownLeft' in P.keys() and 'UpRight' in P.keys() ):
-                this.DownLeft ,this.UpRight = P['DownLeft'], P['UpRight']
-                this.Zmax,this.Rmax = this.UpRight
-                this.Zmin,this.Rmin = this.DownLeft
-                rangeR = float(this.Rmax - this.Rmin)
-                rangeZ = float(this.Zmax - this.Zmin)
+                self.DownLeft ,self.UpRight = P['DownLeft'], P['UpRight']
+                self.Zmax,self.Rmax = self.UpRight
+                self.Zmin,self.Rmin = self.DownLeft
+                rangeR = float(self.Rmax - self.Rmin)
+                rangeZ = float(self.Zmax - self.Zmin)
                 if ( 'NR' in P.keys() and not 'ResR' in P.keys() ):
-                    this.NR = P['NR']
-                    this.ResR = rangeR / this.NR                
+                    self.NR = P['NR']
+                    self.ResR = rangeR / self.NR                
                 elif ('ResR' in P.keys() and not 'NR' in P.keys() ):
-                    this.NR = int ( rangeR/P['ResR'] + 2 ) # make sure the actual resolution is finer than the required one
-                    this.ResR = rangeR / this.NR
+                    self.NR = int ( rangeR/P['ResR'] + 2 ) # make sure the actual resolution is finer than the required one
+                    self.ResR = rangeR / self.NR
                 else:
                     raise GridError('NR and ResR missing or conflicting, make sure you specify exactly one of them.')
                 if ( 'NZ' in P.keys() and not 'ResZ' in P.keys() ):
-                    this.NZ = P['NZ']
-                    this.ResZ = rangeZ / this.NZ                
+                    self.NZ = P['NZ']
+                    self.ResZ = rangeZ / self.NZ                
                 elif ('ResZ' in P.keys() and not 'NZ' in P.keys() ):
-                    this.NZ = int ( rangeZ/P['ResZ'] + 2 ) # make sure the actual resolution is finer than the required one
-                    this.ResZ = rangeZ / this.NZ
+                    self.NZ = int ( rangeZ/P['ResZ'] + 2 ) # make sure the actual resolution is finer than the required one
+                    self.ResZ = rangeZ / self.NZ
                 else:
                     raise GridError('NZ and ResZ missing or conflicting, make sure you specify exactly one of them.')
             else:
@@ -76,24 +82,24 @@ class Cartesian2D(Grid):
             raise
         
         #create 1D array for R and Z
-        this.R1D = np.linspace(this.Rmin,this.Rmax,this.NR)
-        this.Z1D = np.linspace(this.Zmin,this.Zmax,this.NZ)
+        self.R1D = np.linspace(self.Rmin,self.Rmax,self.NR)
+        self.Z1D = np.linspace(self.Zmin,self.Zmax,self.NZ)
         #now create the 2darrays for R and Z
-        this.Z2D = np.zeros((this.NZ,this.NR)) + this.Z1D[:,np.newaxis]
-        this.R2D = np.zeros(this.Z2D.shape) + this.R1D[np.newaxis,:]
+        self.Z2D = np.zeros((self.NZ,self.NR)) + self.Z1D[:,np.newaxis]
+        self.R2D = np.zeros(self.Z2D.shape) + self.R1D[np.newaxis,:]
              
 
-    def tell(this):
+    def __str__(self):
         """returns the key informations of the grids
         """
-        info = this._name + '\n'
-        info += 'DownLeft :' + str(this.DownLeft) +'\n'
-        info += 'UpRight :' + str(this.UpRight) +'\n'
-        info += 'NR,ResR :' + str( (this.NR,this.ResR) ) +'\n'
-        info += 'NZ,ResZ :' + str( (this.NZ,this.ResZ) ) +'\n'
+        info = self._name + '\n'
+        info += 'DownLeft :' + str(self.DownLeft) +'\n'
+        info += 'UpRight :' + str(self.UpRight) +'\n'
+        info += 'NR,ResR :' + str( (self.NR,self.ResR) ) +'\n'
+        info += 'NZ,ResZ :' + str( (self.NZ,self.ResZ) ) +'\n'
         return info
 
-class Cartesian3D(Grid):
+class Cartesian3D(ExpGrid):
     """Cartesian grids in 3D space. Rectangular shape assumed.
 
     Attributes:
@@ -113,52 +119,52 @@ class Cartesian3D(Grid):
 
         
     """
-    def __init__(this, **P):
+    def __init__(self, **P):
         """initialize the cartesian grid object.
 
         If any min/max value in X/Y/Z is missing, a GridError exception will be raised.
         Either NX or ResX can be specified. If none or both, a GridError exception will be raised. Same in Y/Z direction.
         """
-        this._name = '3D Cartesian Grids'
+        self._name = '3D Cartesian Grids'
         try:
             if ( 'Xmin' in P.keys() and 'Xmax' in P.keys() and  'Ymin' in P.keys() and 'Ymax' in P.keys() and 'Zmin' in P.keys() and 'Zmax' in P.keys() ):
-                this.Xmin ,this.Xmax = P['Xmin'], P['Xmax']
-                this.Ymin ,this.Ymax = P['Ymin'], P['Ymax']
-                this.Zmin ,this.Zmax = P['Zmin'], P['Zmax']
-                rangeX = float(this.Xmax - this.Xmin)
-                rangeY = float(this.Ymax - this.Ymin)
-                rangeZ = float(this.Zmax - this.Zmin)
+                self.Xmin ,self.Xmax = P['Xmin'], P['Xmax']
+                self.Ymin ,self.Ymax = P['Ymin'], P['Ymax']
+                self.Zmin ,self.Zmax = P['Zmin'], P['Zmax']
+                rangeX = float(self.Xmax - self.Xmin)
+                rangeY = float(self.Ymax - self.Ymin)
+                rangeZ = float(self.Zmax - self.Zmin)
                 if ( 'NX' in P.keys() and not 'ResX' in P.keys() ):
-                    this.NX = P['NX']
-                    if(this.NX>1):
-                        this.ResX = rangeX / (this.NX-1)
+                    self.NX = P['NX']
+                    if(self.NX>1):
+                        self.ResX = rangeX / (self.NX-1)
                     else:
-                        this.ResX = 0
+                        self.ResX = 0
                 elif ('ResX' in P.keys() and not 'NX' in P.keys() ):
-                    this.NX = int ( rangeX/P['ResX'] + 2 ) # make sure the actual resolution is finer than the required one
-                    this.ResX = rangeX / this.NX
+                    self.NX = int ( rangeX/P['ResX'] + 2 ) # make sure the actual resolution is finer than the required one
+                    self.ResX = rangeX / self.NX
                 else:
                     raise GridError('NX and ResX missing or conflicting, make sure you specify exactly one of them.')
                 if ( 'NY' in P.keys() and not 'ResY' in P.keys() ):
-                    this.NY = P['NY']
-                    if(this.NY>1):
-                        this.ResY = rangeY / (this.NY-1)               
+                    self.NY = P['NY']
+                    if(self.NY>1):
+                        self.ResY = rangeY / (self.NY-1)               
                     else:
-                        this.ResY = 0
+                        self.ResY = 0
                 elif ('ResY' in P.keys() and not 'NY' in P.keys() ):
-                    this.NY = int ( rangeY/P['ResY'] + 2 ) # make sure the actual resolution is finer than the required one
-                    this.ResY = rangeY / this.NY
+                    self.NY = int ( rangeY/P['ResY'] + 2 ) # make sure the actual resolution is finer than the required one
+                    self.ResY = rangeY / self.NY
                 else:
                     raise GridError('NY and ResY missing or conflicting, make sure you specify exactly one of them.')
                 if ( 'NZ' in P.keys() and not 'ResZ' in P.keys() ):
-                    this.NZ = P['NZ']
-                    if(this.NZ>1):
-                        this.ResZ = rangeZ / (this.NZ-1)               
+                    self.NZ = P['NZ']
+                    if(self.NZ>1):
+                        self.ResZ = rangeZ / (self.NZ-1)               
                     else:
-                        this.ResZ = 0
+                        self.ResZ = 0
                 elif ('ResZ' in P.keys() and not 'NZ' in P.keys() ):
-                    this.NZ = int ( rangeZ/P['ResZ'] + 2 ) # make sure the actual resolution is finer than the required one
-                    this.ResZ = rangeZ / this.NZ
+                    self.NZ = int ( rangeZ/P['ResZ'] + 2 ) # make sure the actual resolution is finer than the required one
+                    self.ResZ = rangeZ / self.NZ
                 else:
                     raise GridError('NZ and ResZ missing or conflicting, make sure you specify exactly one of them.')
             else:
@@ -171,18 +177,18 @@ class Cartesian3D(Grid):
             raise
         
         #create 1D array for R and Z
-        this.X1D = np.linspace(this.Xmin,this.Xmax,this.NX)
-        this.Y1D = np.linspace(this.Ymin,this.Ymax,this.NY)
-        this.Z1D = np.linspace(this.Zmin,this.Zmax,this.NZ)
+        self.X1D = np.linspace(self.Xmin,self.Xmax,self.NX)
+        self.Y1D = np.linspace(self.Ymin,self.Ymax,self.NY)
+        self.Z1D = np.linspace(self.Zmin,self.Zmax,self.NZ)
         #now create the 2darrays for R and Z
-        zero3D = np.zeros((this.NZ,this.NY,this.NX))
-        this.Z3D = zero3D + this.Z1D[:, np.newaxis, np.newaxis]
-        this.Y3D = zero3D + this.Y1D[np.newaxis,:,np.newaxis]
-        this.X3D = zero3D + this.X1D[np.newaxis,np.newaxis, :]
+        zero3D = np.zeros((self.NZ,self.NY,self.NX))
+        self.Z3D = zero3D + self.Z1D[:, np.newaxis, np.newaxis]
+        self.Y3D = zero3D + self.Y1D[np.newaxis,:,np.newaxis]
+        self.X3D = zero3D + self.X1D[np.newaxis,np.newaxis, :]
              
 
 
-    def ToCylindrical(this):
+    def ToCylindrical(self):
         """Create the corresponding R-Phi-Z cylindrical coordinates mesh.
         Note that since X corresponds to R, Y to Z(vertical direction), then the positive Phi direction is opposite to positive Z direction. Such that X-Y-Z and R-Phi-Z(vertical) are both right-handed.
 
@@ -190,33 +196,56 @@ class Cartesian3D(Grid):
         r3D,z3D,phi3D: 3D arrays. phi3D is in radian,[0,2*pi) .
         """
         try:
-            print this.phi3D[0,0,0]
+            print self.phi3D[0,0,0]
             print 'Cynlindrical mesh already created.'
         except AttributeError:
-            this.r3D = np.sqrt(this.X3D**2 + this.Z3D**2)
-            this.z3D = this.Y3D
-            PHI3D = np.where(this.X3D == 0, -np.pi/2 * np.sign(this.Z3D), np.zeros(this.X3D.shape))
-            PHI3D = np.where(this.X3D != 0, np.arctan(-this.Z3D/this.X3D), PHI3D)
-            PHI3D = np.where(this.X3D < 0, PHI3D+np.pi , PHI3D )
-            this.phi3D = np.where(PHI3D < 0, PHI3D+2*np.pi, PHI3D)
+            self.r3D = np.sqrt(self.X3D**2 + self.Z3D**2)
+            self.z3D = self.Y3D
+            PHI3D = np.where(self.X3D == 0, -np.pi/2 * np.sign(self.Z3D), np.zeros(self.X3D.shape))
+            PHI3D = np.where(self.X3D != 0, np.arctan(-self.Z3D/self.X3D), PHI3D)
+            PHI3D = np.where(self.X3D < 0, PHI3D+np.pi , PHI3D )
+            self.phi3D = np.where(PHI3D < 0, PHI3D+2*np.pi, PHI3D)
 
         
-    def tell(this):
+    def __str__(self):
         """returns the key informations of the grids
         """
-        info = this._name + '\n'
-        info += 'Xmin,Xmax :' + str((this.Xmin,this.Xmax)) +'\n'
-        info += 'Ymin,Ymax :' + str((this.Ymin,this.Ymax)) +'\n'
-        info += 'Zmin,Zmax :' + str((this.Zmin,this.Zmax)) +'\n'
-        info += 'NX,ResX :' + str( (this.NX,this.ResX) ) +'\n'
-        info += 'NY,ResY :' + str( (this.NY,this.ResY) ) +'\n'
-        info += 'NZ,ResZ :' + str( (this.NZ,this.ResZ) ) +'\n'
+        info = self._name + '\n'
+        info += 'Xmin,Xmax :' + str((self.Xmin,self.Xmax)) +'\n'
+        info += 'Ymin,Ymax :' + str((self.Ymin,self.Ymax)) +'\n'
+        info += 'Zmin,Zmax :' + str((self.Zmin,self.Zmax)) +'\n'
+        info += 'NX,ResX :' + str( (self.NX,self.ResX) ) +'\n'
+        info += 'NY,ResY :' + str( (self.NY,self.ResY) ) +'\n'
+        info += 'NZ,ResZ :' + str( (self.NZ,self.ResZ) ) +'\n'
         return info
     
 
+class AnalyticGrid(Grid):
+    """Abstract base class for analytic grids. 
+    Analytic grids are in flux coordinates, for convienently creating analytic equilibrium profile and/or fluctuations.
+    In addition to the grid coordinates, geometry is stored in a :py:class:`Geometry` object. Analytic conversion functions are provided to get corresponding Cartesian coordinates for each grid point. 
+    """
+    __metaclass__ = ABCMeta
+    
+    def __init__(self, g):
+        self.geometry = g
+        
+    @property
+    def geometry(self):
+        return self._g
+        
+    @geometry.setter
+    def geometry(self,g):
+        self._g = g
+        
+    @geometry.deler
+    def geometry(self):
+        del self._g
 
 
-class path:
+class 
+
+class path(object):
     """class of the light path, basically just a series of points
 
     Attributes:
@@ -224,14 +253,14 @@ class path:
     R: double[n], R coordinates of the points
     Z: double[n], Z coordinates of the points 
     """    
-    def __init__(this, n=0, R=np.zeros(1), Z=np.zeros(1)):
-        this.n = n
-        this.R = R
-        this.Z = Z
-    def __setitem__(this,p2):
-        this.n = p2.n
-        this.R = np.copy(p2.R)
-        this.Z = np.copy(p2.Z)
+    def __init__(self, n=0, R=np.zeros(1), Z=np.zeros(1)):
+        self.n = n
+        self.R = R
+        self.Z = Z
+    def __setitem__(self,p2):
+        self.n = p2.n
+        self.R = np.copy(p2.R)
+        self.Z = np.copy(p2.Z)
 
 
 class Path2D(Grid):
@@ -245,70 +274,40 @@ class Path2D(Grid):
         N : int[], number of grid points, accumulated in each section
                 
     """
-    def __init__(this, pth, ResS):
+    def __init__(self, pth, ResS):
         """initialize with a path object pth, and a given resolution ResS
         """
-        this._name = "2D Light Path Grid"
-        this.pth = pth
+        self._name = "2D Light Path Grid"
+        self.pth = pth
         n = pth.n
-        this.ResS = ResS
-        this.s = np.empty((n)) #s is the array stores the length of path variable
-        this.s[0]=0 # start with s=0
-        this.N = np.empty((n)) #N is the array stores the number of grid points 
-        this.N[0]=1 # The starting point is considered as 1 grid
+        self.ResS = ResS
+        self.s = np.empty((n)) #s is the array stores the length of path variable
+        self.s[0]=0 # start with s=0
+        self.N = np.empty((n)) #N is the array stores the number of grid points 
+        self.N[0]=1 # The starting point is considered as 1 grid
         for i in range(1,n):
-            this.s[i]=( np.sqrt((pth.R[i]-pth.R[i-1])**2 + (pth.Z[i]-pth.Z[i-1])**2) + this.s[i-1] ) # increase with the length of each section
-            this.N[i]=( np.ceil((this.s[i]-this.s[i-1])/ResS)+ this.N[i-1] ) # increase with the number that meet the resolution requirement
-        this.R2D = np.empty((1,this.N[n-1]))
-        this.Z2D = np.empty((1,this.N[n-1]))
-        this.s2D = np.empty((1,this.N[n-1]))
+            self.s[i]=( np.sqrt((pth.R[i]-pth.R[i-1])**2 + (pth.Z[i]-pth.Z[i-1])**2) + self.s[i-1] ) # increase with the length of each section
+            self.N[i]=( np.ceil((self.s[i]-self.s[i-1])/ResS)+ self.N[i-1] ) # increase with the number that meet the resolution requirement
+        self.R2D = np.empty((1,self.N[n-1]))
+        self.Z2D = np.empty((1,self.N[n-1]))
+        self.s2D = np.empty((1,self.N[n-1]))
         for i in range(1,n):
-            this.R2D[ 0, (this.N[i-1]-1): this.N[i]] = np.linspace(pth.R[i-1],pth.R[i],this.N[i]-this.N[i-1]+1) #fill in the middle points with equal space
-            this.Z2D[ 0, (this.N[i-1]-1): this.N[i]] = np.linspace(pth.Z[i-1],pth.Z[i],this.N[i]-this.N[i-1]+1)
-            this.s2D[ 0, (this.N[i-1]-1): this.N[i]] = this.s[i-1]+ np.sqrt( (this.R2D[0,(this.N[i-1]-1): this.N[i]] - this.pth.R[i-1])**2 + (this.Z2D[0,(this.N[i-1]-1): this.N[i]] - this.pth.Z[i-1])**2 )
+            self.R2D[ 0, (self.N[i-1]-1): self.N[i]] = np.linspace(pth.R[i-1],pth.R[i],self.N[i]-self.N[i-1]+1) #fill in the middle points with equal space
+            self.Z2D[ 0, (self.N[i-1]-1): self.N[i]] = np.linspace(pth.Z[i-1],pth.Z[i],self.N[i]-self.N[i-1]+1)
+            self.s2D[ 0, (self.N[i-1]-1): self.N[i]] = self.s[i-1]+ np.sqrt( (self.R2D[0,(self.N[i-1]-1): self.N[i]] - self.pth.R[i-1])**2 + (self.Z2D[0,(self.N[i-1]-1): self.N[i]] - self.pth.Z[i-1])**2 )
 
-    def tell(this):
+    def __str__(self):
         """display information
         """
-        info = this._name + "\n"
+        info = self._name + "\n"
         info += "created by path:\n"
-        info += "\tnumber of points: "+ str(this.pth.n)+"\n"
-        info += "\tR coordinates:\n\t"+ str(this.pth.R)+"\n"
-        info += "\tZ coordinates:\n\t"+ str(this.pth.Z)+"\n"
-        info += "with resolution in S: "+str(this.ResS)+"\n"
-        info += "total length of path: "+str(this.s[this.pth.n-1])+"\n"
+        info += "\tnumber of points: "+ str(self.pth.n)+"\n"
+        info += "\tR coordinates:\n\t"+ str(self.pth.R)+"\n"
+        info += "\tZ coordinates:\n\t"+ str(self.pth.Z)+"\n"
+        info += "with resolution in S: "+str(self.ResS)+"\n"
+        info += "total length of path: "+str(self.s[self.pth.n-1])+"\n"
         return info
 
 
-# A helper class for using matplotlib.tri.CubicTriInterpolator over a complicated mesh where the default TriFinder doesn't work very well, and scipy.spatial.Delaunay's finder needs to be used.
 
 
-class DelaunayTriFinder(TriFinder):
-    
-    def __init__(self,delaunay, triangulation):
-        """ Creating a TriFinder for matplotlib.tri.triangulation using the scipy.spatial.Delaunay object
-        Compatibility is not checked!
-        User must make sure the triangulation is created by the same Delaunay object's *simplices* information, and of course the Delaunay must be of 2-dimensional.
-        """
-        self.delaunay = delaunay
-        super(DelaunayTriFinder,self).__init__(triangulation)
-        assert isinstance(delaunay, Delaunay)
-        
-    def __call__(self,x,y):
-        """ find the corresponding simplices (triangles) using Delaunay method: find_simplex(p)
-            :param x: x coordinates of specified points
-            :type x: numpy array of float
-            :param y: y coordinates of specified points
-            :type y: numpy array of float
-            :return s: indices of triangles within which each point lies.
-            :rtype s: numpy array of int
-        """
-        
-        assert x.shape == y.shape
-        
-        axes = range(1,x.ndim+1)
-        axes.append(0)
-        
-        p = np.array([x,y]).transpose(axes)
-        
-        return self.delaunay.find_simplex(p)

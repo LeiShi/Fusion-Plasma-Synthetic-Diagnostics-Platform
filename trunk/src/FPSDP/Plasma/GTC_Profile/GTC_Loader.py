@@ -17,6 +17,7 @@ import json
 import re
 import os
 from ...Geometry.Grid import Cartesian2D, Cartesian3D
+from ...Geometry.Support import DelaunayTriFinder
 from ...IO import f90nml
 from ...Maths.Funcs import poly3_curve
 from scipy.spatial import Delaunay, ConvexHull
@@ -249,11 +250,13 @@ class GTC_Loader:
         self.Delaunay_gtc = Delaunay(self.points_gtc)
         
         #For equilibrium mesh, we use Triangulation package provided by **matplotlib** to do a cubic interpolation on *a* values and B field. The points outside the convex hull of given set of points will be treated later.
-        self.triangulation_eq = triangulation.Triangulation(self.Z_eq,self.R_eq)
+        self.Delaunay_ep = Delaunay(self.points_eq)
+        self.triangulation_eq = triangulation.Triangulation(self.Z_eq,self.R_eq, triangles = self.Delaunay_eq.simplices)
+        self.trifinder_eq = DelaunayTriFinder(self.Delaunay_eq,self.triangulation_eq)
         
         #interpolate flux surface coordinate "a" onto grid_eq, save the interpolater for future use.
         #Default fill value is "nan", points outside eq mesh will be dealt with care
-        self.a_eq_interp = cubic_interp(self.triangulation_eq,self.a_eq)
+        self.a_eq_interp = cubic_interp(self.triangulation_eq,self.a_eq, trifinder = self.trifinder_eq)
         
     def load_equilibrium(self, SOL_width = 0.1, extrapolation_points = 20):
         """ read in equilibrium field data from equilibriumB_fpsdp.json and equilibrium1D_fpsdp.json
@@ -297,9 +300,9 @@ class GTC_Loader:
         self.B_R = np.array(raw_eqB['B_R'])
         self.B_Z = np.array(raw_eqB['B_Z'])
         
-        self.B_phi_interp = cubic_interp(self.triangulation_eq,self.B_phi) #outside points will be masked and dealt with later.
-        self.B_R_interp = cubic_interp(self.triangulation_eq,self.B_R)
-        self.B_Z_interp = cubic_interp(self.triangulation_eq,self.B_Z)
+        self.B_phi_interp = cubic_interp(self.triangulation_eq,self.B_phi,trifinder = self.trifinder_eq) #outside points will be masked and dealt with later.
+        self.B_R_interp = cubic_interp(self.triangulation_eq,self.B_R, trifinder = self.trifinder_eq)
+        self.B_Z_interp = cubic_interp(self.triangulation_eq,self.B_Z, trifinder = self.trifinder_eq)
 
         #Now reading in 1D equilibrium quantities        
         eq1D_fname = self.path+'equilibrium1D_fpsdp.json'

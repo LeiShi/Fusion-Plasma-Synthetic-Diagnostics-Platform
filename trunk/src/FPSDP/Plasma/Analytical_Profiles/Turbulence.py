@@ -11,6 +11,7 @@ Mainly for the use of creating testing plasma turbulence, given statistical prop
 import numpy as np
 from scipy.integrate import quadrature, quad
 from numpy.random import random
+from abc import MetaABC, abstractmethod, abstractproperty
 
 from .Fluctuation import Fluctuation
 
@@ -139,6 +140,27 @@ class Power_Spectrum(object):
         acf.set_func(ac_func)
         return acf 
 
+class Constant_Corr(Auto_Correlation_Function):
+    """Constant auto-correlation function.
+    This special kind of correlation function is used to treat fluctuations not changing along certain direction
+    """
+    def __init__(self, A):
+        super(Constant_Corr,self).__init__()
+        self.A = A
+        self.set_func(lambda t: self.A)
+        
+    def power_spectrum(self):
+        return Delta_Spec(self.A)
+        
+class Delta_Spec(Power_Spectrum):
+    """Dirac Delta function like power spectrum
+    Mathematically, a Dirac Delta function is the fourier transform of the uniform function, and has following properties:
+    1) :math:`\delta(x)=0` at `x \ne 0`, and `\delta(x)=+\infty` at `x = 0`
+    2) :math:`\int_a^b \delta(x) dx = 1` if `a< 0 <b`, and `= 0` if `0<a` or `0>b`, specially, if either a or b = 0, the integral gives 0.5
+    3) nth derivative of delta-function is odd(even) if n is odd(even).
+    
+    Numerically, delta-functions can only be approximated by a finite pulse. The pulse's height and width should 
+    """
 class Cauchy_Spec(Power_Spectrum):
     """Cauchy Power Spectrum
     A power spectrum that has a Cauchy distribution shape. Cauchy distribution is (note that power spectrums are always even functions in f):
@@ -181,7 +203,8 @@ class Cauchy_Spec(Power_Spectrum):
             self.rho = np.pi * self.A * self.gamma
         
         super(Cauchy_Spec,self).__init__()
-        w = lambda f: self.A * self.gamma**2 / ( f**2 + self.gamma**2 )
+        gamma2 = self.gamma*self.gamma
+        w = lambda f: self.A * gamma2 / ( f*f + gamma2 )
         self.set_func(w)
         
     def auto_correlation_function(self):
@@ -267,5 +290,82 @@ class Gaussian_Spec(Power_Spectrum):
 
 
 class Turbulence(Fluctuation):
-#Here we will use Fast Fourier Transform method to
-    pass
+    """Random Turbulence generator, generates turbulent fluctuations on a specific grid based on given spatial correlation or spectral power functions. Realizations are independent to each other. Derived from the abstract class :py:class:`Fluctuation`. 
+    Initialize with the the following parameters:
+    :param acf_radial: Auto correlation function in radial coordinate 
+    :type acf_radial: :py:class:`Auto_Correlation_Function`  
+    :param acf_pol: Auto correlation function in poloidal coordinate 
+    :type acf_pol: :py:class:`Auto_Correlation_Function`
+    :param acf_tor: Auto correlation function in toroidal coordinate 
+    :type acf_tor: :py:class:`Auto_Correlation_Function`
+    :param grid: Optional, default grid for generating turbulence
+    :type grid: :py:class:`AnalyticGrid`
+    :param random_seed: Optional, set the random seed for :py:module`random` module, default to be 1
+    :type random_seed: int
+    
+    Substantiate the following methods:
+    realize: generate one random realization for given auto-correlation functions on given grid
+    
+    
+    """
+    @property
+    def acf_radial(self):
+        return self._acf_radial
+    
+    @acf_radial.setter
+    def acf_radial(self,acf):
+        assert isinstance(acf, Auto_Correlation_Function)
+        self._acf_radial = acf
+        
+    @acf_radial.deleter
+    def acf_radial(self):
+        del self._acf_radial
+        
+    @property
+    def acf_pol(self):
+        return self._acf_pol
+    
+    @acf_pol.setter
+    def acf_pol(self,acf):
+        assert isinstance(acf, Auto_Correlation_Function)
+        self._acf_pol = acf
+        
+    @acf_pol.deleter
+    def acf_pol(self):
+        del self._acf_pol
+        
+    @property
+    def acf_tor(self):
+        return self._acf_tor
+    
+    @acf_tor.setter
+    def acf_tor(self,acf):
+        assert isinstance(acf, Auto_Correlation_Function)
+        self._acf_tor = acf
+        
+    @acf_tor.deleter
+    def acf_tor(self):
+        del self._acf_tor
+        
+    def __init__(self, acf_radial, acf_pol, acf_tor, grid = None, random_seed = 1):
+        """initialization. Set auto-correlation functions on each direction, and corresponding power spectra
+        """
+        self.acf_radial = acf_radial
+        self.acf_pol = acf_pol
+        self.acf_tor = acf_tor
+        self._rseed = random_seed
+        if(grid != None):
+            assert isinstance(grid,AnalyticGrid)
+        self.grid = grid
+            
+        self.ps_radial = self.acf_radial.power_spectrum()
+        self.ps_pol = self.acf_pol.power_spectrum()
+        self.ps_tor = self.acf_tor.power_spectrum()
+        
+    def realize(self, grid = None):
+        if(grid == None):
+            grid = self.grid
+        if(grid == None):
+            raise Turbulence_Generation_Error('Default grid not set. Please set a default grid before generating turbulence without a specific grid.')
+        rgrid = self.grid.r1d
+        

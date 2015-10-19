@@ -45,8 +45,6 @@ class Fluctuation(object):
         #Create the realization Here   
         return self.realize(t,grid)
         
-    
-
         
     @property
     def grid(self):

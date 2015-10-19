@@ -3,6 +3,7 @@
 #moudle depends on numpy package
 import numpy as np
 from abc import ABCMeta, abstractmethod
+from .Geometry import Geometry
 
 
 
@@ -228,7 +229,9 @@ class AnalyticGrid(Grid):
     __metaclass__ = ABCMeta
     
     def __init__(self, g):
+        assert isinstance(g, Geometry)
         self.geometry = g
+
         
     @property
     def geometry(self):
@@ -243,7 +246,9 @@ class AnalyticGrid(Grid):
         del self._g
 
 
-class 
+class AnalyticGrid3D(AnalyticGrid):
+    """
+    """
 
 class path(object):
     """class of the light path, basically just a series of points

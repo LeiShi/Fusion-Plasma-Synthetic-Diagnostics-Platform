@@ -33,13 +33,15 @@ class Cartesian2D(ExpGrid):
     """Cartesian grids in 2D space. Generally corresponds a toroidal slice, i.e. R-Z plane. Rectangular shape assumed.
 
     Attributes:
-        float ResR: the resolution in R direction. 
-        float ResZ: the resolution in Z direction.
-        point DownLeft: the coordinates of the down left cornor point, given in (Zmin,Rmin) value pair form.
-        point UpRight: the coordinates of the up right cornor point, given in (Zmax,Rmax) form.
-        int NR,NZ: The gird number in R,Z directions. Can be specified initially or derived from other parameters.
-        2darray R2D: R values on 2D grids. R(0,:) gives the 1D R values.
-        2darray Z2D: Z values on 2D grids. R is the fast changing variable so Z2D(:,0) gives the 1D Z values.
+        :param float ResR: the resolution in R direction. 
+        :param float ResZ: the resolution in Z direction.
+        :param DownLeft: the coordinates of the down left cornor point, given in (Zmin,Rmin) value pair form.
+        :type DownLeft: tuple, or list of float        
+        :param UpRight: the coordinates of the up right cornor point, given in (Zmax,Rmax) form.
+        :type UpRight: tuple, or list of float
+        :param int NR,NZ: The gird number in R,Z directions. Can be specified initially or derived from other parameters.
+        :param 2darray R2D: R values on 2D grids. R(0,:) gives the 1D R values.
+        :param 2darray Z2D: Z values on 2D grids. R is the fast changing variable so Z2D(:,0) gives the 1D Z values.
 
         
     """
@@ -241,7 +243,7 @@ class AnalyticGrid(Grid):
     def geometry(self,g):
         self._g = g
         
-    @geometry.deler
+    @geometry.deleter
     def geometry(self):
         del self._g
 

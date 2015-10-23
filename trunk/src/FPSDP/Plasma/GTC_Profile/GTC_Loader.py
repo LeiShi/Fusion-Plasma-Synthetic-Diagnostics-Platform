@@ -22,7 +22,8 @@ from ...IO import f90nml
 from ...Maths.Funcs import poly3_curve
 from scipy.spatial import Delaunay, ConvexHull
 from scipy.interpolate import LinearNDInterpolator, interp1d
-from matplotlib.tri import triangulation, cubic_interp
+from matplotlib.tri import triangulation 
+from matplotlib.tri import LinearTriInterpolator as linear_interp
 
 def get_interp_planes(loader):
     """Get the plane numbers used for interpolation for each point 
@@ -96,7 +97,8 @@ class GTC_Loader:
             :type fname_pattern_2D: raw string
             :param fname_pattern_3D: (Optional) Regular Expression to fit 3D output files. Do not change unless you have changed the output file name convention.
             :type fname_pattern_3D: raw string
-            :param string Mode:(Optional) choice among 3 possible iniialization modes: 
+            :param string Mode:
+            (Optional) choice among 3 possible iniialization modes: 
                 **full**(Default): load both equilibrium and fluctuations, and interpolate them on given *grid*
                 **eq_only**: load only equilibrium, and interpolate it on given *grid*
                 **least**: DO NOT load any GTC output files, only initialize the loader with initial parameters. This mode is mainly used for debug.
@@ -241,22 +243,22 @@ class GTC_Loader:
         self.Z_eq = np.array(raw_grids['Z_eq'])
         self.points_eq = np.transpose(np.array([self.Z_eq,self.R_eq]))
         self.a_eq = np.array(raw_grids['a_eq'])
-        self.R_LCFS = np.array(raw_grids['R_LCFS'])
-        self.Z_LCFS = np.array(raw_grids['Z_LCFS'])
+        #self.a_eq_max = np.max(self.a_eq)
+        #self.a_eq /= self.a_eq_max
         self.R0= raw_grids['R0']
         self.Z0 = raw_grids['Z0']
-        
+        self.B0 = raw_grids['B0']        
         #use Delaunay Triangulation package provided by **scipy** to do the 2D triangulation on GTC mesh
         self.Delaunay_gtc = Delaunay(self.points_gtc)
         
         #For equilibrium mesh, we use Triangulation package provided by **matplotlib** to do a cubic interpolation on *a* values and B field. The points outside the convex hull of given set of points will be treated later.
-        self.Delaunay_ep = Delaunay(self.points_eq)
+        self.Delaunay_eq = Delaunay(self.points_eq)
         self.triangulation_eq = triangulation.Triangulation(self.Z_eq,self.R_eq, triangles = self.Delaunay_eq.simplices)
         self.trifinder_eq = DelaunayTriFinder(self.Delaunay_eq,self.triangulation_eq)
         
         #interpolate flux surface coordinate "a" onto grid_eq, save the interpolater for future use.
         #Default fill value is "nan", points outside eq mesh will be dealt with care
-        self.a_eq_interp = cubic_interp(self.triangulation_eq,self.a_eq, trifinder = self.trifinder_eq)
+        self.a_eq_interp = linear_interp(self.triangulation_eq,self.a_eq, trifinder = self.trifinder_eq)
         
     def load_equilibrium(self, SOL_width = 0.1, extrapolation_points = 20):
         """ read in equilibrium field data from equilibriumB_fpsdp.json and equilibrium1D_fpsdp.json
@@ -300,19 +302,20 @@ class GTC_Loader:
         self.B_R = np.array(raw_eqB['B_R'])
         self.B_Z = np.array(raw_eqB['B_Z'])
         
-        self.B_phi_interp = cubic_interp(self.triangulation_eq,self.B_phi,trifinder = self.trifinder_eq) #outside points will be masked and dealt with later.
-        self.B_R_interp = cubic_interp(self.triangulation_eq,self.B_R, trifinder = self.trifinder_eq)
-        self.B_Z_interp = cubic_interp(self.triangulation_eq,self.B_Z, trifinder = self.trifinder_eq)
+        self.B_phi_interp = linear_interp(self.triangulation_eq,self.B_phi,trifinder = self.trifinder_eq) #outside points will be masked and dealt with later.
+        self.B_R_interp = linear_interp(self.triangulation_eq,self.B_R, trifinder = self.trifinder_eq)
+        self.B_Z_interp = linear_interp(self.triangulation_eq,self.B_Z, trifinder = self.trifinder_eq)
 
         #Now reading in 1D equilibrium quantities        
-        eq1D_fname = self.path+'equilibrium1D_fpsdp.json'
+        eq1D_fname = self.path+'equilibrium1d_fpsdp.json'
         with open(eq1D_fname,'r') as eq1Dfile:
             raw_eq1D = json.load(eq1Dfile)
         
         # a, ne0, Te0 inside LCFS, sorted in *a* increasing order
         raw_a = np.array(raw_eq1D['a'])
+        raw_a_max = np.max(raw_a)
         sorting = np.argsort(raw_a)
-        sorted_a = raw_a[sorting]
+        sorted_a = raw_a[sorting]/raw_a_max
         raw_ne0 = np.array(raw_eq1D['ne0'])
         sorted_ne0 = raw_ne0[sorting]
         raw_Te0 = np.array(raw_eq1D['Te0'])
@@ -332,7 +335,7 @@ class GTC_Loader:
         ne0_out = ne_curve(a_out)
         Te0_out = Te_curve(a_out)        
         #append outside values to original sorted array
-        self.a_1D = np.append(sorted_a,a_out)
+        self.a_1D = np.append(sorted_a,a_out)*raw_a_max
         self.ne0_1D = np.append(sorted_ne0,ne0_out)
         self.Te0_1D = np.append(sorted_Te0,Te0_out)
         #set up interpolators using extrapolated samples, points outside the extended *a* range can be safely set to 0.
@@ -353,7 +356,7 @@ class GTC_Loader:
             This first order approximation is good if :math:`(Z_{out},R_{out})` is not far from :math:`(Z_n,R_n)`. In our case, since we are assuming :math:`n_e` and :math:`T_e` are rapidly decaying in *a* outside the LCFS, this approximation is good enough.
         """
         
-        #outside points are obtained by examining the mask flag from the returned masked array of "cubic_interp"
+        #outside points are obtained by examining the mask flag from the returned masked array of "linear_interp"
         Zwant = self.grid.Z2D
         Rwant = self.grid.R2D        
         self.a_on_grid = self.a_eq_interp(Zwant,Rwant)
@@ -430,11 +433,13 @@ class GTC_Loader:
         NT = len(self.tsteps)
         Ngrid_gtc = len(self.R_gtc)
         self.phi = np.empty((NT,Ngrid_gtc))
+        '''        
         self.Te = np.empty_like(self.phi)        
         if self.HaveElectron:
             self.nane = np.empty_like(self.phi)
         if self.isEM:
             self.Apar = np.empty_like(self.phi)
+        '''
         
         for i in range(NT):
             snap_fname = os.path.join(self.path,'snap{0:0>7}_fpsdp.json'.format(self.tsteps[i]))
@@ -442,12 +447,13 @@ class GTC_Loader:
                 raw_snap = json.load(snap_file)
             
             self.phi[i] = np.array(raw_snap['phi'])
+            '''            
             self.Te[i] = np.array(raw_snap['dTe'])
             if self.HaveElectron:
                 self.nane[i] = np.array(raw_snap['dne'])
             if self.isEM:
                 self.Apar[i] = np.array(raw_snap['dAp'])
-                
+            '''    
         
                 
         
@@ -462,14 +468,18 @@ class GTC_Loader:
         points_on_grid =np.transpose( np.array([self.grid.Z2D,self.grid.R2D]), (1,2,0))        
         
         self.phi_on_grid = np.empty((NT,NZ,NR))
+        '''
         self.Te_on_grid = np.empty_like(self.phi_on_grid)
         if self.HaveElectron:
             self.nane_on_grid = np.empty_like(self.phi_on_grid)
         if self.isEM:
             self.Apar_on_grid = np.empty_like(self.phi_on_grid)
+        '''
+        
         for i in range(NT):
             phi_interp = LinearNDInterpolator(self.Delaunay_gtc,self.phi[i],fill_value = 0)
             self.phi_on_grid[i] = phi_interp(points_on_grid)
+            '''
             Te_interp = LinearNDInterpolator(self.Delaunay_gtc,self.Te[i],fill_value = 0)
             self.Te_on_grid[i] = Te_interp(points_on_grid)
             if self.HaveElectron:
@@ -478,6 +488,7 @@ class GTC_Loader:
             if self.isEM:   
                 Apar_interp = LinearNDInterpolator(self.Delaunay_gtc,self.Apar[i],fill_value = 0)
                 self.Apar_on_grid[i] = Apar_interp(points_on_grid)
+            '''
             
 
         

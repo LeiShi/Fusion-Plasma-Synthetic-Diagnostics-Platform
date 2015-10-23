@@ -19,7 +19,7 @@ import os
 from ...Geometry.Grid import Cartesian2D, Cartesian3D
 from ...Geometry.Support import DelaunayTriFinder
 from ...IO import f90nml
-from ...Maths.Funcs import poly3_curve
+from ...Maths.Funcs import poly2_curve
 from scipy.spatial import Delaunay, ConvexHull
 from scipy.interpolate import LinearNDInterpolator, interp1d
 from matplotlib.tri import triangulation 
@@ -179,12 +179,15 @@ class GTC_Loader:
         
         GTCin_fname = self.path+'gtc.in.out'
         gtcin_nml = f90nml.read(GTCin_fname)        
+        GTCout_fname = self.path+'gtc.out'
+        gtcout_nml = f90nml.read(GTCout_fname)
+        
         
         self.HaveElectron = (gtcin_nml['input_parameters']['nhybrid'] == 1)
         self.isEM = (gtcin_nml['input_parameters']['magnetic'] == 1)
         self.snapstep = gtcin_nml['input_parameters']['msnap']
         
-        
+        self.psi1 = gtcout_nml['input_parameters']['psi1']        
         #NEED INFO on gtc.in.out and gtc.out
         
     def load_grid(self):
@@ -326,11 +329,12 @@ class GTC_Loader:
         a_out = np.linspace(1,1+SOL_width,extrapolation_points)      
         # ne0 and Te0 will be extrapolated using 3rd order polynomial curves that fits the value and derivative at a=1, and decays to 0 at SOL outter edge.        
         # first, calculate the derivative using simple finite difference scheme
-        dne0 = (sorted_ne0[-1]-sorted_ne0[-2])/(sorted_a[-1]-sorted_a[-2])
-        dTe0 = (sorted_Te0[-1]-sorted_Te0[-2])/(sorted_a[-1]-sorted_a[-2])
+        #dne0 = (sorted_ne0[-1]-sorted_ne0[-2])/(sorted_a[-1]-sorted_a[-2])
+        #dTe0 = (sorted_Te0[-1]-sorted_Te0[-2])/(sorted_a[-1]-sorted_a[-2])
+        
         #set up the polynomial curve
-        ne_curve = poly3_curve(sorted_a[-1],sorted_ne0[-1],a_out[-1],0,dne0,0)
-        Te_curve = poly3_curve(sorted_a[-1],sorted_Te0[-1],a_out[-1],0,dTe0,0)
+        ne_curve = poly2_curve(sorted_a[-1],sorted_ne0[-1],a_out[-1],0)
+        Te_curve = poly2_curve(sorted_a[-1],sorted_Te0[-1],a_out[-1],0)
         #evaluate extrapolated curve at sample points
         ne0_out = ne_curve(a_out)
         Te0_out = Te_curve(a_out)        

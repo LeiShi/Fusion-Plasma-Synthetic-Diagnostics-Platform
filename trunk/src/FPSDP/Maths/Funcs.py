@@ -3,7 +3,7 @@
 import scipy as sp
 import numpy as np
 from . import Integration as integ
-
+from abc import ABCMeta, abstractproperty
 
 def heuman(phi,m):
     r""" Compute the Heuman's lambda function
@@ -406,8 +406,66 @@ def sweeping_correlation(s1,s2,dt=1,nt_min=100):
             SCorrelation[i] = np.average(s1_moved*np.conj(s2_moved),axis=0)/np.sqrt(np.average(s1_moved*np.conj(s1_moved),axis=0) * np.average(s2_moved*np.conj(s2_moved), axis=0))
     return SCorrelation
     
+
+class poly_curve(object):
     
-class poly3_curve:
+    __metaclass__ = ABCMeta
+    
+    @property
+    def x1(self):
+        return self._x1
+        
+    @x1.setter
+    def x1(self,x):
+        self._x1 = x
+        
+    @x1.deleter
+    def x1(self):
+        del self._x1
+        
+    @property
+    def x2(self):
+        return self._x2
+        
+    @x2.setter
+    def x2(self,x):
+        self._x2 = x
+        
+    @x2.deleter
+    def x2(self):
+        del self._x1
+    
+    @property    
+    def poly(self):
+        return self._poly
+        
+    @poly.setter
+    def poly(self,p):
+        self._poly = p
+        
+    @poly.deleter
+    def poly(self):
+        del self._poly
+        
+    def __call__(self,x):
+        """ Evaluate polynomial values at points given by x. Connection only used at points in between, outside ones are assumed flat.
+        x1 < x < x2, y = poly(x);
+        x<=x1, y=y1
+        x>=x2, y=y2
+        
+        :param x: locations for evaluation
+        :type x: ndarray of double
+        """
+        x = np.array(x)
+        y = np.empty_like(x)
+        y[x<= self.x1] = self.y1
+        y[x>= self.x2] = self.y2
+        mask_between = np.all([x>self.x1,x<self.x2],axis=0)
+        y[mask_between] = self.poly(x[mask_between])
+        
+        return y
+    
+class poly3_curve(poly_curve):
     """Third order polynomial curve for connecting two points (x1,y1) and (x2,y2), given the constraints of the derivatives at these points, yp1,yp2.
     
     """
@@ -448,25 +506,45 @@ class poly3_curve:
         coef = np.linalg.solve(a,b)
         self.poly = np.poly1d(coef)
         
-    def __call__(self,x):
-        """ Evaluate polynomial values at points given by x. Connection only used at points in between, outside ones are assumed flat.
-        x1 < x < x2, y = poly(x);
-        x<=x1, y=y1
-        x>=x2, y=y2
-        
-        :param x: locations for evaluation
-        :type x: ndarray of double
-        """
-        x = np.array(x)
-        y = np.empty_like(x)
-        y[x<= self.x1] = self.y1
-        y[x>= self.x2] = self.y2
-        mask_between = np.all([x>self.x1,x<self.x2],axis=0)
-        y[mask_between] = self.poly(x[mask_between])
-        
-        return y
+
         
         
+class poly2_curve(poly_curve):
+    """2nd order polynomial curve connecting
+    
+    connect (x1,y1) and (x2,y2) with given slope :math:`dy/dx` at x2.
+    :param float x1:
+    :param float y1: value at 
+    :param float x2:
+    :param float y2:
+    :param float yp2: derivative at x2
+    
+    """
+    
+    def __init__(self,x1,y1,x2,y2,yp2 = 0):
+        
+        assert not x1==x2
+        
+        if (x1<x2):
+            self.x1 = x1
+            self.x2 = x2
+            self.y1 = y1
+            self.y2 = y2
+        else:
+            self.x1 = x2
+            self.x2 = x1
+            self.y1 = y2
+            self.y2 = y1
+            
+        x12 = x1*x1
+        x22 = x2*x2
+        
+        a = np.array([[x12,x1,1],[x22,x2,1],[2*x2,1,0]])
+        b = np.array([y1,y2,yp2])
+        coef = np.linalg.solve(a,b)
+        self.poly = np.poly1d(coef)
+        
+
         
         
 

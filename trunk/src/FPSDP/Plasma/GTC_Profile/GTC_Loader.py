@@ -396,7 +396,7 @@ class GTC_Loader:
         gradaZ,gradaR = self.a_eq_interp.gradient(Zn,Rn)
         
         #Now deal with points that didn't get a finite gradient from the interpolator
-        gradaR,gradaZ = self._correct_interpolator_gradient(self.a_eq_interp,gradaR,gradaZ,Rn,Zn,an)
+        gradaR,gradaZ = self._correct_interpolator_gradient(self.a_eq_interp,gradaR,gradaZ,Rn,Zn,an) 
         # Finally, we can evaluate the outside a values by gradient at the closest boundary point.                
         a_out = an + (Zout-Zn)*gradaZ + (Rout-Rn)*gradaR
         
@@ -417,14 +417,14 @@ class GTC_Loader:
         #gradBR_Z, gradBR_R = self.B_R_interp.gradient(Zn,Rn)
         #gradBR_R,gradBR_Z = self._correct_interpolator_gradient(self.B_R_interp, gradBR_R,gradBR_Z,Rn,Zn,BRn, tol = (1e-3,1e2))
         #BR_out = BRn + (Zout-Zn)*gradBR_Z + (Rout-Rn)*gradBR_R
-        BR_out = -gradaZ/Rout
+        BR_out = -gradaZ/Rout *self.R0*self.R0*self.B0
         self.BR_on_grid[out_mask] = BR_out
         
         #BZn = self.B_Z_interp(Zn,Rn)
         #gradBZ_Z, gradBZ_R = self.B_Z_interp.gradient(Zn,Rn)
         #gradBZ_R,gradBZ_Z = self._correct_interpolator_gradient(self.B_Z_interp, gradBZ_R,gradBZ_Z,Rn,Zn,BZn)        
         #BZ_out = BZn + (Zout-Zn)*gradBZ_Z + (Rout-Rn)*gradBZ_R
-        BZ_out = gradaR/Rout
+        BZ_out = gradaR/Rout*self.R0*self.R0*self.B0 # psi is normalized
         self.BZ_on_grid[out_mask] = BZ_out
         
         #Bphin = self.B_phi_interp(Zn,Rn)
@@ -437,7 +437,7 @@ class GTC_Loader:
     def _correct_interpolator_gradient(self, interpolator, gradR, gradZ, Rn,Zn,fn, tol = (1e-2,1e1), resR = 0.01, resZ = 0.01):
         """ A private use function that make necessary corrections to the gradients calculated by linear interpolators
         
-        :param interpolator: The interpolaor object we are using, normally just *self.a_interp* or *self.Bxx_interp*
+        :param interpolator: The interpolaor object we are using, normally just *self.a_eq_interp*
         :param gradR: The gradient respect to R array obtained by interpolator, need to be updated
         :param gradZ: The gradient respect to Z array obtained by interpolator, need to be updated
         :param Rn: corresponding R coordinates of the points

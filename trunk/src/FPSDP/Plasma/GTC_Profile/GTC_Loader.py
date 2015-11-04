@@ -85,7 +85,7 @@ class GTC_Loader:
     on the mesh will be ready to use.
     """
     
-    def __init__(self,gtc_path,grid,tsteps,fname_pattern_2D = r'snap(?P<time>\d+)_fpsdp.json', fname_pattern_3D = r'PHI_(?P<time>\d+)_\d+.ncd', Mode = 'Full'):
+    def __init__(self,gtc_path,grid,tsteps,fname_pattern_2D = r'snap(?P<time>\d+)_fpsdp.json', fname_pattern_3D = r'PHI_(?P<time>\d+)_\d+.ncd', Mode = 'full'):
         """Initialize a GTC loader with the following parameters:
         
             :param string gtc_path: The path where GTC output files are located. 
@@ -143,7 +143,7 @@ class GTC_Loader:
             self.load_grid() 
         
             #read equilibriumB_fpsdp.json and equilibrium1D_fpsdp.json, create interpolators for B_phi,B_R,B_Z on extended grids, and interpolators for equilibrium density and temperature over 'a'.
-            self.load_equilibrium() 
+            self.load_equilibrium(SOL_width=0.1) 
         
             #interpolate equilibrium quantities
             self.interpolate_eq()
@@ -236,23 +236,25 @@ class GTC_Loader:
         grid_fname = self.path+'grid_fpsdp.json'
         with open(grid_fname) as gridfile:
             raw_grids = json.load(gridfile)
-            
-        self.R_gtc = np.array(raw_grids['R_gtc'])
-        self.Z_gtc = np.array(raw_grids['Z_gtc'])
+        self.R0= raw_grids['R0']/100  #convert from cm to m
+        self.Z0 = raw_grids['Z0']/100
+        self.B0 = raw_grids['B0']/10000 #convert from Gauss to Tesla      
+        self.R_gtc = np.array(raw_grids['R_gtc'])*self.R0
+        self.Z_gtc = np.array(raw_grids['Z_gtc'])*self.R0
         self.points_gtc = np.transpose(np.array([self.Z_gtc,self.R_gtc]))
         self.a_gtc = np.array(raw_grids['a_gtc'])
         self.theta_gtc = np.array(raw_grids['theta_gtc'])
-        self.R_eq = np.array(raw_grids['R_eq'])
-        self.Z_eq = np.array(raw_grids['Z_eq'])
+        self.R_eq = np.array(raw_grids['R_eq'])*self.R0
+        self.Z_eq = np.array(raw_grids['Z_eq'])*self.R0
         self.points_eq = np.transpose(np.array([self.Z_eq,self.R_eq]))
         self.a_eq = np.array(raw_grids['a_eq'])
         #self.a_eq_max = np.max(self.a_eq)
         #self.a_eq /= self.a_eq_max
-        self.R0= raw_grids['R0']
-        self.Z0 = raw_grids['Z0']
-        self.B0 = raw_grids['B0']        
+      
         #use Delaunay Triangulation package provided by **scipy** to do the 2D triangulation on GTC mesh
         self.Delaunay_gtc = Delaunay(self.points_gtc)
+        self.triangulation_gtc = triangulation.Triangulation(self.Z_gtc,self.R_gtc,triangles = self.Delaunay_gtc.simplices)
+        self.trifinder_gtc = DelaunayTriFinder(self.Delaunay_gtc,self.triangulation_gtc)
         
         #For equilibrium mesh, we use Triangulation package provided by **matplotlib** to do a cubic interpolation on *a* values and B field. The points outside the convex hull of given set of points will be treated later.
         self.Delaunay_eq = Delaunay(self.points_eq)
@@ -300,10 +302,11 @@ class GTC_Loader:
         eqB_fname = self.path+ 'equilibriumB_fpsdp.json'
         with open(eqB_fname,'r') as eqBfile:
             raw_eqB = json.load(eqBfile)
-            
-        self.B_phi = np.array(raw_eqB['B_phi'])
-        self.B_R = np.array(raw_eqB['B_R'])
-        self.B_Z = np.array(raw_eqB['B_Z'])
+        
+        # data is normalized to B0, so need to multiply with B0 to get actual value
+        self.B_phi = np.array(raw_eqB['B_phi_eq'])*self.B0
+        self.B_R = np.array(raw_eqB['B_R_eq'])*self.B0
+        self.B_Z = np.array(raw_eqB['B_Z_eq'])*self.B0
         
         self.B_phi_interp = linear_interp(self.triangulation_eq,self.B_phi,trifinder = self.trifinder_eq) #outside points will be masked and dealt with later.
         self.B_R_interp = linear_interp(self.triangulation_eq,self.B_R, trifinder = self.trifinder_eq)
@@ -353,11 +356,14 @@ class GTC_Loader:
             For an outside point :math:`(Z_{out},R_{out})`, we search for the closest vertex on the convex hull of the interpolation set, :math:`(Z_n,R_n)`, and the corresponding :math:`a=a_n`. 
             From the cubic interpolation, we can obtain the derivatives of *a* respect to Z and R at :math:`(Z_n,R_n)`, :math:`\partial a/\partial Z` and :math:`\partial a/\partial R`.
             Now the *a* value at :math:`(Z_{out}, R_{out})` will be approximated by:
+                
                 ..math::
         
                     a(Z_{out},R_{out}) = a_n + (Z_{out}-Z_n) \cdot \frac{\partial a}{\partial Z} + (R_{out}-R_n) \cdot \frac{\partial a}{\partial R}
             
             This first order approximation is good if :math:`(Z_{out},R_{out})` is not far from :math:`(Z_n,R_n)`. In our case, since we are assuming :math:`n_e` and :math:`T_e` are rapidly decaying in *a* outside the LCFS, this approximation is good enough.
+        
+               
         """
         
         #outside points are obtained by examining the mask flag from the returned masked array of "linear_interp"
@@ -389,6 +395,9 @@ class GTC_Loader:
         an = self.a_eq_interp(Zn,Rn)            
         gradaZ,gradaR = self.a_eq_interp.gradient(Zn,Rn)
         
+        #Now deal with points that didn't get a finite gradient from the interpolator
+        gradaR,gradaZ = self._correct_interpolator_gradient(self.a_eq_interp,gradaR,gradaZ,Rn,Zn,an)
+        # Finally, we can evaluate the outside a values by gradient at the closest boundary point.                
         a_out = an + (Zout-Zn)*gradaZ + (Rout-Rn)*gradaR
         
         # Finally, assign these outside values to the original array
@@ -399,25 +408,89 @@ class GTC_Loader:
         self.Te0_on_grid = self.Te0_interp(self.a_on_grid)
         
         #B_R,B_Z and B_phi can be interpolated exactly like *a*
+               
         self.BR_on_grid = self.B_R_interp(Zwant,Rwant)
         self.BZ_on_grid = self.B_Z_interp(Zwant,Rwant)
         self.Bphi_on_grid = self.B_phi_interp(Zwant,Rwant)
         
-        BRn = self.B_R_interp(Zn,Rn)
-        gradBR_Z, gradBR_R = self.B_R_interp.gradient(Zn,Rn)
-        BR_out = BRn + (Zout-Zn)*gradBR_Z + (Rout-Rn)*gradBR_R
+        #BRn = self.B_R_interp(Zn,Rn)
+        #gradBR_Z, gradBR_R = self.B_R_interp.gradient(Zn,Rn)
+        #gradBR_R,gradBR_Z = self._correct_interpolator_gradient(self.B_R_interp, gradBR_R,gradBR_Z,Rn,Zn,BRn, tol = (1e-3,1e2))
+        #BR_out = BRn + (Zout-Zn)*gradBR_Z + (Rout-Rn)*gradBR_R
+        BR_out = -gradaZ/Rout
         self.BR_on_grid[out_mask] = BR_out
         
-        BZn = self.B_Z_interp(Zn,Rn)
-        gradBZ_Z, gradBZ_R = self.B_Z_interp.gradient(Zn,Rn)
-        BZ_out = BZn + (Zout-Zn)*gradBZ_Z + (Rout-Rn)*gradBZ_R
+        #BZn = self.B_Z_interp(Zn,Rn)
+        #gradBZ_Z, gradBZ_R = self.B_Z_interp.gradient(Zn,Rn)
+        #gradBZ_R,gradBZ_Z = self._correct_interpolator_gradient(self.B_Z_interp, gradBZ_R,gradBZ_Z,Rn,Zn,BZn)        
+        #BZ_out = BZn + (Zout-Zn)*gradBZ_Z + (Rout-Rn)*gradBZ_R
+        BZ_out = gradaR/Rout
         self.BZ_on_grid[out_mask] = BZ_out
         
-        Bphin = self.B_phi_interp(Zn,Rn)
-        gradBphi_Z, gradBphi_R = self.B_phi_interp.gradient(Zn,Rn)
-        Bphi_out = Bphin + (Zout-Zn)*gradBphi_Z + (Rout-Rn)*gradBphi_R
+        #Bphin = self.B_phi_interp(Zn,Rn)
+        #gradBphi_Z, gradBphi_R = self.B_phi_interp.gradient(Zn,Rn)
+        #gradBphi_R,gradBphi_Z = self._correct_interpolator_gradient(self.B_phi_interp, gradBphi_R,gradBphi_Z,Rn,Zn,Bphin)        
+        #Bphi_out = Bphin + (Zout-Zn)*gradBphi_Z + (Rout-Rn)*gradBphi_R
+        Bphi_out = self.B0*self.R0/Rout        
         self.Bphi_on_grid[out_mask] = Bphi_out
         
+    def _correct_interpolator_gradient(self, interpolator, gradR, gradZ, Rn,Zn,fn, tol = (1e-2,1e1), resR = 0.01, resZ = 0.01):
+        """ A private use function that make necessary corrections to the gradients calculated by linear interpolators
+        
+        :param interpolator: The interpolaor object we are using, normally just *self.a_interp* or *self.Bxx_interp*
+        :param gradR: The gradient respect to R array obtained by interpolator, need to be updated
+        :param gradZ: The gradient respect to Z array obtained by interpolator, need to be updated
+        :param Rn: corresponding R coordinates of the points
+        :param Zn: corresponding Z coordinates of the points
+        :param fn: the value of the quantity at these points
+        :param tol: tolarance for checking zero/infinity gradient points. If the calculated gradient at one boundary point is less than tol[0]*averaged_gradient, it's considered 0; if it's greater than tol[1]*average_gradient, it's considered infinity. All these points will be recalculated by :math:`f'=\frac{f(x+\Delta x)-f(x)}{\Delta x}`, with `\Delta x` taken to be either positive or negative so that `x+\ Delta x` is still inside the convex hull of original data set.        
+        :type tol: tuple of 2 floats        
+        :param float resR: relative resolution in R when evaluating gradient. :math:`\Delta R = resR \cdot \Delta R_{grid}`, where `\Delta R_{grid}` is the resolution of the R grid given by *self.grid.ResR*
+        :param float resZ: same meaning as *resR*, but in Z direction. 
+        """
+        
+        gradient= gradZ**2+gradR**2
+        average_gradient = np.median(gradient) 
+        no_gradient_idx = np.logical_or(gradient < tol[0]*tol[0]*average_gradient, gradient >tol[1]*tol[1]*average_gradient) # check if the gradient is too small!
+        Z_null = Zn[no_gradient_idx]
+        R_null = Rn[no_gradient_idx]
+        f_null = fn[no_gradient_idx]
+        
+        new_gradR = np.zeros_like(gradR[no_gradient_idx])
+        new_gradZ = np.zeros_like(gradZ[no_gradient_idx])
+        
+        dR = self.grid.ResR * resR # manually calculate the da/dR by setting a small increment in R, and calculate the first order difference approximation
+        R_p = R_null + dR
+        f_pR = interpolator(Z_null,R_p)
+        new_gradR[~f_pR.mask] = (f_pR-f_null)[~f_pR.mask]/dR
+        changed_mark_R = ~f_pR.mask # not masked values are changed
+        if(not changed_mark_R.all()): # If not all points changed, then positive dR make some points out of the convex hull, try the negative dR
+            R_n = R_null -dR
+            f_nR = interpolator(Z_null,R_n)
+            new_gradR[~f_nR.mask] = (f_null - f_nR)[~f_nR.mask]/dR
+            #just in case there still are points left out, keep track of all the points that have been covered.
+            changed_mark_R = np.logical_or(~f_nR.mask,~f_pR.mask)
+        gradR[no_gradient_idx] = new_gradR
+        
+        dZ = self.grid.ResZ * resZ # manually calculate the da/dZ by setting a small increment in Z, and calculate the first order difference approximation
+        Z_p = Z_null + dZ
+        f_pZ = interpolator(Z_p,R_null)
+        new_gradZ[~f_pZ.mask] = (f_pZ-f_null)[~f_pZ.mask]/dZ
+        changed_mark_Z = ~f_pZ.mask # not masked values are changed
+        if(not changed_mark_Z.all()): # If not all points changed, then positive dZ make some points out of the convex hull, try the negative dZ
+            Z_n = Z_null -dZ
+            f_nZ = interpolator(Z_n,R_null)
+            new_gradZ[~f_nZ.mask] = (f_null - f_nZ)[~f_nZ.mask]/dZ
+            #just in case there still are points left out, keep track of all the points that have been covered.
+            changed_mark_Z = np.logical_or(~f_nZ.mask,~f_pZ.mask)
+        all_changed = np.logical_or(changed_mark_R,changed_mark_Z)    
+        gradZ[no_gradient_idx] = new_gradZ
+        # Now ALL points should be changed either in R or Z gradient, if not, something really weird must have happened.
+        if(not all_changed.all()):
+            raise GTC_Loader_Error('Strange thing happened! Some point has been left isolated. Check the input R_eq and Z_eq mesh, and see how its convex hull looks like.')
+        return (gradR,gradZ)
+
+    
     def load_fluctuations_2D(self):
         """ Read fluctuation data from **snap{time}_fpsdp.json** files
         Read data into an array with shape (NT,Ngrid_gtc), NT the number of requested timesteps, corresponds to *self.tstep*, Ngrid_gtc is the GTC grid number on each cross-section.

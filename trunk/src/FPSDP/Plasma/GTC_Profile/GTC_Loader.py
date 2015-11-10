@@ -307,6 +307,7 @@ class GTC_Loader:
         self.B_phi = np.array(raw_eqB['B_phi_eq'])*self.B0
         self.B_R = np.array(raw_eqB['B_R_eq'])*self.B0
         self.B_Z = np.array(raw_eqB['B_Z_eq'])*self.B0
+        self.B_total = np.array(raw_eqB['B_eq'])*self.B0
         
         self.B_phi_interp = linear_interp(self.triangulation_eq,self.B_phi,trifinder = self.trifinder_eq) #outside points will be masked and dealt with later.
         self.B_R_interp = linear_interp(self.triangulation_eq,self.B_R, trifinder = self.trifinder_eq)
@@ -491,7 +492,7 @@ class GTC_Loader:
         return (gradR,gradZ)
 
     
-    def load_fluctuations_2D(self):
+    def load_fluctuations_2D(self, fname_format = 'snap{0:0>7}_fpsdp.json'):
         """ Read fluctuation data from **snap{time}_fpsdp.json** files
         Read data into an array with shape (NT,Ngrid_gtc), NT the number of requested timesteps, corresponds to *self.tstep*, Ngrid_gtc is the GTC grid number on each cross-section.
         Create Attribute:
@@ -510,27 +511,32 @@ class GTC_Loader:
         NT = len(self.tsteps)
         Ngrid_gtc = len(self.R_gtc)
         self.phi = np.empty((NT,Ngrid_gtc))
-        '''        
-        self.Te = np.empty_like(self.phi)        
+               
+        self.Te_perp = np.empty_like(self.phi)
+        self.Te_para = np.empty_like(self.phi)
+        self.dni = np.empty_like(self.phi)
+        self.dne_ad = np.empty_like(self.phi)        
         if self.HaveElectron:
             self.nane = np.empty_like(self.phi)
         if self.isEM:
-            self.Apar = np.empty_like(self.phi)
-        '''
+            self.A_para = np.empty_like(self.phi)
+        
         
         for i in range(NT):
-            snap_fname = os.path.join(self.path,'snap{0:0>7}_fpsdp.json'.format(self.tsteps[i]))
+            snap_fname = os.path.join(self.path,fname_format.format(self.tsteps[i]))
             with open(snap_fname,'r') as snap_file:
                 raw_snap = json.load(snap_file)
             
             self.phi[i] = np.array(raw_snap['phi'])
-            '''            
-            self.Te[i] = np.array(raw_snap['dTe'])
+            self.Te_perp[i] = np.array(raw_snap['Te_perp'])
+            self.Te_para[i] = np.array(raw_snap['Te_para'])
+            self.dni[i] = np.array(raw_snap['densityi'])
+            self.dne_ad[i] = np.array(raw_snap['fluidne'])
             if self.HaveElectron:
-                self.nane[i] = np.array(raw_snap['dne'])
+                self.nane[i] = np.array(raw_snap['densitye'])
             if self.isEM:
-                self.Apar[i] = np.array(raw_snap['dAp'])
-            '''    
+                self.A_para[i] = np.array(raw_snap['apara'])
+                
         
                 
         
@@ -545,27 +551,40 @@ class GTC_Loader:
         points_on_grid =np.transpose( np.array([self.grid.Z2D,self.grid.R2D]), (1,2,0))        
         
         self.phi_on_grid = np.empty((NT,NZ,NR))
-        '''
-        self.Te_on_grid = np.empty_like(self.phi_on_grid)
+        
+        self.Te_perp_on_grid = np.empty_like(self.phi_on_grid)
+        self.Te_para_on_grid = np.empty_like(self.phi_on_grid)
+        self.dni_on_grid = np.empty_like(self.phi_on_grid)
+        self.dne_ad_on_grid = np.empty_like(self.phi_on_grid)
         if self.HaveElectron:
             self.nane_on_grid = np.empty_like(self.phi_on_grid)
         if self.isEM:
-            self.Apar_on_grid = np.empty_like(self.phi_on_grid)
-        '''
+            self.A_para_on_grid = np.empty_like(self.phi_on_grid)
+        
         
         for i in range(NT):
             phi_interp = LinearNDInterpolator(self.Delaunay_gtc,self.phi[i],fill_value = 0)
             self.phi_on_grid[i] = phi_interp(points_on_grid)
-            '''
-            Te_interp = LinearNDInterpolator(self.Delaunay_gtc,self.Te[i],fill_value = 0)
-            self.Te_on_grid[i] = Te_interp(points_on_grid)
+            
+            Te_perp_interp = LinearNDInterpolator(self.Delaunay_gtc,self.Te_perp[i],fill_value = 0)
+            self.Te_perp_on_grid[i] = Te_perp_interp(points_on_grid)
+
+            Te_para_interp = LinearNDInterpolator(self.Delaunay_gtc,self.Te_para[i],fill_value = 0)
+            self.Te_para_on_grid[i] = Te_para_interp(points_on_grid)  
+            
+            dni_interp = LinearNDInterpolator(self.Delaunay_gtc,self.dni[i],fill_value = 0)
+            self.dni_on_grid[i] = dni_interp(points_on_grid)
+            
+            dne_ad_interp = LinearNDInterpolator(self.Delaunay_gtc,self.dne_ad[i],fill_value = 0)
+            self.dne_ad_on_grid[i] = dne_ad_interp(points_on_grid)
+            
             if self.HaveElectron:
                 nane_interp = LinearNDInterpolator(self.Delaunay_gtc,self.nane[i],fill_value = 0)
                 self.nane_on_grid[i] = nane_interp(points_on_grid)
             if self.isEM:   
-                Apar_interp = LinearNDInterpolator(self.Delaunay_gtc,self.Apar[i],fill_value = 0)
-                self.Apar_on_grid[i] = Apar_interp(points_on_grid)
-            '''
+                A_para_interp = LinearNDInterpolator(self.Delaunay_gtc,self.A_para[i],fill_value = 0)
+                self.A_para_on_grid[i] = A_para_interp(points_on_grid)
+            
             
 
         

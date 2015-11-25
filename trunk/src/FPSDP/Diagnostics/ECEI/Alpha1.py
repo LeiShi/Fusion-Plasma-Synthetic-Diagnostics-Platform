@@ -1,37 +1,32 @@
-"""Module contains Functions that calculate the local absorption coefficient 
-alpha.
+"""Module contains Functions that calculate the local absorption coefficient alpha.
 
 Method 1:
-Analytical expression for alpha is used. Assume weakly relativistic Maxwellian 
-distriution, and weak absorption.[1]
+Analytical expression for alpha is used. Assume weakly relativistic Maxwellian distriution, and weak absorption.[1]
 
 [1] 1983 Nucl. Fusion 23 1153
 """
- 
+
+#module depends on scipy.integrate and scipy.interpolate package 
 from scipy.integrate import quad
 from scipy.interpolate import InterpolatedUnivariateSpline 
 from scipy.special import gamma
 from scipy import select
+#rename numpy as np for convention
 import numpy as np
+#use pickle for packaging small amount of data
 import pickle
 
-from ...GeneralSettings.unit_system import cgs
+from ...GeneralSettings.UnitSystem import cgs
 
-# The default path and filename for the file that stores the Fqz tables
-DEFAULT_FQZ_TABLE_FILE = './Fqz.sav'
+#The default path and filename for the file that stores the Fqz tables
+DefaultFqzTableFile = './Fqz.sav'
 
-def make_frequency_table(Profile, Harmonic = 2 ,ResOmega = None):
-    """make the frequency table based on the Profile data, namely the B field 
-    range on Grid
+def make_frequency_table(Profile, Harmonic = 2 ,ResOmega = -1):
+    """make the frequency table based on the Profile data, namely the B field range on Grid
 
-    :param dict Profile: a dictionary contains all the plasma profile data. 
-        'Grid' : Grid object, 
-        'B' : B field on grids
-    :param int Harmonic: an integer indicates the targeting harmonic mode. 
-        Default to be the second harmonics.
-    :param int ResOmega: an interger indecates the resolution on frequency 
-        table. Default to be equally distributed on frequency with grid number 
-        equals NR.
+    Profile: a dictionary contains all the plasma profile data. 'Grid' : Grid object, 'B' : B field on grids
+    Harmonic: an integer indicates the targeting harmonic mode. default to be the second harmonics.
+    ResF: an interger indecates the resolution on frequency table. default to be equally distributed on frequency with grid number equals NR.
     """
 
     Bmax = np.max(Profile['B'])
@@ -39,27 +34,23 @@ def make_frequency_table(Profile, Harmonic = 2 ,ResOmega = None):
     
     Omega_max = cgs['e'] * Harmonic/(cgs['m_e'] * cgs['c']) * Bmax
     Omega_min = cgs['e'] * Harmonic/(cgs['m_e'] * cgs['c']) * Bmin
-    if(ResOmega is None):
+    if(ResOmega < 0):
         NOmega = Profile['Grid'].NR
     else:
-        # make sure the Omega mesh is finer than the desired resolution
-        NOmega = np.floor((Omega_max - Omega_min)/ResOmega) + 2 
+        NOmega = np.floor((Omega_max - Omega_min)/ResOmega) + 2 #make sure the Omega mesh is finer than the desired resolution
 
     return np.linspace(Omega_min,Omega_max,NOmega)
 
 
 
-def create_Fqz_table(zmin = -30., zmax = 30., nz = 1001, q = 3.5, 
-                     filename = DEFAULT_FQZ_TABLE_FILE, overwrite = True):
-    """create the F_q(z_n) function value table using exact integration and 
-    summation formula[1]. Save the results into a file.  
+def create_Fqz_table(zmin = -30., zmax = 30., nz = 1001, q = 3.5, filename = DefaultFqzTableFile, overwrite = True):
+    """create the F_q(z_n) function value table using exact integration and summation formula[1]. Save the results into a file.  
 
-    :param float zmin: the lower boundary of z table
-    :param float zmax: the upper boudary of z table
-    :param int nz: total knots of z table
-    :param float q: parameter related to harmonic n, usually q = n+3/2
-    :param string filename: the absolute path to save the Fqz function
-    :param bool overwrite: indicate overwrite the existing saving file or not.
+    zmin,zmax : float; the lower and upper boudary of z table
+    nz : float; total knots of z table
+    q : float; parameter related to harmonic n, usually q = n+3/2
+    filename : string; stroes the path and filename to save the Fqz function
+    overwrite : bool; indicate overwrite the existing saving file or not.
 
     [1] 1983 Nucl. Fusion 23 1153 (Eqn. 2.3.68 and 2.3.70) 
     """
@@ -69,10 +60,7 @@ def create_Fqz_table(zmin = -30., zmax = 30., nz = 1001, q = 3.5,
     F_re_err = np.zeros(nz)
     F_im = np.zeros(nz)
     for i in range(nz):
-        F_re[i],F_re_err[i] = quad(
-            lambda x: (-1j*np.exp(1j*z[i]*x)/(1-1j*x)**q).real, 
-            0,np.inf, epsrel = 1e-8, epsabs = 1e-10, limit = 500
-            )
+        F_re[i],F_re_err[i] = quad(lambda x: (-1j*np.exp(1j*z[i]*x)/(1-1j*x)**q).real, 0, np.inf, epsrel = 1e-8, epsabs = 1e-10, limit = 500)
         if( z[i] < 0):
             F_im[i] = -np.pi*(-z[i])**(q-1)*np.exp(z[i])/gamma(q)
     if( overwrite ):
@@ -80,13 +68,11 @@ def create_Fqz_table(zmin = -30., zmax = 30., nz = 1001, q = 3.5,
     else:
         f = open(filename,'w-')
         
-    pickle.dump(dict(zmin=zmin, zmax=zmax, nz=nz, q=q, z=z, F_re=F_re, 
-                     F_re_err=F_re_err, F_im=F_im),f)
+    pickle.dump(dict(zmin=zmin, zmax=zmax, nz=nz, q=q, z=z, F_re = F_re, F_re_err = F_re_err, F_im = F_im),f)
     f.close()
 
-def create_interp_Fqz(filename = DEFAULT_FQZ_TABLE_FILE):
-    """create the interpolated function based on the table value stored in 
-    file.close, return a tuple contains (Fqz_real, Fqz_imag)
+def create_interp_Fqz(filename = DefaultFqzTableFile):
+    """create the interpolated function based on the table value stored in file.close, return a tuple contains (Fqz_real, Fqz_imag)
 
     filename : string; the full path of the table file
     """
@@ -98,49 +84,22 @@ def create_interp_Fqz(filename = DEFAULT_FQZ_TABLE_FILE):
     F_re = F_dict['F_re']
     F_im = F_dict['F_im']
 
-    # raw interpolated functions, need to be screened outside (z_min,z_max) 
-    # range
+    #raw interpolated functions, need to be screened outside (z_min,z_max) range
     Fqz_real_raw = InterpolatedUnivariateSpline(z, F_re)
     Fqz_imag_raw = InterpolatedUnivariateSpline(z, F_im)
 
-    # screen out the outside part, set exponential decay outside the z range, 
-    # if z>zmax, f(z)=f(zmax) * exp( -2(z-zmax)/(zmax-zmin) ), 
-    # if z<zmin, f(z) = f(zmin) *exp(-2(zmin-z)/(zmax-zmin))
+    #screen out the outside part, set exponential decay outside the z range, if z>zmax, f(z)=f(zmax) * exp( -2(z-zmax)/(zmax-zmin) ), if z<zmin, f(z) = f(zmin) *exp(-2(zmin-z)/(zmax-zmin))
     def Fqz_real(z):
         z_scr = select([z<z_min,z>z_max,z>=z_min] , [z_min,z_max,z])
-        mask = select([z<z_min-20*(z_max-z_min), 
-                       z>z_max+20*(z_max-z_min), 
-                       z<z_min, 
-                       z>z_max, 
-                       z>=z_min
-                      ], 
-                      [np.exp(-40),
-                       np.exp(-40),
-                       np.exp(-2*(z_min-z)/(z_max-z_min)), 
-                       np.exp(-2*(z-z_max)/(z_max-z_min)), 
-                       1
-                      ]
-                     )
+        mask = select([z<z_min-20*(z_max-z_min), z>z_max+20*(z_max-z_min), z<z_min, z>z_max, z>=z_min], [np.exp(-40),np.exp(-40),np.exp(-2*(z_min-z)/(z_max-z_min)), np.exp(-2*(z-z_max)/(z_max-z_min)), 1])
         return Fqz_real_raw(z_scr) * mask
     def Fqz_imag(z):
         z_scr = select([z<z_min,z>z_max,z>=z_min] , [z_min,z_max,z])
-        mask = select([z<z_min-20*(z_max-z_min), 
-                       z>z_max+20*(z_max-z_min), 
-                       z<z_min, 
-                       z>z_max, 
-                       z>=z_min
-                      ], 
-                      [np.exp(-40),
-                       np.exp(-40),
-                       np.exp(-2*(z_min-z)/(z_max-z_min)), 
-                       np.exp(-2*(z-z_max)/(z_max-z_min)), 
-                       1
-                      ]
-                     )
+        mask = select([z<z_min-20*(z_max-z_min), z>z_max+20*(z_max-z_min), z<z_min, z>z_max, z>=z_min], [np.exp(-40),np.exp(-40),np.exp(-2*(z_min-z)/(z_max-z_min)), np.exp(-2*(z-z_max)/(z_max-z_min)), 1])
         return Fqz_imag_raw(z_scr) * mask
     return (Fqz_real,Fqz_imag)
 
-def get_alpha_table(Profile , n = 2, Fqzfile = DEFAULT_FQZ_TABLE_FILE):
+def get_alpha_table(Profile , n = 2, Fqzfile = DefaultFqzTableFile):
     """Main function that calculates the alpha coefficients.
 
     Profile: dictionary; contains keys:

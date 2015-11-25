@@ -4,11 +4,10 @@
 #module depends on numpy
 import numpy as np
 import scipy as sp
+from ...GeneralSettings.UnitSystem import cgs
 from scipy.interpolate import RectBivariateSpline
-
-from ...GeneralSettings.unit_system import cgs
-from ...Geometry.grid import Path2D
-from ...Geometry.grid import path
+from ...Geometry.Grid import Path2D
+from ...Geometry.Grid import path
 
 class detector:
     """class of the detector which contains the frequency and path information

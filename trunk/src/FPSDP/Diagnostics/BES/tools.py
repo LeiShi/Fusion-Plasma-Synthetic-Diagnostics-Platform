@@ -1250,7 +1250,7 @@ def check_field_line_integration(R=2.23,Z=0.01,phi=0.1,Nrot=10,fwd=True,data_nam
     plt.show()
 
     
-def check_geometry(minorR=0.67,majorR=1.67):
+def check_geometry(minorR=0.67,majorR=1.67, name = './bes.in'):
     """ Plot the geometry read by the synthetic diagnostics
     The default Tokamak is the D3D (only a very simple model of the tokamak
     is considered)

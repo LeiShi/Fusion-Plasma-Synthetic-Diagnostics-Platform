@@ -70,6 +70,7 @@ etized plasma", J. Plasma Physics(1986), vol. 35, part 2, pp. 319-331
 """
 
 from math import sqrt
+import warnings
 
 import numpy as np
 from scipy.special import wofz
@@ -124,22 +125,227 @@ def Z_m(z, m):
         return -2*z*Z_m(z, m-1) -2*(m-1)*Z_m(z, m-2)
 
 
-# Deprecated versions to evaluate Z
+# General recurrence function to evaluate F_q for q>3/2
 
-def F12(phi, psi):
-    return -(Z(psi-phi) + Z(-psi-phi)) / (2*phi)
+def Fq(phi, psi, nq, tol=1e-14, no_psi_zero = False):
+    r"""General function to evaluate :math:`\mathcal{F}_{q}(\phi,\psi)`
+    
+    For non-zero psi, we use the following recurrence relation to evaluate 
+
+    .. math::
+    
+        \mathcal{F}_{q+2}(\phi,\psi) = 
+        (1+\phi^2\mathcal{F}_q-q\mathcal{F}_{q+1})/\psi^2
+    
+    Special caution is required to evaluate Fq when psi=0, because the 
+    recurrence relation has 0 in denominator. It is convenient to observe that
+    the above recurrence relation then requires the numerator equals 0 as well.
+    So we have the following recurrence relation
+    
+    .. math::
+    
+        \mathcal{F}_{q+1} = \frac{1+\phi^2\mathcal{F}_q}{q}
+        
+    Another function will be dedicated to this special case, :py:func:`Fq0`.
+    
+    :param phi: :math:`\phi` parameter defined in ref.[2] in :py:mod:`PlasmaDispersionFunction`
+    :ptype phi: ndarray of complex
+    :param psi: :math:`\psi` parameter defined in ref.[2] in :py:mod:`PlasmaDispersionFunction`
+    :ptype psi: ndarray of complex
+    :param int nq: the numerator in q, must be odd, the denominator is default to be 2
+    :param float tol: tolerance for testing phi=0 condition
+    
+    :return: :math:`\mathcal{F}_{q}(\phi,\psi)` evaluated at given :math:`\phi` and :math:`\psi` mesh
+    :rtype: ndarray of complex 
+    """
+    
+    assert np.array(phi).shape == np.array(psi).shape
+    assert isinstance(nq, int) and nq>0 and nq%2 == 1
+    
+    if(nq == 1):
+        return F12(phi,psi,tol)
+    elif(nq == 3): 
+        return F32(phi,psi,tol)
+    elif(nq == 5):
+        return F52(phi,psi,tol)
+    else:
+        if(no_psi_zero):
+        # if psi is already checked at high order function, no more checking
+            return (1 + phi*phi*Fq(phi,psi,nq-4, tol,True) - 
+                    (nq-4)/2.*Fq(phi,psi,nq-2,tol,True)) / (psi*psi) 
+        valid_idx = np.abs(psi)>tol
+        zero_idx = np.abs(psi)<=tol
+        phi_valid = phi[valid_idx]
+        psi_valid = psi[valid_idx]
+        phi_zero = phi[zero_idx]
+        result = np.empty_like(phi, dtype='complex')
+        result[valid_idx] = (1 + phi_valid*phi_valid*Fq(phi_valid, psi_valid, 
+                                                        nq-4, tol, True) - \
+                             (nq-4)/2.*Fq(phi_valid, psi_valid, nq-2, tol, 
+                             True)) / (psi_valid*psi_valid)
+                             
+        result[zero_idx] = Fq0(phi_zero,nq)
+        return result
+              
+    
+    
+def Fq0(phi, nq, tol=1e-14):
+    r"""Special case psi=0 for :py:func:`Fq`, see the doc string there.
+        
+    """
+    # nq must be an positive odd integer
+    assert isinstance(nq, int) and nq>0 and nq%2 == 1
+
+    if(nq == 3):
+        return F32(phi,np.zeros_like(phi, dtype='complex'),tol)
+    
+    return (1+ phi*phi*Fq0(phi,nq-2))*2/(nq-2)
+    
+    
+
+# TODO Add general recurrence function to evaluate F^m_q for m>1  
+
+# Shorthand functions to evaluate low order F_q and F^m_q functions
+def F12(phi, psi, tol=1e-14):
+    r"""Shorthand function for :math:`\mathcal{F}_{1/2}(\phi,\psi)`
+    
+    Need to take care of special cases when phi=0 and phi is imaginary. 
+    Note that :math:`\mathcal{F}_{1/2} \to +\infty` when :math:`\phi \to 0^+`.
+    However, this singularity does not affect higher order functions. In this
+    case, :math:`\mathcal{F}_{5/2}` needs to be evaluated directly from Z function,
+    and serve as a starting point for higher order functions.
+    
+    For :math:`\phi^2<0` case, refer to [1], We have modified recurrence relation:
+    Letting :math:`\phi = -\mathrm i \tilde{\phi}`
+    
+    .. math::
+        
+        \mathcal{F}_{1/2}(\phi,\psi) = \mathrm{Im} 
+                                    Z(\psi+\mathrm{i}\tilde{\phi})/\tilde{\phi}
+    
+    :param phi: :math:`\phi` parameter defined in ref.[2] in :py:mod:`PlasmaDispersionFunction`
+    :ptype phi: ndarray of complex
+    :param psi: :math:`\psi` parameter defined in ref.[2] in :py:mod:`PlasmaDispersionFunction`
+    :ptype psi: ndarray of complex
+    :param float tol: tolerance for testing phi=0 condition
+    
+    :return: :math:`\mathcal{F}_{1/2}(\phi,\psi)` evaluated at given :math:`\phi`
+    and :math:`\psi` mesh
+    :rtype: ndarray of complex
+    
+    [1]Weakly relativistic dielectric tensor and dispersion functions of a 
+       Maxwellian plasma, V. Krivenski and A. Orefice, J. Plasma Physics (1983)
+       , vol. 30, part 1, pp. 125-131
+    """    
+    assert(np.array(phi).shape == np.array(psi).shape)
+    
+    # since physically phi^2 is real, phi is either pure real or imaginary, 
+    # test if this condition is satisfied.
+    assert(np.logical_or(np.real(phi)<tol, np.imag(phi)<tol).all())
+   
+    result = np.zeros_like(phi, dtype='complex')    
+    real_idx = np.real(phi) >= tol
+    imag_idx = np.real(phi) < tol
+    diverge_idx = np.logical_and(np.real(phi) < tol, np.imag(phi) < tol) 
+    
+    # real phi follows the normal recurrence relation    
+    result[real_idx] = -(Z(psi[real_idx]-phi[real_idx]) + 
+                        Z(-psi[real_idx]-phi[real_idx])) / (2*phi[real_idx])
+    # imaginary phi needs conversion
+    phi_tilde = np.abs(np.imag(phi[imag_idx]))
+    result[imag_idx] = np.imag(Z(psi[imag_idx]+1j*phi_tilde))/phi_tilde
+    
+    # phi=0 diverges
+    if(diverge_idx.any()):
+        warnings.warn('F12 enconters phi=0 input, it diverges at {} points. \
+Check the data to see what\'s going on.'.format(np.count_nonzero(diverge_idx)))
+    result[diverge_idx] = np.nan
+    return result
+
+def F32(phi, psi, tol = 1e-14):
+    r"""Shorthand function for :math:`\mathcal{F}_{3/2}(\phi,\psi)`
+    
+    Need to take care of special cases when psi=0. 
+    :math:`\mathcal{F}_{3/2}(\phi,\psi)=-Z'(-\phi)`  when :math:`\psi=0`
+    
+    For :math:`\phi^2<0` case, refer to [1], We have modified recurrence relation:
+    Letting :math:`\phi = -\mathrm i \tilde{\phi}`
+    
+    .. math::
+        
+        \mathcal{F}_{3/2}(\phi,\psi) = -\mathrm{Re} Z(\psi+\mathrm{i}\tilde{\phi})/\psi
+        
+    if :math:`\psi=0`, then 
+    
+    :param phi: :math:`\phi` parameter defined in ref.[2] in :py:mod:`PlasmaDispersionFunction`
+    :ptype phi: ndarray of complex
+    :param psi: :math:`\psi` parameter defined in ref.[2] in :py:mod:`PlasmaDispersionFunction`
+    :ptype psi: ndarray of complex
+    :param float tol: tolerance for testing psi=0 condition
+    
+    :return: :math:`\mathcal{F}_{1/2}(\phi,\psi)` evaluated at given :math:`\phi`
+    and :math:`\psi` mesh
+    :rtype: ndarray of complex
+    """   
 
 
-def F32(phi, psi):
-    return -(Z(psi-phi) - Z(-psi-phi)) / (2*psi)
+    assert(np.array(phi).shape == np.array(psi).shape)
+    
+    # since physically phi^2 is real, phi is either pure real or imaginary, 
+    # test if this condition is satisfied.
+    assert(np.logical_or(np.real(phi)<tol, np.imag(phi)<tol).all())
+    
+    result = np.zeros_like(phi, dtype='complex')    
+    
+    # here, we'll deal with real and imaginary phi together
+    # the trick is, make sure real(phi)>0 and imaginary(phi)<0
+    phi_mod = np.abs(np.real(phi)) - 1j*np.abs(np.imag(phi))    
+    
+    nonzero_idx = np.abs(psi) >= tol
+    zero_idx = np.abs(psi) < tol
+    result[nonzero_idx] = -(Z(psi[nonzero_idx]-phi_mod[nonzero_idx]) - 
+                         Z(-psi[nonzero_idx]-phi_mod[nonzero_idx])) / \
+                         (2*psi[nonzero_idx])
+    
+    result[zero_idx] = -Z_1(-phi_mod[zero_idx])
+    return result
 
+def F52(phi, psi, tol=1e-14):
+#TODO complete the docstring
+    """   
+    phi=0 needs special treatment.
+    """
+    nonzero_idx = np.logical_or(np.real(phi) >= tol, np.imag(phi) >= tol)
+    zero_idx = np.logical_not(nonzero_idx)
+    
+    result = np.empty_like(phi, dtype='complex')
+    result[nonzero_idx] = (1 + phi[nonzero_idx]*phi[nonzero_idx]* \
+                           F12(phi[nonzero_idx], psi[nonzero_idx]) - 
+                           0.5*F32(phi[nonzero_idx], psi[nonzero_idx])) / \
+                                    (psi[nonzero_idx]*psi[nonzero_idx])
+    result[zero_idx] =  (1 - 0.5*F32(phi[zero_idx], psi[zero_idx])) / \
+                          psi[zero_idx]**2
+    return result
 
-def F32_1(phi, psi):
+# TODO Modify higher order shorthand functions
+
+def F32_1(phi, psi, tol = 1e-14):
+    """Shorthand function for :math:`\mathcal{F}'_{3/2}(\phi,\psi)`
+    
+    Need to take care of special cases when psi=0. 
+    :math:`\mathcal{F}_{3/2}(\phi,\psi)=-Z'(-\phi)`  when :math:`\psi=0`
+    
+    :param phi: :math:`\phi` parameter defined in ref.[2] in :py:mod:`PlasmaDispersionFunction`
+    :ptype phi: ndarray of float
+    :param psi: :math:`\psi` parameter defined in ref.[2] in :py:mod:`PlasmaDispersionFunction`
+    :ptype psi: ndarray of float
+    :param float tol: tolerance for testing psi=0 condition
+    
+    :return: :math:`\mathcal{F}_{1/2}(\phi,\psi)` evaluated at given :math:`\phi`
+    and :math:`\psi` mesh
+    :rtype: ndarray of complex
+    """   
     return (Z_1(psi-phi)-Z_1(-psi-phi))/(4*psi*phi)
-
-
-def F52(phi, psi):
-    return (1 + phi**2*F12(phi, psi) - 0.5*F32(phi, psi)) / psi**2
 
 
 def F52_1(phi, psi):
@@ -153,10 +359,6 @@ def F52_2(phi, psi):
     minus = -psi-phi
     return ((Z_1(plus)-psi*Z_2(plus)) -
             (Z_1(minus)+psi*Z_2(minus))) / (8*phi*psi)
-
-
-def F72(phi, psi):
-    return (1 + phi**2*F32(phi, psi) - 1.5*F52(phi, psi)) / psi**2
 
 
 def F72_1(phi, psi):
@@ -176,8 +378,7 @@ def F92_1(phi, psi):
             2.5*F72_1(phi, psi)) / psi**2
 
 
-# Let's try to evaluate Plasma Dispersion Function, 'Z', from the faddeeva 
-# function.
+
 
     
     

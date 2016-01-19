@@ -4,10 +4,11 @@
 #module depends on numpy
 import numpy as np
 import scipy as sp
-from ...GeneralSettings.UnitSystem import cgs
 from scipy.interpolate import RectBivariateSpline
-from ...Geometry.Grid import Path2D
-from ...Geometry.Grid import path
+
+from ...GeneralSettings.UnitSystem import cgs
+from ...Geometry.Grid import path, Path2D, Cartesian2D
+from ...Plasma.PlasmaProfile import ECEI_Profile
 
 class detector:
     """class of the detector which contains the frequency and path information
@@ -43,9 +44,11 @@ def create_2D_pointlike_detector_array(plasma):
     
     plasma: dictionary, contains all the plasma profiles on 2D grids, see package Plasma.TestParameters for detailed format
     """
+    
+    assert isinstance(plasma.grid, Cartesian2D)
     #get 1D coordinates
-    Z = plasma['Grid'].Z2D[:,0] 
-    R = plasma['Grid'].R2D[0,:]
+    Z = plasma.grid.Z2D[:,0] 
+    R = plasma.grid.R2D[0,:]
     
     Z_idx_max = len(Z)-1
     Detectors = []
@@ -56,7 +59,7 @@ def create_2D_pointlike_detector_array(plasma):
                     Z_idx = Z_idx_max - i #images are stored from top to bottom, s.t. y axis needs to be inverted
                     R_idx = j
                     #start creating detector correspond to this point
-                    f_ctr =  cgs['e']*plasma['B'][Z_idx,R_idx]/(cgs['m_e']*cgs['c']) / np.pi
+                    f_ctr =  cgs['e']*plasma.B[Z_idx,R_idx]/(cgs['m_e']*cgs['c']) / np.pi
                     f_flt = [f_ctr]
                     p_flt = [1]
                     pth = path(2,[R[0],R[-1]],[Z[Z_idx],Z[Z_idx]]) #light path is assumed horizontal
@@ -72,24 +75,23 @@ def create_spatial_frequency_grid(Detectors, Profile):
     Profile: a dictionary contains the plasma data
     return value: Profs, an array contains all the quantities dictionaries on grids that feed to alpha calculation function, each profile corresponds to one detector.
     """
-    n_dtc = len(Detectors)
     ResS = 0.05
     Profs = []
     for dtc in Detectors:
         path2D = Path2D(dtc.pth,ResS)
-        R_fld = Profile['Grid'].R2D[0,:]
-        Z_fld = Profile['Grid'].Z2D[:,0]
-        ne_interp = RectBivariateSpline(Z_fld,R_fld,Profile['ne'])
-        Te_interp = RectBivariateSpline(Z_fld,R_fld,Profile['Te'])
-        B_interp = RectBivariateSpline(Z_fld,R_fld,Profile['B'])
+        R_fld = Profile.grid.R2D[0,:]
+        Z_fld = Profile.grid.Z2D[:,0]
+        ne_interp = RectBivariateSpline(Z_fld,R_fld,Profile.ne)
+        Te_interp = RectBivariateSpline(Z_fld,R_fld,Profile.Te)
+        B_interp = RectBivariateSpline(Z_fld,R_fld,Profile.B)
         ne_path = ne_interp.ev(path2D.Z2D[0,:],path2D.R2D[0,:])
         Te_path = Te_interp.ev(path2D.Z2D[0,:],path2D.R2D[0,:])
         B_path = B_interp.ev(path2D.Z2D[0,:],path2D.R2D[0,:])
         new_prof = {}
-        new_prof['Grid'] = path2D
-        new_prof['ne'] = ne_path[np.newaxis,:]
-        new_prof['Te'] = Te_path[np.newaxis,:]
-        new_prof['B'] = B_path[np.newaxis,:]
+        new_prof['Profile'] = ECEI_Profile(path2D, ne_path[np.newaxis,:], 
+                                           Te_path[np.newaxis,:],
+                                           Te_path[np.newaxis,:], 
+                                           B_path[np.newaxis,:])
         new_prof['omega'] = 2*np.pi*dtc.f_flt 
         Profs.append(new_prof)
     return tuple(Profs)

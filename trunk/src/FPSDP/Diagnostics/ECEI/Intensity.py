@@ -30,8 +30,9 @@ def get_intensity(Dtcs,RawProfile,n=2,FqzFile = DefaultFqzTableFile):
     normal_arrays = []
     integrand_arrays = []
     for i in range(len(Dtcs)):
-        s_array = specProfile[i]['Grid'].s2D[0,:] #extract the path length coordinate array, see detailed format of s2D in '..Geometry.Grid', class Path2D
-        Te_array = specProfile[i]['Te'][0,:] #electron temperature along the path 
+        Profile = specProfile[i]['Profile']
+        s_array = Profile.grid.s2D[0,:] #extract the path length coordinate array, see detailed format of s2D in '..Geometry.Grid', class Path2D
+        Te_array = Profile.Te[0,:] #electron temperature along the path 
         alpha_array = get_alpha_table(specProfile[i],n,FqzFile)[:,0,:] #extract the 2D alpha array with the first dimention frequency and second path length
         dtc = Dtcs[i] # corresponding detector object
         for j in range(len(dtc.f_flt)):
@@ -54,14 +55,15 @@ def get_intensity(Dtcs,RawProfile,n=2,FqzFile = DefaultFqzTableFile):
                 norms[i]=normalization_f
         T_measured[i] = intensity[i]*2*np.pi*cgs['c']**2/dtc.f_ctr**2
 
-    return (tuple(intensity),tuple(T_measured),tuple(norms),tuple(tau_arrays),tuple(normal_arrays),tuple(integrand_arrays),tuple(s_array))
+    return (tuple(intensity),tuple(T_measured),tuple(norms),tuple(tau_arrays),
+            tuple(normal_arrays),tuple(integrand_arrays),tuple(s_array))
     
 def get_2D_intensity(plasma):
     Dtcs = create_2D_pointlike_detector_array(plasma)
     intensity_tuple = get_intensity(Dtcs,plasma)
     T_measured = np.array(intensity_tuple[1])
-    NZ = (len(plasma['Grid'].Z2D[:,0])-1)/10 + 1
-    NR = (len(plasma['Grid'].R2D[0,:])-1)/10 + 1
+    NZ = (len(plasma.grid.Z2D[:,0])-1)/10 + 1
+    NR = (len(plasma.grid.R2D[0,:])-1)/10 + 1
     T_m_2D = T_measured.reshape((NZ,NR))
     return tuple(T_m_2D)
     

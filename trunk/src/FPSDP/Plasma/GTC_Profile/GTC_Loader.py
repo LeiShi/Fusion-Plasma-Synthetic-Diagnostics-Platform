@@ -12,18 +12,23 @@ Created on Mon Sep 21 14:07:39 2015
 
 @author: lshi
 """
-import numpy as np
 import json
 import re
 import os
-from ...Geometry.Grid import Cartesian2D, Cartesian3D
-from ...Geometry.Support import DelaunayTriFinder
-from ...IO import f90nml
-from ...Maths.Funcs import poly2_curve
+
+import numpy as np
 from scipy.spatial import Delaunay, ConvexHull
 from scipy.interpolate import LinearNDInterpolator, interp1d
 from matplotlib.tri import triangulation 
 from matplotlib.tri import LinearTriInterpolator as linear_interp
+
+from ...Geometry.Grid import Cartesian2D, Cartesian3D
+from ...Geometry.Support import DelaunayTriFinder
+from ...IO import f90nml
+from ...Maths.Funcs import poly2_curve
+from ...Diagnostics.AvailableDiagnostics import Available_Diagnostics
+from ..PlasmaProfile import ECEI_Profile
+
 
 def get_interp_planes(loader):
     """Get the plane numbers used for interpolation for each point 
@@ -585,8 +590,44 @@ class GTC_Loader:
                 A_para_interp = LinearNDInterpolator(self.Delaunay_gtc,self.A_para[i],fill_value = 0)
                 self.A_para_on_grid[i] = A_para_interp(points_on_grid)
             
+    
+    def interpolate_on_grid(self, grid):
+        """Interpolate required quantities on new grid. Useful for loading same
+        simulation data for multiple diagnostics which requires different grids.
+        """
+        # TODO complete the interpolation function
+        pass
+        
+    def create_profile(self, diagnostics=None, grid=None):
+        """Create required profile object for specific diagnostics
+        
+        :param diagnostcs: Specify the synthetic diagnostic that uses the 
+                           profile. If not given, a list of available 
+                           diagnostics will be printed.
+        :type diagnostics: string
+        :param grid: The grid on which all required profiles will be given. If 
+                     not specified, ``self.grid`` will be used.
+        :type grid: :py:class:`...Geometry.Grid.Grid` derived class
+        """
+        if (diagnostics is None) or (diagnostics not in Available_Diagnostics):
+            raise ValueError('Diagnostic not specified! Currently available \
+            diagnostics are:\n{}'.format(Available_Diagnostics))
+        
+        if grid is None:
+            grid = self.grid
             
-
+        if (diagnostics == 'ECEI1D'):
+            self.interpolate_on_grid(grid)
+            ne_total = self.ne0_on_grid + self.nane_on_grid + \
+                       self.dne_ad_on_grid
+            Te_para = self.Te0_on_grid + self.Te_para_on_grid
+            Te_perp = self.Te0_on_grid + self.Te_perp_on_grid
+            B = np.sqrt(self.Bphi_on_grid*self.Bphi_on_grid + self.BR_on_grid*\
+                        self.BR_on_grid + self.BZ_on_grid*self.BZ_on_grid)
+            return ECEI_Profile(grid, ne_total, Te_para, Te_perp, B)
+            
+        
+        
         
             
         

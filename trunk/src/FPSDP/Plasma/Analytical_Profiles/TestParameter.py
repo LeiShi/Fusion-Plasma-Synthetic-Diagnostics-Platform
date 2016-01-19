@@ -4,9 +4,9 @@
 # module depends on numpy package
 import numpy as np
 
-from ..GeneralSettings.UnitSystem import cgs
-
-from ..Geometry import Grid 
+from ...GeneralSettings.UnitSystem import cgs
+from ...Geometry import Grid 
+from ..PlasmaProfile import ECEI_Profile
 
 # Parameter is a keyword dictionary contains all the pre-defined profile parameters.
 # can be modified via method set_parameter(kwargs).
@@ -100,7 +100,9 @@ def create_profile2D():
         a_core = a * (1-ShapeTable['Hmode']['PedWidthT'])
         a_array = np.sqrt(((RZGrid.R2D-R_0)**2+RZGrid.Z2D**2))
 # linear function connecting axis, top of pedestal and the vacuum
-        Te_array = np.select([ a_array <= a_core, a_array >= a, a_array > a_core  ],[a_array* (tped - Te_0)/a_core + Te_0 , tout , (a_array - a) * (tped-tout)/(a_core - a)+ tout])
+        Te_array = np.select([a_array<=a_core, a_array>=a, a_array>a_core],
+                             [a_array*(tped-Te_0)/a_core + Te_0, tout,
+                              (a_array-a)*(tped-tout)/(a_core-a)+ tout])
     profile['Te']= Te_array
 
 # B profile
@@ -108,7 +110,8 @@ def create_profile2D():
     B_array= B_0 * R_0/RZGrid.R2D
     profile['B']= B_array
     
-    return profile
+    return ECEI_Profile(profile['Grid'],profile['ne'],profile['Te'],
+                        profile['Te'],profile['B'])
 
 class PlasmaModelError(Exception):
     def __init__(self,value):

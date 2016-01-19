@@ -1,7 +1,7 @@
 r"""
-This module provides ways to evaluate the Plasma Dispersion Function [1], 
+This module provides ways to evaluate the Plasma Dispersion Function [1]_, 
 :math:`Z(x)`, and other related functions, specifically, the 
-:math:`\mathcal{F}_q(\phi,\psi)` Function [2]. 
+:math:`\mathcal{F}_q(\phi,\psi)` Function [2]_. 
 
 The Faddeeva function 
 
@@ -19,7 +19,7 @@ The Plasma Dispersion Function(PDF) is related to Faddeeva function as
    
   Z(z) = {\mathrm i}\sqrt{\pi} \; w(z) \; ,
     
-and :math:`\mathcal{F}_q` function is related to PDF as[2]:
+and :math:`\mathcal{F}_q` function is related to PDF as [2]_:
 
 .. math:: 
    
@@ -43,13 +43,13 @@ evaluated as:
   \mathcal{F}_{q+2}^m =
   (\phi^2\mathcal{F}_q^m - q\mathcal{F}_{q+1}^m + m\mathcal{F}_q^{m-1})/\psi^2
 
-However, as pointed out in [2], evaluating derivatives using the first formula 
+However, as pointed out in [2]_, evaluating derivatives using the first formula 
 may suffer from the cancellation of two large numbers. A more reliable way is 
 to express the derivatives of :math:`\mathcal{F}_{1/2}` and 
 :math:`\mathcal{F}_{3/2}` in terms of derivatives of the PDF, and then use the 
 second formula to evaluate larger q's.
 
-PDF has the following property[1]:
+PDF has the following property [1]_:
 
 .. math::
    Z'(z) = -2(1+zZ(z)) \; ,
@@ -60,12 +60,13 @@ and it's easy to show the following recurrence relation
    Z^m(z) = -2[(m-1)Z^{m-2}(z) + zZ^{m-1}(z)] \quad \mathrm{for}\; m>2 \; .
    
 Fianlly, for special case, :math:`\psi=0`, L'Hopital rule needs to be used to
-evaluate the "0/0" kind expressions. More details in Appendix part of [2].
+evaluate the "0/0" kind expressions. More details in Appendix part of [2]_.
 
-[1] https://farside.ph.utexas.edu/teaching/plasma/lectures1/node87.html
+.. [1] https://farside.ph.utexas.edu/teaching/plasma/lectures1/node87.html
 
-[2] I.P.Shkarofsky, "New representations of dielectric tensor elements in magn-
-etized plasma", J. Plasma Physics(1986), vol. 35, part 2, pp. 319-331
+.. [2] I.P.Shkarofsky, "New representations of dielectric tensor elements in 
+       magnetized plasma", J. Plasma Physics(1986), vol. 35, part 2, pp. 
+       319-331
 
 """
 
@@ -148,14 +149,18 @@ def Fq(phi, psi, nq, tol=1e-14, no_psi_zero = False):
         
     Another function will be dedicated to this special case, :py:func:`Fq0`.
     
-    :param phi: :math:`\phi` parameter defined in ref.[2] in :py:mod:`PlasmaDispersionFunction`
+    :param phi: :math:`\phi` parameter defined in ref.[2] in 
+                :py:mod:`PlasmaDispersionFunction`
     :ptype phi: ndarray of complex
-    :param psi: :math:`\psi` parameter defined in ref.[2] in :py:mod:`PlasmaDispersionFunction`
+    :param psi: :math:`\psi` parameter defined in ref.[2] in 
+                :py:mod:`PlasmaDispersionFunction`
     :ptype psi: ndarray of complex
-    :param int nq: the numerator in q, must be odd, the denominator is default to be 2
+    :param int nq: the numerator in q, must be odd, the denominator is default  
+                   to be 2
     :param float tol: tolerance for testing phi=0 condition
     
-    :return: :math:`\mathcal{F}_{q}(\phi,\psi)` evaluated at given :math:`\phi` and :math:`\psi` mesh
+    :return: :math:`\mathcal{F}_{q}(\phi,\psi)` evaluated at given 
+             :math:`\phi` and :math:`\psi` mesh
     :rtype: ndarray of complex 
     """
     
@@ -212,10 +217,12 @@ def F12(phi, psi, tol=1e-14):
     Need to take care of special cases when phi=0 and phi is imaginary. 
     Note that :math:`\mathcal{F}_{1/2} \to +\infty` when :math:`\phi \to 0^+`.
     However, this singularity does not affect higher order functions. In this
-    case, :math:`\mathcal{F}_{5/2}` needs to be evaluated directly from Z function,
-    and serve as a starting point for higher order functions.
+    case, :math:`\mathcal{F}_{5/2}` needs to be evaluated directly from Z 
+    function, and serve as a starting point for higher order functions.
     
-    For :math:`\phi^2<0` case, refer to [1], We have modified recurrence relation:
+    For :math:`\phi^2<0` case, refer to [1]_, We have modified recurrence 
+    relation:
+    
     Letting :math:`\phi = -\mathrm i \tilde{\phi}`
     
     .. math::
@@ -223,19 +230,20 @@ def F12(phi, psi, tol=1e-14):
         \mathcal{F}_{1/2}(\phi,\psi) = \mathrm{Im} 
                                     Z(\psi+\mathrm{i}\tilde{\phi})/\tilde{\phi}
     
-    :param phi: :math:`\phi` parameter defined in ref.[2] in :py:mod:`PlasmaDispersionFunction`
+    :param phi: :math:`\phi` parameter defined in ref.[2] in 
+                :py:mod:`PlasmaDispersionFunction`
     :ptype phi: ndarray of complex
-    :param psi: :math:`\psi` parameter defined in ref.[2] in :py:mod:`PlasmaDispersionFunction`
+    :param psi: :math:`\psi` parameter defined in ref.[2] in 
+                :py:mod:`PlasmaDispersionFunction`
     :ptype psi: ndarray of complex
-    :param float tol: tolerance for testing phi=0 condition
-    
-    :return: :math:`\mathcal{F}_{1/2}(\phi,\psi)` evaluated at given :math:`\phi`
-    and :math:`\psi` mesh
+    :param float tol: tolerance for testing phi=0 condition    
+    :return: :math:`\mathcal{F}_{1/2}(\phi,\psi)` evaluated at given 
+             :math:`\phi` and :math:`\psi` mesh
     :rtype: ndarray of complex
     
-    [1]Weakly relativistic dielectric tensor and dispersion functions of a 
-       Maxwellian plasma, V. Krivenski and A. Orefice, J. Plasma Physics (1983)
-       , vol. 30, part 1, pp. 125-131
+    .. [1] Weakly relativistic dielectric tensor and dispersion functions of a 
+           Maxwellian plasma, V. Krivenski and A. Orefice, J. Plasma Physics 
+           (1983), vol. 30, part 1, pp. 125-131
     """    
     assert(np.array(phi).shape == np.array(psi).shape)
     
@@ -268,7 +276,7 @@ def F32(phi, psi, tol = 1e-14):
     Need to take care of special cases when psi=0. 
     :math:`\mathcal{F}_{3/2}(\phi,\psi)=-Z'(-\phi)`  when :math:`\psi=0`
     
-    For :math:`\phi^2<0` case, refer to [1], We have modified recurrence relation:
+    For :math:`\phi^2<0` case, refer to [1]_, We have modified recurrence relation:
     Letting :math:`\phi = -\mathrm i \tilde{\phi}`
     
     .. math::
@@ -278,14 +286,17 @@ def F32(phi, psi, tol = 1e-14):
     if :math:`\psi=0`, then 
     
     :param phi: :math:`\phi` parameter defined in ref.[2] in :py:mod:`PlasmaDispersionFunction`
-    :ptype phi: ndarray of complex
+    :type phi: ndarray of complex
     :param psi: :math:`\psi` parameter defined in ref.[2] in :py:mod:`PlasmaDispersionFunction`
-    :ptype psi: ndarray of complex
-    :param float tol: tolerance for testing psi=0 condition
-    
+    :type psi: ndarray of complex
+    :param float tol: tolerance for testing psi=0 condition    
     :return: :math:`\mathcal{F}_{1/2}(\phi,\psi)` evaluated at given :math:`\phi`
-    and :math:`\psi` mesh
+             and :math:`\psi` mesh
     :rtype: ndarray of complex
+    
+    .. [1] Weakly relativistic dielectric tensor and dispersion functions of a 
+           Maxwellian plasma, V. Krivenski and A. Orefice, J. Plasma Physics (1983)
+           , vol. 30, part 1, pp. 125-131
     """   
 
 
@@ -311,14 +322,63 @@ def F32(phi, psi, tol = 1e-14):
     return result
 
 def F52(phi, psi, tol=1e-14):
-#TODO complete the docstring
-    """   
-    phi=0 needs special treatment.
-    """
-    nonzero_idx = np.logical_or(np.real(phi) >= tol, np.imag(phi) >= tol)
-    zero_idx = np.logical_not(nonzero_idx)
+    r"""Shorthand function for :math:`\mathcal{F}_{5/2}(\phi,\psi)`
     
+    Need to take care of following special cases 
+    
+    1. psi=0
+    
+    .. math::    
+    
+        \mathcal{F}_{5/2}(\phi,0)=2(1+\phi^2\mathcal{F}_{3/2})/5  
+    
+    2. phi=0
+    
+    .. math::
+    
+        \mathcal{F}_{5/2}(0,\psi) = (1 - \frac{5}{2}\mathcal{F}_{3/2})/\psi^2
+    
+    3. phi is imaginary 
+    
+    refer to [1]_, We need to set :math:`\mathrm{Im}\phi<0`
+    
+    :param phi: :math:`\phi` parameter defined in ref.[2] in 
+                :py:mod:`PlasmaDispersionFunction`
+    :ptype phi: ndarray of complex
+    :param psi: :math:`\psi` parameter defined in ref.[2] in 
+                :py:mod:`PlasmaDispersionFunction`
+    :ptype psi: ndarray of complex
+    :param float tol: tolerance for testing psi=0 condition    
+    :return: :math:`\mathcal{F}_{1/2}(\phi,\psi)` evaluated at given 
+             :math:`\phi` and :math:`\psi` mesh
+    :rtype: ndarray of complex
+    
+    .. [1] Weakly relativistic dielectric tensor and dispersion functions of a 
+           Maxwellian plasma, V. Krivenski and A. Orefice, J. Plasma Physics 
+           (1983), vol. 30, part 1, pp. 125-131
+    """   
+    assert(np.array(phi).shape == np.array(psi).shape)    
+    # since physically phi^2 is real, phi is either pure real or imaginary, 
+    # test if this condition is satisfied.
+    assert(np.logical_or(np.real(phi)<tol, np.imag(phi)<tol).all())
+
     result = np.empty_like(phi, dtype='complex')
+    
+    # First, we modify phi so that it complies with our requirement
+    phi_mod = np.abs(np.real(phi)) - 1j*np.abs(np.imag(phi))
+    # Now, we process zero psi part
+    psi0_idx = np.logical_and(np.abs(np.real(psi)) < tol, 
+                              np.abs(np.imag(psi)) < tol)
+    result[psi0_idx] = 2*(1 + phi_mod*phi_mod*F32(phi[psi0_idx]), 
+                                                  psi[psi0_idx]) / 5 
+    
+    # Finally, we deal with phi==0 part and phi!=0 part
+    nonzero_idx = np.logical_or(np.real(phi) >= tol, np.imag(phi) >= tol)
+    
+    zero_idx = np.logical_and( np.logical_not(nonzero_idx),
+                              np.logical_not(psi0_idx))
+    nonzero_idx = np.logical_and(nonzero_idx, np.logical_not(psi0_idx))
+    
     result[nonzero_idx] = (1 + phi[nonzero_idx]*phi[nonzero_idx]* \
                            F12(phi[nonzero_idx], psi[nonzero_idx]) - 
                            0.5*F32(phi[nonzero_idx], psi[nonzero_idx])) / \

@@ -1,16 +1,16 @@
-import FPSDP.Plasma.TestParameter as tp
+import FPSDP.Plasma.Analytical_Profiles.TestParameter as tp
 from FPSDP.GeneralSettings.UnitSystem import cgs
 import numpy as np
 from FPSDP.Maths.Funcs import my_quad
 import FPSDP.Maths.PlasmaDispersionFunction as pdf
 
-plasma = tp.create_profile()
+plasma = tp.create_profile2D()
 
-NR = plasma['Grid'].NR
-NZ = plasma['Grid'].NZ
+NR = plasma.grid.NR
+NZ = plasma.grid.NZ
 
-R1D = plasma['Grid'].R2D[0,:]
-Z1D = plasma['Grid'].Z2D[:,0]
+R1D = plasma.grid.R2D[0,:]
+Z1D = plasma.grid.Z2D[:,0]
 
 c = cgs['c']
 m_e = cgs['m_e']
@@ -19,9 +19,9 @@ keV = cgs['keV']
 
 Zmid = NZ/2+1
 
-ne = plasma['ne'][Zmid,:]
-B = plasma['B'][Zmid,:]
-Te = plasma['Te'][Zmid,:]
+ne = plasma.ne[Zmid,:]
+B = plasma.B[Zmid,:]
+Te = plasma.Te[Zmid,:]
 
 vt = np.sqrt(Te/m_e)
 omega_c = e*B/(m_e*c)

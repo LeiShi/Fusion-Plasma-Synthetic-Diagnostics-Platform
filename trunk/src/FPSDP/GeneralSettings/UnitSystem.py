@@ -7,65 +7,83 @@ import math
 class UnitError(Exception):
     """Unit related Exception class.
     """
-    def __init__(this, *a):
-        this.args = a
+    def __init__(self, *a):
+        self.args = a
 
 
 class UnitSystem:
     """Base class for unit systems
 
     Attributes:
-        _ConstDic: dictionary contains all the useful physical constants.
-        list_const: returns the _ConstDic dictionary.
-        add_const: add new const into the _ConstDic.
-        del_const: remove existing const from _ConstDic.
-        rename_const: change the key for a const to obey user defined synbol rules.
+        :var _ConstDic: dictionary contains all the useful physical constants.
+    
+    Methods:    
+        :py:method:`list_const`: returns the _ConstDic dictionary.
+        :py:method:`add_const`: add new const into the _ConstDic.
+        :py:method:`del_const`: remove existing const from _ConstDic.
+        :py:method:`rename_const`: change the key for a const to obey user 
+                                   defined synbol rules.
     """
-    def __init__(this, name, **CD):
-        """Initialize with a name and/or a keyword argument list containing the constants
+    def __init__(self, name, description, **CD):
+        """Initialize with a name and/or a keyword argument list containing the
+        constants
         """
-        this.name = name
-        this._ConstDic = dict(**CD)
+        self._name = name
+        self._description = description
+        self._ConstDic = dict(**CD)
 
-    def __getitem__(this,cname):
+    def __getitem__(self,cname):
         """get consts by the name
         """
         try:
-            return this._ConstDic[cname]
+            return self._ConstDic[cname]
         except KeyError:
-            print 'const "{0}" not defined in unit "{1}"'.format(cname,this.name)
+            print 'const "{0}" not defined in unit "{1}"'.format(cname,
+                                                                 self.name)
             raise
         except:
             raise
+            
+    def __str__(self):
+        return '{}\n{}\n'.format(self._name, self._description)
 
-    def list_const(this):
-        """ returns the dictionary contains all the (name,value) pairs of the consts
+    def list_const(self):
+        """ returns the dictionary contains all the (name,value) pairs of the 
+        consts
         """
-        return this._ConstDic
+        return self._ConstDic
 
-    def add_const(this, **C):
+    def add_const(self, **C):
         """Add one or more constants using a keyword argument list.
 
-        If no argument is passed, a UnitError exception is raised.
-        If one of the passed keys already exists, the value passes will be conpared with the value
-        stored. If the relative difference is less than 10e-4, the value will be CHANGED to the new
-        value. However, if the difference is larger than that, a UnitError exception will be raised.
+        :raise UnitError: If no argument is passed, a UnitError exception is 
+                          raised.
+        
+        :raise UnitError: If one of the passed keys already exists, the value 
+                          passed will be compared with the value stored. If the
+                          relative difference is less than 10e-4, the value 
+                          will be **CHANGED** to the new value. However, if the 
+                          difference is larger than that, a UnitError exception
+                          will be raised.
         """
         if not C:
-            raise UnitError("Keyword arguments needed for adding new constants to the unit system.")
+            raise UnitError("Keyword arguments needed for adding new constants\
+ to the unit system.")
         else:
             for key in C.keys():
-                if key in this._ConstDic.keys():
-                    dif = ( float(C[key])-this._ConstDic[key] ) / C[key]
+                if key in self._ConstDic.keys():
+                    dif = ( float(C[key])-self._ConstDic[key] ) / C[key]
                     if dif <= 1e-4:
-                        this._ConstDic[key] = C[key]
+                        self._ConstDic[key] = C[key]
                         continue
                     else:
-                        raise UnitError("Const value conflict! Please double check the unit system you are using!\nPossibly a name conflict, check the names as well.")
+                        raise UnitError("Const value conflict! Please double \
+check the unit system you are using!\nPossibly a name conflict, check the \
+names as well.")
                 else:
-                    this._ConstDic[key] = C[key]
+                    self._ConstDic[key] = C[key]
 
-    def del_const(this, *names):
+    def del_const(self, *names):
         """Delete the consts for given names.
 
         If no name is given, a UnitError exception will be raised.
@@ -75,29 +93,31 @@ class UnitSystem:
             raise UnitError("No names passed for deletion.")
         else:
             for n in names:
-                if not ( n in this._ConstDic.keys() ):
-                    raise UnitError("name {0} not found for deletion.".format(n))
+                if not ( n in self._ConstDic.keys() ):
+                    raise UnitError("name {0} not found for deletion.".\
+                                     format(n))
                 else:
-                    del this._ConstDic[n]
+                    del self._ConstDic[n]
 
-    def rename_const(this, **NameDic):
+    def rename_const(self, **NameDic):
         """Change the name of a exsiting constant.
 
-        Keyword arguments are accepted with the key being the EXISTING name and the value being the
-        new name
-        If no argument is passed, nothing will happen.
-        If keywords contain non-existing names, a UnitError exception will be raised.
+        Keyword arguments are accepted with the key being the EXISTING name 
+        and the value being the new name.
+        
+        :raise UnitError: If keywords contain non-existing names, a UnitError 
+                          exception will be raised.
         """
         for oldname in NameDic.keys():
-            if not (oldname in this._ConstDic.keys() ):
+            if not (oldname in self._ConstDic.keys() ):
                 raise UnitError("Const {0} dosen't exist, can not rename it".format(oldname))
             else:
-                this._ConstDic[ NameDic[oldname] ] = this._ConstDic[oldname]
-                del this._ConstDic[oldname]
+                self._ConstDic[ NameDic[oldname] ] = self._ConstDic[oldname]
+                del self._ConstDic[oldname]
 
 # some pre-defined unit systems
 # quantities' values based on NRL Plasma Formulary Revised 2009
-cgs = UnitSystem('cgs',
+cgs = UnitSystem('cgs','Length: centi-meter\nMass: gram\nTime: second',
                  
 # elementary charge
                  e = 4.8032e-10,
@@ -116,7 +136,7 @@ cgs = UnitSystem('cgs',
 # more constants can be added later...
                  )
 
-SI = UnitSystem('SI',
+SI = UnitSystem('SI','Length: meter\nMass: kilo-gram\nTime: second',
 # elementary charge
                 e = 1.6022e-19,
 # electron mass

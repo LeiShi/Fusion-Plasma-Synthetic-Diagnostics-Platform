@@ -124,7 +124,10 @@ class Cartesian2D(ExpGrid):
     
 
     def get_mesh(self):
-        return (self.Z1D, self.R1D)         
+        return (self.Z1D, self.R1D)  
+    
+    def get_ndmesh(self):
+        return (self.Z2D, self.R2D)
 
     def __str__(self):
         """returns the key informations of the grids
@@ -271,6 +274,9 @@ class Cartesian3D(ExpGrid):
     
     def get_mesh(self):
         return (self.Z1D, self.Y1D, self.X1D)
+        
+    def get_ndmesh(self):
+        return (self.Z3D, self.Y3D, self.X3D)
 
 
     def ToCylindrical(self):

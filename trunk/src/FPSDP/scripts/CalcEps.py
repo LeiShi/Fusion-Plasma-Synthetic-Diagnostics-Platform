@@ -1,7 +1,7 @@
 import FPSDP.Plasma.Analytical_Profiles.TestParameter as tp
 from FPSDP.GeneralSettings.UnitSystem import cgs
 import numpy as np
-from FPSDP.Maths.Funcs import my_quad
+
 import FPSDP.Maths.PlasmaDispersionFunction as pdf
 
 plasma = tp.create_profile2D()

@@ -245,187 +245,326 @@ setup_interp function first.'
             return B0_sp(points)  
             
 
-    def get_dne(self, coordinates):
+    def get_dne(self, coordinates, time=None):
         """return dne interpolated at *coordinates*, for each time step
         
         :param coordinates: Coordinates given in (Z,Y,X)*(for 3D)* or (Z,R) 
                             *(for 2D)* order.
         :type coordinates: *dim* ndarrays, *dim* is the dimensionality of 
-                           *self.grid*  
+                           *self.grid* 
+        :param time: Optional, the time steps chosen to return. If None, all 
+                     available times are returned.
+        :type time: array_like or scalar of int
         
         :return: dne time series 
         :rtype: ndarray with shape ``(nt,nc1,nc2,...,ncn)``, where 
                 ``nt=len(time)``, ``(nc1,nc2,...,ncn)=coordinates[0].shape``
+                if time is scalar, the shape is (nc1, nc2, ..., ncn) only.
         """
         assert self.has_dne
         coordinates = np.array(coordinates)
         assert self.grid.dimension == coordinates.shape[0]
         
-        result_shape = [i for i in coordinates.shape]
-        nt = len(self.time)
-        result_shape[0] = nt
-
-        result = np.empty(result_shape)        
-        
-        transpose_axes = range(1,coordinates.ndim)
-        transpose_axes.append(0)
-        points = np.transpose(coordinates, transpose_axes)
-        try:
-            for i,dne_sp in enumerate(self.dne_sp):
-                result[i] = dne_sp(points)
-        except AttributeError:
-            print 'dne_sp has not been created. Temperary interpolator \
+        if time is None:
+            time = np.arange(len(self.time))
+        elif isinstance(time, int):
+            result_shape = coordinates.shape[1:]    
+            result = np.empty(result_shape)        
+            
+            transpose_axes = range(1,coordinates.ndim)
+            transpose_axes.append(0)
+            points = np.transpose(coordinates, transpose_axes)
+            try:
+                result = self.dne_sp[time](points)
+            except AttributeError:
+                print 'dB_sp has not been created. Temperary interpolator \
 generated. If this message shows up a lot of times, please consider calling \
 setup_interp function first.'
-            mesh = self.grid.get_mesh()            
-            for i in range(nt):
-                dne_sp = RegularGridInterpolator(mesh, self.dne[i])
-                result[i] = dne_sp(points)
-            return result
+                mesh = self.grid.get_mesh()            
+                dne_sp = RegularGridInterpolator(mesh, self.dne[time])
+                result = dne_sp(points)
+                return result
+        else:
+            result_shape = [i for i in coordinates.shape]
+            nt = len(time)
+            result_shape[0] = nt
+    
+            result = np.empty(result_shape)        
             
-    def get_dB(self, coordinates):
+            transpose_axes = range(1,coordinates.ndim)
+            transpose_axes.append(0)
+            points = np.transpose(coordinates, transpose_axes)
+            try:
+                for t in time:
+                    result[t] = self.dne_sp[t](points)
+            except AttributeError:
+                print 'dB_sp has not been created. Temperary interpolator \
+generated. If this message shows up a lot of times, please consider calling \
+setup_interp function first.'
+                mesh = self.grid.get_mesh()            
+                for t in time:
+                    dne_sp = RegularGridInterpolator(mesh, self.dne[t])
+                    result[t] = dne_sp(points)
+                return result
+            
+    def get_dB(self, coordinates, time=None):
         """return dB interpolated at *coordinates*, for each time step
         
         :param coordinates: Coordinates given in (Z,Y,X)*(for 3D)* or (Z,R) 
                             *(for 2D)* order.
         :type coordinates: *dim* ndarrays, *dim* is the dimensionality of 
                            *self.grid*  
+        :param time: Optional, the time steps chosen to return. If None, all 
+                     available times are returned.
+        :type time: array_like or scalar of int
         
         :return: dne time series 
         :rtype: ndarray with shape ``(nt,nc1,nc2,...,ncn)``, where 
                 ``nt=len(time)``, ``(nc1,nc2,...,ncn)=coordinates[0].shape``
+                if time is scalar, the shape is (nc1, nc2, ..., ncn) only.
         """
         assert self.has_dB
         coordinates = np.array(coordinates)
         assert self.grid.dimension == coordinates.shape[0]
         
-        result_shape = [i for i in coordinates.shape]
-        nt = len(self.time)
-        result_shape[0] = nt
-
-        result = np.empty(result_shape)        
-        
-        transpose_axes = range(1,coordinates.ndim)
-        transpose_axes.append(0)
-        points = np.transpose(coordinates, transpose_axes)
-        try:
-            for i,dB_sp in enumerate(self.dB_sp):
-                result[i] = dB_sp(points)
-        except AttributeError:
-            print 'dB_sp has not been created. Temperary interpolator \
+        if time is None:
+            time = np.arange(len(self.time))
+            
+        elif isinstance(time, int):
+            result_shape = coordinates.shape[1:]    
+            result = np.empty(result_shape)        
+            
+            transpose_axes = range(1,coordinates.ndim)
+            transpose_axes.append(0)
+            points = np.transpose(coordinates, transpose_axes)
+            try:
+                result = self.dB_sp[time](points)
+            except AttributeError:
+                print 'dB_sp has not been created. Temperary interpolator \
 generated. If this message shows up a lot of times, please consider calling \
 setup_interp function first.'
-            mesh = self.grid.get_mesh()            
-            for i in range(nt):
-                dB_sp = RegularGridInterpolator(mesh, self.dB[i])
-                result[i] = dB_sp(points)
-            return result
+                mesh = self.grid.get_mesh()            
+                dB_sp = RegularGridInterpolator(mesh, self.dB[time])
+                result = dB_sp(points)
+                return result
+        
+        else:
+            # Note that the first dimension in coordinates is the number of spatial
+            # axis. We can simply overwrite it with time steps to get the desired
+            # shape of result. 
+            result_shape = [i for i in coordinates.shape]
+            nt = len(time)
+            result_shape[0] = nt
+    
+            result = np.empty(result_shape)        
+            
+            transpose_axes = range(1,coordinates.ndim)
+            transpose_axes.append(0)
+            points = np.transpose(coordinates, transpose_axes)
+            try:
+                for t in time:
+                    result[t] = self.dB_sp[t](points)
+            except AttributeError:
+                print 'dB_sp has not been created. Temperary interpolator \
+generated. If this message shows up a lot of times, please consider calling \
+setup_interp function first.'
+                mesh = self.grid.get_mesh()            
+                for t in time:
+                    dB_sp = RegularGridInterpolator(mesh, self.dB[t])
+                    result[t] = dB_sp(points)
+                return result
 
 
-    def get_dTe_perp(self, coordinates):
+    def get_dTe_perp(self, coordinates, time=None):
         """return dTe_perp interpolated at *coordinates*, for each time step
         
         :param coordinates: Coordinates given in (Z,Y,X)*(for 3D)* or (Z,R) 
                             *(for 2D)* order.
         :type coordinates: *dim* ndarrays, *dim* is the dimensionality of 
                            *self.grid*  
+        :param time: Optional, the time steps chosen to return. If None, all 
+                     available times are returned.
+        :type time: array_like or scalar of int
         
         :return: dTe_perp time series 
         :rtype: ndarray with shape ``(nt,nc1,nc2,...,ncn)``, where 
                 ``nt=len(time)``, ``(nc1,nc2,...,ncn)=coordinates[0].shape``
+                if time is scalar, the shape is (nc1, nc2, ..., ncn) only.
         """
         assert self.has_dTe_perp
         coordinates = np.array(coordinates)
         assert self.grid.dimension == coordinates.shape[0]
         
-        result_shape = [i for i in coordinates.shape]
-        nt = len(self.time)
-        result_shape[0] = nt
-
-        result = np.empty(result_shape)        
-        
-        transpose_axes = range(1,coordinates.ndim)
-        transpose_axes.append(0)
-        points = np.transpose(coordinates, transpose_axes)
-        try:
-            for i,dte_sp in enumerate(self.dTe_perp_sp):
-                result[i] = dte_sp(points)
-        except AttributeError:
-            print 'dTe_perp_sp has not been created. Temperary interpolator \
+        if time is None:
+            time = np.arange(len(self.time))        
+        elif isinstance(time, int):
+            result_shape = coordinates.shape[1:]    
+            result = np.empty(result_shape)        
+            
+            transpose_axes = range(1,coordinates.ndim)
+            transpose_axes.append(0)
+            points = np.transpose(coordinates, transpose_axes)
+            try:
+                result = self.dTe_perp_sp[time](points)
+            except AttributeError:
+                print 'dB_sp has not been created. Temperary interpolator \
 generated. If this message shows up a lot of times, please consider calling \
 setup_interp function first.'
-            mesh = self.grid.get_mesh()            
-            for i in range(nt):
-                dte_sp = RegularGridInterpolator(mesh, self.dTe_perp[i])
-                result[i] = dte_sp(points)
-            return result
+                mesh = self.grid.get_mesh()            
+                dte_sp = RegularGridInterpolator(mesh, self.dTe_perp[time])
+                result = dte_sp(points)
+                return result
+                
+        else:
+            result_shape = [i for i in coordinates.shape]
+            nt = len(time)
+            result_shape[0] = nt
+    
+            result = np.empty(result_shape)        
+            
+            transpose_axes = range(1,coordinates.ndim)
+            transpose_axes.append(0)
+            points = np.transpose(coordinates, transpose_axes)
+            try:
+                for t in time:
+                    result[t] = self.dTe_perp_sp[t](points)
+            except AttributeError:
+                print 'dB_sp has not been created. Temperary interpolator \
+    generated. If this message shows up a lot of times, please consider calling \
+    setup_interp function first.'
+                mesh = self.grid.get_mesh()            
+                for t in time:
+                    dte_sp = RegularGridInterpolator(mesh, self.dTe_perp[t])
+                    result[t] = dte_sp(points)
+                return result
 
             
-    def get_dTe_para(self, coordinates):
+    def get_dTe_para(self, coordinates, time=None):
         """return dTe_para interpolated at *coordinates*, for each time step
         
         :param coordinates: Coordinates given in (Z,Y,X)*(for 3D)* or (Z,R) 
                             *(for 2D)* order.
         :type coordinates: *dim* ndarrays, *dim* is the dimensionality of 
                            *self.grid*  
+        :param time: Optional, the time steps chosen to return. If None, all 
+                     available times are returned.
+        :type time: array_like or scalar of int
         
         :return: dTe_para time series 
         :rtype: ndarray with shape ``(nt,nc1,nc2,...,ncn)``, where 
                 ``nt=len(time)``, ``(nc1,nc2,...,ncn)=coordinates[0].shape``
+                if time is scalar, the shape is (nc1, nc2, ..., ncn) only.
         """
         assert self.has_dTe_para
         coordinates = np.array(coordinates)
         assert self.grid.dimension == coordinates.shape[0]
         
-        result_shape = [i for i in coordinates.shape]
-        nt = len(self.time)
-        result_shape[0] = nt
-
-        result = np.empty(result_shape)        
-        
-        transpose_axes = range(1,coordinates.ndim)
-        transpose_axes.append(0)
-        points = np.transpose(coordinates, transpose_axes)
-        try:
-            for i,dte_sp in enumerate(self.dTe_para_sp):
-                result[i] = dte_sp(points)
-        except AttributeError:
-            print 'dTe_para_sp has not been created. Temperary interpolator \
+        if time is None:
+            time = np.arange(len(self.time))  
+            
+        elif isinstance(time, int):
+            result_shape = coordinates.shape[1:]    
+            result = np.empty(result_shape)        
+            
+            transpose_axes = range(1,coordinates.ndim)
+            transpose_axes.append(0)
+            points = np.transpose(coordinates, transpose_axes)
+            try:
+                result = self.dTe_para_sp[time](points)
+            except AttributeError:
+                print 'dB_sp has not been created. Temperary interpolator \
 generated. If this message shows up a lot of times, please consider calling \
 setup_interp function first.'
-            mesh = self.grid.get_mesh()            
-            for i in range(nt):
-                dte_sp = RegularGridInterpolator(mesh, self.dTe_para[i])
-                result[i] = dte_sp(points)
-            return result
+                mesh = self.grid.get_mesh()            
+                dte_sp = RegularGridInterpolator(mesh, self.dTe_para[time])
+                result = dte_sp(points)
+                return result        
+        else:
+            result_shape = [i for i in coordinates.shape]
+            nt = len(time)
+            result_shape[0] = nt
+    
+            result = np.empty(result_shape)        
             
-    def get_ne(self, coordinates, eq_only=False):
+            transpose_axes = range(1,coordinates.ndim)
+            transpose_axes.append(0)
+            points = np.transpose(coordinates, transpose_axes)
+            try:
+                for t in time:
+                    result[t] = self.dTe_para_sp[t](points)
+            except AttributeError:
+                print 'dB_sp has not been created. Temperary interpolator \
+    generated. If this message shows up a lot of times, please consider calling \
+    setup_interp function first.'
+                mesh = self.grid.get_mesh()            
+                for t in time:
+                    dte_sp = RegularGridInterpolator(mesh, self.dTe_para[t])
+                    result[t] = dte_sp(points)
+                return result
+            
+    def get_ne(self, coordinates, eq_only=True, time=None):
         """wrapper for getting electron densities
-        if eq_only is True, only equilibirum density is returned
+        
+        If eq_only is True, only equilibirum density is returned
         otherwise, the total density is returned.
         """
         if eq_only:
             return self.get_ne0(coordinates)
         else:
             if self.has_dne:
-                return self.get_ne0(coordinates) + self.get_dne(coordinates)
+                return self.get_ne0(coordinates) + self.get_dne(coordinates, 
+                                                                time)
             else:
                 raise ValueError('get_ne is called with eq_only=False, but no \
 electron density perturbation data available.')
                 
-    def get_B(self, coordinates, eq_only=False):
-        """wrapper for getting electron densities
-        if eq_only is True, only equilibirum density is returned
+    def get_B(self, coordinates, eq_only=True, time=None):
+        """wrapper for getting magnetic field strength
+        
+        If eq_only is True, only equilibirum density is returned
         otherwise, the total density is returned.
+        
+        if time is None, all available time steps for perturbations are 
+        returned. Otherwise the given time steps are returned.
         """
         if eq_only:
             return self.get_B0(coordinates)
         else:
             if self.has_dB:
-                return self.get_B0(coordinates) + self.get_dB(coordinates)
+                return self.get_B0(coordinates) + self.get_dB(coordinates, 
+                                                              time)
             else:
                 raise ValueError('get_B is called with eq_only=False, but no \
 electron density perturbation data available.')
+
+    def get_Te(self, coordinates, eq_only=True, perpendicular = True, 
+               time=None):
+        """wrapper for getting electron densities
+        
+        If eq_only is True, only equilibirum density is returned
+        otherwise, the total density is returned.
+        
+        if time is None, all available time steps for perturbations are 
+        returned. Otherwise the given time steps are returned.
+        """
+        if eq_only:
+            return self.get_Te0(coordinates)
+        elif perpendicular:
+            if self.has_dTe_perp:
+                return self.get_Te0(coordinates) + \
+                       self.get_dTe_perp(coordinates, time)
+            else:
+                raise ValueError('get_Te is called with eq_only=False, \
+perpendicular=True but no electron perpendicular temperature perturbation data\
+ available.')
+        else:
+            if self.has_dTe_para:
+                return self.get_Te0(coordinates) + \
+                       self.get_dTe_para(coordinates, time)
+            else:
+                raise ValueError('get_Te is called with eq_only=False, \
+perpendicular=True but no electron perpendicular temperature perturbation data\
+ available.')
 
 
     

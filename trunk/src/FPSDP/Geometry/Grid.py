@@ -1,8 +1,10 @@
 """Class definitions of grids 
 """
-#moudle depends on numpy package
-import numpy as np
 from abc import ABCMeta, abstractmethod
+import warnings
+
+import numpy as np
+
 from .Geometry import Geometry
 
 
@@ -22,6 +24,11 @@ class Grid(object):
     @abstractmethod    
     def __str__(self):
         return self._name
+        
+    @abstractmethod
+    def get_mesh(self):
+        raise NotImplemented('Derived classes from Grid must substantiate \
+get_mesh method!')
 
 class ExpGrid(Grid):
     """Base class for grids using in loading experimental data, mainly for 
@@ -113,7 +120,11 @@ class Cartesian2D(ExpGrid):
         self.Z2D = np.zeros((self.NZ,self.NR)) + self.Z1D[:,np.newaxis]
         self.R2D = np.zeros(self.Z2D.shape) + self.R1D[np.newaxis,:]
         self.shape = self.R2D.shape
-             
+        self.dimension = 2
+    
+
+    def get_mesh(self):
+        return (self.Z1D, self.R1D)         
 
     def __str__(self):
         """returns the key informations of the grids
@@ -255,7 +266,11 @@ class Cartesian3D(ExpGrid):
         self.Y3D = zero3D + self.Y1D[np.newaxis,:,np.newaxis]
         self.X3D = zero3D + self.X1D[np.newaxis,np.newaxis, :]
         
-             
+        self.dimension = 3
+        
+    
+    def get_mesh(self):
+        return (self.Z1D, self.Y1D, self.X1D)
 
 
     def ToCylindrical(self):
@@ -408,6 +423,12 @@ class Path2D(Grid):
                                        (self.Z2D[0,(self.N[i-1]-1): self.N[i]]\
                                        - self.pth.Z[i-1])**2 )
         self.shape = self.R2D.shape
+        self.dimension = 2
+        
+    def get_mesh(self):
+        warnings.warn('Path2D doesn\'t have regular mesh. get_mesh will return\
+ a tuple containing (Z,R,s) coordinates of points on the path.')
+        return (self.Z2D[0,:], self.R2D[0,:], self.s2D[0,:]) 
 
     def __str__(self):
         """display information

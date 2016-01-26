@@ -3,9 +3,9 @@ alpha.
 
 Method 1:
 Analytical expression for alpha is used. Assume weakly relativistic Maxwellian 
-distriution, and weak absorption.[1]
+distriution, and weak absorption. [1]_
 
-[1] 1983 Nucl. Fusion 23 1153
+.. [1] 1983 Nucl. Fusion 23 1153
 """
 
 import pickle

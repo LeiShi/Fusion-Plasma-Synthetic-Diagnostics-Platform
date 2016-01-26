@@ -625,7 +625,10 @@ class GTC_Loader:
             B = np.sqrt(self.Bphi_on_grid*self.Bphi_on_grid + self.BR_on_grid*\
                         self.BR_on_grid + self.BZ_on_grid*self.BZ_on_grid)
             return ECEI_Profile(grid, ne_total, Te_para, Te_perp, B)
-            
+        else:
+            raise NotImplemented('GTC profile generator for {} is not \
+implemented! Modify FPSDP.Plasma.GTC_Profile.GTC_Loader.create_profile to \
+implement it.')
         
         
         

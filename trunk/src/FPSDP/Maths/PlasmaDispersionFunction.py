@@ -3,8 +3,8 @@ This module provides ways to evaluate the Plasma Dispersion Function [1]_,
 :math:`Z(x)`, and other related functions, specifically, the 
 :math:`\mathcal{F}_q(\phi,\psi)` Function [2]_. 
 
-The Faddeeva function 
-
+Faddeeva function 
+=====================
 .. math::
    
   w(z) \equiv \exp(-z^2) \; {\mathrm {erfc}}(-{\mathrm i}z)
@@ -13,41 +13,15 @@ is used, where :math:`{\mathrm {erfc}}(z)` is the complementary error function.
 It is evaluated using the python wrapper of Steven G. Johnson's routine, 
 provided by scipy, see :py:func:`scipy.spetial.wofz` for more details.
 
-The Plasma Dispersion Function(PDF) is related to Faddeeva function as
+
+Plasma Dispersion Function(PDF)
+====================================
+ 
+The PDF is related to Faddeeva function as
 
 .. math::
    
-  Z(z) = {\mathrm i}\sqrt{\pi} \; w(z) \; ,
-    
-and :math:`\mathcal{F}_q` function is related to PDF as [2]_:
-
-.. math:: 
-   
-  \mathcal{F}_{\frac{1}{2}}(\phi,\psi) = 
-   -\frac{1}{2\phi}[Z(\psi-\phi)+Z(-\psi-\phi)] \; ,
-   
-  \mathcal{F}_{\frac{3}{2}}(\phi,\psi) = 
-   -\frac{1}{2\psi}[Z(\psi-\phi)-Z(-\psi-\phi)] \; ,
-
-  \mathcal{F}_{q+2}(\phi,\psi) = 
-   (1+\phi^2\mathcal{F}_q-q\mathcal{F}_{q+1})/\psi^2 \; .
-   
-The derivatives of :math:`\mathcal{F}_q` respect to :math:`\phi^2` can be 
-evaluated as:
-
-.. math::
-    
-  \mathcal{F}_q^m \equiv \frac{\partial^m \mathcal{F}_q}{\partial(\phi^2)^m} 
-  = \mathcal{F}_{q-1}^{m-1} - \mathcal{F}_q^{m-1} \; ,
-    
-  \mathcal{F}_{q+2}^m =
-  (\phi^2\mathcal{F}_q^m - q\mathcal{F}_{q+1}^m + m\mathcal{F}_q^{m-1})/\psi^2
-
-However, as pointed out in [2]_, evaluating derivatives using the first formula 
-may suffer from the cancellation of two large numbers. A more reliable way is 
-to express the derivatives of :math:`\mathcal{F}_{1/2}` and 
-:math:`\mathcal{F}_{3/2}` in terms of derivatives of the PDF, and then use the 
-second formula to evaluate larger q's.
+  Z(z) = {\mathrm i}\sqrt{\pi} \; w(z) \; .
 
 PDF has the following property [1]_:
 
@@ -58,9 +32,45 @@ and it's easy to show the following recurrence relation
 
 .. math::
    Z^m(z) = -2[(m-1)Z^{m-2}(z) + zZ^{m-1}(z)] \quad \mathrm{for}\; m>2 \; .
+    
+
+Weakly Relativistic Plasma Dispersion Function
+===============================================
+
+:math:`\mathcal{F}_q` function is related to PDF as [2]_:
+
+.. math::    
+  \mathcal{F}_{\frac{1}{2}}(\phi,\psi) = 
+   -\frac{1}{2\phi}[Z(\psi-\phi)+Z(-\psi-\phi)] \; ,
+
+.. math::   
+  \mathcal{F}_{\frac{3}{2}}(\phi,\psi) = 
+   -\frac{1}{2\psi}[Z(\psi-\phi)-Z(-\psi-\phi)] \; ,
+
+.. math::
+  \mathcal{F}_{q+2}(\phi,\psi) = 
+   (1+\phi^2\mathcal{F}_q-q\mathcal{F}_{q+1})/\psi^2 \; .
    
+The derivatives of :math:`\mathcal{F}_q` respect to :math:`\phi^2` can be 
+evaluated as:
+
+.. math::    
+  \mathcal{F}_q^m \equiv \frac{\partial^m \mathcal{F}_q}{\partial(\phi^2)^m} 
+  = \mathcal{F}_{q-1}^{m-1} - \mathcal{F}_q^{m-1} \; ,
+
+.. math::    
+  \mathcal{F}_{q+2}^m =
+  (\phi^2\mathcal{F}_q^m - q\mathcal{F}_{q+1}^m + m\mathcal{F}_q^{m-1})/\psi^2.
+
+However, as pointed out in [2]_, evaluating derivatives using the first formula 
+may suffer from the cancellation of two large numbers. A more reliable way is 
+to express the derivatives of :math:`\mathcal{F}_{1/2}` and 
+:math:`\mathcal{F}_{3/2}` in terms of derivatives of the PDF, and then use the 
+second formula to evaluate larger q's.
+
 Fianlly, for special case, :math:`\psi=0`, L'Hopital rule needs to be used to
 evaluate the "0/0" kind expressions. More details in Appendix part of [2]_.
+
 
 .. [1] https://farside.ph.utexas.edu/teaching/plasma/lectures1/node87.html
 
@@ -85,7 +95,7 @@ def Z(z):
     
     .. math::
        
-      Z(z) = {\mathrm i}\sqrt{\pi} \; w(z) \; ,
+      Z(z) = {\mathrm i}\sqrt{\pi} \; w(z) \; .
     """
     return 1j*sqrt(np.pi)*wofz(z)
 

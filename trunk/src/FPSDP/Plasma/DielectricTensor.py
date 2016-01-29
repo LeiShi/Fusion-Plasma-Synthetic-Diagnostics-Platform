@@ -246,7 +246,7 @@ References
        (1983), vol. 30, part 1, pp. 125-131
 #TODO Finish the docstring. 
 """
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta, abstractmethod, abstractproperty
 import warnings
 
 import numpy as np
@@ -424,7 +424,7 @@ class SusceptCold(Susceptilibity):
                           Default to be 1e-14
         
         :return: susceptibility tensor at each point
-        :rtype: ndarray of complex, shape (frequency_shape,spatial_shape, 3, 3)
+        :rtype: ndarray of complex, shape (3, 3, frequency_shape,spatial_shape)
         """        
         assert len(coordinates) == self.plasma.grid.dimension
         
@@ -432,11 +432,11 @@ class SusceptCold(Susceptilibity):
         omega = np.array(omega)
         coordinates = np.array(coordinates)
         result_shape = []
+        result_shape.extend([3,3])
         frequency_shape = list(omega.shape)
         spatial_shape = list(coordinates[0].shape)
         result_shape.extend(frequency_shape)        
         result_shape.extend(spatial_shape)
-        result_shape.extend([3,3])
         result = np.empty(result_shape, dtype='complex')
         
         # entend frequency array's dimension containing spatial dimensions, so 
@@ -459,8 +459,8 @@ class SusceptCold(Susceptilibity):
             
             # profile quantities
             if(eq_only == False):
-                n = self.plasma.get_ne(coordinates, False)[time]
-                B = self.plasma.get_B(coordinates, False)[time]
+                n = self.plasma.get_ne(coordinates, False, time=time)
+                B = self.plasma.get_B(coordinates, False, time=time)
             else:
                 n = self.plasma.get_ne(coordinates, True)
                 B = self.plasma.get_B(coordinates, True)
@@ -501,16 +501,16 @@ Plasma:{}\nSpecies:{}\nSpeciesID:{}'.format(self.plasma, self.species,
         
         # construct the tensor
         # xx and yy components
-        result[..., 0, 0] = result[..., 1, 1] = (chi_plus + chi_minus)/2
+        result[0,0, ...] = result[1, 1, ...] = (chi_plus + chi_minus)/2
         # xy and yx components
         xy = 1j*(chi_plus - chi_minus)/2
-        result[..., 0, 1] = xy
-        result[..., 1, 0] = -xy
+        result[0, 1, ... ] = xy
+        result[1, 0, ...] = -xy
         # xz, yz, zx, zy components are 0
-        result[..., :, 2] = 0
-        result[..., 2, :] = 0
+        result[:, 2, ...] = 0
+        result[2, :, ...] = 0
         # zz component
-        result[..., 2, 2] = -omega_p2/(omega*omega)
+        result[2, 2, ...] = -omega_p2/(omega*omega)
         
         return result
             
@@ -640,8 +640,8 @@ class SusceptWarm(Susceptilibity):
                           Default to be 1e-14
         
         :return: susceptibility tensor at each point
-        :rtype: ndarray of complex, shape (frequency_shape, wave_vector_shape, 
-                spatial_shape, 3, 3)
+        :rtype: ndarray of complex, shape (3,3, frequency_shape, wave_vector_shape, 
+                spatial_shape)
         """        
         assert len(coordinates) == self.plasma.grid.dimension
         
@@ -653,10 +653,10 @@ class SusceptWarm(Susceptilibity):
         frequency_shape = list(omega.shape)
         wave_vector_shape = list(k_para.shape)
         spatial_shape = list(coordinates[0].shape)
+        result_shape.extend([3,3])
         result_shape.extend(frequency_shape)
         result_shape.extend(wave_vector_shape)        
         result_shape.extend(spatial_shape)
-        result_shape.extend([3,3])
         result = np.empty(result_shape, dtype='complex')
         
         # entend frequency array's dimension containing wave vector and spatial
@@ -747,16 +747,16 @@ Plasma:{}\nSpecies:{}\nSpeciesID:{}'.format(self.plasma, self.species,
         
         # construct the tensor
         # xx and yy components
-        result[..., 0, 0] = result[..., 1, 1] = (chi_plus + chi_minus)/2
+        result[0,0, ...] = result[1, 1, ...] = (chi_plus + chi_minus)/2
         # xy and yx components
         xy = 1j*(chi_plus - chi_minus)/2
-        result[..., 0, 1] = xy
-        result[..., 1, 0] = -xy
+        result[0, 1, ... ] = xy
+        result[1, 0, ...] = -xy
         # xz, yz, zx, zy components are 0
-        result[..., :, 2] = 0
-        result[..., 2, :] = 0
+        result[:, 2, ...] = 0
+        result[2, :, ...] = 0
         # zz component
-        result[..., 2, 2] = omega_p2/(-omega*omega + gamma*k_para*k_para*T/m)
+        result[2,2, ...] = omega_p2/(-omega*omega + gamma*k_para*k_para*T/m)
         
         return result        
         
@@ -826,6 +826,14 @@ Epsilon method!')
     def __str__(self):
         pass
     
+    @abstractproperty
+    def dimension(self):
+        pass
+    
+    @abstractproperty
+    def plasma(self):
+        pass
+    
    
 class ColdDielectric(Dielectric):
     r"""Class evaluating cold plasma dielectric tensor
@@ -855,7 +863,15 @@ class ColdDielectric(Dielectric):
                 self._Chi_i_model.append(SusceptCold(plasma,'i', s))
         else:
             self.has_ion = False
+    
+    @property
+    def dimension(self):
+        return self._plasma.grid.dimension
         
+    @property
+    def plasma(self):
+        return self._plasma
+    
     def chi_e(self, omega, coordinates=None, eq_only=True, time=None):
         """Calculates electron susceptibility at given locations
         
@@ -943,20 +959,28 @@ class ColdDielectric(Dielectric):
         :rtype: ndarray of shape [nf, nc1, nc2, ..., ncn, 3, 3]
         """
         
-        I = np.array([[1,0,0],
-                      [0,1,0],
-                      [0,0,1]])
+        
         if coordinates is None:
             coordinates = self._plasma.grid.get_ndmesh()              
         result = self.chi_e(omega, coordinates, eq_only, time)
         if self.has_ion:
             result += self.chi_i(omega, coordinates, eq_only, time)
-            
+        
+        I = np.array([[1,0,0],
+                      [0,1,0],
+                      [0,0,1]])
+        # I needs to be cast into result dimension so it can be broadcasted to 
+        # result
+        
+        result_dim = result.ndim
+        I_shape = [3,3]
+        I_shape.extend([1 for i in range(result_dim-2)])
+        I = I.reshape(I_shape)                      
         result += I
         
         return result
         
-        
+    
     def __str__(self):
         
         info = self._name + '\n'

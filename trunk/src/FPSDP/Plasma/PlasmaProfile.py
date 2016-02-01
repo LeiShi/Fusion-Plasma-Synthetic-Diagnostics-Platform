@@ -159,19 +159,24 @@ class ECEI_Profile(PlasmaProfile):
             if (self.has_dne):
                 self.dne_sp = []
                 for i in range(len(self.time)):
-                    self.dne_sp[i] = RegularGridInterpolator(mesh, 
-                                                         self.dne[i])
+                    self.dne_sp.append(RegularGridInterpolator(mesh, 
+                                                         self.dne[i]))
             if (self.has_dTe_para):
                 self.dTe_para_sp = []
                 for i in range(len(self.time)):
-                    self.dTe_para_sp[i] = RegularGridInterpolator(mesh, 
-                                                         self.dTe_para[i])
+                    self.dTe_para_sp.append( RegularGridInterpolator(mesh, 
+                                                         self.dTe_para[i]))
             if (self.has_dTe_perp):
                 self.dTe_perp_sp = []
                 for i in range(len(self.time)):
-                    self.dTe_perp_sp[i] = RegularGridInterpolator(mesh, 
-                                                         self.dTe_perp[i])
-        
+                    self.dTe_perp_sp.append( RegularGridInterpolator(mesh, 
+                                                         self.dTe_perp[i]))
+                                                         
+            if (self.has_dB):
+                self.dB_sp = []
+                for i in range(len(self.time)):
+                    self.dB_sp.append( RegularGridInterpolator(mesh, 
+                                                         self.dB[i]))
 
     def get_ne0(self, coordinates):
         """return ne0 interpolated at *coordinates*
@@ -276,6 +281,7 @@ setup_interp function first.'
             points = np.transpose(coordinates, transpose_axes)
             try:
                 result = self.dne_sp[time](points)
+                
             except AttributeError:
                 print 'dB_sp has not been created. Temperary interpolator \
 generated. If this message shows up a lot of times, please consider calling \
@@ -283,7 +289,7 @@ setup_interp function first.'
                 mesh = self.grid.get_mesh()            
                 dne_sp = RegularGridInterpolator(mesh, self.dne[time])
                 result = dne_sp(points)
-                return result
+            return result
         else:
             result_shape = [i for i in coordinates.shape]
             nt = len(time)
@@ -297,6 +303,7 @@ setup_interp function first.'
             try:
                 for t in time:
                     result[t] = self.dne_sp[t](points)
+                
             except AttributeError:
                 print 'dB_sp has not been created. Temperary interpolator \
 generated. If this message shows up a lot of times, please consider calling \
@@ -305,7 +312,7 @@ setup_interp function first.'
                 for t in time:
                     dne_sp = RegularGridInterpolator(mesh, self.dne[t])
                     result[t] = dne_sp(points)
-                return result
+            return result
             
     def get_dB(self, coordinates, time=None):
         """return dB interpolated at *coordinates*, for each time step
@@ -346,7 +353,7 @@ setup_interp function first.'
                 mesh = self.grid.get_mesh()            
                 dB_sp = RegularGridInterpolator(mesh, self.dB[time])
                 result = dB_sp(points)
-                return result
+            return result
         
         else:
             # Note that the first dimension in coordinates is the number of spatial
@@ -372,7 +379,7 @@ setup_interp function first.'
                 for t in time:
                     dB_sp = RegularGridInterpolator(mesh, self.dB[t])
                     result[t] = dB_sp(points)
-                return result
+            return result
 
 
     def get_dTe_perp(self, coordinates, time=None):
@@ -413,7 +420,7 @@ setup_interp function first.'
                 mesh = self.grid.get_mesh()            
                 dte_sp = RegularGridInterpolator(mesh, self.dTe_perp[time])
                 result = dte_sp(points)
-                return result
+            return result
                 
         else:
             result_shape = [i for i in coordinates.shape]
@@ -436,7 +443,7 @@ setup_interp function first.'
                 for t in time:
                     dte_sp = RegularGridInterpolator(mesh, self.dTe_perp[t])
                     result[t] = dte_sp(points)
-                return result
+            return result
 
             
     def get_dTe_para(self, coordinates, time=None):
@@ -478,7 +485,7 @@ setup_interp function first.'
                 mesh = self.grid.get_mesh()            
                 dte_sp = RegularGridInterpolator(mesh, self.dTe_para[time])
                 result = dte_sp(points)
-                return result        
+            return result        
         else:
             result_shape = [i for i in coordinates.shape]
             nt = len(time)
@@ -500,7 +507,7 @@ setup_interp function first.'
                 for t in time:
                     dte_sp = RegularGridInterpolator(mesh, self.dTe_para[t])
                     result[t] = dte_sp(points)
-                return result
+            return result
             
     def get_ne(self, coordinates, eq_only=True, time=None):
         """wrapper for getting electron densities

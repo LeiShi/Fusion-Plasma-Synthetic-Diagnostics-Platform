@@ -283,7 +283,7 @@ setup_interp function first.'
                 result = self.dne_sp[time](points)
                 
             except AttributeError:
-                print 'dB_sp has not been created. Temperary interpolator \
+                print 'dne_sp has not been created. Temperary interpolator \
 generated. If this message shows up a lot of times, please consider calling \
 setup_interp function first.'
                 mesh = self.grid.get_mesh()            
@@ -305,7 +305,7 @@ setup_interp function first.'
                     result[t] = self.dne_sp[t](points)
                 
             except AttributeError:
-                print 'dB_sp has not been created. Temperary interpolator \
+                print 'dne_sp has not been created. Temperary interpolator \
 generated. If this message shows up a lot of times, please consider calling \
 setup_interp function first.'
                 mesh = self.grid.get_mesh()            
@@ -414,7 +414,7 @@ setup_interp function first.'
             try:
                 result = self.dTe_perp_sp[time](points)
             except AttributeError:
-                print 'dB_sp has not been created. Temperary interpolator \
+                print 'dTe_perp_sp has not been created. Temperary interpolator \
 generated. If this message shows up a lot of times, please consider calling \
 setup_interp function first.'
                 mesh = self.grid.get_mesh()            
@@ -436,7 +436,7 @@ setup_interp function first.'
                 for t in time:
                     result[t] = self.dTe_perp_sp[t](points)
             except AttributeError:
-                print 'dB_sp has not been created. Temperary interpolator \
+                print 'dTe_perp_sp has not been created. Temperary interpolator \
     generated. If this message shows up a lot of times, please consider calling \
     setup_interp function first.'
                 mesh = self.grid.get_mesh()            
@@ -479,7 +479,7 @@ setup_interp function first.'
             try:
                 result = self.dTe_para_sp[time](points)
             except AttributeError:
-                print 'dB_sp has not been created. Temperary interpolator \
+                print 'dTe_para_sp has not been created. Temperary interpolator \
 generated. If this message shows up a lot of times, please consider calling \
 setup_interp function first.'
                 mesh = self.grid.get_mesh()            
@@ -500,7 +500,7 @@ setup_interp function first.'
                 for t in time:
                     result[t] = self.dTe_para_sp[t](points)
             except AttributeError:
-                print 'dB_sp has not been created. Temperary interpolator \
+                print 'dTe_para_sp has not been created. Temperary interpolator \
     generated. If this message shows up a lot of times, please consider calling \
     setup_interp function first.'
                 mesh = self.grid.get_mesh()            

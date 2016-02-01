@@ -154,13 +154,19 @@ class GaussianBeam(LightBeam):
 
     .. math::    
         u_x(x,z) = \frac{1}{\sqrt{q_x(z)}} 
-                   \exp(-\mathrm{i} k \frac{x^2}{2q_x(z)} ),
+                   \exp(\mathrm{i} k \frac{x^2}{2q_x(z)} ),
                    
         u_y(y,z) = \frac{1}{\sqrt{q_y(z)}} 
-                   \exp(-\mathrm{i} k \frac{y^2}{2q_y(z)} ),
+                   \exp(\mathrm{i} k \frac{y^2}{2q_y(z)} ),
                    
     and :math:`k \equiv 2\pi/\lambda` is the magnitude of the wave vector,
-    :math:`q(z) \equiv z+\mathrm{i}z_R` the complex beam parameter.
+    :math:`q(z) \equiv z-\mathrm{i}z_R` the complex beam parameter. Note that
+    since we are using a different convention for :math:`\omega` compared to 
+    that used in Ref [1]_, namely, we assume the wave goes like 
+    :math:`e^{-i\omega t}` instead of :math:`e^{i\omega t}`, we need to take 
+    complex conjugate on spatial terms to keep the wave propagating in positive
+    z direction. This applies to the definition of :math:`q` terms and the sign 
+    in front of :math:`ik` part.
     
     Coordinate Transformation
     =========================
@@ -277,10 +283,10 @@ class GaussianBeam(LightBeam):
         
         # now, we can evaluate electric field
         zry, zrx = self.reighlay_range
-        qx = z + 1j*zrx
-        qy = z + 1j*zry
-        ux = 1/sqrt(qx)*np.exp(-1j*(2*np.pi/self.wave_length)*x*x/(2*qx))
-        uy = 1/sqrt(qy)*np.exp(-1j*(2*np.pi/self.wave_length)*y*y/(2*qy))
+        qx = z - 1j*zrx
+        qy = z - 1j*zry
+        ux = 1/sqrt(qx)*np.exp(1j*(2*np.pi/self.wave_length)*x*x/(2*qx))
+        uy = 1/sqrt(qy)*np.exp(1j*(2*np.pi/self.wave_length)*y*y/(2*qy))
         
         return 1j*self.E0*sqrt(zrx*zry)*ux*uy
         

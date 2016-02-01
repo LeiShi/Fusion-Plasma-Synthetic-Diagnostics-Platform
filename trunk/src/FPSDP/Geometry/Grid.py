@@ -37,6 +37,56 @@ class ExpGrid(Grid):
     __metaclass__ = ABCMeta
     
 
+class Cartesian1D(ExpGrid):
+    """Cartesian1D(self, Xmin, Xmax, NX=None, ResX=None)
+    1D Cartesian grids
+    
+    :param float ResX: resolution in X
+    :param float Xmin: minimum in X
+    :param float Xmax: maximum in X
+    :param int NX: Grid point number in X
+    
+    :raises GridError: if none or both of ``NX`` and ``ResX`` are given
+    
+    """
+    def __init__(self, Xmin, Xmax, NX=None, ResX=None):
+        self._name = '1D Cartesian Grids'
+        if( NX is None and ResX is None):
+            raise GridError('Either NX and ResX must be given!')
+        if( NX is not None and ResX is not None):
+            raise GridError('Only one of NX and ResX should be given!')
+        
+        self.Xmin = Xmin
+        self.Xmax = Xmax 
+        self.dimension = 1
+        if (NX is not None):
+            self.NX = NX
+            self.ResX = float(Xmax-Xmin)/NX
+            self.X1D = np.linspace(Xmin, Xmax, NX)
+            self.shape = self.X1D.shape
+        else:
+            self.NX = np.floor((Xmax-Xmin)/float(ResX))+2
+            self.ResX = float(Xmax-Xmin)/self.NX
+            assert np.abs(self.ResX) <= np.abs(ResX)
+            self.X1D = np.linspace(Xmin,Xmax, NX)
+            self.shape = self.X1D.shape
+            
+    def get_mesh(self):
+        return (self.X1D,)
+        
+    def get_ndmesh(self):
+        return (self.X1D,)
+        
+    def __str__(self):
+        info = self._name + '\n'
+        info += 'Xmin :' + str(self.Xmin) +'\n'
+        info += 'Xmax :' + str(self.Xmax) +'\n'
+        info += 'NX,ResX :' + str( (self.NX,self.ResX) ) +'\n'
+        return info
+            
+            
+        
+
 class Cartesian2D(ExpGrid):
     """Cartesian grids in 2D space. Generally corresponds a toroidal slice, 
     i.e. R-Z plane. Rectangular shape assumed.
@@ -49,7 +99,7 @@ class Cartesian2D(ExpGrid):
     :param UpRight: the coordinates of the up right cornor point, given in 
                     (Zmax,Rmax) form.
     :type UpRight: tuple, or list of float
-    :param int NR,NZ: The gird number in R,Z directions. Can be specified 
+    :param int NR,NZ: The grid number in R,Z directions. Can be specified 
                       initially or derived from other parameters.
     :raises GridError: if ``DownLeft`` and/or ``UpRight`` are not given
     :raises GridError: if none or both of ``NR``,``ResR`` are given

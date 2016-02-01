@@ -6,14 +6,21 @@ Created on Thu Jan 28 18:26:40 2016
 
 test LightBeam
 """
+import numpy as np
 
 import FPSDP.Maths.LightBeam as lb
 import FPSDP.Geometry.Grid as Grid
 
-grid3d = Grid.Cartesian3D(Xmin = -100, Xmax = 100, NX=201, Ymin=-20, Ymax=20,
-                          NY=41, Zmin=-20, Zmax=20, NZ=41)
 
-gb = lb.GaussianBeam(1, 0, 0, 10)
+grid3d = Grid.Cartesian3D(Xmin = 150, Xmax = 300, NX=201, Ymin=-40, Ymax=40,
+                          NY=256, Zmin=-40, Zmax=40, NZ=256)
 
-E = gb(grid3d.get_ndmesh())
+omega = 8e11
+
+wave_length = 2*np.pi*3e10/omega
+
+
+gb_test = lb.GaussianBeam(wave_length, 200, 0, 1, tilt_v=np.pi/18)
+
+E_test = gb_test(grid3d.get_ndmesh())
 

@@ -139,7 +139,7 @@ class GaussianBeam(LightBeam):
         
         .. math::
             \theta \approx \frac{\lambda}{\pi w_0} \quad 
-            (\lambda \ll w_0)}.
+            (\lambda \ll w_0).
     
     Electric Field Expression
     ==========================
@@ -148,16 +148,17 @@ class GaussianBeam(LightBeam):
     using the following formula [1]_:
     
     .. math::
-        E(x, y, z)=\mathrm{i}\sqrt{z_{Rx}z_{Ry}}E_0 u_x(x,z) u_y(y,z),
+        E(x, y, z)=\frac{E_0}{u_x(0,0)u_y(0,0)} \mathcal{e}^{ikz} u_x(x,z) 
+                    u_y(y,z),
     
     where
 
     .. math::    
         u_x(x,z) = \frac{1}{\sqrt{q_x(z)}} 
-                   \exp(\mathrm{i} k \frac{x^2}{2q_x(z)} ),
+                   \exp\left(\mathrm{i} k \frac{x^2}{2q_x(z)} \right),
                    
         u_y(y,z) = \frac{1}{\sqrt{q_y(z)}} 
-                   \exp(\mathrm{i} k \frac{y^2}{2q_y(z)} ),
+                   \exp\left(\mathrm{i} k \frac{y^2}{2q_y(z)} \right),
                    
     and :math:`k \equiv 2\pi/\lambda` is the magnitude of the wave vector,
     :math:`q(z) \equiv z-\mathrm{i}z_R` the complex beam parameter. Note that
@@ -283,12 +284,13 @@ class GaussianBeam(LightBeam):
         
         # now, we can evaluate electric field
         zry, zrx = self.reighlay_range
+        k = 2*np.pi/self.wave_length
         qx = z - 1j*zrx
         qy = z - 1j*zry
-        ux = 1/sqrt(qx)*np.exp(1j*(2*np.pi/self.wave_length)*x*x/(2*qx))
-        uy = 1/sqrt(qy)*np.exp(1j*(2*np.pi/self.wave_length)*y*y/(2*qy))
+        ux = 1/sqrt(qx)*np.exp(1j*k*x*x/(2*qx))
+        uy = 1/sqrt(qy)*np.exp(1j*k*y*y/(2*qy))
         
-        return 1j*self.E0*sqrt(zrx*zry)*ux*uy
+        return self.E0*ux*uy*np.exp(1j*k*z)*np.sqrt(zry*zrx)
         
         
         

@@ -146,7 +146,7 @@ class ECEI_Profile(PlasmaProfile):
         self.B0 = B0
         
         
-    def setup_interps(self, equilibrium_only = True):
+    def setup_interps(self, equilibrium_only = False):
         """setup interpolators for frequent evaluation of profile quantities on
         given locations.
         

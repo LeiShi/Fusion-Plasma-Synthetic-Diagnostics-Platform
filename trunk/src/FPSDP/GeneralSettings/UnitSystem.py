@@ -39,7 +39,7 @@ class UnitSystem:
             return self._ConstDic[cname]
         except KeyError:
             print 'const "{0}" not defined in unit "{1}"'.format(cname,
-                                                                 self.name)
+                                                                 self._name)
             raise
         except:
             raise

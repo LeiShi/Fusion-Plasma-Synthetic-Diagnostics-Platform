@@ -221,7 +221,7 @@ def create_profile1D(random_fluctuation=False, fluc_level=None):
         d_shape = [len(time), XGrid.shape[0]]
         if fluc_level is None:
             dne = 2*Parameter1D['dne_ne']*profile['ne']*(random(d_shape)-0.5)
-            dTe = 2*Parameter1D['dTe_Te']*profile['Te']*(random(d_shape)-0.5)
+            dTe = 2*Parameter1D['dte_te']*profile['Te']*(random(d_shape)-0.5)
             dB = 2*Parameter1D['dB_B']*profile['B']*(random(d_shape)-0.5)
         else:
             dne = 2*fluc_level*profile['ne']*(random(d_shape)-0.5)

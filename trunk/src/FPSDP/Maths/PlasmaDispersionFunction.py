@@ -80,11 +80,15 @@ evaluate the "0/0" kind expressions. More details in Appendix part of [2]_.
 
 """
 
-from numpy.lib.scimath import sqrt
+
 import warnings
 
+from numpy.lib.scimath import sqrt
 import numpy as np
-from scipy.special import wofz
+from scipy.special import wofz, gamma
+from scipy.interpolate import RegularGridInterpolator
+
+from ..Geometry.Grid import cubicspace
 
 
 def Z(z):
@@ -136,9 +140,151 @@ def Z_m(z, m):
         return -2*z*Z_m(z, m-1) -2*(m-1)*Z_m(z, m-2)
 
 
+class FqFastEvaluator(object):
+    """Fast evaluator for Fq functions
+    
+    Initialization:
+        FqFastEvaluator( nq, phi_sq_mesh, psi_mesh, **P)
+        
+        :param int nq: nq passed into Fq function, the order of the function is
+                       nq/2.
+        :param phi_sq_mesh: :math:`\phi^2` values for mesh points in phi_psi 
+                            plane, we use :math:`\phi^2` because it's real.
+        :type phi_mesh: 1D array of float, monotonic order 
+        :param psi_mesh: psi values for mesh points in phi_psi plane
+        :type psi_mesh: 1D array of float, monotonic order
+        :param **P: additional keyword arguments passed into 
+                    scipy.interpolate.RegularGridInteropolator.
+                          
+    Methods:
+    
+        __call__(phi, psi):
+            return Fq value at (phi,psi) points. phi, psi are arrays with the 
+            same shape.
+        
+        reconstruct(**P):
+            reconstruct the interpolator using the new keyword arguments given 
+            in **P
+            
+        test(phi_test, psi_test, abserr=1e-6, relerr=1e-4):
+            evaluate Fq on (phi_test, psi_test) points using both original 
+            function and interpolator, report the maximum absolute error and 
+            relative error. Print a warning if either error is greater than the
+            preset margin given by abserr and relerr arguments.
+            
+    """
+
+    def __init__(self, nq, mudelta_mesh, psi_mesh, **P):
+        self.psi_1D = psi_mesh        
+        self.mudelta_1D = mudelta_mesh
+        self.nq = nq
+        
+        mudelta_2D = np.zeros((len(mudelta_mesh), len(psi_mesh))) + \
+                      mudelta_mesh[:, np.newaxis]
+        psi_2D = np.zeros_like(mudelta_2D) + psi_mesh[np.newaxis, :]
+        self.value = Fq(sqrt(psi_2D*psi_2D-mudelta_2D), psi_2D, self.nq)
+        self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
+                                                        self.psi_1D), 
+                                                        self.value, 
+                                                        bounds_error=False, 
+                                                        fill_value=0, **P)
+    
+    
+    def reconstruct(self, mudelta_mesh=None, psi_mesh=None, **P):
+        """reconstruct the interpolator using the new keyword arguments given 
+        in **P and/or mudelta_mesh, psi_mesh
+        """
+        if (psi_mesh is not None):
+            self.psi_1D = psi_mesh
+        if (mudelta_mesh is not None):
+            self.mudelta_1D = mudelta_mesh
+            
+        if (psi_mesh is not None) or (mudelta_mesh is not None):
+            mudelta_2D = np.zeros((len(mudelta_mesh), len(psi_mesh))) + \
+                          mudelta_mesh[:, np.newaxis]
+            psi_2D = np.zeros_like(mudelta_2D) + psi_mesh[np.newaxis, :]
+            self.value = Fq(sqrt(psi_2D*psi_2D-mudelta_2D), psi_2D, self.nq)
+            self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
+                                                         self.psi_1D), 
+                                                         self.value, 
+                                                         bounds_error=False, 
+                                                         fill_value=0, **P)
+        else:
+            self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
+                                                         self.psi_1D), 
+                                                        self.values, 
+                                                        bounds_error=False, 
+                                                        fill_value=0, **P)
+        
+    def __call__(self, phi, psi):
+        """Evaluate Fq at phi,psi using the internal interpolator
+        """
+        phi = np.array(phi)
+        psi = np.array(psi)
+        assert phi.shape == psi.shape
+        # phi must be square root of a real number 
+        assert np.all(np.logical_or(np.abs(np.real(phi)) <= 1e-10, 
+                             np.abs(np.imag(phi)) <= 1e-10))
+        phi2 = np.real(phi*phi)
+        mudelta = psi*psi - phi2
+        dims = range(1, mudelta.ndim+1)
+        dims.extend([0])
+        
+        # construct the points structure for interpolation, transpose the array
+        # so that the fastest changing index is length 2: (phi,psi)
+        points = np.transpose(np.array([mudelta, psi]), axes=dims)
+        
+        return self.interpolator(points)
+        
+    def test(self, phi, psi, tolabs=1e-3, tolrel=5e-2, full_report=False):
+        """evaluate Fq on (phi_test, psi_test) points using both original 
+        function and interpolator, report the maximum absolute error and 
+        relative error. Print a warning if either error is greater than the
+        preset margin given by abserr and relerr arguments.
+        
+        If full_report == True, abserr and relerr on every phi,psi point will 
+        be returned. Otherwise only the maximum value and corresponding phi,psi
+        are returned.
+        """
+        
+        exact_value = Fq(phi, psi, self.nq)
+        interp_value = self(phi,psi)
+        
+        abs_err = interp_value - exact_value
+        
+        in_range_idx = interp_value != 0
+        rel_err = np.zeros_like(abs_err)
+        rel_err[in_range_idx] = abs_err[in_range_idx]/exact_value[in_range_idx]
+        
+        
+        maxabs = np.abs(abs_err).max()
+        maxrel = np.abs(rel_err).max()        
+        
+        arg_maxabs = np.where(np.abs(abs_err) == maxabs)
+        arg_maxrel = np.where(np.abs(rel_err) == maxrel)
+        
+        if(maxabs > tolabs):
+            warnings.warn('Absolute error exceeds limit({})'.format(tolabs))
+        if(maxrel > tolrel):
+            warnings.warn('Relative error exceeds limit({})'.format(tolrel))
+        
+        print '\
+Max Absolute Error: {}, at\n\
+    phi:{},\n\
+    psi:{}.\n\
+Max Relative Error: {}, at\n\
+    phi:{},\n\
+    psi:{}'.format(abs_err[arg_maxabs], phi[arg_maxabs], psi[arg_maxabs],
+                   rel_err[arg_maxrel], phi[arg_maxrel], psi[arg_maxrel])         
+        
+        if full_report:
+            return (abs_err, rel_err)
+            
+
 # General recurrence function to evaluate F_q for q>3/2
 
-def Fq(phi, psi, nq, tol=1e-14, nonzero_psi = False):
+def Fq(phi, psi, nq, phi_nonzero=None, psi_nonzero=None, phi_tol=None, 
+       psi_tol=None):
     r"""General function to evaluate :math:`\mathcal{F}_{q}(\phi,\psi)`
     
     For non-zero psi, we use the following recurrence relation to evaluate 
@@ -159,6 +305,11 @@ def Fq(phi, psi, nq, tol=1e-14, nonzero_psi = False):
         
     Another function will be dedicated to this special case, :py:func:`Fq0`.
     
+    Note: refer to [1]_, the sign convention for :math:`\phi` is :
+        
+    .. math::
+        \mathrm{Re}\phi > 0 \; ,\; \mathrm{Im}\phi < 0
+    
     :param phi: :math:`\phi` parameter defined in ref.[2] in 
                 :py:mod:`PlasmaDispersionFunction`
     :ptype phi: ndarray of complex
@@ -167,241 +318,322 @@ def Fq(phi, psi, nq, tol=1e-14, nonzero_psi = False):
     :ptype psi: ndarray of complex
     :param int nq: the numerator in q, must be odd, the denominator is default  
                    to be 2
-    :param float tol: tolerance for testing phi=0 condition
-    :param bool nonzero_psi: True if psi != 0 is guaranteed everywhere.
+    :param bool phi_nonzero: True if phi != 0 is guaranteed everywhere. If not
+                             given, phi will be tested and divided into 
+                             appropriate groups.
+    :param bool psi_nonzero: True if psi != 0 is guaranteed everywhere. If not
+                             given, psi will be tested and divided into 
+                             appropriate groups.
+    :param float phi_tol: tolerance for testing phi=0 condition. If not given, 
+                         will try to choose a proper value automatically based 
+                         on nq and m.
+    :param float psi_tol: tolerance for testing psi=0 condition. If not given, 
+                         will try to choose a proper value automatically based 
+                         on nq and m.
     
     :return: :math:`\mathcal{F}_{q}(\phi,\psi)` evaluated at given 
              :math:`\phi` and :math:`\psi` mesh
     :rtype: ndarray of complex 
-    """
     
+     .. [1] Weakly relativistic dielectric tensor and dispersion functions of a 
+           Maxwellian plasma, V. Krivenski and A. Orefice, J. Plasma Physics 
+           (1983), vol. 30, part 1, pp. 125-131
+    """
+    phi = np.array(phi)
+    psi = np.array(psi)
+    if (phi_tol is None):
+        phi_tol = 1e-4
+    if (psi_tol is None):
+        if nq >=3:
+            psi_tol = 2*10**(-14.0/(nq-2))
+        else:
+            psi_tol = 1e-12
     assert np.array(phi).shape == np.array(psi).shape
+    assert np.all(np.logical_or(np.abs(np.real(phi)) <= phi_tol ,\
+                                np.abs(np.imag(phi)) <= phi_tol) )
     assert isinstance(nq, int) and nq>0 and nq%2 == 1
     
-    if(nq == 1):
-        return F12(phi,psi,tol)
-    elif(nq == 3): 
-        return F32(phi,psi,tol)
-    elif(nq == 5):
-        return F52(phi,psi,tol)
-    else:
-        if(nonzero_psi):
-        # if psi is already checked at high order function, no more checking
-            return (1 + phi*phi*Fq(phi,psi,nq-4, tol,True) - 
-                    (nq-4)/2.*Fq(phi,psi,nq-2,tol,True)) / (psi*psi) 
-        valid_idx = np.abs(psi)>tol
-        zero_idx = np.abs(psi)<=tol
-        phi_valid = phi[valid_idx]
-        psi_valid = psi[valid_idx]
-        phi_zero = phi[zero_idx]
+    if (psi_nonzero is None) and (phi_nonzero is None):
+        psi_nonzero_idx = np.logical_or( np.abs(np.real(psi)) >= psi_tol, 
+                            np.abs(np.imag(psi)) >= psi_tol)
+        phi_nonzero_idx = np.logical_or( np.abs(np.real(phi)) >= phi_tol, 
+                            np.abs(np.imag(phi)) >= phi_tol)
+        # Now, we have 4 cases: 
+        # case 1: (psi != 0) and (phi != 0)
+        all_nonzero_idx = np.logical_and(psi_nonzero_idx, phi_nonzero_idx)
+        # case 2: (psi == 0) and (phi != 0)
+        psi_zero_idx = np.logical_and(np.logical_not(psi_nonzero_idx), 
+                                      phi_nonzero_idx)
+        # case 3: (psi != 0) and (phi == 0)
+        phi_zero_idx = np.logical_and(psi_nonzero_idx,
+                                      np.logical_not(phi_nonzero_idx))
+        # case 4: (psi == 0) adn (phi == 0)
+        all_zero_idx = np.logical_and(np.logical_not(psi_nonzero_idx),
+                                      np.logical_not(phi_nonzero_idx))
+        
         result = np.empty_like(phi, dtype='complex')
-        result[valid_idx] = (1 + phi_valid*phi_valid*Fq(phi_valid, psi_valid, 
-                                                        nq-4, tol, True) - \
-                             (nq-4)/2.*Fq(phi_valid, psi_valid, nq-2, tol, 
-                             True)) / (psi_valid*psi_valid)
-                             
-        result[zero_idx] = Fq0(phi_zero,nq)
+        
+        # modify phi so that real(phi)>0 and imag(phi)<0
+        phi_m = np.abs(np.real(phi)) - 1j*np.abs(np.imag(phi))
+                                      
+        # for case 1           
+        phi1 = phi_m[all_nonzero_idx]
+        psi1 = psi[all_nonzero_idx]
+        result[all_nonzero_idx] = Fq(phi1, psi1, nq, True, True, phi_tol, 
+                                     psi_tol)
+        
+        # for case 2
+        phi2 = phi_m[psi_zero_idx]
+        psi2 = psi[psi_zero_idx]
+        result[psi_zero_idx] = Fq(phi2, psi2, nq, True, False, phi_tol,psi_tol)
+        
+        # for case 3
+        phi3 = phi_m[phi_zero_idx]
+        psi3 = psi[phi_zero_idx]
+        result[phi_zero_idx] = Fq(phi3, psi3, nq, False, True, phi_tol,psi_tol)
+        
+        # for case 4
+        phi4 = phi_m[all_zero_idx]
+        psi4 = psi[all_zero_idx]
+        result[all_zero_idx] = Fq(phi4, psi4, nq, False, False,phi_tol,psi_tol)
+        
         return result
+    else:
+    
+        if(nq == 1):
+            return _F12(phi, psi, phi_nonzero, psi_nonzero)
+        elif(nq == 3): 
+            return _F32(phi, psi, phi_nonzero, psi_nonzero)
+        #elif(nq == 5):
+        #    return _F52(phi, psi, phi_nonzero, psi_nonzero)
+        else:
+            if(phi_nonzero and psi_nonzero):
+            # if psi is already checked at high order function, no more checking
+                return (1 + phi*phi*Fq(phi,psi,nq-4, True, True) - 
+                        (nq-4)/2.0*Fq(phi,psi,nq-2, True, True)) / (psi*psi)
+            elif (not psi_nonzero) and phi_nonzero:
+                return (1+ phi*phi*Fq(phi,psi,nq-2, True, False))*2/(nq-2)
+            elif (not phi_nonzero) and psi_nonzero:
+                return (1 - (nq-4)/2.0*Fq(phi, psi, nq-2, False, True)) /\
+                       (psi*psi)
+            else:
+                return 2.0/(nq-2)
               
     
     
-def Fq0(phi, nq, tol=1e-14):
-    r"""Special case psi=0 for :py:func:`Fq`, see the doc string there.
-        
-    """
-    # nq must be an positive odd integer
-    assert isinstance(nq, int) and nq>0 and nq%2 == 1
-
-    if(nq == 3):
-        return F32(phi,np.zeros_like(phi, dtype='complex'),tol)
+def _F12(phi, psi, phi_nonzero, psi_nonzero):
+    r"""Handler for :math:`\mathcal{F}_{1/2}(\phi,\psi)`
     
-    return (1+ phi*phi*Fq0(phi,nq-2))*2/(nq-2)
-    
-def F12(phi, psi, tol=1e-14):
-    r"""Shorthand function for :math:`\mathcal{F}_{1/2}(\phi,\psi)`
-    
-    Need to take care of special cases when phi=0 and phi is imaginary. 
-    Note that :math:`\mathcal{F}_{1/2} \to +\infty` when :math:`\phi \to 0^+`.
-    However, this singularity does not affect higher order functions. In this
-    case, :math:`\mathcal{F}_{5/2}` needs to be evaluated directly from Z 
-    function, and serve as a starting point for higher order functions.
-    
-    For :math:`\phi^2<0` case, refer to [1]_, We have modified recurrence 
-    relation:
-    
-    Letting :math:`\phi = -\mathrm i \tilde{\phi}`
-    
-    .. math::
-        
-        \mathcal{F}_{1/2}(\phi,\psi) = \mathrm{Im} 
-                                    Z(\psi+\mathrm{i}\tilde{\phi})/\tilde{\phi}
-    
-    :param phi: :math:`\phi` parameter defined in ref.[2] in 
-                :py:mod:`PlasmaDispersionFunction`
-    :ptype phi: ndarray of complex
-    :param psi: :math:`\psi` parameter defined in ref.[2] in 
-                :py:mod:`PlasmaDispersionFunction`
-    :ptype psi: ndarray of complex
-    :param float tol: tolerance for testing phi=0 condition    
-    :return: :math:`\mathcal{F}_{1/2}(\phi,\psi)` evaluated at given 
-             :math:`\phi` and :math:`\psi` mesh
-    :rtype: ndarray of complex
-    
-    .. [1] Weakly relativistic dielectric tensor and dispersion functions of a 
-           Maxwellian plasma, V. Krivenski and A. Orefice, J. Plasma Physics 
-           (1983), vol. 30, part 1, pp. 125-131
-    """    
-    assert(np.array(phi).shape == np.array(psi).shape)
-    
-    # since physically phi^2 is real, phi is either pure real or imaginary, 
-    # test if this condition is satisfied.
-    assert(np.logical_or(np.real(phi)<tol, np.imag(phi)<tol).all())
-   
-    result = np.zeros_like(phi, dtype='complex')    
-    real_idx = np.real(phi) >= tol
-    imag_idx = np.real(phi) < tol
-    diverge_idx = np.logical_and(np.real(phi) < tol, np.imag(phi) < tol) 
-    
-    # real phi follows the normal recurrence relation    
-    result[real_idx] = -(Z(psi[real_idx]-phi[real_idx]) + 
-                        Z(-psi[real_idx]-phi[real_idx])) / (2*phi[real_idx])
-    # imaginary phi needs conversion
-    phi_tilde = np.abs(np.imag(phi[imag_idx]))
-    result[imag_idx] = np.imag(Z(psi[imag_idx]+1j*phi_tilde))/phi_tilde
-    
-    # phi=0 diverges
-    if(diverge_idx.any()):
+    Do not call directly. Use Fq(phi,psi,1) instead.
+    """   
+    if not phi_nonzero:
         warnings.warn('F12 enconters phi=0 input, it diverges at {} points. \
-Check the data to see what\'s going on.'.format(np.count_nonzero(diverge_idx)))
-    result[diverge_idx] = np.nan
-    return result
-
-def F32(phi, psi, tol = 1e-14):
-    r"""Shorthand function for :math:`\mathcal{F}_{3/2}(\phi,\psi)`
-    
-    Need to take care of special cases when psi=0. 
-    :math:`\mathcal{F}_{3/2}(\phi,\psi)=-Z'(-\phi)`  when :math:`\psi=0`
-    
-    For :math:`\phi^2<0` case, refer to [1]_, We have modified recurrence 
-    relation:
-    
-    Letting :math:`\phi = -\mathrm i \tilde{\phi}`
-    
-    .. math::
+Check the data to see what\'s going on.'.format(len(phi)))
+        return np.zeros_like(phi) + np.nan
+    else:
+        return -(Z(psi-phi) +Z(-psi-phi))/(2*phi)
         
-        \mathcal{F}_{3/2}(\phi,\psi) = -\mathrm{Re} Z(\psi+\mathrm{i}\tilde{
-        \phi})/\psi
-        
-    if :math:`\psi=0`, then 
-    
-    :param phi: :math:`\phi` parameter defined in ref.[2] in 
-                :py:mod:`PlasmaDispersionFunction`
-    :type phi: ndarray of complex
-    :param psi: :math:`\psi` parameter defined in ref.[2] in 
-                :py:mod:`PlasmaDispersionFunction`
-    :type psi: ndarray of complex
-    :param float tol: tolerance for testing psi=0 condition    
-    :return: :math:`\mathcal{F}_{1/2}(\phi,\psi)` evaluated at given 
-             :math:`\phi` and :math:`\psi` mesh
-    :rtype: ndarray of complex
-    
-    .. [1] Weakly relativistic dielectric tensor and dispersion functions of a 
-           Maxwellian plasma, V. Krivenski and A. Orefice, J. Plasma Physics 
-           (1983), vol. 30, part 1, pp. 125-131
-    """   
 
-
-    assert(np.array(phi).shape == np.array(psi).shape)
+def _F32(phi, psi, phi_nonzero, psi_nonzero):
+    r"""Handler for :math:`\mathcal{F}_{3/2}(\phi,\psi)`
     
+    Do not call directly. Use Fq(phi,psi,3) instead
+    """       
+    if psi_nonzero:
+        return -(Z(psi-phi) - Z(-psi-phi)) / (2*psi)
+    else:
+        return -Z_1(-phi)
+
+'''
+def _F52(phi, psi, phi_nonzero, psi_nonzero):
+    r"""Handler for :math:`\mathcal{F}_{5/2}(\phi,\psi)`
+    
+    Do not call directly. Use Fq(phi, psi, 5) instead
+    """
+    phi = np.array(phi)
+    psi = np.array(psi)
+    assert(phi.shape == psi.shape)    
     # since physically phi^2 is real, phi is either pure real or imaginary, 
     # test if this condition is satisfied.
-    assert(np.logical_or(np.real(phi)<tol, np.imag(phi)<tol).all())
-    
-    result = np.zeros_like(phi, dtype='complex')    
-    
-    # here, we'll deal with real and imaginary phi together
-    # the trick is, make sure real(phi)>0 and imaginary(phi)<0
-    phi_mod = np.abs(np.real(phi)) - 1j*np.abs(np.imag(phi))    
-    
-    nonzero_idx = np.abs(psi) >= tol
-    zero_idx = np.abs(psi) < tol
-    result[nonzero_idx] = -(Z(psi[nonzero_idx]-phi_mod[nonzero_idx]) - 
-                         Z(-psi[nonzero_idx]-phi_mod[nonzero_idx])) / \
-                         (2*psi[nonzero_idx])
-    
-    result[zero_idx] = -Z_1(-phi_mod[zero_idx])
-    return result
-
-def F52(phi, psi, tol=1e-14):
-    r"""Shorthand function for :math:`\mathcal{F}_{5/2}(\phi,\psi)`
-    
-    Need to take care of following special cases 
-    
-    1. psi=0
-    
-    .. math::    
-    
-        \mathcal{F}_{5/2}(\phi,0)=2(1+\phi^2\mathcal{F}_{3/2})/5  
-    
-    2. phi=0
-    
-    .. math::
-    
-        \mathcal{F}_{5/2}(0,\psi) = (1 - \frac{5}{2}\mathcal{F}_{3/2})/\psi^2
-    
-    3. phi is imaginary 
-    
-    refer to [1]_, We need to set :math:`\mathrm{Im}\phi<0`
-    
-    :param phi: :math:`\phi` parameter defined in ref.[2] in 
-                :py:mod:`PlasmaDispersionFunction`
-    :ptype phi: ndarray of complex
-    :param psi: :math:`\psi` parameter defined in ref.[2] in 
-                :py:mod:`PlasmaDispersionFunction`
-    :ptype psi: ndarray of complex
-    :param float tol: tolerance for testing psi=0 condition    
-    :return: :math:`\mathcal{F}_{1/2}(\phi,\psi)` evaluated at given 
-             :math:`\phi` and :math:`\psi` mesh
-    :rtype: ndarray of complex
-    
-    .. [1] Weakly relativistic dielectric tensor and dispersion functions of a 
-           Maxwellian plasma, V. Krivenski and A. Orefice, J. Plasma Physics 
-           (1983), vol. 30, part 1, pp. 125-131
-    """   
-    assert(np.array(phi).shape == np.array(psi).shape)    
-    # since physically phi^2 is real, phi is either pure real or imaginary, 
-    # test if this condition is satisfied.
-    assert(np.logical_or(np.real(phi)<tol, np.imag(phi)<tol).all())
+    assert(np.logical_or(np.abs(np.real(phi))<=tol, 
+                         np.abs(np.imag(phi))<=tol).all())
 
     result = np.empty_like(phi, dtype='complex')
     
     # First, we modify phi so that it complies with our requirement
     phi_mod = np.abs(np.real(phi)) - 1j*np.abs(np.imag(phi))
     # Now, we process zero psi part
-    psi0_idx = np.logical_and(np.abs(np.real(psi)) < tol, 
-                              np.abs(np.imag(psi)) < tol)
-    result[psi0_idx] = 2*(1 + phi_mod*phi_mod*F32(phi[psi0_idx], 
-                                                  psi[psi0_idx])) / 3 
+    psi0_idx = np.logical_and(np.abs(np.real(psi)) <= tol, 
+                              np.abs(np.imag(psi)) <= tol)
+    result[psi0_idx] = 2*(1 + phi_mod[psi0_idx]*phi_mod[psi0_idx]*\
+                              F32(phi[psi0_idx], psi[psi0_idx])) / 3 
     
     # Finally, we deal with phi==0 part and phi!=0 part
-    nonzero_idx = np.logical_or(np.real(phi) >= tol, np.imag(phi) >= tol)
+    nonzero_idx = np.logical_or(np.abs(np.real(phi)) > tol, 
+                                np.abs(np.imag(phi)) > tol)
     
     zero_idx = np.logical_and( np.logical_not(nonzero_idx),
                               np.logical_not(psi0_idx))
     nonzero_idx = np.logical_and(nonzero_idx, np.logical_not(psi0_idx))
     
-    result[nonzero_idx] = (1 + phi[nonzero_idx]*phi[nonzero_idx]* \
-                           F12(phi[nonzero_idx], psi[nonzero_idx]) - 
+    if psi_nonzero:
+        return (1 + phi*phi* \
+                           _F12(phi, psi) - 
                            0.5*F32(phi[nonzero_idx], psi[nonzero_idx])) / \
                                     (psi[nonzero_idx]*psi[nonzero_idx])
     result[zero_idx] =  (1 - 0.5*F32(phi[zero_idx], psi[zero_idx])) / \
                           psi[zero_idx]**2
     return result
+'''    
+
+class FmqFastEvaluator(object):
+    """Fast evaluator for Fmq functions
     
+    Initialization:
+        FqFastEvaluator(m, nq, mudelta_mesh, psi_mesh, **P)
+        
+        :param int m: m passed into Fmq function, the order of differentiation.
+        :param int nq: nq passed into Fq function, the order of the function is
+                       nq/2. 
+        :param mudelta_mesh: :math:`\mu \delta \equiv \psi^2-\phi^2` values for
+                             mesh points in phi_psi plane, we use this value 
+                             because Fmq is most sensitive to it.
+        :type mudelta_mesh: 1D array of float, monotonic order 
+        :param psi_mesh: psi values for mesh points in phi_psi plane
+        :type psi_mesh: 1D array of float, monotonic order       
+        :param **P: additional keyword arguments passed into 
+                    scipy.interpolate.RegularGridInteropolator.
+                          
+    Methods:
+    
+        __call__(phi, psi):
+            return Fq value at (phi,psi) points. phi, psi are arrays with the 
+            same shape.
+        
+        reconstruct(mudelta_mesh=None, psi_mesh=None, **P):
+            reconstruct the interpolator using the new keyword arguments given 
+            in **P and/or new meshes.
+            
+        test(phi_test, psi_test, abserr=1e-6, relerr=1e-4):
+            evaluate Fmq on (phi_test, psi_test) points using both original 
+            function and interpolator, report the maximum absolute error and 
+            relative error. Print a warning if either error is greater than the
+            preset margin given by abserr and relerr arguments.
+            
+    """
 
-# TODO Add general recurrence function to evaluate F^m_q for m>1  
+    def __init__(self, m, nq, mudelta_mesh, psi_mesh, **P):
+        self.psi_1D = psi_mesh        
+        
+        self.mudelta_1D = mudelta_mesh
+        self.m = m
+        self.nq = nq
+        mudelta_2D = np.zeros((len(mudelta_mesh), len(psi_mesh))) + \
+                      mudelta_mesh[:, np.newaxis]
+        psi_2D = np.zeros_like(mudelta_2D) + psi_mesh[np.newaxis, :]
+        self.value = Fmq(sqrt(psi_2D*psi_2D-mudelta_2D), psi_2D, self.m, 
+                         self.nq)
+        self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
+                                                        self.psi_1D), 
+                                                        self.value, 
+                                                        bounds_error=False, 
+                                                        fill_value=0, **P)
+    
+    
+    def reconstruct(self, mudelta_mesh=None, psi_mesh=None, **P):
+        """reconstruct the interpolator using the new keyword arguments given 
+        in **P and/or mudelta_mesh, psi_mesh
+        """
+        if (psi_mesh is not None):
+            self.psi_1D = psi_mesh
+        if (mudelta_mesh is not None):
+            self.mudelta_1D = mudelta_mesh
+            
+        if (psi_mesh is not None) or (mudelta_mesh is not None):
+            mudelta_2D = np.zeros((len(mudelta_mesh), len(psi_mesh))) + \
+                          mudelta_mesh[:, np.newaxis]
+            psi_2D = np.zeros_like(mudelta_2D) + psi_mesh[np.newaxis, :]
+            self.value = Fmq(sqrt(psi_2D*psi_2D-mudelta_2D), psi_2D, self.m, 
+                            self.nq)
+            self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
+                                                         self.psi_1D), 
+                                                         self.value, 
+                                                         bounds_error=False, 
+                                                         fill_value=0, **P)
+        else:
+            self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
+                                                         self.psi_1D), 
+                                                        self.values, 
+                                                        bounds_error=False, 
+                                                        fill_value=0, **P)
+        
+    def __call__(self, phi, psi):
+        """Evaluate Fq at phi,psi using the internal interpolator
+        """
+        phi = np.array(phi)
+        psi = np.array(psi)
+        assert phi.shape == psi.shape
+        # phi must be square root of a real number 
+        assert np.all(np.logical_or(np.abs(np.real(phi)) <= 1e-10, 
+                             np.abs(np.imag(phi)) <= 1e-10))
+        phi2 = np.real(phi*phi)
+        mudelta = psi*psi - phi2
+        dims = range(1, mudelta.ndim+1)
+        dims.extend([0])
+        
+        # construct the points structure for interpolation, transpose the array
+        # so that the fastest changing index is length 2: (phi,psi)
+        points = np.transpose(np.array([mudelta, psi]), axes=dims)
+        
+        return self.interpolator(points)
+        
+    def test(self, phi, psi, tolabs=1e-3, tolrel=1e-3, full_report=False):
+        """evaluate Fmq on (phi_test, psi_test) points using both original 
+        function and interpolator, report the maximum absolute error and 
+        relative error. Print a warning if either error is greater than the
+        preset margin given by abserr and relerr arguments.
+        
+        If full_report == True, abserr and relerr on every phi,psi point will 
+        be returned. Otherwise only the maximum value and corresponding phi,psi
+        are returned.
+        """
+        
+        exact_value = Fmq(phi, psi, self.m, self.nq)
+        interp_value = self(phi,psi)
+        
+        abs_err = interp_value - exact_value
+        
+        in_range_idx = interp_value != 0
+        rel_err = np.zeros_like(abs_err)
+        rel_err[in_range_idx] = abs_err[in_range_idx]/exact_value[in_range_idx]
+        
+        
+        maxabs = np.abs(abs_err).max()
+        maxrel = np.abs(rel_err).max()        
+        
+        arg_maxabs = np.where(np.abs(abs_err) == maxabs)
+        arg_maxrel = np.where(np.abs(rel_err) == maxrel)
+        
+        if(maxabs > tolabs):
+            warnings.warn('Absolute error exceeds limit({})'.format(tolabs))
+        if(maxrel > tolrel):
+            warnings.warn('Relative error exceeds limit({})'.format(tolrel))
+        
+        print '\
+Max Absolute Error: {}, at\n\
+    phi:{},\n\
+    psi:{}.\n\
+Max Relative Error: {}, at\n\
+    phi:{},\n\
+    psi:{}'.format(abs_err[arg_maxabs], phi[arg_maxabs], psi[arg_maxabs],
+                   rel_err[arg_maxrel], phi[arg_maxrel], psi[arg_maxrel])         
+        
+        if full_report:
+            return (abs_err, rel_err)
+  
 
-def Fmq(phi, psi, m, nq, tol=1e-14, psi_nonzero=None, phi_nonzero=None):
+def Fmq(phi, psi, m, nq, phi_nonzero=None, 
+        psi_nonzero=None, phi_tol=None, psi_tol=None):
     r"""General function to evaluate m-th derivative of Fq respect to phi^2
     
     For each :math:`m`, starting from lowest two :math:`q` values , we use the    
@@ -440,7 +672,18 @@ def Fmq(phi, psi, m, nq, tol=1e-14, psi_nonzero=None, phi_nonzero=None):
     :ptype psi: ndarray of complex
     :param int nq: the numerator in q, must be odd, the denominator is default  
                    to be 2
-    :param float tol: tolerance for testing psi=0 condition
+    :param bool phi_nonzero: True if phi != 0 is guaranteed everywhere. If not
+                             given, phi will be tested and divided into 
+                             appropriate groups.
+    :param bool psi_nonzero: True if psi != 0 is guaranteed everywhere. If not
+                             given, psi will be tested and divided into 
+                             appropriate groups.
+    :param float phi_tol: tolerance for testing phi=0 condition. If not given, 
+                         will try to choose a proper value automatically based 
+                         on nq and m.
+    :param float psi_tol: tolerance for testing psi=0 condition. If not given, 
+                         will try to choose a proper value automatically based 
+                         on nq and m.
     
     :return: :math:`\mathcal{F}^m_{q}(\phi,\psi)` evaluated at given 
              :math:`\phi` and :math:`\psi` mesh
@@ -451,16 +694,26 @@ def Fmq(phi, psi, m, nq, tol=1e-14, psi_nonzero=None, phi_nonzero=None):
            319-331
         
     """
+    phi = np.array(phi)
+    psi = np.array(psi)
     assert np.array(phi).shape == np.array(psi).shape    
     assert isinstance(m, int) and (m >= 0)   
     assert isinstance(nq, int) and (nq > 0) and (nq%2 == 1)
     assert (nq >= 2*m+1) # required for physically meaningful result
     
+    if (phi_tol is None):
+        phi_tol = 1e-4
+    if (psi_tol is None):
+        if nq >=3:
+            psi_tol = 2*10**(-14.0/(nq-2))
+        else:
+            psi_tol = 1e-12
+    
     if (psi_nonzero is None) and (phi_nonzero is None):
-        psi_nonzero_idx = np.logical_or( np.abs(np.real(psi)) >= tol, 
-                            np.abs(np.imag(psi)) >= tol)
-        phi_nonzero_idx = np.logical_or( np.abs(np.real(phi)) >= tol, 
-                            np.abs(np.imag(phi)) >= tol)
+        psi_nonzero_idx = np.logical_or( np.abs(np.real(psi)) >= psi_tol, 
+                            np.abs(np.imag(psi)) >= psi_tol)
+        phi_nonzero_idx = np.logical_or( np.abs(np.real(phi)) >= phi_tol, 
+                            np.abs(np.imag(phi)) >= phi_tol)
         # Now, we have 4 cases: 
         # case 1: (psi != 0) and (phi != 0)
         all_nonzero_idx = np.logical_and(psi_nonzero_idx, phi_nonzero_idx)
@@ -482,37 +735,37 @@ def Fmq(phi, psi, m, nq, tol=1e-14, psi_nonzero=None, phi_nonzero=None):
         # for case 1           
         phi1 = phi_m[all_nonzero_idx]
         psi1 = psi[all_nonzero_idx]
-        result[all_nonzero_idx] = Fmq(phi1, psi1, m, nq, tol, True, True)
+        result[all_nonzero_idx] = Fmq(phi1, psi1, m, nq, True, True)
         
         # for case 2
         phi2 = phi_m[psi_zero_idx]
         psi2 = psi[psi_zero_idx]
-        result[psi_zero_idx] = Fmq(phi2, psi2, m, nq, tol, False, True)
+        result[psi_zero_idx] = Fmq(phi2, psi2, m, nq, True, False)
         
         # for case 3
         phi3 = phi_m[phi_zero_idx]
         psi3 = psi[phi_zero_idx]
-        result[phi_zero_idx] = Fmq(phi3, psi3, m, nq, tol, True, False)
+        result[phi_zero_idx] = Fmq(phi3, psi3, m, nq, False, True)
         
         # for case 4
         phi4 = phi_m[all_zero_idx]
         psi4 = psi[all_zero_idx]
-        result[all_zero_idx] = Fmq(phi4, psi4, m, nq, tol, False, False)
+        result[all_zero_idx] = Fmq(phi4, psi4, m, nq, False, False)
         
         return result
     else:
         if (m == 0):
             warnings.warn('0-th derivative is encountered. Try use Fq directly\
              if possible.')
-            return Fq(phi, psi, nq, tol)
+            return Fq(phi, psi, nq, phi_nonzero, psi_nonzero)
         elif (m == 1):
-            return _Fq_1(phi, psi, nq, tol, psi_nonzero, phi_nonzero)
+            return _Fq_1(phi, psi, nq, phi_nonzero, psi_nonzero)
         elif (m == 2):
-            return _Fq_2(phi, psi, nq, tol, psi_nonzero, phi_nonzero)
+            return _Fq_2(phi, psi, nq, phi_nonzero, psi_nonzero)
         elif (m == 3):
-            return _Fq_3(phi, psi, nq, tol, psi_nonzero, phi_nonzero)
+            return _Fq_3(phi, psi, nq, phi_nonzero, psi_nonzero)
         elif (m == 4):
-            return _Fq_4(phi, psi, nq, tol, psi_nonzero, phi_nonzero)
+            return _Fq_4(phi, psi, nq, phi_nonzero, psi_nonzero)
                 
         else: # m>4 cases are not implemented for now. 
             raise ValueError('m={} is encountered. m>4 cases are not \
@@ -520,7 +773,7 @@ implemented for now. Please submit a request to shilei8583@gmail.com if this \
 feature is needed.'.format(m))
         
         
-def _Fq_1(phi, psi, nq, tol, psi_nonzero, phi_nonzero):
+def _Fq_1(phi, psi, nq, phi_nonzero, psi_nonzero):
     r"""Handler for :py:func:`Fmq` function when m == 1. 
 
     Calling this function directly is not recommended. Parameter validity is 
@@ -529,25 +782,28 @@ def _Fq_1(phi, psi, nq, tol, psi_nonzero, phi_nonzero):
     Call :py:func`Fmq` with m=1 instead.
     """
     if (nq == 3):
-        return _F32_1(phi, psi, tol, psi_nonzero, phi_nonzero)
+        return _F32_1(phi, psi, phi_nonzero, psi_nonzero)
     elif (nq == 5):
-        return _F52_1(phi, psi, tol, psi_nonzero, phi_nonzero)
+        return _F52_1(phi, psi, phi_nonzero, psi_nonzero)
     else:
         if psi_nonzero and phi_nonzero:
-            return (phi*phi*_Fq_1(phi, psi, nq-4, tol, True, True) - \
-                   (nq-4)/2.*_Fq_1(phi, psi, nq-2, tol, True, True) + \
-                    Fq(phi, psi, nq-4, tol, True)) / (psi*psi)
+            return (phi*phi*_Fq_1(phi, psi, nq-4, True, True) - \
+                   (nq-4)/2.*_Fq_1(phi, psi, nq-2, True, True) + \
+                    Fq(phi, psi, nq-4, True, True)) /\
+                    (psi*psi)
         elif psi_nonzero and (not phi_nonzero):
-            return ((nq-4)/2.*_Fq_1(phi, psi, nq-2, tol, True, False) + \
-                    Fq(phi, psi, nq-4, tol)) / (psi*psi)
-        elif phi_nonzero:
-            return (phi*phi*_Fq_1(phi, psi, nq-2, tol, False, True) + \
-                    Fq(phi, psi, nq-2, tol)) *2 / (nq-2)
+            return (-(nq-4)/2.*_Fq_1(phi, psi, nq-2, False, True) + \
+                    Fq(phi, psi, nq-4, False, True)) /\
+                    (psi*psi)
+        elif phi_nonzero and (not psi_nonzero):
+            return (phi*phi*_Fq_1(phi, psi, nq-2, True, False) + \
+                   Fq(phi, psi, nq-2, True, False)) *2 \
+                   / (nq-2)
         else:
-            return Fq0(phi, nq-2, tol)*2/(nq-2)
+            return Fq(phi, psi, nq-2, False, False)*2/(nq-2)
         
 
-def _F32_1(phi, psi, tol, psi_nonzero, phi_nonzero):
+def _F32_1(phi, psi, phi_nonzero, psi_nonzero):
     r"""Handler function for :math:`\mathcal{F}'_{3/2}(\phi,\psi)`
     
     Do not call directly. Parameter validity not checked. Use :py:func:`Fmq` 
@@ -564,7 +820,7 @@ input to make sure this is not an error.')
         return Z_m(-phi, 2)/ (2*phi)
 
                                                      
-def _F52_1(phi, psi, tol, psi_nonzero, phi_nonzero):
+def _F52_1(phi, psi, phi_nonzero, psi_nonzero):
     r"""Handler function for :math:`\mathcal{F}'_{5/2}(\phi,\psi)`
     
     Do not call directly. Parameter validity not checked. Use :py:func:`Fmq` 
@@ -574,7 +830,7 @@ def _F52_1(phi, psi, tol, psi_nonzero, phi_nonzero):
     if psi_nonzero:
         psi3 = psi*psi*psi
         plus = psi - phi
-        minus = -psi + phi
+        minus = -psi - phi
         return -(Z(plus) - psi*Z_1(plus)) / (4*psi3) + \
                (Z(minus) + psi*Z_1(minus)) / (4*psi3)
     elif phi_nonzero:
@@ -583,7 +839,7 @@ def _F52_1(phi, psi, tol, psi_nonzero, phi_nonzero):
         return 4./3 
 
 
-def _Fq_2(phi, psi, nq, tol, psi_nonzero, phi_nonzero):
+def _Fq_2(phi, psi, nq, phi_nonzero, psi_nonzero):
     r"""Handler for :py:func:`Fmq` function when m == 2. 
 
     Calling this function directly is not recommended. Parameter validity is 
@@ -592,25 +848,25 @@ def _Fq_2(phi, psi, nq, tol, psi_nonzero, phi_nonzero):
     Call :py:func`Fmq` with m=2 instead.
     """
     if (nq == 5):
-        return _F52_2(phi, psi, tol, psi_nonzero, phi_nonzero)
+        return _F52_2(phi, psi, phi_nonzero, psi_nonzero)
     elif (nq == 7):
-        return _F72_2(phi, psi, tol, psi_nonzero, phi_nonzero)
+        return _F72_2(phi, psi, phi_nonzero, psi_nonzero)
     else:
         if psi_nonzero and phi_nonzero:
-            return (phi*phi*_Fq_2(phi, psi, nq-4, tol, True, True) - \
-                   (nq-4)/2.*_Fq_2(phi, psi, nq-2, tol, True, True) + \
-                    2*_Fq_1(phi, psi, nq-4, tol, True, True)) / (psi*psi)
+            return (phi*phi*_Fq_2(phi, psi, nq-4, True, True) - \
+                   (nq-4)/2.*_Fq_2(phi, psi, nq-2, True, True) + \
+                    2*_Fq_1(phi, psi, nq-4, True, True)) / (psi*psi)
         elif psi_nonzero and (not phi_nonzero):
-            return ((nq-4)/2.*_Fq_2(phi, psi, nq-2, tol, True, False) + \
-                    2*_Fq_1(phi, psi, nq-4, tol, True, False)) / (psi*psi)
+            return (-(nq-4)/2.*_Fq_2(phi, psi, nq-2, False, True) + \
+                    2*_Fq_1(phi, psi, nq-4, False, True)) / (psi*psi)
         elif phi_nonzero:
-            return (phi*phi*_Fq_2(phi, psi, nq-2, tol, False, True) + \
-                    2* _Fq_1(phi, psi, nq-2, tol, False, True)) *2 / (nq-2)
+            return (phi*phi*_Fq_2(phi, psi, nq-2, True, False) + \
+                    2* _Fq_1(phi, psi, nq-2, True, False)) *2 / (nq-2)
         else:
-            return 2*_Fq_1(phi, psi, nq-2, tol, False, False)*2/(nq-2)
+            return 2*_Fq_1(phi, psi, nq-2, False, False)*2/(nq-2)
 
 
-def _F52_2(phi, psi, tol, psi_nonzero, phi_nonzero):
+def _F52_2(phi, psi, phi_nonzero, psi_nonzero):
     r"""Handler function for :math:`\mathcal{F}''_{5/2}(\phi,\psi)`
     
     Do not call directly. Parameter validity not checked. Use :py:func:`Fmq` 
@@ -630,7 +886,7 @@ input to make sure this is not an error.')
         return -Z_m(-phi, 4) / (12*phi)
 
                                                       
-def _F72_2(phi, psi, tol, psi_nonzero, phi_nonzero):
+def _F72_2(phi, psi, phi_nonzero, psi_nonzero):
     r"""Handler function for :math:`\mathcal{F}''_{7/2}(\phi,\psi)`
     
     Do not call directly. Parameter validity not checked. Use :py:func:`Fmq` 
@@ -649,7 +905,7 @@ def _F72_2(phi, psi, tol, psi_nonzero, phi_nonzero):
     else:
         return 16./15
         
-def _Fq_3(phi, psi, nq, tol, psi_nonzero, phi_nonzero):
+def _Fq_3(phi, psi, nq, phi_nonzero, psi_nonzero):
     r"""Handler for :py:func:`Fmq` function when m == 3. 
 
     Calling this function directly is not recommended. Parameter validity is 
@@ -658,25 +914,25 @@ def _Fq_3(phi, psi, nq, tol, psi_nonzero, phi_nonzero):
     Call :py:func`Fmq` with m=3 instead.
     """
     if (nq == 7):
-        return _F72_3(phi, psi, tol, psi_nonzero, phi_nonzero)
+        return _F72_3(phi, psi, phi_nonzero, psi_nonzero)
     elif (nq == 9):
-        return _F92_3(phi, psi, tol, psi_nonzero, phi_nonzero)
+        return _F92_3(phi, psi, phi_nonzero, psi_nonzero)
     else:
         if psi_nonzero and phi_nonzero:
-            return (phi*phi*_Fq_3(phi, psi, nq-4, tol, True, True) - \
-                   (nq-4)/2.*_Fq_3(phi, psi, nq-2, tol, True, True) + \
-                    3*_Fq_2(phi, psi, nq-4, tol, True, True)) / (psi*psi)
+            return (phi*phi*_Fq_3(phi, psi, nq-4, True, True) - \
+                   (nq-4)/2.*_Fq_3(phi, psi, nq-2, True, True) + \
+                    3*_Fq_2(phi, psi, nq-4, True, True)) / (psi*psi)
         elif psi_nonzero and (not phi_nonzero):
-            return ((nq-4)/2.*_Fq_3(phi, psi, nq-2, tol, True, False) + \
-                    3*_Fq_2(phi, psi, nq-4, tol, True, False)) / (psi*psi)
+            return (-(nq-4)/2.*_Fq_3(phi, psi, nq-2,False, True) + \
+                    3*_Fq_2(phi, psi, nq-4,False, True)) / (psi*psi)
         elif phi_nonzero:
-            return (phi*phi*_Fq_3(phi, psi, nq-2, tol, False, True) + \
-                    3* _Fq_2(phi, psi, nq-2, tol, False, True)) *2 / (nq-2)
+            return (phi*phi*_Fq_3(phi, psi, nq-2, True, False) + \
+                    3* _Fq_2(phi, psi, nq-2, True, False)) *2 / (nq-2)
         else:
-            return 3*_Fq_2(phi, psi, nq-2, tol, False, False)*2/(nq-2)
+            return 3*_Fq_2(phi, psi, nq-2, False, False)*2/(nq-2)
 
 
-def _F72_3(phi, psi, tol, psi_nonzero, phi_nonzero):
+def _F72_3(phi, psi, phi_nonzero, psi_nonzero):
     r"""Handler function for :math:`\mathcal{F}'''_{7/2}(\phi,\psi)`
     
     Do not call directly. Parameter validity not checked. Use :py:func:`Fmq` 
@@ -699,7 +955,7 @@ input to make sure this is not an error.')
         return Z_m(-phi, 6) / (120*phi)
 
                                                       
-def _F92_3(phi, psi, tol, psi_nonzero, phi_nonzero):
+def _F92_3(phi, psi, phi_nonzero, psi_nonzero):
     r"""Handler function for :math:`\mathcal{F}'''_{9/2}(\phi,\psi)`
     
     Do not call directly. Parameter validity not checked. Use :py:func:`Fmq` 
@@ -722,7 +978,7 @@ def _F92_3(phi, psi, tol, psi_nonzero, phi_nonzero):
         return 96/105.
 
 
-def _Fq_4(phi, psi, nq, tol, psi_nonzero, phi_nonzero):
+def _Fq_4(phi, psi, nq, phi_nonzero, psi_nonzero):
     r"""Handler for :py:func:`Fmq` function when m == 4. 
 
     Calling this function directly is not recommended. Parameter validity is 
@@ -731,25 +987,25 @@ def _Fq_4(phi, psi, nq, tol, psi_nonzero, phi_nonzero):
     Call :py:func`Fmq` with m=3 instead.
     """
     if (nq == 9):
-        return _F92_4(phi, psi, tol, psi_nonzero, phi_nonzero)
+        return _F92_4(phi, psi, phi_nonzero, psi_nonzero)
     elif (nq == 11):
-        return _F112_4(phi, psi, tol, psi_nonzero, phi_nonzero)
+        return _F112_4(phi, psi, phi_nonzero, psi_nonzero)
     else:
         if psi_nonzero and phi_nonzero:
-            return (phi*phi*_Fq_4(phi, psi, nq-4, tol, True, True) - \
-                   (nq-4)/2.*_Fq_4(phi, psi, nq-2, tol, True, True) + \
-                    4*_Fq_3(phi, psi, nq-4, tol, True, True)) / (psi*psi)
+            return (phi*phi*_Fq_4(phi, psi, nq-4, True, True) - \
+                   (nq-4)/2.*_Fq_4(phi, psi, nq-2, True, True) + \
+                    4*_Fq_3(phi, psi, nq-4, True, True)) / (psi*psi)
         elif psi_nonzero and (not phi_nonzero):
-            return ((nq-4)/2.*_Fq_4(phi, psi, nq-2, tol, True, False) + \
-                    4*_Fq_3(phi, psi, nq-4, tol, True, False)) / (psi*psi)
+            return (-(nq-4)/2.*_Fq_4(phi, psi, nq-2,False, True) + \
+                    4*_Fq_3(phi, psi, nq-4, False, True)) / (psi*psi)
         elif phi_nonzero:
-            return (phi*phi*_Fq_4(phi, psi, nq-2, tol, False, True) + \
-                    4* _Fq_3(phi, psi, nq-2, tol, False, True)) *2 / (nq-2)
+            return (phi*phi*_Fq_4(phi, psi, nq-2,  True, False ) + \
+                    4* _Fq_3(phi, psi, nq-2,  True, False)) *2 / (nq-2)
         else:
-            return 4*_Fq_3(phi, psi, nq-2, tol, False, False)*2/(nq-2)
+            return 4*_Fq_3(phi, psi, nq-2, False, False)*2/(nq-2)
 
 
-def _F92_4(phi, psi, tol, psi_nonzero, phi_nonzero):
+def _F92_4(phi, psi, phi_nonzero, psi_nonzero):
     r"""Handler function for :math:`\mathcal{F}^{IV}_{9/2}(\phi,\psi)`
     
     Do not call directly. Parameter validity not checked. Use :py:func:`Fmq` 
@@ -774,7 +1030,7 @@ input to make sure this is not an error.')
         return -Z_m(-phi, 8) / (1680*phi)
 
                                                       
-def _F112_4(phi, psi, tol, psi_nonzero, phi_nonzero):
+def _F112_4(phi, psi, phi_nonzero, psi_nonzero):
     r"""Handler function for :math:`\mathcal{F}^{IV}_{11/2}(\phi,\psi)`
     
     Do not call directly. Parameter validity not checked. Use :py:func:`Fmq` 
@@ -833,6 +1089,41 @@ def _Fm_mp32_00(m, shape=(1)):
         result *= 2*m/(2*m+1.)
         m = m-1
     return np.ones(shape, dtype='complex')*result
+    
+
+# We define some recommended mesh for creation of fast evaluators of Fq and Fmq
+
+mudelta_mesh = cubicspace(-50, 50, 2047)
+psi_mesh = cubicspace(-30, 30, 1023)
+
+    
+# We add the useful a_pn function here, since it's used in expressing weakly 
+# relativistic tensor elements. The definition of a_pn can be find in Ref[2]
+# in this module's docstring
+    
+def a_pn(p, n):
+    r"""Evaluate :math:`a_{pn}` factor given in [1]_. 
+    
+    .. math::
+        a_{pn} = (-1)^p (n+p-\frac{1}{2})! / [ p! (n+\frac{1}{2}p)!
+                                            (n+\frac{1}{2}p-\frac{1}{2})! 2^n]
+                                            
+    .. [1] I.P.Shkarofsky, "New representations of dielectric tensor elements 
+           in magnetized plasma", J. Plasma Physics(1986), vol. 35, part 2, pp. 
+           319-331
+    """
+    
+    assert isinstance(p, int)
+    assert isinstance(n, int)
+    
+    if (p%2==0):
+        sign = 1
+    else:
+        sign = -1
+    
+    return sign * gamma(n + p + 0.5)/(gamma(p + 1) * gamma(n + 0.5*p + 1) * \
+                  gamma(n + 0.5*p + 0.5) * 2**n)
+
 
 
 

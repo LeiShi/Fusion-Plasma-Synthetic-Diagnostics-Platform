@@ -8,8 +8,6 @@ import numpy as np
 from .Geometry import Geometry
 
 
-
-
 class GridError(Exception):
     def __init__(self,*p):
         self.args = p
@@ -489,15 +487,73 @@ class Path2D(Grid):
     def __str__(self):
         """display information
         """
+        n=self.pth.n
         info = self._name + "\n"
         info += "created by path:\n"
         info += "\tnumber of points: "+ str(self.pth.n)+"\n"
         info += "\tR coordinates:\n\t"+ str(self.pth.R)+"\n"
         info += "\tZ coordinates:\n\t"+ str(self.pth.Z)+"\n"
         info += "with resolution in S: "+str(self.ResS)+"\n"
-        info += "total length of path: "+str(self.s[self.pth.n-1])+"\n"
+        info += "total length of path: "+str(self.s[n-1])+"\n"
         info += "total number of grids:"+str(self.N[n-1])+"\n"
         return info
+        
+        
+# Here are some useful little tools to generate special shaped grids
+        
+def squarespace(start, end, N):
+    """ Generate a grid from start to end with N points that is uniform after
+    taken square root.
+    
+    :param float start: the start of the mesh, must be non-negative
+    :param float end: the end of the mesh, must be non-negative
+    :param int N: the total number of mesh points
+    
+    :return: the mesh 
+    :rtype: 1d array of float
+    """
+    
+    assert (start >= 0) and (end >= 0)
+    sqstart, sqend = np.sqrt([start, end])
+    sqmesh = np.linspace(sqstart, sqend, N)
+    return sqmesh*sqmesh
+    
+def cubicspace(start, end, N):
+    """ Generate a grid from start to end with N points that is uniform after
+    taken cubic root.
+    
+    :param float start: the start of the mesh,
+    :param float end: the end of the mesh, 
+    :param int N: the total number of mesh points
+    
+    :return: the mesh 
+    :rtype: 1d array of float
+    """
+    startsign = np.sign(start)
+    endsign = np.sign(end)
+    cqstart, cqend = startsign*abs(start)**(1/3.0), endsign*abs(end)**(1/3.0)
+    cqmesh = np.linspace(cqstart, cqend, N)
+    return cqmesh*cqmesh*cqmesh
+    
+def quadspace(start, end, N):
+    """ Generate a grid from start to end with N points that is uniform after
+    taken quadrature root.
+    
+    :param float start: the start of the mesh, must be non-negative
+    :param float end: the end of the mesh, must be non-negative
+    :param int N: the total number of mesh points
+    
+    :return: the mesh 
+    :rtype: 1d array of float
+    """
+    
+    assert (start >= 0) and (end >= 0)
+    quadstart, quadend = start**0.25, end**0.25
+    quadmesh = np.linspace(quadstart, quadend, N)
+    sqmesh = quadmesh*quadmesh
+    return sqmesh*sqmesh
+    
+    
 
 
 

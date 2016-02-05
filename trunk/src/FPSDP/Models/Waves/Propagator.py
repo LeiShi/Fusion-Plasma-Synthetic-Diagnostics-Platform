@@ -13,8 +13,8 @@ import numpy as np
 from numpy.fft import fft, ifft, fftfreq
 from scipy.integrate import cumtrapz
 
-from ...Plasma.DielectricTensor import ColdDielectric, Dielectric, \
-                                       ResonanceError
+from ...Plasma.DielectricTensor import HotDielectric, Dielectric, \
+                                       ColdElectronColdIon, ResonanceError 
 from ...Plasma.PlasmaProfile import PlasmaProfile
 from ...GeneralSettings.UnitSystem import cgs
 
@@ -54,6 +54,10 @@ class ParaxialPerpendicularPropagator1D(Propagator):
     :type unitsystem: :py:class:`...GeneralSettings.UnitSystem` object
     :param float tol: the tolerance for testing zero components and determining
                       resonance and cutoff. Default to be 1e-14
+    :param int max_harmonic: highest order harmonic to keep. 
+                             Only used in hot electron models.
+    :param int max_power: highest power in lambda to keep.
+                          Only used in hot electron models.
     
     :raise AssertionError: if parameters passed in are not as expected.
 
@@ -236,69 +240,58 @@ class ParaxialPerpendicularPropagator1D(Propagator):
     
 
     def __init__(self, plasma, dielectric_class, polarization, 
-                 direction, unitsystem=cgs, tol=1e-14):
+                 direction, unitsystem=cgs, tol=1e-14, max_harmonic=4, 
+                 max_power=4):
         assert isinstance(plasma, PlasmaProfile) 
         assert issubclass(dielectric_class, Dielectric)
         assert polarization in ['X','O']
         assert direction in [1, -1]
         
-        self.ray_dielectric = ColdDielectric(plasma)
-        self.dielectric = dielectric_class(plasma)
+        self.main_dielectric = ColdElectronColdIon(plasma)
+        if issubclass(dielectric_class, HotDielectric):
+            self.fluc_dielectric = dielectric_class(plasma, 
+                                                    max_harmonic=max_harmonic,
+                                                    max_power=max_power)
+        else:
+            self.fluc_dielectric = dielectric_class(plasma)
         self.polarization = polarization
         self.direction = direction
         self.tol = tol
         self.unit_system = unitsystem
         
         
-    def _generate_epsilon(self):
-        r"""Generate main dielectric :math:`\epsilon_0` along the ray and 
-        fluctuating dielectric :math:`\delta \epsilon` on the full mesh
+    def _generate_epsilon0(self):
+        r"""Generate main dielectric :math:`\epsilon_0` along the ray 
         
-        The main ray is assumed along x direction
+        The main ray is assumed along x direction.
+        Main dielectric tensor uses Cold Electron Cold Ion model
         
-        :param float omega: angular frequency of the wave
-        :param x_coords: x coordinates of the main ray
-        :type x_coords: 1D array of float
-        :param float ray_y: y coordinate of the main ray
-        :param ray_z: z coordinate of the main ray, if plasma is 3D
-        :type ray_z: None if plasma is 2D, float if 3D
-        :param coords: coordinates for full mesh
-        :type coords: list of ndarrays of float. length should equal the 
-                      dimension of plasma.
+        Needs Attribute:
+            
+            self.omega
+            
+            self.x_coords
+            
+            self.main_dielectric
+            
+        Create Attribute:
+            
+            self.eps0
         """
         omega = self.omega
         x_coords = self.x_coords
-        time = self.time
-        self.eps0 = self.ray_dielectric.epsilon(omega, [x_coords], True)
-                                    
-        self.deps = self.dielectric.epsilon(omega, [x_coords], False, time)-\
-                    self.eps0
-              
-
-              
+        self.eps0 = self.main_dielectric.epsilon([x_coords], omega, True)
+        
     
-    def _generate_eOX(self):
-        """Create unit polarization vectors along the ray
-        """
-        if self.polarization == 'O':
-            self.e_x = 0
-            self.e_y = 0
-            self.e_z = 1
-            
-        else:
-            exx = self.eps0[0, 0, :]
-            # eyy = self.eps0[1, 1, :]
-            exy = self.eps0[0, 1, :]
-            # eyx = self.eps0[1, 0, :]
-            exy_mod = np.abs(exy)
-            exx_mod = np.abs(exx)
-            norm = 1/np.sqrt(exy_mod*exy_mod + exx_mod*exx_mod) 
-            self.e_x = -exy * norm
-            self.e_y = exx * norm
-            self.e_z = 0
-       
-    def _generate_k(self):
+    def _generate_k(self, mask_order=3):
         """Calculate k_0 along the reference ray path
+        
+        :param mask_order: the decay order where kz will be cut off. 
+                           If |E_k| peaks at k0, then we pick the range (k0-dk,
+                           k0+dk) to use in calculating delta_epsilon. dk is
+                           determined by the decay length of |E_k| times the
+                           mask_order. i.e. the masked out part have |E_k| less
+                           than exp(-mask_order)*|E_k,max|.
         """
         
         omega = self.omega
@@ -324,24 +317,108 @@ to full wave solver with Relativistic Dielectric Tensor to overcome this.')
                 raise ResonanceError('Cutoff of X mode occrus. Use full wave \
 solver instead of paraxial solver.')
             self.k_0 = self.direction*omega/c * np.sqrt(numerator/S)
+        # generate wave vector arrays
+            
+        # Fourier transform E along y and z
+        self.E_k_start = np.fft.fft2(self.E_start)
+        
+        self.nz = len(self.z_coords)
+        self.dz = self.z_coords[1] - self.z_coords[0]
+        self.kz = 2*np.pi*np.fft.fftfreq(self.nz, self.dz)
+        
+        self.ny = len(self.y_coords)
+        self.dy = self.y_coords[1] - self.y_coords[0]
+        self.ky = 2*np.pi*np.fft.fftfreq(self.ny, self.dy)
+        
+        # we need to mask kz in order to avoid non-physical zero k_parallel 
+        # components 
+        
+        # find out the peak location
+        marg = np.argmax(np.abs(self.E_k_start))
+        # find the y index of the peak
+        myarg = marg % self.ny
+        Ekmax = np.max(np.abs(self.E_k_start))
+        E_margin = Ekmax*np.exp(-mask_order)
+        # create the mask for components smaller than our marginal E
+        mask = np.abs(self.E_k_start[:,myarg]) < E_margin
+        # choose the largest kz in not masked part as the marginal kz
+        kz_margin = np.max(np.abs(self.kz[~mask]))
+        # fill all outside kz with the marginal kz
+        self.masked_kz = np.copy(self.kz)
+        self.masked_kz[mask] = kz_margin
+        #save central kz id
+        self.central_kz = myarg
+        self.margin_kz = np.argmax(mask)
+        
+        
+        
+    
+    def _generate_delta_epsilon(self):
+        r"""Generate fluctuated dielectric :math:`\delta\epsilon` on full mesh 
+        
+        Fluctuated dielectric tensor may use any dielectric model.
+        
+        Needs Attribute::
+            
+            self.omega
+            
+            self.x_coords
+            
+            self.k_0
+            
+            self.kz
+            
+            self.eps0
+            
+        Create Attribute::
+            
+            self.deps
+        """
+        omega = self.omega
+        x_coords = self.x_coords
+        k_perp = self.k_0
+        k_para = self.masked_kz
+        time = self.time
+        self.deps = np.empty((3,3,len(k_para),len(x_coords)),dtype='complex')
+        for i,x in enumerate(x_coords):                              
+            self.deps[... ,i] = self.fluc_dielectric.epsilon([x],omega, k_para, 
+                                                      k_perp[i], False, time)-\
+                            self.eps0[:,:,np.newaxis,i]
+        # add one dimension for ky, between kz, and spatial coordinates.
+        self.deps = self.deps[..., np.newaxis, :]
+              
+    
+    def _generate_eOX(self):
+        """Create unit polarization vectors along the ray
+        """
+        if self.polarization == 'O':
+            self.e_x = 0
+            self.e_y = 0
+            self.e_z = 1
+            
+        else:
+            exx = self.eps0[0, 0, :]
+            # eyy = self.eps0[1, 1, :]
+            exy = self.eps0[0, 1, :]
+            # eyx = self.eps0[1, 0, :]
+            exy_mod = np.abs(exy)
+            exx_mod = np.abs(exx)
+            norm = 1/np.sqrt(exy_mod*exy_mod + exx_mod*exx_mod) 
+            self.e_x = -exy * norm
+            self.e_y = exx * norm
+            self.e_z = 0
             
         
     def _generate_F(self):
         """integrate the phase term to get F.
         
         Note: F=k^(1/2) E
-        """
-        # Fourier transform E along y and z
-        self.E_k_start = np.fft.fft2(self.E_start)
-        # generate wave vector arrays        
-        nz = len(self.z_coords)
-        dz = self.z_coords[1] - self.z_coords[0]
-        self.kz = 2*np.pi*np.fft.fftfreq(nz, dz)[:, np.newaxis, np.newaxis]
+        """        
+        ny=self.ny
+        nz=self.nz
         
-        ny = len(self.y_coords)
-        dy = self.y_coords[1] - self.y_coords[0]
-        self.ky = 2*np.pi*np.fft.fftfreq(ny, dy)[np.newaxis, :, np.newaxis]
-        
+        ky = self.ky[np.newaxis, :, np.newaxis]
+        kz = self.kz[:, np.newaxis, np.newaxis]
         
         omega2 = self.omega*self.omega
         c = self.unit_system['c']
@@ -352,11 +429,11 @@ solver instead of paraxial solver.')
         P = np.real(self.eps0[2,2])
         
         if self.polarization == 'O':
-            de_O = self.deps[2, 2, :]*np.ones((nz,ny,1))
+            de_O = self.deps[2, 2, ... ]
             # de_kO = np.fft.fft2(de_O, axes=(0,1))
             F_k0 = self.E_k_start * np.sqrt(np.abs(self.k_0[0]))
-            self.delta_phase = cumtrapz((omega2/c2*de_O-self.ky*self.ky- \
-                                         P*self.kz*self.kz)/(2*self.k_0), 
+            self.delta_phase = cumtrapz((omega2/c2*de_O-ky*ky- \
+                                         P*kz*kz)/(2*self.k_0), 
                                            x=self.x_coords, initial=0)
             self.E_k0 = np.exp(1j*self.delta_phase)*F_k0[..., np.newaxis] /\
                        np.sqrt(np.abs(self.k_0))
@@ -383,7 +460,7 @@ solver instead of paraxial solver.')
             # de_kX = np.fft.fft2(de_X, axes=(0,1))
             F_k0 =self.E_k_start * np.sqrt(np.abs(self.k_0[0]))
             self.delta_phase = cumtrapz(((S2+D2)/S2* omega2/c2 *de_X -\
-                            self.ky*self.ky-C*self.kz*self.kz)/(2*self.k_0), 
+                            ky*ky-C*kz*kz)/(2*self.k_0), 
                                         x=self.x_coords, initial=0)
             self.E_k0 = np.exp(1j*self.delta_phase)*F_k0[..., np.newaxis] / \
                        np.sqrt(np.abs(self.k_0))
@@ -443,7 +520,9 @@ solver instead of paraxial solver.')
         else:
             self.x_coords = x_coords        
         
-        self._generate_epsilon()
+        self._generate_epsilon0()
+        self._generate_k()
+        self._generate_delta_epsilon()
         self._generate_eOX()
         self._generate_k()
         self._generate_F()
@@ -472,6 +551,11 @@ class ParaxialPerpendicularPropagator2D(Propagator):
     :type direction: int, either 1 or -1.
     :param float tol: the tolerance for testing zero components and determining
                       resonance and cutoff. Default to be 1e-14
+                      
+    :param int max_harmonic: highest order harmonic to keep. 
+                             Only used in hot electron models.
+    :param int max_power: highest power in lambda to keep.
+                          Only used in hot electron models.
     
     :raise AssertionError: if parameters passed in are not as expected.    
 
@@ -746,15 +830,21 @@ class ParaxialPerpendicularPropagator2D(Propagator):
     """
     
     def __init__(self, plasma, dielectric_class, polarization, 
-                 direction, ray_y, unitsystem=cgs, tol=1e-14):
+                 direction, ray_y, unitsystem=cgs, tol=1e-14, 
+                 max_harmonic=4, max_power=4):
         assert isinstance(plasma, PlasmaProfile) 
         assert issubclass(dielectric_class, Dielectric)
         assert polarization in ['X','O']
         assert direction in [1, -1]
         
-        self.ray_dielectric = ColdDielectric(plasma)
+        self.main_dielectric = ColdElectronColdIon(plasma)
         self.ray_y = ray_y
-        self.dielectric = dielectric_class(plasma)
+        if issubclass(dielectric_class, HotDielectric):
+            self.fluc_dielectric = dielectric_class(plasma, 
+                                                    max_harmonic=max_harmonic,
+                                                    max_power=max_power)
+        else:
+            self.fluc_dielectric = dielectric_class(plasma)
         self.polarization = polarization
         self.direction = direction
         self.tol = tol
@@ -762,20 +852,22 @@ class ParaxialPerpendicularPropagator2D(Propagator):
         
         
     def _generate_epsilon(self):
-        r"""Generate main dielectric :math:`\epsilon_0` along the ray and 
-        fluctuating dielectric :math:`\delta \epsilon` on the full mesh
+        r"""Generate main dielectric :math:`\epsilon_0` along the ray 
         
-        The main ray is assumed along x direction
+        The main ray is assumed along x direction.
+        Main dielectric tensor uses Cold Electron Cold Ion model
         
-        :param float omega: angular frequency of the wave
-        :param x_coords: x coordinates of the main ray
-        :type x_coords: 1D array of float
-        :param float ray_y: y coordinate of the main ray
-        :param ray_z: z coordinate of the main ray, if plasma is 3D
-        :type ray_z: None if plasma is 2D, float if 3D
-        :param coords: coordinates for full mesh
-        :type coords: list of ndarrays of float. length should equal the 
-                      dimension of plasma.
+        Needs Attribute:
+            
+            self.omega
+            
+            self.x_coords
+            
+            self.main_dielectric
+            
+        Create Attribute:
+            
+            self.eps0
         """
         omega = self.omega
         # x_coords needs to be enlarged twice since we need to split each step
@@ -785,45 +877,51 @@ class ParaxialPerpendicularPropagator2D(Propagator):
         self.calc_x_coords[::2] = self.x_coords
         self.calc_x_coords[1::2] = (self.x_coords[:-1]+self.x_coords[1:])/2.
         
-        time = self.time
-        self.eps0 = self.ray_dielectric.epsilon(omega, 
-                                [np.ones_like(self.calc_x_coords)*self.ray_y,
-                                 self.calc_x_coords], True)
-        
-        y2d = self.y_coords[:,np.newaxis] + np.zeros((self.ny,self.nx_calc))
-        x2d = self.calc_x_coords[np.newaxis, :] + np.zeros((self.ny,
-                                                            self.nx_calc))                   
-        self.deps = self.dielectric.epsilon(omega, [y2d, x2d], False, 
-                                            time) - self.eps0[:,:,np.newaxis,:]
-                                            
-        # change axis order into [X,Y] for later use
-        # self.deps = self.deps.T
-              
-
-              
-    
-    def _generate_eOX(self):
-        """Create unit polarization vectors along the ray
-        """
-        if self.polarization == 'O':
-            self.e_x = 0
-            self.e_y = 0
-            self.e_z = 1
-            
-        else:
-            exx = self.eps0[0, 0, :]
-            # eyy = self.eps0[1, 1, :]
-            exy = self.eps0[0, 1, :]
-            # eyx = self.eps0[1, 0, :]
-            exy_mod = np.abs(exy)
-            exx_mod = np.abs(exx)
-            norm = 1/np.sqrt(exy_mod*exy_mod + exx_mod*exx_mod) 
-            self.e_x = -exy * norm
-            self.e_y = exx * norm
-            self.e_z = 0
-       
-    def _generate_k(self):
+        self.eps0 = self.main_dielectric.epsilon\
+                         ([np.ones_like(self.calc_x_coords)*self.ray_y,
+                           self.calc_x_coords], omega, True)
+ 
+                                
+    def _generate_k(self, mask_order=3):
         """Calculate k_0 along the reference ray path
+        
+        Need Attributes:
+        
+            self.omega
+            
+            self.eps0
+            
+            self.polarization
+            
+            self.tol
+            
+            self.direction
+            
+            self.y_coords
+            
+            self.ny
+            
+            self.z_coords
+
+            self.nz
+            
+            self.E_start
+
+        Create Attributes:
+        
+            self.k_0
+
+            self.ky
+
+            self.kz 
+            
+            self.dy
+            
+            self.dz
+            
+            self.masked_kz
+            
+            self.E_k_start
         """
         
         omega = self.omega
@@ -849,10 +947,114 @@ to full wave solver with Relativistic Dielectric Tensor to overcome this.')
                 raise ResonanceError('Cutoff of X mode occrus. Use full wave \
 solver instead of paraxial solver.')
             self.k_0 = self.direction*omega/c * np.sqrt(numerator/S)
+        
+        # Fourier transform E along z
+        self.E_k_start = np.fft.fft(self.E_start, axis=0)
+        
+        self.nz = len(self.z_coords)
+        self.dz = self.z_coords[1] - self.z_coords[0]
+        self.kz = 2*np.pi*np.fft.fftfreq(self.nz, self.dz)[:, np.newaxis, 
+                                                           np.newaxis]
+        
+        self.ny = len(self.y_coords)
+        self.dy = self.y_coords[1] - self.y_coords[0]
+        self.ky = 2*np.pi*np.fft.fftfreq(self.ny, self.dy)[np.newaxis, :, 
+                                                           np.newaxis]
+        
+        # we need to mask kz in order to avoid non-physical zero k_parallel 
+        # components 
+        
+        # find out the peak location
+        marg = np.argmax(np.abs(self.E_k_start))
+        # find the y index of the peak
+        myarg = marg % self.ny
+        Ekmax = np.max(np.abs(self.E_k_start))
+        E_margin = Ekmax*np.exp(-mask_order)
+        # create the mask for components smaller than our marginal E
+        mask = np.abs(self.E_k_start[:,myarg]) < E_margin
+        # choose the largest kz in not masked part as the marginal kz
+        kz_margin = np.max(np.abs(self.kz[~mask]))
+        # fill all outside kz with the marginal kz
+        self.masked_kz = np.copy(self.kz)
+        self.masked_kz[mask] = kz_margin
+        
+        self.central_kz = myarg
+        self.margin_kz = np.argmax(mask)
+                                 
+    def _generate_delta_epsilon(self):
+        r"""Generate fluctuated dielectric :math:`\delta\epsilon` on full mesh 
+        
+        Fluctuated dielectric tensor may use any dielectric model.
+        
+        Needs Attribute::
             
-        self.ky = fftfreq(self.ny, self.y_coords[1]-self.y_coords[0])*2*np.pi
-        self.kz = fftfreq(self.nz, self.z_coords[1]-self.z_coords[0])*2*np.pi
-        self.kz = self.kz[:,np.newaxis, np.newaxis]
+            self.omega
+            
+            self.x_coords
+            
+            self.y_coords
+            
+            self.k_0
+            
+            self.kz
+            
+            self.eps0
+            
+            self.time
+            
+        Create Attribute::
+            
+            self.deps
+        """
+        omega = self.omega  
+        time = self.time
+        k_perp = self.k_0        
+        k_para = self.masked_kz[:,0,0]
+        y1d = self.y_coords
+        self.deps = np.empty((3,3,self.nz, self.ny, self.nx_calc), 
+                             dtype='complex')
+        for i,x in enumerate(self.calc_x_coords):        
+            x1d = np.zeros_like(y1d) + x 
+            self.deps[..., i] = self.fluc_dielectric.epsilon([y1d, x1d], omega, 
+                                               k_para, k_perp[i], False,time)-\
+                                self.eps0[:,:,np.newaxis,np.newaxis,i]
+                                                          
+    
+    def _generate_eOX(self):
+        """Create unit polarization vectors along the ray
+        
+        Need Attributes::
+            
+            self.polarization
+            
+            self.eps0
+        
+        Create Attributes::
+        
+            self.e_x
+            
+            self.e_y
+            
+            self.e_z
+        """
+        if self.polarization == 'O':
+            self.e_x = 0
+            self.e_y = 0
+            self.e_z = 1
+            
+        else:
+            exx = self.eps0[0, 0, :]
+            # eyy = self.eps0[1, 1, :]
+            exy = self.eps0[0, 1, :]
+            # eyx = self.eps0[1, 0, :]
+            exy_mod = np.abs(exy)
+            exx_mod = np.abs(exx)
+            norm = 1/np.sqrt(exy_mod*exy_mod + exx_mod*exx_mod) 
+            self.e_x = -exy * norm
+            self.e_y = exx * norm
+            self.e_z = 0
+       
+    
             
     
     def _generate_C(self):
@@ -864,7 +1066,24 @@ solver instead of paraxial solver.')
         omega^2/c^2 (D^2 deps[0,0] + iDS (deps[1,0]-deps[0,1]) + S^2 deps[1,1])
         /S^2   for X mode
 
-
+        Need Attributes::
+        
+            self.omega
+            
+            self.unit_system
+            
+            self.nx
+            
+            self.ny
+            
+            self.deps
+            
+            self.eps0
+            
+        Create Attributes::
+        
+            self.C
+            
         """
         omega = self.omega
         c = self.unit_system['c']        
@@ -889,9 +1108,22 @@ solver instead of paraxial solver.')
         
         In order to increase efficiency, we change the axis order into [X,Y,Z]
         for solving F. Afterwards, we'll change back to [Z, Y, X].
+        
+        Need Attributes::
+        
+            self.E_k_start
+            
+            self.k_0
+            
+            self.nz, self.ny, self.nx_calc
+            
+        Create Attributes::
+            
+            self.F_k_start
+            
+            self.Fk
         """
-        # Fourier transform E along z
-        self.E_k_start = np.fft.fft(self.E_start, axis=0)
+        
 
         # F = sqrt(k)*E
         self.F_k_start = np.sqrt(np.abs(self.k_0[0]))*self.E_k_start
@@ -926,6 +1158,18 @@ solver instead of paraxial solver.')
         otherwise, dx = calc_x_coords[i]-calc_x_coords[i-1]
         
         refraction propagation always happens at knots.
+        
+        Need Attributes::
+        
+            self.calc_x_coords
+            
+            self.k_0
+            
+            self.C
+        
+        Create Attributes::
+        
+            None
         """
                 
         
@@ -934,7 +1178,7 @@ solver instead of paraxial solver.')
         else:
             dx = self.calc_x_coords[i]-self.calc_x_coords[i-1]
         
-        C = self.C[:,i]
+        C = self.C[...,i]
         phase = dx* C/(2*self.k_0[i])
         
         return np.exp(1j*phase)*F
@@ -950,6 +1194,18 @@ solver instead of paraxial solver.')
         
         diffraction propagation always happens at center between two knots
         
+        Need Attributes::
+        
+            self.calc_x_coords
+            
+            self.ky
+            
+            self.k_0
+            
+        Create Attributes::
+        
+            None
+        
         """
         
         dx = self.calc_x_coords[i+1]-self.calc_x_coords[i-1]
@@ -963,6 +1219,22 @@ solver instead of paraxial solver.')
         """ Propagate the phase due to kz^2
         
         a direct integration can be used
+        
+        Need Attributes::
+        
+            self.polarization
+            
+            self.eps0
+            
+            self.kz
+            
+            self.calc_x_coords
+            
+            self.tol
+            
+        Create Attributes::
+        
+            self.phase_kz
         """
         if self.polarization == 'O':
             P = np.real(self.eps0[2,2])
@@ -989,6 +1261,26 @@ solver instead of paraxial solver.')
                      
     def _generate_E(self):
         """Calculate the total E including the main phase advance
+        
+        Need Attributes:
+        
+            self.k_0
+            
+            self.calc_x_coords
+            
+            self.Fk
+            
+            self.phase_kz
+            
+            self.k_0
+            
+        Create Attributes::
+        
+            self.main_phase
+            
+            self.F
+            
+            self.E
         """
         self._generate_phase_kz()
         self.main_phase = cumtrapz(self.k_0, x=self.calc_x_coords, initial=0)
@@ -1049,8 +1341,9 @@ solver instead of paraxial solver.')
         self.nx = len(self.x_coords)
         
         self._generate_epsilon()
-        self._generate_eOX()
         self._generate_k()
+        self._generate_delta_epsilon()
+        self._generate_eOX()        
         self._generate_F()
         self._generate_E()
         

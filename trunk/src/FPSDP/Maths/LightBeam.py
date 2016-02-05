@@ -14,6 +14,7 @@ import numpy as np
 from numpy.lib.scimath import sqrt
 
 from .CoordinateTransformation import rotate
+from ..GeneralSettings.UnitSystem import cgs
 
 class LightBeam(object):
     r"""Abstract base class for light beams
@@ -57,6 +58,10 @@ class GaussianBeam(LightBeam):
                        aligns with z' axis) (Optional, default to be same as 
                        w_0y)  
     :param complex E0: The complex amplitude at beam frame origin
+                       (Optional, default is 1)
+    :param float P_total: The total power of the beam. Optional, if given, *E0*
+                          argument will be ignored. The amplitude of the beam
+                          will be determined by P_total.
                          
     Attributes:
     
@@ -119,7 +124,8 @@ class GaussianBeam(LightBeam):
         The waist, also called *focus*, is the narrowest location in the beam.
         The waist width :math:`w_0` is defined as the 1/e half-width in 
         transverse directions of field amplitude at the waist. Elliptical 
-        shaped Gaussian beams may have different waist width at different 
+        shaped Gaussian beams may have different waist width on different 
+        directions. i.e. :math:`w_{0x}` and :math:`w_{0y}`.
         
     Rayleigh range :math:`z_R`:
         Rayleigh range is the distance along the beam from the waist where 1/e
@@ -169,6 +175,40 @@ class GaussianBeam(LightBeam):
     z direction. This applies to the definition of :math:`q` terms and the sign 
     in front of :math:`ik` part.
     
+    Calculation of the Amplitude from Total Power
+    =============================================
+    
+    If ``P_total`` is given, then the center amplitude :math:`E_0` will be 
+    determined by it.
+    
+    The time-averaged Poynting flux is (in Gaussian unit):
+    
+    .. math::
+        S_m = \frac{c}{8\pi}E_m \times B_m^*,
+    
+    where :math:`E_m` and :math:`B_m` are the magnitude of the field.    
+    
+    For our Gaussian beam at waist plane, :math:`E_m = B_m` and they are 
+    perfectly in phase. So, 
+    
+    .. math::
+        S_m = \frac{c}{8\pi}|E_m|^2.
+        
+    The total power is then
+    
+    .. math::
+        P_{total} = \int\int S_m \mathrm{d}x \, \mathrm{d}y 
+                = \frac{c}{8\pi}|E_0|^2\int\int \exp\left(-\frac{x^2}{w_{0x}^2}
+                    - \frac{y^2}{w_{0y}^2}\right) \mathrm{d}x \,\mathrm{d}y.
+                    
+    The Gaussian integration over x and y gives us :math:`\pi`, so we have the 
+    relation between :math:`E_0` and :math:`P_{total}`:
+    
+    .. math::
+        E_0 = \sqrt{\frac{8 P_{total}}{c}}
+        
+    We choose :math:`E_0` to be real for simplicity.
+    
     Coordinate Transformation
     =========================
     
@@ -198,7 +238,8 @@ class GaussianBeam(LightBeam):
     """
     
     def __init__(self, wave_length, waist_x, waist_y, w_0y, waist_z=0, 
-                 w_0z=None, tilt_v=0, tilt_h=0, rotation=0, E0 = 1):
+                 w_0z=None, tilt_v=0, tilt_h=0, rotation=0, E0=1, 
+                 P_total=None):
         self.wave_length = wave_length
         self.waist_loc = [waist_x, waist_y, waist_z]
         self.w_0y = w_0y
@@ -210,6 +251,9 @@ class GaussianBeam(LightBeam):
         self.tilt_h = tilt_h
         self.rotation = rotation
         self.E0 = E0
+        if (P_total is not None):
+            self.P_total = P_total
+            self.E0 = np.sqrt(8*P_total/cgs['c']) 
     
     @property    
     def reighlay_range(self):

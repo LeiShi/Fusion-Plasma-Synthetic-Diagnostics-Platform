@@ -319,6 +319,37 @@ def create_profile2D(random_fluctuation=False, fluc_level=None):
                         profile['B'])
 
 
+def simulate_2D(p1d, grid2D):
+    """Generate a 2D plasma profile on given grid. The plasma is based on given
+    1D profile, it is simply uniform along Y direction.
+    """
+    X_new = grid2D.R1D
+    ne01d = p1d.get_ne0([X_new])
+    B01d = p1d.get_B0([X_new])
+    Te01d = p1d.get_Te0([X_new])
+    
+    ne02d = np.zeros_like(grid2D.Z2D) + ne01d
+    B02d = np.zeros_like(grid2D.Z2D) + B01d
+    Te02d = np.zeros_like(grid2D.Z2D) + Te01d
+    
+    if (p1d.has_dne):
+        dne1d = p1d.get_dne([X_new])
+        dB1d = p1d.get_dB([X_new])
+        dTe_para1d = p1d.get_dTe_para([X_new])
+        dTe_perp1d = p1d.get_dTe_perp([X_new])
+        
+        dne_shape = (dne1d.shape[0], len(grid2D.Z1D), len(grid2D.R1D))
+        dne2d = np.zeros(dne_shape) + dne1d[:, np.newaxis, :]
+        dB2d = np.zeros(dne_shape) + dB1d[:, np.newaxis, :]
+        dTe_para2d = np.zeros(dne_shape) + dTe_para1d[:, np.newaxis, :]
+        dTe_perp2d = np.zeros(dne_shape) + dTe_perp1d[:, np.newaxis, :]        
+        return ECEI_Profile(grid2D, ne02d, Te02d, B02d, p1d.time, dne2d,
+                            dTe_para2d, dTe_perp2d, dB2d)
+                            
+    else:
+        return ECEI_Profile(grid2D, ne02d, Te02d, B02d)
+
+
 class PlasmaModelError(Exception):
     def __init__(self,value):
         self.value = value

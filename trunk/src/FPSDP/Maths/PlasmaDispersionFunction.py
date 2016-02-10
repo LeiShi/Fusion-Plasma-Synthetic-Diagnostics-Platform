@@ -71,6 +71,22 @@ second formula to evaluate larger q's.
 Fianlly, for special case, :math:`\psi=0`, L'Hopital rule needs to be used to
 evaluate the "0/0" kind expressions. More details in Appendix part of [2]_.
 
+Fast Evaluators
+================
+
+In order to evaluate ``Fq`` and ``Fmq`` functions faster, two new classes 
+``FqFastEvaluator`` and ``FmqFastEvaluator`` are provided. In initialization, 
+these classes calculate ``Fq`` or ``Fmq`` of given order on given parameter 
+meshes, and generate linear interpolators on these mesh. Then, when called with
+given parameters, they use the existing interpolator to evaluate an 
+approximated value for ``Fq`` or ``Fmq``. The parameter mesh is on 
+:math:`\mu\delta = \psi^2 - \phi^2` and :math:`\psi` space, because they are 
+both real and the function value is essentially center peaked at the origin. 
+The calling signiture is almost the same as ``Fq`` and ``Fmq`` functions, 
+except that the order of the function are now determined at the time of 
+initialization. Two suggested mesh, ``mudelta_mesh`` and ``psi_mesh`` are 
+provided for default use.
+
 
 .. [1] https://farside.ph.utexas.edu/teaching/plasma/lectures1/node87.html
 
@@ -138,147 +154,6 @@ def Z_m(z, m):
         return Z_1(z)
     else:
         return -2*z*Z_m(z, m-1) -2*(m-1)*Z_m(z, m-2)
-
-
-class FqFastEvaluator(object):
-    """Fast evaluator for Fq functions
-    
-    Initialization:
-        FqFastEvaluator( nq, phi_sq_mesh, psi_mesh, **P)
-        
-        :param int nq: nq passed into Fq function, the order of the function is
-                       nq/2.
-        :param phi_sq_mesh: :math:`\phi^2` values for mesh points in phi_psi 
-                            plane, we use :math:`\phi^2` because it's real.
-        :type phi_mesh: 1D array of float, monotonic order 
-        :param psi_mesh: psi values for mesh points in phi_psi plane
-        :type psi_mesh: 1D array of float, monotonic order
-        :param **P: additional keyword arguments passed into 
-                    scipy.interpolate.RegularGridInteropolator.
-                          
-    Methods:
-    
-        __call__(phi, psi):
-            return Fq value at (phi,psi) points. phi, psi are arrays with the 
-            same shape.
-        
-        reconstruct(**P):
-            reconstruct the interpolator using the new keyword arguments given 
-            in **P
-            
-        test(phi_test, psi_test, abserr=1e-6, relerr=1e-4):
-            evaluate Fq on (phi_test, psi_test) points using both original 
-            function and interpolator, report the maximum absolute error and 
-            relative error. Print a warning if either error is greater than the
-            preset margin given by abserr and relerr arguments.
-            
-    """
-
-    def __init__(self, nq, mudelta_mesh, psi_mesh, **P):
-        self.psi_1D = psi_mesh        
-        self.mudelta_1D = mudelta_mesh
-        self.nq = nq
-        
-        mudelta_2D = np.zeros((len(mudelta_mesh), len(psi_mesh))) + \
-                      mudelta_mesh[:, np.newaxis]
-        psi_2D = np.zeros_like(mudelta_2D) + psi_mesh[np.newaxis, :]
-        self.value = Fq(sqrt(psi_2D*psi_2D-mudelta_2D), psi_2D, self.nq)
-        self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
-                                                        self.psi_1D), 
-                                                        self.value, 
-                                                        bounds_error=False, 
-                                                        fill_value=0, **P)
-    
-    
-    def reconstruct(self, mudelta_mesh=None, psi_mesh=None, **P):
-        """reconstruct the interpolator using the new keyword arguments given 
-        in **P and/or mudelta_mesh, psi_mesh
-        """
-        if (psi_mesh is not None):
-            self.psi_1D = psi_mesh
-        if (mudelta_mesh is not None):
-            self.mudelta_1D = mudelta_mesh
-            
-        if (psi_mesh is not None) or (mudelta_mesh is not None):
-            mudelta_2D = np.zeros((len(mudelta_mesh), len(psi_mesh))) + \
-                          mudelta_mesh[:, np.newaxis]
-            psi_2D = np.zeros_like(mudelta_2D) + psi_mesh[np.newaxis, :]
-            self.value = Fq(sqrt(psi_2D*psi_2D-mudelta_2D), psi_2D, self.nq)
-            self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
-                                                         self.psi_1D), 
-                                                         self.value, 
-                                                         bounds_error=False, 
-                                                         fill_value=0, **P)
-        else:
-            self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
-                                                         self.psi_1D), 
-                                                        self.values, 
-                                                        bounds_error=False, 
-                                                        fill_value=0, **P)
-        
-    def __call__(self, phi, psi):
-        """Evaluate Fq at phi,psi using the internal interpolator
-        """
-        phi = np.array(phi)
-        psi = np.array(psi)
-        assert phi.shape == psi.shape
-        # phi must be square root of a real number 
-        assert np.all(np.logical_or(np.abs(np.real(phi)) <= 1e-10, 
-                             np.abs(np.imag(phi)) <= 1e-10))
-        phi2 = np.real(phi*phi)
-        mudelta = psi*psi - phi2
-        dims = range(1, mudelta.ndim+1)
-        dims.extend([0])
-        
-        # construct the points structure for interpolation, transpose the array
-        # so that the fastest changing index is length 2: (phi,psi)
-        points = np.transpose(np.array([mudelta, psi]), axes=dims)
-        
-        return self.interpolator(points)
-        
-    def test(self, phi, psi, tolabs=1e-3, tolrel=5e-2, full_report=False):
-        """evaluate Fq on (phi_test, psi_test) points using both original 
-        function and interpolator, report the maximum absolute error and 
-        relative error. Print a warning if either error is greater than the
-        preset margin given by abserr and relerr arguments.
-        
-        If full_report == True, abserr and relerr on every phi,psi point will 
-        be returned. Otherwise only the maximum value and corresponding phi,psi
-        are returned.
-        """
-        
-        exact_value = Fq(phi, psi, self.nq)
-        interp_value = self(phi,psi)
-        
-        abs_err = interp_value - exact_value
-        
-        in_range_idx = interp_value != 0
-        rel_err = np.zeros_like(abs_err)
-        rel_err[in_range_idx] = abs_err[in_range_idx]/exact_value[in_range_idx]
-        
-        
-        maxabs = np.abs(abs_err).max()
-        maxrel = np.abs(rel_err).max()        
-        
-        arg_maxabs = np.where(np.abs(abs_err) == maxabs)
-        arg_maxrel = np.where(np.abs(rel_err) == maxrel)
-        
-        if(maxabs > tolabs):
-            warnings.warn('Absolute error exceeds limit({})'.format(tolabs))
-        if(maxrel > tolrel):
-            warnings.warn('Relative error exceeds limit({})'.format(tolrel))
-        
-        print '\
-Max Absolute Error: {}, at\n\
-    phi:{},\n\
-    psi:{}.\n\
-Max Relative Error: {}, at\n\
-    phi:{},\n\
-    psi:{}'.format(abs_err[arg_maxabs], phi[arg_maxabs], psi[arg_maxabs],
-                   rel_err[arg_maxrel], phi[arg_maxrel], psi[arg_maxrel])         
-        
-        if full_report:
-            return (abs_err, rel_err)
             
 
 # General recurrence function to evaluate F_q for q>3/2
@@ -312,10 +187,10 @@ def Fq(phi, psi, nq, phi_nonzero=None, psi_nonzero=None, phi_tol=None,
     
     :param phi: :math:`\phi` parameter defined in ref.[2] in 
                 :py:mod:`PlasmaDispersionFunction`
-    :ptype phi: ndarray of complex
+    :type phi: ndarray of complex
     :param psi: :math:`\psi` parameter defined in ref.[2] in 
                 :py:mod:`PlasmaDispersionFunction`
-    :ptype psi: ndarray of complex
+    :type psi: ndarray of complex
     :param int nq: the numerator in q, must be odd, the denominator is default  
                    to be 2
     :param bool phi_nonzero: True if phi != 0 is guaranteed everywhere. If not
@@ -485,151 +360,6 @@ def _F52(phi, psi, phi_nonzero, psi_nonzero):
                           psi[zero_idx]**2
     return result
 '''    
-
-class FmqFastEvaluator(object):
-    """Fast evaluator for Fmq functions
-    
-    Initialization:
-        FqFastEvaluator(m, nq, mudelta_mesh, psi_mesh, **P)
-        
-        :param int m: m passed into Fmq function, the order of differentiation.
-        :param int nq: nq passed into Fq function, the order of the function is
-                       nq/2. 
-        :param mudelta_mesh: :math:`\mu \delta \equiv \psi^2-\phi^2` values for
-                             mesh points in phi_psi plane, we use this value 
-                             because Fmq is most sensitive to it.
-        :type mudelta_mesh: 1D array of float, monotonic order 
-        :param psi_mesh: psi values for mesh points in phi_psi plane
-        :type psi_mesh: 1D array of float, monotonic order       
-        :param **P: additional keyword arguments passed into 
-                    scipy.interpolate.RegularGridInteropolator.
-                          
-    Methods:
-    
-        __call__(phi, psi):
-            return Fq value at (phi,psi) points. phi, psi are arrays with the 
-            same shape.
-        
-        reconstruct(mudelta_mesh=None, psi_mesh=None, **P):
-            reconstruct the interpolator using the new keyword arguments given 
-            in **P and/or new meshes.
-            
-        test(phi_test, psi_test, abserr=1e-6, relerr=1e-4):
-            evaluate Fmq on (phi_test, psi_test) points using both original 
-            function and interpolator, report the maximum absolute error and 
-            relative error. Print a warning if either error is greater than the
-            preset margin given by abserr and relerr arguments.
-            
-    """
-
-    def __init__(self, m, nq, mudelta_mesh, psi_mesh, **P):
-        self.psi_1D = psi_mesh        
-        
-        self.mudelta_1D = mudelta_mesh
-        self.m = m
-        self.nq = nq
-        mudelta_2D = np.zeros((len(mudelta_mesh), len(psi_mesh))) + \
-                      mudelta_mesh[:, np.newaxis]
-        psi_2D = np.zeros_like(mudelta_2D) + psi_mesh[np.newaxis, :]
-        self.value = Fmq(sqrt(psi_2D*psi_2D-mudelta_2D), psi_2D, self.m, 
-                         self.nq)
-        self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
-                                                        self.psi_1D), 
-                                                        self.value, 
-                                                        bounds_error=False, 
-                                                        fill_value=0, **P)
-    
-    
-    def reconstruct(self, mudelta_mesh=None, psi_mesh=None, **P):
-        """reconstruct the interpolator using the new keyword arguments given 
-        in **P and/or mudelta_mesh, psi_mesh
-        """
-        if (psi_mesh is not None):
-            self.psi_1D = psi_mesh
-        if (mudelta_mesh is not None):
-            self.mudelta_1D = mudelta_mesh
-            
-        if (psi_mesh is not None) or (mudelta_mesh is not None):
-            mudelta_2D = np.zeros((len(mudelta_mesh), len(psi_mesh))) + \
-                          mudelta_mesh[:, np.newaxis]
-            psi_2D = np.zeros_like(mudelta_2D) + psi_mesh[np.newaxis, :]
-            self.value = Fmq(sqrt(psi_2D*psi_2D-mudelta_2D), psi_2D, self.m, 
-                            self.nq)
-            self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
-                                                         self.psi_1D), 
-                                                         self.value, 
-                                                         bounds_error=False, 
-                                                         fill_value=0, **P)
-        else:
-            self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
-                                                         self.psi_1D), 
-                                                        self.values, 
-                                                        bounds_error=False, 
-                                                        fill_value=0, **P)
-        
-    def __call__(self, phi, psi):
-        """Evaluate Fq at phi,psi using the internal interpolator
-        """
-        phi = np.array(phi)
-        psi = np.array(psi)
-        assert phi.shape == psi.shape
-        # phi must be square root of a real number 
-        assert np.all(np.logical_or(np.abs(np.real(phi)) <= 1e-10, 
-                             np.abs(np.imag(phi)) <= 1e-10))
-        phi2 = np.real(phi*phi)
-        mudelta = psi*psi - phi2
-        dims = range(1, mudelta.ndim+1)
-        dims.extend([0])
-        
-        # construct the points structure for interpolation, transpose the array
-        # so that the fastest changing index is length 2: (phi,psi)
-        points = np.transpose(np.array([mudelta, psi]), axes=dims)
-        
-        return self.interpolator(points)
-        
-    def test(self, phi, psi, tolabs=1e-3, tolrel=1e-3, full_report=False):
-        """evaluate Fmq on (phi_test, psi_test) points using both original 
-        function and interpolator, report the maximum absolute error and 
-        relative error. Print a warning if either error is greater than the
-        preset margin given by abserr and relerr arguments.
-        
-        If full_report == True, abserr and relerr on every phi,psi point will 
-        be returned. Otherwise only the maximum value and corresponding phi,psi
-        are returned.
-        """
-        
-        exact_value = Fmq(phi, psi, self.m, self.nq)
-        interp_value = self(phi,psi)
-        
-        abs_err = interp_value - exact_value
-        
-        in_range_idx = interp_value != 0
-        rel_err = np.zeros_like(abs_err)
-        rel_err[in_range_idx] = abs_err[in_range_idx]/exact_value[in_range_idx]
-        
-        
-        maxabs = np.abs(abs_err).max()
-        maxrel = np.abs(rel_err).max()        
-        
-        arg_maxabs = np.where(np.abs(abs_err) == maxabs)
-        arg_maxrel = np.where(np.abs(rel_err) == maxrel)
-        
-        if(maxabs > tolabs):
-            warnings.warn('Absolute error exceeds limit({})'.format(tolabs))
-        if(maxrel > tolrel):
-            warnings.warn('Relative error exceeds limit({})'.format(tolrel))
-        
-        print '\
-Max Absolute Error: {}, at\n\
-    phi:{},\n\
-    psi:{}.\n\
-Max Relative Error: {}, at\n\
-    phi:{},\n\
-    psi:{}'.format(abs_err[arg_maxabs], phi[arg_maxabs], psi[arg_maxabs],
-                   rel_err[arg_maxrel], phi[arg_maxrel], psi[arg_maxrel])         
-        
-        if full_report:
-            return (abs_err, rel_err)
   
 
 def Fmq(phi, psi, m, nq, phi_nonzero=None, 
@@ -651,15 +381,15 @@ def Fmq(phi, psi, m, nq, phi_nonzero=None,
         \mathcal{F}_{q+1}^m = (\phi^2\mathcal{F}_q^m + m\mathcal{F}_q^{m-1})/q
         
     
-    Further more, if :math:`\phi = 0` at the same time as :math:`psi=0`, we
+    Further more, if :math:`\phi = 0` at the same time as :math:`\psi=0`, we
     have:
     
-    ..math::
+    .. math::
     
-        \F^m_{q+3/2} = \frac{ m\mathcal{F}^{m-1}_{q+1/2} }{ q+1/2 }
+        \mathcal{F}^m_{q+3/2} = \frac{ m\mathcal{F}^{m-1}_{q+1/2} }{ q+1/2 }
     
     Note that in physical situations, ``m``>(``nq``-1)/2 is not used. So the 
-    recurrence starts at ``nq``= 2*``m``+1 and 2*``m``+3.
+    recurrence starts at ``nq`` = 2* ``m`` +1 and 2* ``m`` +3.
     
     Here we implement only m=1,2,3,4 cases, using formula given in [1]_. Higher
     order cases required analytical derivation of starting formula.
@@ -1096,7 +826,305 @@ def _Fm_mp32_00(m, shape=(1)):
 mudelta_mesh = cubicspace(-50, 50, 2047)
 psi_mesh = cubicspace(-30, 30, 1023)
 
+
+class FqFastEvaluator(object):
+    """Fast evaluator for Fq functions
     
+    Initialization:
+        FqFastEvaluator( nq, phi_sq_mesh, psi_mesh, **P)
+        
+        :param int nq: nq passed into Fq function, the order of the function is
+                       nq/2.
+        :param phi_sq_mesh: :math:`\phi^2` values for mesh points in phi_psi 
+                            plane, we use :math:`\phi^2` because it's real.
+        :type phi_mesh: 1D array of float, monotonic order 
+        :param psi_mesh: psi values for mesh points in phi_psi plane
+        :type psi_mesh: 1D array of float, monotonic order
+        :param **P: additional keyword arguments passed into 
+                    scipy.interpolate.RegularGridInteropolator.
+                          
+    Methods:
+    
+        __call__(phi, psi):
+            return Fq value at (phi,psi) points. phi, psi are arrays with the 
+            same shape.
+        
+        reconstruct(**P):
+            reconstruct the interpolator using the new keyword arguments given 
+            in **P
+            
+        test(phi_test, psi_test, abserr=1e-6, relerr=1e-4):
+            evaluate Fq on (phi_test, psi_test) points using both original 
+            function and interpolator, report the maximum absolute error and 
+            relative error. Print a warning if either error is greater than the
+            preset margin given by abserr and relerr arguments.
+            
+    """
+
+    def __init__(self, nq, mudelta_mesh=mudelta_mesh, psi_mesh=psi_mesh, **P):
+        self.psi_1D = psi_mesh        
+        self.mudelta_1D = mudelta_mesh
+        self.nq = nq
+        
+        mudelta_2D = np.zeros((len(mudelta_mesh), len(psi_mesh))) + \
+                      mudelta_mesh[:, np.newaxis]
+        psi_2D = np.zeros_like(mudelta_2D) + psi_mesh[np.newaxis, :]
+        self.value = Fq(sqrt(psi_2D*psi_2D-mudelta_2D), psi_2D, self.nq)
+        self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
+                                                        self.psi_1D), 
+                                                        self.value, 
+                                                        bounds_error=False, 
+                                                        fill_value=0, **P)
+        self.phi_bounds = ((sqrt(psi_mesh[0]-mudelta_mesh[0]), 
+                            sqrt(psi_mesh[0]-mudelta_mesh[-1])), 
+                           (sqrt(psi_mesh[-1]-mudelta_mesh[0]), 
+                            sqrt(psi_mesh[-1]-mudelta_mesh[-1])) )
+        self.psi_bounds = (psi_mesh[0], psi_mesh[-1])
+    
+    
+    def reconstruct(self, mudelta_mesh=None, psi_mesh=None, **P):
+        """reconstruct the interpolator using the new keyword arguments given 
+        in **P and/or mudelta_mesh, psi_mesh
+        """
+        if (psi_mesh is not None):
+            self.psi_1D = psi_mesh
+        if (mudelta_mesh is not None):
+            self.mudelta_1D = mudelta_mesh
+            
+        if (psi_mesh is not None) or (mudelta_mesh is not None):
+            mudelta_2D = np.zeros((len(mudelta_mesh), len(psi_mesh))) + \
+                          mudelta_mesh[:, np.newaxis]
+            psi_2D = np.zeros_like(mudelta_2D) + psi_mesh[np.newaxis, :]
+            self.value = Fq(sqrt(psi_2D*psi_2D-mudelta_2D), psi_2D, self.nq)
+            self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
+                                                         self.psi_1D), 
+                                                         self.value, 
+                                                         bounds_error=False, 
+                                                         fill_value=0, **P)
+        else:
+            self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
+                                                         self.psi_1D), 
+                                                        self.values, 
+                                                        bounds_error=False, 
+                                                        fill_value=0, **P)
+        
+    def __call__(self, phi, psi):
+        """Evaluate Fq at phi,psi using the internal interpolator
+        """
+        phi = np.array(phi)
+        psi = np.array(psi)
+        assert phi.shape == psi.shape
+        # phi must be square root of a real number 
+        assert np.all(np.logical_or(np.abs(np.real(phi)) <= 1e-10, 
+                             np.abs(np.imag(phi)) <= 1e-10))
+        phi2 = np.real(phi*phi)
+        mudelta = psi*psi - phi2
+        dims = range(1, mudelta.ndim+1)
+        dims.extend([0])
+        
+        # construct the points structure for interpolation, transpose the array
+        # so that the fastest changing index is length 2: (phi,psi)
+        points = np.transpose(np.array([mudelta, psi]), axes=dims)
+        
+        return self.interpolator(points)
+        
+    def test(self, phi, psi, tolabs=1e-3, tolrel=5e-2, full_report=False):
+        """evaluate Fq on (phi_test, psi_test) points using both original 
+        function and interpolator, report the maximum absolute error and 
+        relative error. Print a warning if either error is greater than the
+        preset margin given by abserr and relerr arguments.
+        
+        If full_report == True, abserr and relerr on every phi,psi point will 
+        be returned. Otherwise only the maximum value and corresponding phi,psi
+        are returned.
+        """
+        
+        exact_value = Fq(phi, psi, self.nq)
+        interp_value = self(phi,psi)
+        
+        abs_err = interp_value - exact_value
+        
+        in_range_idx = interp_value != 0
+        rel_err = np.zeros_like(abs_err)
+        rel_err[in_range_idx] = abs_err[in_range_idx]/exact_value[in_range_idx]
+        
+        
+        maxabs = np.abs(abs_err).max()
+        maxrel = np.abs(rel_err).max()        
+        
+        arg_maxabs = np.where(np.abs(abs_err) == maxabs)
+        arg_maxrel = np.where(np.abs(rel_err) == maxrel)
+        
+        if(maxabs > tolabs):
+            warnings.warn('Absolute error exceeds limit({})'.format(tolabs))
+        if(maxrel > tolrel):
+            warnings.warn('Relative error exceeds limit({})'.format(tolrel))
+        
+        print '\
+Max Absolute Error: {}, at\n\
+    phi:{},\n\
+    psi:{}.\n\
+Max Relative Error: {}, at\n\
+    phi:{},\n\
+    psi:{}'.format(abs_err[arg_maxabs], phi[arg_maxabs], psi[arg_maxabs],
+                   rel_err[arg_maxrel], phi[arg_maxrel], psi[arg_maxrel])         
+        
+        if full_report:
+            return (abs_err, rel_err)
+
+
+class FmqFastEvaluator(object):
+    """Fast evaluator for Fmq functions
+    
+    Initialization:
+        FqFastEvaluator(m, nq, mudelta_mesh, psi_mesh, **P)
+        
+        :param int m: m passed into Fmq function, the order of differentiation.
+        :param int nq: nq passed into Fq function, the order of the function is
+                       nq/2. 
+        :param mudelta_mesh: :math:`\mu \delta \equiv \psi^2-\phi^2` values for
+                             mesh points in phi_psi plane, we use this value 
+                             because Fmq is most sensitive to it.
+        :type mudelta_mesh: 1D array of float, monotonic order 
+        :param psi_mesh: psi values for mesh points in phi_psi plane
+        :type psi_mesh: 1D array of float, monotonic order       
+        :param **P: additional keyword arguments passed into 
+                    scipy.interpolate.RegularGridInteropolator.
+                          
+    Methods:
+    
+        __call__(phi, psi):
+            return Fq value at (phi,psi) points. phi, psi are arrays with the 
+            same shape.
+        
+        reconstruct(mudelta_mesh=None, psi_mesh=None, **P):
+            reconstruct the interpolator using the new keyword arguments given 
+            in **P and/or new meshes.
+            
+        test(phi_test, psi_test, abserr=1e-6, relerr=1e-4):
+            evaluate Fmq on (phi_test, psi_test) points using both original 
+            function and interpolator, report the maximum absolute error and 
+            relative error. Print a warning if either error is greater than the
+            preset margin given by abserr and relerr arguments.
+            
+    """
+
+    def __init__(self, m, nq, mudelta_mesh=mudelta_mesh, psi_mesh=psi_mesh, 
+                 **P):
+        self.psi_1D = psi_mesh        
+        
+        self.mudelta_1D = mudelta_mesh
+        self.m = m
+        self.nq = nq
+        mudelta_2D = np.zeros((len(mudelta_mesh), len(psi_mesh))) + \
+                      mudelta_mesh[:, np.newaxis]
+        psi_2D = np.zeros_like(mudelta_2D) + psi_mesh[np.newaxis, :]
+        self.value = Fmq(sqrt(psi_2D*psi_2D-mudelta_2D), psi_2D, self.m, 
+                         self.nq)
+        self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
+                                                        self.psi_1D), 
+                                                        self.value, 
+                                                        bounds_error=False, 
+                                                        fill_value=0, **P)
+        self.phi_bounds = ((sqrt(psi_mesh[0]-mudelta_mesh[0]), 
+                            sqrt(psi_mesh[0]-mudelta_mesh[-1])), 
+                           (sqrt(psi_mesh[-1]-mudelta_mesh[0]), 
+                            sqrt(psi_mesh[-1]-mudelta_mesh[-1])) )
+        self.psi_bounds = (psi_mesh[0], psi_mesh[-1])
+    
+    
+    def reconstruct(self, mudelta_mesh=None, psi_mesh=None, **P):
+        """reconstruct the interpolator using the new keyword arguments given 
+        in **P and/or mudelta_mesh, psi_mesh
+        """
+        if (psi_mesh is not None):
+            self.psi_1D = psi_mesh
+        if (mudelta_mesh is not None):
+            self.mudelta_1D = mudelta_mesh
+            
+        if (psi_mesh is not None) or (mudelta_mesh is not None):
+            mudelta_2D = np.zeros((len(mudelta_mesh), len(psi_mesh))) + \
+                          mudelta_mesh[:, np.newaxis]
+            psi_2D = np.zeros_like(mudelta_2D) + psi_mesh[np.newaxis, :]
+            self.value = Fmq(sqrt(psi_2D*psi_2D-mudelta_2D), psi_2D, self.m, 
+                            self.nq)
+            self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
+                                                         self.psi_1D), 
+                                                         self.value, 
+                                                         bounds_error=False, 
+                                                         fill_value=0, **P)
+        else:
+            self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
+                                                         self.psi_1D), 
+                                                        self.values, 
+                                                        bounds_error=False, 
+                                                        fill_value=0, **P)
+        
+    def __call__(self, phi, psi):
+        """Evaluate Fq at phi,psi using the internal interpolator
+        """
+        phi = np.array(phi)
+        psi = np.array(psi)
+        assert phi.shape == psi.shape
+        # phi must be square root of a real number 
+        assert np.all(np.logical_or(np.abs(np.real(phi)) <= 1e-10, 
+                             np.abs(np.imag(phi)) <= 1e-10))
+        phi2 = np.real(phi*phi)
+        mudelta = psi*psi - phi2
+        dims = range(1, mudelta.ndim+1)
+        dims.extend([0])
+        
+        # construct the points structure for interpolation, transpose the array
+        # so that the fastest changing index is length 2: (phi,psi)
+        points = np.transpose(np.array([mudelta, psi]), axes=dims)
+        
+        return self.interpolator(points)
+        
+    def test(self, phi, psi, tolabs=1e-3, tolrel=1e-3, full_report=False):
+        """evaluate Fmq on (phi_test, psi_test) points using both original 
+        function and interpolator, report the maximum absolute error and 
+        relative error. Print a warning if either error is greater than the
+        preset margin given by abserr and relerr arguments.
+        
+        If full_report == True, abserr and relerr on every phi,psi point will 
+        be returned. Otherwise only the maximum value and corresponding phi,psi
+        are returned.
+        """
+        
+        exact_value = Fmq(phi, psi, self.m, self.nq)
+        interp_value = self(phi,psi)
+        
+        abs_err = interp_value - exact_value
+        
+        in_range_idx = interp_value != 0
+        rel_err = np.zeros_like(abs_err)
+        rel_err[in_range_idx] = abs_err[in_range_idx]/exact_value[in_range_idx]
+        
+        
+        maxabs = np.abs(abs_err).max()
+        maxrel = np.abs(rel_err).max()        
+        
+        arg_maxabs = np.where(np.abs(abs_err) == maxabs)
+        arg_maxrel = np.where(np.abs(rel_err) == maxrel)
+        
+        if(maxabs > tolabs):
+            warnings.warn('Absolute error exceeds limit({})'.format(tolabs))
+        if(maxrel > tolrel):
+            warnings.warn('Relative error exceeds limit({})'.format(tolrel))
+        
+        print '\
+Max Absolute Error: {}, at\n\
+    phi:{},\n\
+    psi:{}.\n\
+Max Relative Error: {}, at\n\
+    phi:{},\n\
+    psi:{}'.format(abs_err[arg_maxabs], phi[arg_maxabs], psi[arg_maxabs],
+                   rel_err[arg_maxrel], phi[arg_maxrel], psi[arg_maxrel])         
+        
+        if full_report:
+            return (abs_err, rel_err)
+            
+            
 # We add the useful a_pn function here, since it's used in expressing weakly 
 # relativistic tensor elements. The definition of a_pn can be find in Ref[2]
 # in this module's docstring

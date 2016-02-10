@@ -7,6 +7,8 @@ Created on Tue Jan 26 15:20:15 2016
 Propagators for electromagnetic waves propagating in plasma
 """
 
+from __future__ import print_function
+import sys
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 import numpy as np
@@ -134,7 +136,7 @@ class ParaxialPerpendicularPropagator1D(Propagator):
     our convention, :math:`k>0` means propagation along positive x, :math:`k<0`
     along negative x.    
     
-    The corresponding eigen-vectors are: (without normalization)
+    The corresponding eigen-vectors are:
     
     .. math::
         e_O = \begin{pmatrix} 0 \\ 0 \\ 1 \end{pmatrix} \;, \quad 
@@ -150,14 +152,18 @@ class ParaxialPerpendicularPropagator1D(Propagator):
     
         2\mathrm{i}(kE_0' + \frac{1}{2}k'E_0) + \left( \frac{\partial^2}
         {\partial y^2}+ P \frac{\partial^2}{\partial z^2}\right) E_0 + 
-        \frac{\omega^2}{c^2}\delta \epsilon_{k,OO} E_0 = 0,
+        \frac{\omega^2}{c^2}\delta \epsilon_{OO} E_0 = 0,
 
     where :math:`\delta \epsilon_{OO} \equiv e^*_{O} \cdot 
     \delta \epsilon \cdot e_{O}` is the perturbed dielectric tensor element
-    projected by O mode eigen vector, and :math:`\delta \epsilon_{k,OO}` is the
-    Fourier transformed in y and z direction. Since :math:`\delta\epsilon` does
-    not depend on y and z, its Fourier tranformation is a delta-function at 
-    origin.
+    projected by O mode eigen vector. Since :math:`\delta\epsilon` does
+    not depend on y and z, we can Fourier transform along y and z direction, 
+    and obtain the equation for :math:`\hat{E}_0(x, k_y, k_z)`:
+    
+    .. math::
+        2\mathrm{i}(k\hat{E}_0' + \frac{1}{2}k'\hat{E}_0) - 
+        \left( k_y^2 + P k_z^2 \right) \hat{E}_0 + 
+        \frac{\omega^2}{c^2}\delta \epsilon_{OO} \hat{E}_0 = 0,
     
     X-mode:
     
@@ -166,26 +172,33 @@ class ParaxialPerpendicularPropagator1D(Propagator):
         \left[ \frac{\partial^2}{\partial y^2} + 
         \left( \frac{S^2+D^2}{S^2}- \frac{(S^2-D^2)D^2}{(S-P)S^2}\right)
         \frac{\partial^2}{\partial z^2}\right] E_0 + 
-        \frac{S^2+D^2}{S^2} \frac{\omega^2}{c^2}\delta \epsilon_{k,XX} E_0 = 0,
-        
-    where
+        \frac{S^2+D^2}{S^2} \frac{\omega^2}{c^2}\delta \epsilon_{XX} E_0 = 0,
     
-    Letting :math:`F \equiv |k|^{1/2}E_0`, and Fourier transform along y, z 
-    directions, we have
+    Fourier transform along y, z directions, we have equation for 
+    :math:`\hat{E}_0`.
+    
+    .. math::
+        2\mathrm{i}(k\hat{E}_0' + \frac{1}{2}k'\hat{E}_0) - 
+        \left[ k_y^2 + \left( \frac{S^2+D^2}{S^2}- 
+        \frac{(S^2-D^2)D^2}{(S-P)S^2}\right) k_z^2 \right] \hat{E}_0 + 
+        \frac{S^2+D^2}{S^2} \frac{\omega^2}{c^2}\delta \epsilon_{XX} \hat{E}_0 
+        = 0,
+    
+    
+    Letting :math:`F \equiv |k|^{1/2}\hat{E}_0` we have
     
     .. math::
     
         2\mathrm{i}k F'(x, k_y, k_z) -  \left[k_y^2 +  
-        \left( \frac{S^2+D^2}{S^2}- \frac{(S^2-D^2)D^2}{(S-P)S^2}\right) 
-        k_z^2\right] F(x, k_y, k_z) + 
-        \frac{S^2+D^2}{S^2} \frac{\omega^2}{c^2}\delta \epsilon_{k,XX} 
+        C(x) k_z^2\right] F(x, k_y, k_z) + 
+        A(x) \frac{\omega^2}{c^2}\delta \epsilon_{OO/XX} 
         F(x, k_y, k_z)= 0.
         
     A Formal solution to this equation is
     
     .. math::
         F(x, k_y, k_z) =\exp\left( \mathrm{i} \int\limits_0^x 
-        \frac{1}{2k(x')}\left(A(x')\frac{\omega^2}{c^2}\delta \epsilon_k (x') 
+        \frac{1}{2k(x')}\left(A(x')\frac{\omega^2}{c^2}\delta \epsilon (x') 
         - k_y^2 - C(x') k_z^2 \right) \mathrm{d}x'\right) F(0)
         :label: 2nd_order_solution
         
@@ -258,6 +271,7 @@ class ParaxialPerpendicularPropagator1D(Propagator):
         self.direction = direction
         self.tol = tol
         self.unit_system = unitsystem
+        print('Propagator 1D initialized.', file='sys.stderr')
         
         
     def _generate_epsilon0(self):
@@ -281,6 +295,7 @@ class ParaxialPerpendicularPropagator1D(Propagator):
         omega = self.omega
         x_coords = self.x_coords
         self.eps0 = self.main_dielectric.epsilon([x_coords], omega, True)
+        print('Epsilon0 generated.', file='sys.stderr')
         
     
     def _generate_k(self, mask_order=3):
@@ -347,8 +362,10 @@ solver instead of paraxial solver.')
         self.masked_kz = np.copy(self.kz)
         self.masked_kz[mask] = kz_margin
         #save central kz id
-        self.central_kz = myarg
-        self.margin_kz = np.argmax(mask)
+        self.central_kz = marg // self.ny
+        self.margin_kz = np.argmin(mask)
+        
+        print('k0, ky, kz generated.', file='sys.stderr')
         
         
         
@@ -386,6 +403,8 @@ solver instead of paraxial solver.')
                             self.eps0[:,:,np.newaxis,i]
         # add one dimension for ky, between kz, and spatial coordinates.
         self.deps = self.deps[..., np.newaxis, :]
+        
+        print('Delta_epsilon generated.', file='sys.stderr')
               
     
     def _generate_eOX(self):
@@ -407,6 +426,8 @@ solver instead of paraxial solver.')
             self.e_x = -exy * norm
             self.e_y = exx * norm
             self.e_z = 0
+            
+        print('Polarization eigen-vector generated.', file='sys.stderr')
             
         
     def _generate_F(self):
@@ -464,6 +485,8 @@ solver instead of paraxial solver.')
                                         x=self.x_coords, initial=0)
             self.E_k0 = np.exp(1j*self.delta_phase)*F_k0[..., np.newaxis] / \
                        np.sqrt(np.abs(self.k_0))
+                       
+        print('F function calculated.', file='sys.stderr')
                      
     def _generate_E(self):
         """Calculate the total E including the main phase advance
@@ -471,6 +494,8 @@ solver instead of paraxial solver.')
         self.main_phase = cumtrapz(self.k_0, x=self.x_coords, initial=0)
         self.E_k = self.E_k0 * np.exp(1j*self.main_phase)
         self.E = np.fft.ifft2(self.E_k, axes=(0,1))
+        
+        print('E field calculated.', file='sys.stderr')
             
        
     def propagate(self, time, omega, x_start, x_end, nx, E_start, y_E, 
@@ -528,14 +553,17 @@ solver instead of paraxial solver.')
         self._generate_F()
         self._generate_E()
         
+        print('1D Propogation Finish! Check the returned E field. More \
+infomation is available in Propagator object.', file='sys.stderr')
+        
         return self.E
         
         
 class ParaxialPerpendicularPropagator2D(Propagator):
     r""" The paraxial propagator for perpendicular propagation of 2D waves.    
 
-    Initialization
-    ==============    
+    1. Initialization
+       
     
     :param plasma: plasma profile under study
     :type plasma: :py:class:`...Plasma.PlasmaProfile.PlasmaProfile` object
@@ -559,8 +587,8 @@ class ParaxialPerpendicularPropagator2D(Propagator):
     
     :raise AssertionError: if parameters passed in are not as expected.    
 
-    Geometry
-    ========
+    2. Geometry
+    
     
     The usual coordinates system is used.
     
@@ -579,8 +607,8 @@ class ParaxialPerpendicularPropagator2D(Propagator):
         form a right-handed system
         
     
-    Approximations
-    ==============
+    3. Approximations
+    
     
     Paraxial approximation:
         wave propagates mainly along x direction. Refraction and diffraction 
@@ -592,8 +620,8 @@ class ParaxialPerpendicularPropagator2D(Propagator):
         Fourier transform the wave amplitude in z direction and analyze each 
         k_parallel component separately.
         
-    Ordering
-    ========
+    4. Ordering
+    
     
     We assume the length scales in the problem obey the following ordering:
     
@@ -609,8 +637,8 @@ class ParaxialPerpendicularPropagator2D(Propagator):
     :math:`\epsilon_0` due to fluctuations, away from main light path, and/or
     relativstic kinetic effects. 
         
-    Method
-    ======
+    5. Method
+    
     
     Electromagnetic wave equation in plasma is solved under above 
     approximations. WKB kind of solution is assumed, and it's phase and 
@@ -629,8 +657,8 @@ class ParaxialPerpendicularPropagator2D(Propagator):
         \right)
         :label: WKB_solution
         
-    The 0th order equation
-    ----------------------
+    a. The 0th order equation
+    
     
     .. math::
         (\epsilon_0 - n^2 {\bf I} + n^2\hat{x}\hat{x}) \cdot
@@ -657,16 +685,16 @@ class ParaxialPerpendicularPropagator2D(Propagator):
              \begin{pmatrix} -\epsilon_{xy} \\ \epsilon_{xx} \\ 0 
              \end{pmatrix}
         
-    The 1st order equation is natually satisfied.
-    ---------------------------------------------
+    *The 1st order equation is natually satisfied.*
     
-    The 2nd order equation
-    -----------------------
+    
+    b. The 2nd order equation
+    
     
     2nd order equations are different for O-mode and X-mode
 
-    O-mode    
-    *******
+    (i) O-mode    
+    
     
     .. math::
     
@@ -685,14 +713,14 @@ class ParaxialPerpendicularPropagator2D(Propagator):
     where :math:`\delta\epsilon_{OO} \equiv e_O^* \cdot\delta\epsilon\cdot e_O 
     = \delta \epsilon_{zz}`, and :math:`P \equiv \epsilon_{0,zz}`.
     
-    X-mode
-    ******
+    (ii) X-mode
+    
     
     .. math::
         2\mathrm{i}(kE_0' + \frac{1}{2}k'E_0) + 
         \left[ \frac{\partial^2}{\partial y^2} + 
         \left( \frac{S^2+D^2}{S^2}- \frac{(S^2-D^2)D^2}{(S-P)S^2}\right)
-        \frac{\partial^2}{\partial z^2}\right] E_0 + 
+        \frac{\partial^2}{\partial z^2}\right] E_0 + \frac{S^2+D^2}{S^2}
         \frac{\omega^2}{c^2}\delta \epsilon_{XX} E_0 = 0,
     
     Letting :math:`F \equiv k^{1/2}E_0`, and Fourier transform along z 
@@ -716,12 +744,11 @@ class ParaxialPerpendicularPropagator2D(Propagator):
     
     The scheme is described in the next section.
 
-    Numerical Scheme
-    ====================
+    6. Numerical Scheme
     
     The full solution includes a main phase part and an amplitude part.
     
-    1. Main phase  
+    a. Main phase  
         
         As in 1D case, the main phase is integration of :math:`k_0` over x.
        
@@ -741,7 +768,7 @@ class ParaxialPerpendicularPropagator2D(Propagator):
 
         The sign of :math:`k_0` is determined by direction of the propagation.
         
-    2. Amplitude
+    b. Amplitude
            
         The amplitude equation is more complicated than that in 1D, because now
         perturbed dielectric tensor depends on y, we can no longer Fourier 
@@ -817,8 +844,7 @@ class ParaxialPerpendicularPropagator2D(Propagator):
         :math:`\sim o(\delta x^2)`.
         
     
-    References
-    ==========
+    7. References
     
     .. [1] WKB Approximation on Wikipedia. 
            https://en.wikipedia.org/wiki/WKB_approximation  
@@ -850,6 +876,8 @@ class ParaxialPerpendicularPropagator2D(Propagator):
         self.tol = tol
         self.unit_system = unitsystem
         
+        print('Propagator 2D initialized.', file='sys.stderr')
+        
         
     def _generate_epsilon(self):
         r"""Generate main dielectric :math:`\epsilon_0` along the ray 
@@ -880,6 +908,8 @@ class ParaxialPerpendicularPropagator2D(Propagator):
         self.eps0 = self.main_dielectric.epsilon\
                          ([np.ones_like(self.calc_x_coords)*self.ray_y,
                            self.calc_x_coords], omega, True)
+                           
+        print('Epsilon0 generated.', file='sys.stderr')
  
                                 
     def _generate_k(self, mask_order=3):
@@ -978,8 +1008,11 @@ solver instead of paraxial solver.')
         self.masked_kz = np.copy(self.kz)
         self.masked_kz[mask] = kz_margin
         
-        self.central_kz = myarg
-        self.margin_kz = np.argmax(mask)
+        self.central_kz = marg // self.ny
+        self.margin_kz = np.argmin(mask)
+        
+        print('k0, kz generated.', file='sys.stderr')
+        
                                  
     def _generate_delta_epsilon(self):
         r"""Generate fluctuated dielectric :math:`\delta\epsilon` on full mesh 
@@ -1018,6 +1051,8 @@ solver instead of paraxial solver.')
             self.deps[..., i] = self.fluc_dielectric.epsilon([y1d, x1d], omega, 
                                                k_para, k_perp[i], False,time)-\
                                 self.eps0[:,:,np.newaxis,np.newaxis,i]
+                                
+        print('Delta epsilon generated.', file='sys.stderr')
                                                           
     
     def _generate_eOX(self):
@@ -1053,6 +1088,8 @@ solver instead of paraxial solver.')
             self.e_x = -exy * norm
             self.e_y = exx * norm
             self.e_z = 0
+            
+        print('Polarization eigen-vector generated.', file='sys.stderr')
        
     
             
@@ -1098,7 +1135,9 @@ solver instead of paraxial solver.')
             S2 = S*S
             D2 = D*D
             self.C = omega*omega/(c*c) * ( D2*self.deps[0,0] + \
-            1j*D*S*(self.deps[1,0]-self.deps[0,1]) + S2*self.deps[1,1] ) / S2    
+            1j*D*S*(self.deps[1,0]-self.deps[0,1]) + S2*self.deps[1,1] ) / S2
+            
+        print('Operator C generated.', file='sys.stderr')
     
     
     def _generate_F(self):
@@ -1145,6 +1184,8 @@ solver instead of paraxial solver.')
             i = i + 1
             F = self.Fk[:,:,i]
             self.Fk[:,:,i] = self._refraction(F, i, forward=False)
+            
+        print('F field calculated.', file='sys.stderr')
             
             
 
@@ -1257,6 +1298,8 @@ solver instead of paraxial solver.')
             self.phase_kz = cumtrapz(- C*self.kz*self.kz / (2*self.k_0), 
                                            x=self.calc_x_coords, initial=0)
                                            
+        print('Phase related to kz generated.', file='sys.stderr')
+                                           
         
                      
     def _generate_E(self):
@@ -1288,6 +1331,8 @@ solver instead of paraxial solver.')
         self.Fk = self.Fk * np.exp(1j * self.phase_kz)
         self.F = np.fft.ifft(self.Fk, axis=0)
         self.E = self.F / np.sqrt(np.abs(self.k_0))
+        
+        print('E field calculated.', file='sys.stderr')
             
        
     def propagate(self, time, omega, x_start, x_end, nx, E_start, y_E, 
@@ -1346,6 +1391,9 @@ solver instead of paraxial solver.')
         self._generate_eOX()        
         self._generate_F()
         self._generate_E()
+        
+        print('2D Propagation Finish! Check the returned E field. More \
+infomation is available in Propagator object.', file='sys.stderr')
         
         return self.E[...,::2]
     

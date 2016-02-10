@@ -501,57 +501,66 @@ class Path2D(Grid):
         
 # Here are some useful little tools to generate special shaped grids
         
-def squarespace(start, end, N):
+def squarespace(start, end, N, center=0):
     """ Generate a grid from start to end with N points that is uniform after
     taken square root.
     
     :param float start: the start of the mesh, must be non-negative
     :param float end: the end of the mesh, must be non-negative
     :param int N: the total number of mesh points
+    :param float center: the relative center where the mesh has largest 
+                         density.
     
     :return: the mesh 
     :rtype: 1d array of float
     """
     
-    assert (start >= 0) and (end >= 0)
-    sqstart, sqend = np.sqrt([start, end])
+    assert (start-center >= 0) and (end-center >= 0)
+    sqstart, sqend = np.sqrt([start-center, end-center])
     sqmesh = np.linspace(sqstart, sqend, N)
-    return sqmesh*sqmesh
+    return sqmesh*sqmesh + center
     
-def cubicspace(start, end, N):
+def cubicspace(start, end, N, center=0):
     """ Generate a grid from start to end with N points that is uniform after
-    taken cubic root.
+    taken cubic root. 
     
     :param float start: the start of the mesh,
     :param float end: the end of the mesh, 
     :param int N: the total number of mesh points
+    :param float center: the relative center where the mesh has largest 
+                         density.    
     
     :return: the mesh 
     :rtype: 1d array of float
     """
+    start = start - center
+    end = end - center
     startsign = np.sign(start)
     endsign = np.sign(end)
     cqstart, cqend = startsign*abs(start)**(1/3.0), endsign*abs(end)**(1/3.0)
     cqmesh = np.linspace(cqstart, cqend, N)
-    return cqmesh*cqmesh*cqmesh
+    return cqmesh*cqmesh*cqmesh + center
     
-def quadspace(start, end, N):
+def quadspace(start, end, N, center=0):
     """ Generate a grid from start to end with N points that is uniform after
     taken quadrature root.
     
     :param float start: the start of the mesh, must be non-negative
     :param float end: the end of the mesh, must be non-negative
     :param int N: the total number of mesh points
+    :param float center: the relative center where the mesh has largest 
+                         density.    
     
     :return: the mesh 
     :rtype: 1d array of float
     """
-    
+    start = start - center
+    end = end - center
     assert (start >= 0) and (end >= 0)
     quadstart, quadend = start**0.25, end**0.25
     quadmesh = np.linspace(quadstart, quadend, N)
     sqmesh = quadmesh*quadmesh
-    return sqmesh*sqmesh
+    return sqmesh*sqmesh + center
     
     
 

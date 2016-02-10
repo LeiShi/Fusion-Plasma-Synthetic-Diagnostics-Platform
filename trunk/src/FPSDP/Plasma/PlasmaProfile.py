@@ -272,7 +272,8 @@ setup_interp function first.'
         
         if time is None:
             time = np.arange(len(self.time))
-        elif isinstance(time, int):
+        
+        if isinstance(time, int):
             result_shape = coordinates.shape[1:]    
             result = np.empty(result_shape)        
             
@@ -301,17 +302,17 @@ setup_interp function first.'
             transpose_axes.append(0)
             points = np.transpose(coordinates, transpose_axes)
             try:
-                for t in time:
-                    result[t] = self.dne_sp[t](points)
+                for i,t in enumerate(time):
+                    result[i] = self.dne_sp[t](points)
                 
             except AttributeError:
                 print 'dne_sp has not been created. Temperary interpolator \
 generated. If this message shows up a lot of times, please consider calling \
 setup_interp function first.'
                 mesh = self.grid.get_mesh()            
-                for t in time:
+                for i,t in enumerate(time):
                     dne_sp = RegularGridInterpolator(mesh, self.dne[t])
-                    result[t] = dne_sp(points)
+                    result[i] = dne_sp(points)
             return result
             
     def get_dB(self, coordinates, time=None):
@@ -337,7 +338,7 @@ setup_interp function first.'
         if time is None:
             time = np.arange(len(self.time))
             
-        elif isinstance(time, int):
+        if isinstance(time, int):
             result_shape = coordinates.shape[1:]    
             result = np.empty(result_shape)        
             
@@ -369,16 +370,16 @@ setup_interp function first.'
             transpose_axes.append(0)
             points = np.transpose(coordinates, transpose_axes)
             try:
-                for t in time:
-                    result[t] = self.dB_sp[t](points)
+                for i,t in enumerate(time):
+                    result[i] = self.dB_sp[t](points)
             except AttributeError:
                 print 'dB_sp has not been created. Temperary interpolator \
 generated. If this message shows up a lot of times, please consider calling \
 setup_interp function first.'
                 mesh = self.grid.get_mesh()            
-                for t in time:
+                for i,t in enumerate(time):
                     dB_sp = RegularGridInterpolator(mesh, self.dB[t])
-                    result[t] = dB_sp(points)
+                    result[i] = dB_sp(points)
             return result
 
 
@@ -404,7 +405,7 @@ setup_interp function first.'
         
         if time is None:
             time = np.arange(len(self.time))        
-        elif isinstance(time, int):
+        if isinstance(time, int):
             result_shape = coordinates.shape[1:]    
             result = np.empty(result_shape)        
             
@@ -414,9 +415,9 @@ setup_interp function first.'
             try:
                 result = self.dTe_perp_sp[time](points)
             except AttributeError:
-                print 'dTe_perp_sp has not been created. Temperary interpolator \
-generated. If this message shows up a lot of times, please consider calling \
-setup_interp function first.'
+                print 'dTe_perp_sp has not been created. Temperary \
+interpolator generated. If this message shows up a lot of times, please \
+consider calling setup_interp function first.'
                 mesh = self.grid.get_mesh()            
                 dte_sp = RegularGridInterpolator(mesh, self.dTe_perp[time])
                 result = dte_sp(points)
@@ -433,16 +434,16 @@ setup_interp function first.'
             transpose_axes.append(0)
             points = np.transpose(coordinates, transpose_axes)
             try:
-                for t in time:
-                    result[t] = self.dTe_perp_sp[t](points)
+                for i,t in enumerate(time):
+                    result[i] = self.dTe_perp_sp[t](points)
             except AttributeError:
-                print 'dTe_perp_sp has not been created. Temperary interpolator \
-    generated. If this message shows up a lot of times, please consider calling \
-    setup_interp function first.'
+                print 'dTe_perp_sp has not been created. Temperary \
+interpolator generated. If this message shows up a lot of times, please \
+consider calling setup_interp function first.'
                 mesh = self.grid.get_mesh()            
-                for t in time:
+                for i,t in enumerate(time):
                     dte_sp = RegularGridInterpolator(mesh, self.dTe_perp[t])
-                    result[t] = dte_sp(points)
+                    result[i] = dte_sp(points)
             return result
 
             
@@ -469,7 +470,7 @@ setup_interp function first.'
         if time is None:
             time = np.arange(len(self.time))  
             
-        elif isinstance(time, int):
+        if isinstance(time, int):
             result_shape = coordinates.shape[1:]    
             result = np.empty(result_shape)        
             
@@ -479,9 +480,9 @@ setup_interp function first.'
             try:
                 result = self.dTe_para_sp[time](points)
             except AttributeError:
-                print 'dTe_para_sp has not been created. Temperary interpolator \
-generated. If this message shows up a lot of times, please consider calling \
-setup_interp function first.'
+                print 'dTe_para_sp has not been created. Temperary \
+interpolator generated. If this message shows up a lot of times, please \
+consider calling setup_interp function first.'
                 mesh = self.grid.get_mesh()            
                 dte_sp = RegularGridInterpolator(mesh, self.dTe_para[time])
                 result = dte_sp(points)
@@ -497,16 +498,16 @@ setup_interp function first.'
             transpose_axes.append(0)
             points = np.transpose(coordinates, transpose_axes)
             try:
-                for t in time:
-                    result[t] = self.dTe_para_sp[t](points)
+                for i,t in enumerate(time):
+                    result[i] = self.dTe_para_sp[t](points)
             except AttributeError:
-                print 'dTe_para_sp has not been created. Temperary interpolator \
-    generated. If this message shows up a lot of times, please consider calling \
-    setup_interp function first.'
+                print 'dTe_para_sp has not been created. Temperary \
+interpolator generated. If this message shows up a lot of times, please \
+consider calling setup_interp function first.'
                 mesh = self.grid.get_mesh()            
-                for t in time:
+                for i,t in enumerate(time):
                     dte_sp = RegularGridInterpolator(mesh, self.dTe_para[t])
-                    result[t] = dte_sp(points)
+                    result[i] = dte_sp(points)
             return result
             
     def get_ne(self, coordinates, eq_only=True, time=None):

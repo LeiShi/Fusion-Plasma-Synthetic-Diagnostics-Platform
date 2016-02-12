@@ -271,7 +271,7 @@ class ParaxialPerpendicularPropagator1D(Propagator):
         self.direction = direction
         self.tol = tol
         self.unit_system = unitsystem
-        print('Propagator 1D initialized.', file='sys.stderr')
+        print('Propagator 1D initialized.', file=sys.stderr)
         
         
     def _generate_epsilon0(self):
@@ -295,7 +295,7 @@ class ParaxialPerpendicularPropagator1D(Propagator):
         omega = self.omega
         x_coords = self.x_coords
         self.eps0 = self.main_dielectric.epsilon([x_coords], omega, True)
-        print('Epsilon0 generated.', file='sys.stderr')
+        print('Epsilon0 generated.', file=sys.stderr)
         
     
     def _generate_k(self, mask_order=3):
@@ -365,7 +365,7 @@ solver instead of paraxial solver.')
         self.central_kz = marg // self.ny
         self.margin_kz = np.argmin(mask)
         
-        print('k0, ky, kz generated.', file='sys.stderr')
+        print('k0, ky, kz generated.', file=sys.stderr)
         
         
         
@@ -404,7 +404,7 @@ solver instead of paraxial solver.')
         # add one dimension for ky, between kz, and spatial coordinates.
         self.deps = self.deps[..., np.newaxis, :]
         
-        print('Delta_epsilon generated.', file='sys.stderr')
+        print('Delta_epsilon generated.', file=sys.stderr)
               
     
     def _generate_eOX(self):
@@ -427,7 +427,7 @@ solver instead of paraxial solver.')
             self.e_y = exx * norm
             self.e_z = 0
             
-        print('Polarization eigen-vector generated.', file='sys.stderr')
+        print('Polarization eigen-vector generated.', file=sys.stderr)
             
         
     def _generate_F(self):
@@ -486,7 +486,7 @@ solver instead of paraxial solver.')
             self.E_k0 = np.exp(1j*self.delta_phase)*F_k0[..., np.newaxis] / \
                        np.sqrt(np.abs(self.k_0))
                        
-        print('F function calculated.', file='sys.stderr')
+        print('F function calculated.', file=sys.stderr)
                      
     def _generate_E(self):
         """Calculate the total E including the main phase advance
@@ -495,7 +495,7 @@ solver instead of paraxial solver.')
         self.E_k = self.E_k0 * np.exp(1j*self.main_phase)
         self.E = np.fft.ifft2(self.E_k, axes=(0,1))
         
-        print('E field calculated.', file='sys.stderr')
+        print('E field calculated.', file=sys.stderr)
             
        
     def propagate(self, time, omega, x_start, x_end, nx, E_start, y_E, 
@@ -554,7 +554,7 @@ solver instead of paraxial solver.')
         self._generate_E()
         
         print('1D Propogation Finish! Check the returned E field. More \
-infomation is available in Propagator object.', file='sys.stderr')
+infomation is available in Propagator object.', file=sys.stderr)
         
         return self.E
         
@@ -876,7 +876,7 @@ class ParaxialPerpendicularPropagator2D(Propagator):
         self.tol = tol
         self.unit_system = unitsystem
         
-        print('Propagator 2D initialized.', file='sys.stderr')
+        print('Propagator 2D initialized.', file=sys.stderr)
         
         
     def _generate_epsilon(self):
@@ -909,7 +909,7 @@ class ParaxialPerpendicularPropagator2D(Propagator):
                          ([np.ones_like(self.calc_x_coords)*self.ray_y,
                            self.calc_x_coords], omega, True)
                            
-        print('Epsilon0 generated.', file='sys.stderr')
+        print('Epsilon0 generated.', file=sys.stderr)
  
                                 
     def _generate_k(self, mask_order=3):
@@ -1011,7 +1011,7 @@ solver instead of paraxial solver.')
         self.central_kz = marg // self.ny
         self.margin_kz = np.argmin(mask)
         
-        print('k0, kz generated.', file='sys.stderr')
+        print('k0, kz generated.', file=sys.stderr)
         
                                  
     def _generate_delta_epsilon(self):
@@ -1052,7 +1052,7 @@ solver instead of paraxial solver.')
                                                k_para, k_perp[i], False,time)-\
                                 self.eps0[:,:,np.newaxis,np.newaxis,i]
                                 
-        print('Delta epsilon generated.', file='sys.stderr')
+        print('Delta epsilon generated.', file=sys.stderr)
                                                           
     
     def _generate_eOX(self):
@@ -1089,7 +1089,7 @@ solver instead of paraxial solver.')
             self.e_y = exx * norm
             self.e_z = 0
             
-        print('Polarization eigen-vector generated.', file='sys.stderr')
+        print('Polarization eigen-vector generated.', file=sys.stderr)
        
     
             
@@ -1137,7 +1137,7 @@ solver instead of paraxial solver.')
             self.C = omega*omega/(c*c) * ( D2*self.deps[0,0] + \
             1j*D*S*(self.deps[1,0]-self.deps[0,1]) + S2*self.deps[1,1] ) / S2
             
-        print('Operator C generated.', file='sys.stderr')
+        print('Operator C generated.', file=sys.stderr)
     
     
     def _generate_F(self):
@@ -1185,7 +1185,7 @@ solver instead of paraxial solver.')
             F = self.Fk[:,:,i]
             self.Fk[:,:,i] = self._refraction(F, i, forward=False)
             
-        print('F field calculated.', file='sys.stderr')
+        print('F field calculated.', file=sys.stderr)
             
             
 
@@ -1250,7 +1250,7 @@ solver instead of paraxial solver.')
         """
         
         dx = self.calc_x_coords[i+1]-self.calc_x_coords[i-1]
-        ky = self.ky
+        ky = self.ky[0,:,0]
         B = -ky*ky
         phase = B*dx/(2*self.k_0[i])
         Fk = np.exp(1j * phase) * fft(F)
@@ -1298,7 +1298,7 @@ solver instead of paraxial solver.')
             self.phase_kz = cumtrapz(- C*self.kz*self.kz / (2*self.k_0), 
                                            x=self.calc_x_coords, initial=0)
                                            
-        print('Phase related to kz generated.', file='sys.stderr')
+        print('Phase related to kz generated.', file=sys.stderr)
                                            
         
                      
@@ -1332,7 +1332,7 @@ solver instead of paraxial solver.')
         self.F = np.fft.ifft(self.Fk, axis=0)
         self.E = self.F / np.sqrt(np.abs(self.k_0))
         
-        print('E field calculated.', file='sys.stderr')
+        print('E field calculated.', file=sys.stderr)
             
        
     def propagate(self, time, omega, x_start, x_end, nx, E_start, y_E, 
@@ -1393,7 +1393,7 @@ solver instead of paraxial solver.')
         self._generate_E()
         
         print('2D Propagation Finish! Check the returned E field. More \
-infomation is available in Propagator object.', file='sys.stderr')
+infomation is available in Propagator object.', file=sys.stderr)
         
         return self.E[...,::2]
     

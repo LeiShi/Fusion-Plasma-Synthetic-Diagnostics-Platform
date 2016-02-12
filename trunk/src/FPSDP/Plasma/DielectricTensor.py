@@ -254,8 +254,8 @@ import warnings
 import numpy as np
 from scipy.special import iv, ivp
 
-from ..Maths.PlasmaDispersionFunction import FqFastEvaluator, FmqFastEvaluator
-from ..Maths.PlasmaDispersionFunction import Z, a_pn, mudelta_mesh, psi_mesh
+from ..Maths.PlasmaDispersionFunction import Fq_list, F1q_list, F2q_list
+from ..Maths.PlasmaDispersionFunction import Z, a_pn
 from .PlasmaProfile import PlasmaProfile
 from ..GeneralSettings.UnitSystem import UnitSystem, cgs
 
@@ -1368,19 +1368,7 @@ weakly-relativistic limit. Resonance allowed. Max_harmonic = {}'.format(\
         
         if(self.max_power < self.max_harmonic):
             self.max_power = self.max_harmonic
-        
-        self.Fq_list = {}
-        self.F1q_list = {}
-        self.F2q_list = {}
-        
-        for i in range(self.max_power+1):
-            self.Fq_list[2*i+5] = FqFastEvaluator(2*i+5,mudelta_mesh, psi_mesh)
-            self.F1q_list[2*i+7] = FmqFastEvaluator(1,2*i+7, mudelta_mesh, 
-                                                    psi_mesh)
-            self.F2q_list[2*i+7] = FmqFastEvaluator(1,2*i+7, mudelta_mesh, 
-                                                    psi_mesh)           
             
-        
         
     def __call__(self, coordinates, omega, k_para, k_perp=None, 
                  eq_only=True, time = 0, tol=1e-14):
@@ -1546,8 +1534,8 @@ sure this is what you wanted.')
             
             if (i_mod != 0): 
                 a0n = a_pn(0,i_mod)
-                Fn32 = self.Fq_list[2*i_mod+3](phi,psi)
-                Fpn52 = self.F1q_list[2*i_mod+5](phi, psi)
+                Fn32 = Fq_list[2*i_mod+3](phi,psi)
+                Fpn52 = F1q_list[2*i_mod+5](phi, psi)
                 result[0,0] += a0n*i*i*lambd_pn1*Fn32
                 result[1,1] += a0n*(i*i)*lambd_pn1*Fn32
                 result[0,1] += a0n*i*i_mod*lambd_pn1*Fn32
@@ -1556,8 +1544,8 @@ sure this is what you wanted.')
                 
             # Now sum over p, starting from p=1 up to p=p_max
             for p in range(1, p_max+1):
-                Fn32 = self.Fq_list[2*(i_mod+p)+3](phi,psi)
-                Fpn52 = self.F1q_list[2*(i_mod+p)+5](phi, psi)
+                Fn32 = Fq_list[2*(i_mod+p)+3](phi,psi)
+                Fpn52 = F1q_list[2*(i_mod+p)+5](phi, psi)
                 apn = a_pn(p,i_mod)
                 lambd_pn1 *= lambd
                 result[0,0] += apn * i*i * lambd_pn1 * Fn32
@@ -1567,7 +1555,7 @@ sure this is what you wanted.')
                 result[0,2] += apn*i*lambd_pn1*Fpn52
                 result[1,2] += apn*(p+i_mod)*lambd_pn1*Fpn52
                 result[2,2] += a_pn(p-1,i_mod) * lambd_pn1 * \
-                       (Fn32 + 2*psi*psi*self.F2q_list[2*(i_mod+p)+5](phi,psi))
+                       (Fn32 + 2*psi*psi*F2q_list[2*(i_mod+p)+5](phi,psi))
                                
             if (i != 0):
                 # i>0 case, we need to add -i terms as well
@@ -1585,8 +1573,8 @@ sure this is what you wanted.')
                 # So, we first add p=0 terms for other elements
                 
                 a0n = a_pn(0,i_mod)
-                Fn32 = self.Fq_list[2*i_mod+3](phi,psi)
-                Fpn52 = self.F1q_list[2*i_mod+5](phi, psi)
+                Fn32 = Fq_list[2*i_mod+3](phi,psi)
+                Fpn52 = F1q_list[2*i_mod+5](phi, psi)
                 result[0,0] += a0n*i*i*lambd_pn1*Fn32
                 result[1,1] += a0n*(i*i)*lambd_pn1*Fn32
                 result[0,1] += a0n*i*i_mod*lambd_pn1*Fn32
@@ -1595,8 +1583,8 @@ sure this is what you wanted.')
                 
             # Now sum over p, starting from p=1 up to p=p_max
                 for p in range(1, p_max+1):
-                    Fn32 = self.Fq_list[2*(i_mod+p)+3](phi,psi)
-                    Fpn52 = self.F1q_list[2*(i_mod+p)+5](phi, psi)
+                    Fn32 = Fq_list[2*(i_mod+p)+3](phi,psi)
+                    Fpn52 = F1q_list[2*(i_mod+p)+5](phi, psi)
                     apn = a_pn(p,i_mod)
                     lambd_pn1 *= lambd
                     result[0,0] += apn * i*i * lambd_pn1 * Fn32
@@ -1606,7 +1594,7 @@ sure this is what you wanted.')
                     result[0,2] += apn*i*lambd_pn1*Fpn52
                     result[1,2] += apn*(p+i_mod)*lambd_pn1*Fpn52
                     result[2,2] += a_pn(p-1,i_mod) * lambd_pn1 * \
-                       (Fn32 + 2*psi*psi*self.F2q_list[2*(i_mod+p)+5](phi,psi))
+                       (Fn32 + 2*psi*psi*F2q_list[2*(i_mod+p)+5](phi,psi))
                                 
         # Now multiply the coeffecients in front of the summation
         mu_omegap2_over_omega2 = mu*4*pi*n*q*q/(m*omega*omega)

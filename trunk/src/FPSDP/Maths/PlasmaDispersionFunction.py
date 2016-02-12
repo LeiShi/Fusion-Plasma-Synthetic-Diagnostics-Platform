@@ -96,8 +96,9 @@ provided for default use.
 
 """
 
-
+import pkg_resources
 import warnings
+import os
 
 from numpy.lib.scimath import sqrt
 import numpy as np
@@ -220,7 +221,7 @@ def Fq(phi, psi, nq, phi_nonzero=None, psi_nonzero=None, phi_tol=None,
         phi_tol = 1e-4
     if (psi_tol is None):
         if nq >=3:
-            psi_tol = 2*10**(-14.0/(nq-2))
+            psi_tol = 2*10**(-14.0/(nq-1))
         else:
             psi_tol = 1e-12
     assert np.array(phi).shape == np.array(psi).shape
@@ -259,17 +260,17 @@ def Fq(phi, psi, nq, phi_nonzero=None, psi_nonzero=None, phi_tol=None,
         
         # for case 2
         phi2 = phi_m[psi_zero_idx]
-        psi2 = psi[psi_zero_idx]
+        psi2 = np.zeros_like(psi[psi_zero_idx])
         result[psi_zero_idx] = Fq(phi2, psi2, nq, True, False, phi_tol,psi_tol)
         
         # for case 3
-        phi3 = phi_m[phi_zero_idx]
+        phi3 = np.zeros_like(phi_m[phi_zero_idx])
         psi3 = psi[phi_zero_idx]
         result[phi_zero_idx] = Fq(phi3, psi3, nq, False, True, phi_tol,psi_tol)
         
         # for case 4
-        phi4 = phi_m[all_zero_idx]
-        psi4 = psi[all_zero_idx]
+        phi4 = np.zeros_like(phi_m[all_zero_idx])
+        psi4 = np.zeros_like(psi[all_zero_idx])
         result[all_zero_idx] = Fq(phi4, psi4, nq, False, False,phi_tol,psi_tol)
         
         return result
@@ -286,7 +287,7 @@ def Fq(phi, psi, nq, phi_nonzero=None, psi_nonzero=None, phi_tol=None,
             # if psi is already checked at high order function, no more checking
                 return (1 + phi*phi*Fq(phi,psi,nq-4, True, True) - 
                         (nq-4)/2.0*Fq(phi,psi,nq-2, True, True)) / (psi*psi)
-            elif (not psi_nonzero) and phi_nonzero:
+            elif phi_nonzero and (not psi_nonzero):
                 return (1+ phi*phi*Fq(phi,psi,nq-2, True, False))*2/(nq-2)
             elif (not phi_nonzero) and psi_nonzero:
                 return (1 - (nq-4)/2.0*Fq(phi, psi, nq-2, False, True)) /\
@@ -314,52 +315,15 @@ def _F32(phi, psi, phi_nonzero, psi_nonzero):
     
     Do not call directly. Use Fq(phi,psi,3) instead
     """       
-    if psi_nonzero:
+    if psi_nonzero and phi_nonzero:
         return -(Z(psi-phi) - Z(-psi-phi)) / (2*psi)
-    else:
+    elif psi_nonzero and not phi_nonzero:
+        return -(Z(psi) - Z(-psi)) / (2*psi)
+    elif phi_nonzero and not psi_nonzero:
         return -Z_1(-phi)
+    else:
+        return 2*np.ones_like(phi)
 
-'''
-def _F52(phi, psi, phi_nonzero, psi_nonzero):
-    r"""Handler for :math:`\mathcal{F}_{5/2}(\phi,\psi)`
-    
-    Do not call directly. Use Fq(phi, psi, 5) instead
-    """
-    phi = np.array(phi)
-    psi = np.array(psi)
-    assert(phi.shape == psi.shape)    
-    # since physically phi^2 is real, phi is either pure real or imaginary, 
-    # test if this condition is satisfied.
-    assert(np.logical_or(np.abs(np.real(phi))<=tol, 
-                         np.abs(np.imag(phi))<=tol).all())
-
-    result = np.empty_like(phi, dtype='complex')
-    
-    # First, we modify phi so that it complies with our requirement
-    phi_mod = np.abs(np.real(phi)) - 1j*np.abs(np.imag(phi))
-    # Now, we process zero psi part
-    psi0_idx = np.logical_and(np.abs(np.real(psi)) <= tol, 
-                              np.abs(np.imag(psi)) <= tol)
-    result[psi0_idx] = 2*(1 + phi_mod[psi0_idx]*phi_mod[psi0_idx]*\
-                              F32(phi[psi0_idx], psi[psi0_idx])) / 3 
-    
-    # Finally, we deal with phi==0 part and phi!=0 part
-    nonzero_idx = np.logical_or(np.abs(np.real(phi)) > tol, 
-                                np.abs(np.imag(phi)) > tol)
-    
-    zero_idx = np.logical_and( np.logical_not(nonzero_idx),
-                              np.logical_not(psi0_idx))
-    nonzero_idx = np.logical_and(nonzero_idx, np.logical_not(psi0_idx))
-    
-    if psi_nonzero:
-        return (1 + phi*phi* \
-                           _F12(phi, psi) - 
-                           0.5*F32(phi[nonzero_idx], psi[nonzero_idx])) / \
-                                    (psi[nonzero_idx]*psi[nonzero_idx])
-    result[zero_idx] =  (1 - 0.5*F32(phi[zero_idx], psi[zero_idx])) / \
-                          psi[zero_idx]**2
-    return result
-'''    
   
 
 def Fmq(phi, psi, m, nq, phi_nonzero=None, 
@@ -435,7 +399,7 @@ def Fmq(phi, psi, m, nq, phi_nonzero=None,
         phi_tol = 1e-4
     if (psi_tol is None):
         if nq >=3:
-            psi_tol = 2*10**(-14.0/(nq-2))
+            psi_tol = 2*10**(-14.0/(nq-1))
         else:
             psi_tol = 1e-12
     
@@ -469,17 +433,17 @@ def Fmq(phi, psi, m, nq, phi_nonzero=None,
         
         # for case 2
         phi2 = phi_m[psi_zero_idx]
-        psi2 = psi[psi_zero_idx]
+        psi2 = np.zeros_like(psi[psi_zero_idx])
         result[psi_zero_idx] = Fmq(phi2, psi2, m, nq, True, False)
         
         # for case 3
-        phi3 = phi_m[phi_zero_idx]
+        phi3 = np.zeros_like(phi_m[phi_zero_idx])
         psi3 = psi[phi_zero_idx]
         result[phi_zero_idx] = Fmq(phi3, psi3, m, nq, False, True)
         
         # for case 4
-        phi4 = phi_m[all_zero_idx]
-        psi4 = psi[all_zero_idx]
+        phi4 = np.zeros_like(phi_m[all_zero_idx])
+        psi4 = np.zeros_like(psi[all_zero_idx])
         result[all_zero_idx] = Fmq(phi4, psi4, m, nq, False, False)
         
         return result
@@ -821,25 +785,29 @@ def _Fm_mp32_00(m, shape=(1)):
     return np.ones(shape, dtype='complex')*result
     
 
-# We define some recommended mesh for creation of fast evaluators of Fq and Fmq
-
-mudelta_mesh = cubicspace(-50, 50, 2047)
-psi_mesh = cubicspace(-30, 30, 1023)
+# default mudelta and psi mesh for creating fast evaluators.
+_default_mudelta_mesh = cubicspace(-50,50,1001)
+_default_psi_mesh = cubicspace(-50,50,1001)
 
 
 class FqFastEvaluator(object):
     """Fast evaluator for Fq functions
     
     Initialization:
-        FqFastEvaluator( nq, phi_sq_mesh, psi_mesh, **P)
+        FqFastEvaluator( nq, mudelta_mesh, psi_mesh, **P)
         
         :param int nq: nq passed into Fq function, the order of the function is
                        nq/2.
-        :param phi_sq_mesh: :math:`\phi^2` values for mesh points in phi_psi 
-                            plane, we use :math:`\phi^2` because it's real.
-        :type phi_mesh: 1D array of float, monotonic order 
+        :param mudelta_mesh: :math:`\mu \delta \equiv \psi^2-\phi^2` values for
+                             mesh points in phi_psi plane, we use this value 
+                             because Fq is most sensitive to it.
+        :type mudelta_mesh: 1D array of float, monotonic order 
         :param psi_mesh: psi values for mesh points in phi_psi plane
         :type psi_mesh: 1D array of float, monotonic order
+        :param value: Optional, A precalculated function value array for given
+                      mesh. If not given, Fq function will be called to 
+                      calculate all the values on given mesh.
+        :type value: None or 2D array of complex.
         :param **P: additional keyword arguments passed into 
                     scipy.interpolate.RegularGridInteropolator.
                           
@@ -861,7 +829,8 @@ class FqFastEvaluator(object):
             
     """
 
-    def __init__(self, nq, mudelta_mesh=mudelta_mesh, psi_mesh=psi_mesh, **P):
+    def __init__(self, nq, mudelta_mesh=_default_mudelta_mesh, 
+                 psi_mesh=_default_psi_mesh, value=None, **P):
         self.psi_1D = psi_mesh        
         self.mudelta_1D = mudelta_mesh
         self.nq = nq
@@ -869,7 +838,10 @@ class FqFastEvaluator(object):
         mudelta_2D = np.zeros((len(mudelta_mesh), len(psi_mesh))) + \
                       mudelta_mesh[:, np.newaxis]
         psi_2D = np.zeros_like(mudelta_2D) + psi_mesh[np.newaxis, :]
-        self.value = Fq(sqrt(psi_2D*psi_2D-mudelta_2D), psi_2D, self.nq)
+        if value is None:
+            self.value = Fq(sqrt(psi_2D*psi_2D-mudelta_2D), psi_2D, self.nq)
+        else:
+            self.value = value
         self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
                                                         self.psi_1D), 
                                                         self.value, 
@@ -928,7 +900,7 @@ class FqFastEvaluator(object):
         
         return self.interpolator(points)
         
-    def test(self, phi, psi, tolabs=1e-3, tolrel=5e-2, full_report=False):
+    def test(self, phi, psi, tolabs=1e-2, tolrel=1e-2, full_report=False):
         """evaluate Fq on (phi_test, psi_test) points using both original 
         function and interpolator, report the maximum absolute error and 
         relative error. Print a warning if either error is greater than the
@@ -987,7 +959,11 @@ class FmqFastEvaluator(object):
                              because Fmq is most sensitive to it.
         :type mudelta_mesh: 1D array of float, monotonic order 
         :param psi_mesh: psi values for mesh points in phi_psi plane
-        :type psi_mesh: 1D array of float, monotonic order       
+        :type psi_mesh: 1D array of float, monotonic order  
+        :param value: Optional, A precalculated function value array for given
+                      mesh. If not given, Fmq function will be called to 
+                      calculate all the values on given mesh.
+        :type value: None or 2D array of complex.
         :param **P: additional keyword arguments passed into 
                     scipy.interpolate.RegularGridInteropolator.
                           
@@ -1009,8 +985,8 @@ class FmqFastEvaluator(object):
             
     """
 
-    def __init__(self, m, nq, mudelta_mesh=mudelta_mesh, psi_mesh=psi_mesh, 
-                 **P):
+    def __init__(self, m, nq, mudelta_mesh=_default_mudelta_mesh, 
+                 psi_mesh=_default_psi_mesh, value=None, **P):
         self.psi_1D = psi_mesh        
         
         self.mudelta_1D = mudelta_mesh
@@ -1019,8 +995,11 @@ class FmqFastEvaluator(object):
         mudelta_2D = np.zeros((len(mudelta_mesh), len(psi_mesh))) + \
                       mudelta_mesh[:, np.newaxis]
         psi_2D = np.zeros_like(mudelta_2D) + psi_mesh[np.newaxis, :]
-        self.value = Fmq(sqrt(psi_2D*psi_2D-mudelta_2D), psi_2D, self.m, 
+        if(value is None):
+            self.value = Fmq(sqrt(psi_2D*psi_2D-mudelta_2D), psi_2D, self.m, 
                          self.nq)
+        else:
+            self.value = value
         self.interpolator = RegularGridInterpolator((self.mudelta_1D, 
                                                         self.psi_1D), 
                                                         self.value, 
@@ -1080,7 +1059,7 @@ class FmqFastEvaluator(object):
         
         return self.interpolator(points)
         
-    def test(self, phi, psi, tolabs=1e-3, tolrel=1e-3, full_report=False):
+    def test(self, phi, psi, tolabs=1e-2, tolrel=1e-2, full_report=False):
         """evaluate Fmq on (phi_test, psi_test) points using both original 
         function and interpolator, report the maximum absolute error and 
         relative error. Print a warning if either error is greater than the
@@ -1124,6 +1103,82 @@ Max Relative Error: {}, at\n\
         if full_report:
             return (abs_err, rel_err)
             
+# Now, use saved values to setup most frequently used Fq and Fmq fast 
+# evaluators. 
+_data_file = 'data/pdf_data_file.npz'
+
+# private variables controling presaved data parameter
+# maximum power of lambda commonly used. 
+_max_power = 5
+
+# range of mudelta and psi mesh
+# This mesh is chosen based on a abserr and relerr < 0.01 for F_(5/2). Higher
+# order functions may have a slightly higher relative error. 
+_mudelta_range = (-150, 150)
+_mudelta_grid_num = 201
+_psi_range = (-100, 100)
+_psi_grid_num = 201
+
+# private function that generate the required data file
+def _generate_data_file(filename=_data_file, max_power=_max_power, 
+                        mudelta_range=_mudelta_range, 
+                        mudelta_grid_num=_mudelta_grid_num,
+                        psi_range=_psi_range, psi_grid_num=_psi_grid_num,
+                        test=False):
+    mod_dir, mod_name = os.path.split(__file__)
+    data_file = os.path.join(mod_dir, filename)
+    mudelta_mesh = cubicspace(mudelta_range[0], mudelta_range[1], 
+                              mudelta_grid_num)
+    psi_mesh = cubicspace(psi_range[0], psi_range[1], psi_grid_num)
+    mudelta, psi = np.meshgrid(mudelta_mesh, psi_mesh, indexing='ij')
+    phi = np.lib.scimath.sqrt(psi*psi - mudelta)
+    Fq_data = np.empty((max_power+1, mudelta_grid_num, psi_grid_num), 
+                       dtype='complex')
+    F1q_data = np.empty_like(Fq_data)
+    F2q_data = np.empty_like(Fq_data)
+    for i in range(max_power+1):
+        Fq_data[i] = Fq(phi, psi, 2*i+5)
+        F1q_data[i] = Fmq(phi, psi, 1, 2*i+7)
+        F2q_data[i] = Fmq(phi, psi, 2, 2*i+7)
+    if(not test):    
+        np.savez(data_file, mudelta_mesh=mudelta_mesh, psi_mesh=psi_mesh, 
+                 Fq_data=Fq_data, F1q_data=F1q_data, F2q_data=F2q_data)
+    else:
+        return mudelta_mesh, psi_mesh, Fq_data, F1q_data, F2q_data
+
+try:
+    _pdf_data_file = np.load(pkg_resources.resource_stream(__name__, 
+                                                  _data_file))
+    
+    # read in saved phi and psi mesh
+    _mudelta_mesh = _pdf_data_file['mudelta_mesh']
+    _psi_mesh = _pdf_data_file['psi_mesh']
+    
+    # read in saved Fq and Fmq function data.
+    _Fq_data = _pdf_data_file['Fq_data']
+    _F1q_data = _pdf_data_file['F1q_data']
+    _F2q_data = _pdf_data_file['F2q_data']
+    
+    
+    
+    Fq_list = {}
+    F1q_list = {}
+    F2q_list = {}
+    for i in range(_max_power+1):
+        Fq_list[2*i+5] = FqFastEvaluator(2*i+5, _mudelta_mesh, _psi_mesh, 
+                                         value=_Fq_data[i])
+        F1q_list[2*i+7] = FmqFastEvaluator(1,2*i+7, _mudelta_mesh, _psi_mesh, 
+                                           value=_F1q_data[i])
+        F2q_list[2*i+7] = FmqFastEvaluator(2,2*i+7, _mudelta_mesh, _psi_mesh, 
+                                           value=_F2q_data[i])
+except:
+    print('PDF Data file not found. The data file must be generated before \
+any pre-defined Fq/Fmq fast evaluators can be used.')
+                                       
+
+
+
+
             
 # We add the useful a_pn function here, since it's used in expressing weakly 
 # relativistic tensor elements. The definition of a_pn can be find in Ref[2]

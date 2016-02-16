@@ -22,7 +22,7 @@ tp.set_parameter2D(Te_0=10*cgs['keV'])
 start_plane = tp.Grid.Cartesian2D(DownLeft=(-10,-10), UpRight=(10,10), 
                                   NR=64, NZ=64)
 x_start = 250
-x_end = 230
+x_end = 150
 nx = 100
 
 Z1D, Y1D = start_plane.get_mesh()

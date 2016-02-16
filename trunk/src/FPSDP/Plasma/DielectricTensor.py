@@ -1370,7 +1370,7 @@ weakly-relativistic limit. Resonance allowed. Max_harmonic = {}'.format(\
             self.max_power = self.max_harmonic
             
         
-    def __call__(self, coordinates, omega, k_para, k_perp=None, 
+    def __call__(self, coordinates, omega, k_para, k_perp, 
                  eq_only=True, time = 0, tol=1e-14):
         r"""Calculates weakly-relativistic susceptibility tensor at each 
         coordinate given by coordinates.
@@ -1384,8 +1384,7 @@ weakly-relativistic limit. Resonance allowed. Max_harmonic = {}'.format(\
         :type omega: array of float with shape (Nf, )
         :param k_para: parallel wave vectors of the waves under study
         :type k_para: array of float with shape (Nk_para, )
-        :param k_perp: perpendicular wave vectors. NOT USED IN WARM FORMULA,
-                       default to be None.
+        :param k_perp: perpendicular wave vectors.
         :type k_perp: None or array of float with shape (Nk_perp, )
         
         

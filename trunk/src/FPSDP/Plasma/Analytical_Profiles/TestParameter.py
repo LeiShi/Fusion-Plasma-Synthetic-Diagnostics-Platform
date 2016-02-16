@@ -65,7 +65,8 @@ xgc_test3D = {'Xmin':0.9,'Xmax':1.6,'Ymin':-0.5, 'Ymax':0.5, 'Zmin':-0.1,
 # power.
 ShapeTable = {'exp': {'NeDecayScale': 3, 'TeDecayScale':5} , 
               'Hmode':{'PedWidthT': 0.02,'PedWidthN': 0.02 ,'PedHightT': 0.8, 
-                       'PedHightN': 0.7, 'ne_out': 1e-10, 'Te_out': 1e-10}}
+                       'PedHightN': 0.7, 'ne_out': 1e-10, 'Te_out': 1e-10}, 
+              'uniform':None}
 
 def show_parameter2D():
     """Print out the parameters at the moment
@@ -188,6 +189,12 @@ def create_profile1D(random_fluctuation=False, fluc_level=None):
                               a_array > a_core ], 
                              [a_array* (nped - ne_0)/a_core + ne_0 , nout,  
                               (a_array - a) * (nped-nout)/(a_core - a)+ nout])
+    elif (nshp == 'uniform'):
+        # uniform density profile
+        ne_array = np.ones_like(XGrid.X1D) * ne_0
+    else:
+        raise KeyError('"{}" is not a valid shape code. Available shapes \
+are {}'.format(nshp, ShapeTable.keys()))
     profile['ne']= ne_array
 
     # Te profile
@@ -207,6 +214,12 @@ def create_profile1D(random_fluctuation=False, fluc_level=None):
         Te_array = np.select([a_array<=a_core, a_array>=a, a_array>a_core],
                              [a_array*(tped-Te_0)/a_core + Te_0, tout,
                               (a_array-a)*(tped-tout)/(a_core-a)+ tout])
+    elif (tshp == 'uniform'):
+        # uniform temperature profile
+        Te_array = np.ones_like(XGrid.X1D) * Te_0
+    else:
+        raise KeyError('"{}" is not a valid shape code. Available shapes \
+are {}'.format(tshp, ShapeTable.keys()))
     profile['Te']= Te_array
 
     # B profile
@@ -272,6 +285,11 @@ def create_profile2D(random_fluctuation=False, fluc_level=None):
                               a_array > a_core ], 
                              [a_array* (nped - ne_0)/a_core + ne_0 , nout,  
                               (a_array - a) * (nped-nout)/(a_core - a)+ nout])
+    elif (nshp == 'uniform'):
+        ne_array = np.zeros_like(RZGrid.R2D) + ne_0                              
+    else:
+        raise KeyError('"{}" is not a valid shape code. Available shapes \
+are {}'.format(nshp, ShapeTable.keys()))
     profile['ne']= ne_array
 
     # Te profile
@@ -292,6 +310,11 @@ def create_profile2D(random_fluctuation=False, fluc_level=None):
         Te_array = np.select([a_array<=a_core, a_array>=a, a_array>a_core],
                              [a_array*(tped-Te_0)/a_core + Te_0, tout,
                               (a_array-a)*(tped-tout)/(a_core-a)+ tout])
+    elif (tshp == 'uniform'):
+        Te_array = np.zeros_like(RZGrid.R2D) + Te_0                              
+    else:
+        raise KeyError('"{}" is not a valid shape code. Available shapes \
+are {}'.format(tshp, ShapeTable.keys()))
     profile['Te']= Te_array
 
     # B profile
@@ -349,6 +372,8 @@ def simulate_2D(p1d, grid2D):
     else:
         return ECEI_Profile(grid2D, ne02d, Te02d, B02d)
 
+
+#TODO Build the new test plamsa model center.
 
 class PlasmaModelError(Exception):
     def __init__(self,value):

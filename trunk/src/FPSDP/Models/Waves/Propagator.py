@@ -9,11 +9,12 @@ Propagators for electromagnetic waves propagating in plasma
 
 from __future__ import print_function
 import sys
+from time import clock
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 import numpy as np
 from numpy.fft import fft, ifft, fftfreq
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumtrapz, quadrature
 
 from ...Plasma.DielectricTensor import HotDielectric, Dielectric, \
                                        ColdElectronColdIon, ResonanceError 
@@ -271,10 +272,28 @@ class ParaxialPerpendicularPropagator1D(Propagator):
         self.direction = direction
         self.tol = tol
         self.unit_system = unitsystem
-        print('Propagator 1D initialized.', file=sys.stderr)
+        
+        # Prepare the cold plasma 
+        x_fine = self.plasma.grid.X1D
+        eps0_fine = self.main_dielectric.epsilon([x_fine], omega, True)
+        S = np.real(eps0[0,0])
+        D = np.imag(eps0[1,0])
+        P = np.real(eps0[2,2])
+        self._S =
+
+        print('Propagator 1D initialized.', file=sys.stdout)
+        
+    def _k0(self, x):
+        """ evaluate main wave vector at specified x locations
+        
+        This function is mainly used to carry out the main phase integral with
+        increased accuracy.
+        """
+        if self.polarization == 'O':
+            n
         
         
-    def _generate_epsilon0(self):
+    def _generate_epsilon0(self, mute=True):
         r"""Generate main dielectric :math:`\epsilon_0` along the ray 
         
         The main ray is assumed along x direction.
@@ -292,13 +311,20 @@ class ParaxialPerpendicularPropagator1D(Propagator):
             
             self.eps0
         """
+        tstart = clock()
+        
         omega = self.omega
         x_coords = self.x_coords
         self.eps0 = self.main_dielectric.epsilon([x_coords], omega, True)
-        print('Epsilon0 generated.', file=sys.stderr)
+        
+        tend = clock()
+
+        if not mute:        
+            print('Epsilon0 generated. Time used: {:.3}s'.format(tend-tstart), 
+                  file=sys.stdout)
         
     
-    def _generate_k(self, mask_order=3):
+    def _generate_k(self, mask_order=3, mute=True):
         """Calculate k_0 along the reference ray path
         
         :param mask_order: the decay order where kz will be cut off. 
@@ -308,6 +334,8 @@ class ParaxialPerpendicularPropagator1D(Propagator):
                            mask_order. i.e. the masked out part have |E_k| less
                            than exp(-mask_order)*|E_k,max|.
         """
+        
+        tstart = clock()        
         
         omega = self.omega
         c=self.unit_system['c']
@@ -365,12 +393,16 @@ solver instead of paraxial solver.')
         self.central_kz = marg // self.ny
         self.margin_kz = np.argmin(mask)
         
-        print('k0, ky, kz generated.', file=sys.stderr)
+        tend = clock()
+        
+        if not mute:
+            print('k0, ky, kz generated. Time used: {:.3}s'.format\
+                  (tend-tstart), file=sys.stdout)
         
         
         
     
-    def _generate_delta_epsilon(self):
+    def _generate_delta_epsilon(self, mute=True):
         r"""Generate fluctuated dielectric :math:`\delta\epsilon` on full mesh 
         
         Fluctuated dielectric tensor may use any dielectric model.
@@ -391,6 +423,8 @@ solver instead of paraxial solver.')
             
             self.deps
         """
+        tstart = clock()
+        
         omega = self.omega
         x_coords = self.x_coords
         k_perp = self.k_0
@@ -399,17 +433,24 @@ solver instead of paraxial solver.')
         self.deps = np.empty((3,3,len(k_para),len(x_coords)),dtype='complex')
         for i,x in enumerate(x_coords):                              
             self.deps[... ,i] = self.fluc_dielectric.epsilon([x],omega, k_para, 
-                                                      k_perp[i], False, time)-\
-                            self.eps0[:,:,np.newaxis,i]
+                                                      k_perp[i], self.eq_only, 
+                                                      time)-\
+                                self.eps0[:,:,np.newaxis,i]
         # add one dimension for ky, between kz, and spatial coordinates.
         self.deps = self.deps[..., np.newaxis, :]
         
-        print('Delta_epsilon generated.', file=sys.stderr)
+        tend = clock()        
+        
+        if not mute:
+            print('Delta_epsilon generated.Time used: {:.3}s'.format(tend-\
+                   tstart), file=sys.stdout)
               
     
-    def _generate_eOX(self):
+    def _generate_eOX(self, mute=True):
         """Create unit polarization vectors along the ray
         """
+        tstart = clock()
+        
         if self.polarization == 'O':
             self.e_x = 0
             self.e_y = 0
@@ -426,15 +467,21 @@ solver instead of paraxial solver.')
             self.e_x = -exy * norm
             self.e_y = exx * norm
             self.e_z = 0
-            
-        print('Polarization eigen-vector generated.', file=sys.stderr)
+        
+        tend = clock()
+        if not mute:
+            print('Polarization eigen-vector generated. Time used: {:.3}s'.\
+                   format(tend-tstart), file=sys.stdout)
             
         
-    def _generate_F(self):
+    def _generate_F(self, mute=True):
         """integrate the phase term to get F.
         
         Note: F=k^(1/2) E
-        """        
+        """  
+
+        tstart = clock()        
+        
         ny=self.ny
         nz=self.nz
         
@@ -476,32 +523,60 @@ solver instead of paraxial solver.')
             C[non_vacuum] = (S2+D2)/S2 - (S2-D2)*D2/(S2*(S-P))
             ex = self.e_x
             ey = self.e_y
-            de_X = ex*dexx*ex + ex*dexy*ey + ey*deyx*ex + ey*deyy*ey
+            ex_conj = np.conj(ex)
+            ey_conj = np.conj(ey)
+            de_X = ex_conj*dexx*ex + ex_conj*dexy*ey + ey_conj*deyx*ex + \
+                   ey_conj*deyy*ey
             de_X = de_X * np.ones((nz,ny,1))
             # de_kX = np.fft.fft2(de_X, axes=(0,1))
             F_k0 =self.E_k_start * np.sqrt(np.abs(self.k_0[0]))
-            self.delta_phase = cumtrapz(((S2+D2)/S2* omega2/c2 *de_X -\
-                            ky*ky-C*kz*kz)/(2*self.k_0), 
+
+            if(self._debug):
+                self.pe = (S2+D2)/S2* omega2/c2 *de_X /\
+                                         (2*self.k_0)
+                self.dphi_eps = cumtrapz(self.pe, 
+                                         x=self.x_coords, initial=0)
+                self.dphi_ky = cumtrapz(-ky*ky/(2*self.k_0), 
                                         x=self.x_coords, initial=0)
+                self.dphi_kz = cumtrapz(-C*kz*kz/(2*self.k_0), 
+                                        x=self.x_coords, initial=0)
+                self.delta_phase = self.dphi_eps + self.dphi_ky + self.dphi_kz
+            
+            else:
+                self.delta_phase = cumtrapz(((S2+D2)/S2* omega2/c2 *de_X -\
+                                            ky*ky-C*kz*kz)/(2*self.k_0), 
+                                            x=self.x_coords, initial=0)
             self.E_k0 = np.exp(1j*self.delta_phase)*F_k0[..., np.newaxis] / \
                        np.sqrt(np.abs(self.k_0))
                        
-        print('F function calculated.', file=sys.stderr)
+        tend = clock()
+        
+        if not mute:               
+            print('F function calculated. Time used: {:.3}s'.format\
+                  (tend-tstart), file=sys.stdout)
                      
-    def _generate_E(self):
+    def _generate_E(self, mute=True):
         """Calculate the total E including the main phase advance
         """
-        self.main_phase = cumtrapz(self.k_0, x=self.x_coords, initial=0)
-        self.E_k = self.E_k0 * np.exp(1j*self.main_phase)
+
+        tstart = clock()        
+        
+        #self.main_phase = cumtrapz(self.k_0, x=self.x_coords, initial=0)
+        #self.E_k = self.E_k0 * np.exp(1j*self.main_phase)
+        self.E_k = self.E_k0        
         self.E = np.fft.ifft2(self.E_k, axes=(0,1))
         
-        print('E field calculated.', file=sys.stderr)
+        tend = clock()
+        
+        if not mute:
+            print('E field calculated. Time used: {:.3}s'.format(tend-tstart),
+                  file=sys.stdout)
             
        
-    def propagate(self, time, omega, x_start, x_end, nx, E_start, y_E, 
-                  z_E, x_coords=None, regular_E_mesh=True):
-        r"""propagate(self, time, omega, x_start, x_end, nx, E_start, y_E, 
-                  z_E, x_coords=None)
+    def propagate(self, omega, x_start, x_end, nx, E_start, y_E, 
+                  z_E, x_coords=None, time=None, mute=True, debug_mode=False):
+        r"""propagate(self, omega, x_start, x_end, nx, E_start, y_E, 
+                  z_E, x_coords=None, regular_E_mesh=True, time=None)
         
         Propagate electric field from x_start to x_end
         
@@ -512,7 +587,6 @@ solver instead of paraxial solver.')
         See :py:class:`ParaxialPerpendicularPropagator1D` for detailed 
         description of the method and assumptions.
         
-        :param int time: chosen time step of perturbation in plasma.
         :param float omega: angular frequency of the wave, omega must be 
                             positive.
         :param E_start: complex amplitude of the electric field at x_start,
@@ -527,13 +601,28 @@ solver instead of paraxial solver.')
         :param x_coords: *Optional*, x coordinates to use for propagation, if
                          given, *x_start*, *x_end*, and *nx* are ignored.
         :type x_coords: 1d array of float. Must be monotonic.
-                                    
+        :param int time: chosen time step of perturbation in plasma. If None, 
+                         only equilibrium plasma is used. 
+        :param bool mute: if True, no intermediate outputs for progress.
+        :param bool debug_mode: if True, additional detailed information will 
+                                be saved for later inspection.                           
         
         """ 
+
+        tstart = clock()        
+        
         assert omega > 0
         assert E_start.shape[1] == y_E.shape[0]
         assert E_start.shape[0] == z_E.shape[0]
-        self.time = time        
+        
+        if time is None:
+            self.eq_only = True
+            self.time=None
+        else:
+            self.eq_only = False
+            self.time = time
+        self._debug = debug_mode
+        
         self.omega = omega
         
         self.E_start = E_start            
@@ -545,16 +634,19 @@ solver instead of paraxial solver.')
         else:
             self.x_coords = x_coords        
         
-        self._generate_epsilon0()
-        self._generate_k()
-        self._generate_delta_epsilon()
-        self._generate_eOX()
-        self._generate_k()
-        self._generate_F()
-        self._generate_E()
+        self._generate_epsilon0(mute=mute)
+        self._generate_k(mute=mute)
+        self._generate_delta_epsilon(mute=mute)
+        self._generate_eOX(mute=mute)
+        self._generate_F(mute=mute)
+        self._generate_E(mute=mute)
         
-        print('1D Propogation Finish! Check the returned E field. More \
-infomation is available in Propagator object.', file=sys.stderr)
+        tend = clock()
+        
+        if not mute:
+            print('1D Propogation Finish! Check the returned E field. More \
+infomation is available in Propagator object.\nTotal Time used: {:.3}s\n'.\
+                  format(tend-tstart), file=sys.stdout)
         
         return self.E
         
@@ -876,10 +968,10 @@ class ParaxialPerpendicularPropagator2D(Propagator):
         self.tol = tol
         self.unit_system = unitsystem
         
-        print('Propagator 2D initialized.', file=sys.stderr)
+        print('Propagator 2D initialized.', file=sys.stdout)
         
         
-    def _generate_epsilon(self):
+    def _generate_epsilon(self, mute=True):
         r"""Generate main dielectric :math:`\epsilon_0` along the ray 
         
         The main ray is assumed along x direction.
@@ -897,6 +989,9 @@ class ParaxialPerpendicularPropagator2D(Propagator):
             
             self.eps0
         """
+
+        tstart = clock()        
+        
         omega = self.omega
         # x_coords needs to be enlarged twice since we need to split each step
         # into two steps to evolve the two operators
@@ -909,10 +1004,14 @@ class ParaxialPerpendicularPropagator2D(Propagator):
                          ([np.ones_like(self.calc_x_coords)*self.ray_y,
                            self.calc_x_coords], omega, True)
                            
-        print('Epsilon0 generated.', file=sys.stderr)
+        tend = clock()
+        
+        if not mute:                   
+            print('Epsilon0 generated. Time used: {:.3}'.format(tend-tstart), 
+                  file=sys.stdout)
  
                                 
-    def _generate_k(self, mask_order=3):
+    def _generate_k(self, mute=True, mask_order=3):
         """Calculate k_0 along the reference ray path
         
         Need Attributes:
@@ -953,6 +1052,8 @@ class ParaxialPerpendicularPropagator2D(Propagator):
             
             self.E_k_start
         """
+        
+        tstart = clock()        
         
         omega = self.omega
         c=self.unit_system['c']
@@ -1011,10 +1112,14 @@ solver instead of paraxial solver.')
         self.central_kz = marg // self.ny
         self.margin_kz = np.argmin(mask)
         
-        print('k0, kz generated.', file=sys.stderr)
+        tend = clock()
+        
+        if not mute:
+            print('k0, kz generated. Time used: {:.3}'.format(tend-tstart), 
+                  file=sys.stdout)
         
                                  
-    def _generate_delta_epsilon(self):
+    def _generate_delta_epsilon(self, mute=True):
         r"""Generate fluctuated dielectric :math:`\delta\epsilon` on full mesh 
         
         Fluctuated dielectric tensor may use any dielectric model.
@@ -1039,6 +1144,9 @@ solver instead of paraxial solver.')
             
             self.deps
         """
+
+        tstart = clock()        
+        
         omega = self.omega  
         time = self.time
         k_perp = self.k_0        
@@ -1049,13 +1157,18 @@ solver instead of paraxial solver.')
         for i,x in enumerate(self.calc_x_coords):        
             x1d = np.zeros_like(y1d) + x 
             self.deps[..., i] = self.fluc_dielectric.epsilon([y1d, x1d], omega, 
-                                               k_para, k_perp[i], False,time)-\
+                                               k_para, k_perp[i], self.eq_only,
+                                                             time)-\
                                 self.eps0[:,:,np.newaxis,np.newaxis,i]
-                                
-        print('Delta epsilon generated.', file=sys.stderr)
+        
+        tend = clock()        
+        
+        if not mute:                        
+            print('Delta epsilon generated. Time used: {:.3}'.\
+                   format(tend-tstart), file=sys.stdout)
                                                           
     
-    def _generate_eOX(self):
+    def _generate_eOX(self, mute=True):
         """Create unit polarization vectors along the ray
         
         Need Attributes::
@@ -1072,6 +1185,9 @@ solver instead of paraxial solver.')
             
             self.e_z
         """
+
+        tstart = clock()        
+        
         if self.polarization == 'O':
             self.e_x = 0
             self.e_y = 0
@@ -1088,13 +1204,17 @@ solver instead of paraxial solver.')
             self.e_x = -exy * norm
             self.e_y = exx * norm
             self.e_z = 0
-            
-        print('Polarization eigen-vector generated.', file=sys.stderr)
+        
+        tend = clock()        
+        
+        if not mute:
+            print('Polarization eigen-vector generated. Time used: {:.3}'.\
+                  format(tend-tstart), file=sys.stdout)
        
     
             
     
-    def _generate_C(self):
+    def _generate_C(self, mute=True):
         """prepare C operator for refraction propagation
         
         C = omega^2 / c^2 * deps[2,2] for O mode
@@ -1122,6 +1242,9 @@ solver instead of paraxial solver.')
             self.C
             
         """
+
+        tstart = clock()        
+        
         omega = self.omega
         c = self.unit_system['c']        
         self.C = np.empty((self.ny, self.nx), dtype='complex')
@@ -1136,11 +1259,15 @@ solver instead of paraxial solver.')
             D2 = D*D
             self.C = omega*omega/(c*c) * ( D2*self.deps[0,0] + \
             1j*D*S*(self.deps[1,0]-self.deps[0,1]) + S2*self.deps[1,1] ) / S2
-            
-        print('Operator C generated.', file=sys.stderr)
+        
+        tend = clock()        
+        
+        if not mute:
+            print('Operator C generated. Time used: {:.3}'.format(tend-tstart),
+                  file=sys.stdout)
     
     
-    def _generate_F(self):
+    def _generate_F(self, mute=True):
         """Prepare F0(x0,y,kz).
         
         Note: F=k^(1/2) E
@@ -1163,6 +1290,7 @@ solver instead of paraxial solver.')
             self.Fk
         """
         
+        tstart = clock()
 
         # F = sqrt(k)*E
         self.F_k_start = np.sqrt(np.abs(self.k_0[0]))*self.E_k_start
@@ -1171,6 +1299,16 @@ solver instead of paraxial solver.')
         
         # Now we integrate over x using our scheme, taking care of B,C operator
         self._generate_C()
+        
+        if self._debug:
+            # in debug mode, we want to store the phase advances due to 
+            # diffraction and refractions.
+            self.dphi_eps = np.empty_like(self.C[..., ::2])
+            self.dphi_ky = np.empty_like(self.C[..., ::2])
+            self.dphi_eps[0] = 0
+            self.dphi_ky[0] = 0
+            self._counter = 1
+        
         i=0
         while(i < self.nx_calc-1):
             F = self.Fk[:,:,i]
@@ -1184,8 +1322,11 @@ solver instead of paraxial solver.')
             i = i + 1
             F = self.Fk[:,:,i]
             self.Fk[:,:,i] = self._refraction(F, i, forward=False)
-            
-        print('F field calculated.', file=sys.stderr)
+        
+        tend = clock()
+        if not mute:
+            print('F field calculated. Time used: {:.3}'.format(tend-tstart),
+                  file=sys.stdout)
             
             
 
@@ -1222,6 +1363,15 @@ solver instead of paraxial solver.')
         C = self.C[...,i]
         phase = dx* C/(2*self.k_0[i])
         
+        if self._debug:
+            if forward:
+                self._temp_dphi_eps = phase
+            else:
+                self.dphi_eps[..., self._counter] = \
+                                         self.dphi_eps[..., self._counter-1]+\
+                                         self._temp_dphi_eps + phase
+                self._counter += 1
+        
         return np.exp(1j*phase)*F
         
     def _diffraction_y(self, F, i):
@@ -1253,10 +1403,14 @@ solver instead of paraxial solver.')
         ky = self.ky[0,:,0]
         B = -ky*ky
         phase = B*dx/(2*self.k_0[i])
+        if self._debug:
+            self.dphi_ky[..., self._counter] = \
+                                   self.dphi_ky[..., self._counter-1] + phase
+            
         Fk = np.exp(1j * phase) * fft(F)
         return ifft(Fk)
         
-    def _generate_phase_kz(self):
+    def _generate_phase_kz(self, mute=True):
         """ Propagate the phase due to kz^2
         
         a direct integration can be used
@@ -1277,6 +1431,9 @@ solver instead of paraxial solver.')
         
             self.phase_kz
         """
+
+        tstart = clock()        
+        
         if self.polarization == 'O':
             P = np.real(self.eps0[2,2])
             self.phase_kz = cumtrapz(-P*self.kz*self.kz/(2*self.k_0), 
@@ -1297,12 +1454,15 @@ solver instead of paraxial solver.')
             
             self.phase_kz = cumtrapz(- C*self.kz*self.kz / (2*self.k_0), 
                                            x=self.calc_x_coords, initial=0)
-                                           
-        print('Phase related to kz generated.', file=sys.stderr)
+        
+        tend = clock()        
+        if not mute:                                   
+            print('Phase related to kz generated. Time used: {:.3}'.\
+                  format(tend-tstart), file=sys.stdout)
                                            
         
                      
-    def _generate_E(self):
+    def _generate_E(self, mute=True):
         """Calculate the total E including the main phase advance
         
         Need Attributes:
@@ -1325,18 +1485,24 @@ solver instead of paraxial solver.')
             
             self.E
         """
+        tstart = clock()        
+        
         self._generate_phase_kz()
-        self.main_phase = cumtrapz(self.k_0, x=self.calc_x_coords, initial=0)
-        self.Fk = self.Fk * np.exp(1j * self.main_phase)
+        #self.main_phase = cumtrapz(self.k_0, x=self.calc_x_coords, initial=0)
+        #self.Fk = self.Fk * np.exp(1j * self.main_phase)
         self.Fk = self.Fk * np.exp(1j * self.phase_kz)
         self.F = np.fft.ifft(self.Fk, axis=0)
         self.E = self.F / np.sqrt(np.abs(self.k_0))
         
-        print('E field calculated.', file=sys.stderr)
+        tend = clock()
+        if not mute:
+            print('E field calculated. Time used: {:.3}'.format(tend-tstart), 
+                  file=sys.stdout)
             
        
-    def propagate(self, time, omega, x_start, x_end, nx, E_start, y_E, 
-                  z_E, x_coords=None, regular_E_mesh=True):
+    def propagate(self, omega, x_start, x_end, nx, E_start, y_E, 
+                  z_E, x_coords=None, regular_E_mesh=True, time=None, 
+                  mute=True, debug_mode=False):
         r"""propagate(self, time, omega, x_start, x_end, nx, E_start, y_E, 
                   z_E, x_coords=None)
         
@@ -1367,10 +1533,21 @@ solver instead of paraxial solver.')
                                     
         
         """ 
+        
+        tstart = clock()
+        
         assert omega > 0
         assert E_start.shape[1] == y_E.shape[0]
         assert E_start.shape[0] == z_E.shape[0]
-        self.time = time        
+        
+        if time is None:
+            self.eq_only = True
+            self.time = None
+        else:
+            self.eq_only = False            
+            self.time = time  
+        self._debug = debug_mode            
+            
         self.omega = omega
         
         self.E_start = E_start            
@@ -1385,15 +1562,19 @@ solver instead of paraxial solver.')
             self.x_coords = x_coords
         self.nx = len(self.x_coords)
         
-        self._generate_epsilon()
-        self._generate_k()
-        self._generate_delta_epsilon()
-        self._generate_eOX()        
-        self._generate_F()
-        self._generate_E()
+        self._generate_epsilon(mute=mute)
+        self._generate_k(mute=mute)
+        self._generate_delta_epsilon(mute=mute)
+        self._generate_eOX(mute=mute)        
+        self._generate_F(mute=mute)
+        self._generate_E(mute=mute)
         
-        print('2D Propagation Finish! Check the returned E field. More \
-infomation is available in Propagator object.', file=sys.stderr)
+        tend = clock()
+        
+        if not mute:
+            print('2D Propagation Finish! Check the returned E field. More \
+infomation is available in Propagator object. Total time used: {:.3}'.\
+                   format(tend-tstart), file=sys.stdout)
         
         return self.E[...,::2]
     

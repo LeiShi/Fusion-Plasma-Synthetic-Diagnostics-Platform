@@ -21,8 +21,8 @@ Parameter2D['R_0']=200
 Parameter2D['a']=50
 Parameter2D['DownLeft']=(-60,150)
 Parameter2D['UpRight']=(60,300)
-Parameter2D['NR']=201
-Parameter2D['NZ']=201
+Parameter2D['NR']=301
+Parameter2D['NZ']=193
 Parameter2D['ne_0']=2e13
 Parameter2D['Te_0']=1*cgs['keV']
 Parameter2D['B_0']=20000
@@ -38,7 +38,7 @@ Parameter1D['R_0']=200
 Parameter1D['a']=50
 Parameter1D['Xmin']=150
 Parameter1D['Xmax']=300
-Parameter1D['NX']=201
+Parameter1D['NX']=301
 Parameter1D['ne_0']=2e13
 Parameter1D['Te_0']=1*cgs['keV']
 Parameter1D['B_0']=20000
@@ -342,7 +342,7 @@ are {}'.format(tshp, ShapeTable.keys()))
                         profile['B'])
 
 
-def simulate_2D(p1d, grid2D):
+def simulate_1D(p1d, grid2D):
     """Generate a 2D plasma profile on given grid. The plasma is based on given
     1D profile, it is simply uniform along Y direction.
     """

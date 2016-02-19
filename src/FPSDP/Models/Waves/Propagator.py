@@ -341,7 +341,8 @@ Propagators can not handle this situation properly. Please try to avoid this.')
             for i, xi in enumerate(self.x_coords[:-1]):
                 xi_n = self.x_coords[i+1]
                 self.main_phase[i+1], self._main_phase_err[i+1] = \
-                                                quadrature(self._k0, xi, xi_n)
+                     quadrature(self._k0, xi, xi_n, 
+                                tol=1e-2/len(self.x_coords))
                 self.main_phase[i+1] += self.main_phase[i]
                 self._main_phase_err[i+1] += self._main_phase_err[i]
         except AttributeError as e:
@@ -1111,7 +1112,8 @@ Propagators can not handle this situation properly. Please try to avoid this.')
             for i, xi in enumerate(self.calc_x_coords[:-1]):
                 xi_n = self.calc_x_coords[i+1]
                 self.main_phase[i+1], self._main_phase_err[i+1] = \
-                                                quadrature(self._k0, xi, xi_n)
+                                quadrature(self._k0, xi, xi_n,
+                                           tol=1e-2/len(self.calc_x_coords))
                 self.main_phase[i+1] += self.main_phase[i]
                 self._main_phase_err[i+1] += self._main_phase_err[i]
         except AttributeError as e:
